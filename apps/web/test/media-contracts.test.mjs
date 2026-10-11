@@ -48,7 +48,8 @@ test("private storage, owned media, version-pinned reveal and admin review are s
   const quiz = load("src/modules/platform/quiz.ts");
   assert.match(storage,/R2_ENDPOINT/);
   assert.match(storage,/getSignedUrl/);
-  assert.match(storage,/ChecksumSHA256/);
+  assert.match(media,/checksum_mismatch/);
+  assert.match(media,/await putObject\(item.storageKey, bytes, item.mimeType\)/);
   assert.match(storage,/blockedIp/);
   assert.match(storage,/MEDIA_IMPORT_HOSTS/);
   assert.match(storage,/readChunks/);

@@ -30,7 +30,7 @@ Media is a **first-class asset** referenced by ID from both the quiz prompt and 
 
 ## How ChatGPT can create a multimedia quiz
 
-1. Use `clupio_media_upload` with `kind`, `mimeType`, `filename`, `sizeBytes` and a **hex SHA-256 of original file bytes**. Returns asset ID and 5-minute signed R2 PUT URL (the reservation remains active for 30 minutes for slower MCP chunk transfers), required Content-Type / checksum headers.
+1. Use `clupio_media_upload` with `kind`, `mimeType`, `filename`, `sizeBytes` and a **hex SHA-256 of original file bytes**. Returns asset ID and 5-minute signed R2 PUT URL (the reservation remains active for 30 minutes for slower MCP chunk transfers), required Content-Type header.
 2. If the MCP client can send binary HTTP PUT, upload bytes **directly** to the returned URL, preserving all returned headers. The bucket requires configured CORS for direct browser uploads.
 3. If the MCP client cannot PUT binary, send consecutive **0-based** 512 KiB-or-smaller chunks via `clupio_media_chunk`: base64-encode the bytes, compute each chunk's SHA-256, call with ID, index, base64 and digest. Each call must use valid, canonical standard base64 (not base64url). At most 128 parts for 64 MiB total. The MCP host must actually grant its agent access to the bytes; a chat attachment or AI-generated image is not automatically exposed to any MCP tool.
 4. Call `clupio_media_complete` with `id` and `partCount` only for chunked uploads (no partCount for presigned PUT). Server reads R2, verifies original exact size, SHA-256 and actual MIME signature, then finalizes at a **different non-uploadable key**. Changing a staging object later cannot modify the finalized asset.
@@ -54,7 +54,7 @@ Image transformations support crops, Gaussian blur and resize (result WebP), wit
    MEDIA_IMPORT_HOSTS=
    ```
    Use literal `MEDIA_IMPORT_HOSTS=example-media-cdn.com,another-approved-cdn.com` only for carefully trusted HTTPS hosts; leave empty initially. No wildcard.
-3. Configure R2 **bucket CORS** for your exact web origin(s), methods PUT and GET as needed; allow request headers `content-type` and `x-amz-checksum-sha256`. Restrict allowed origin to dev and prod site URLs (separately). CORS applies to browser PUT, not server-to-server MCP uploads.
+3. Configure R2 **bucket CORS** for your exact web origin(s), methods PUT and GET as needed; allow request header `content-type`. The R2 presign does not require S3 SHA-256 checksum headers; Clupio independently verifies the complete SHA-256 before final storage. Restrict allowed origin to dev and prod site URLs (separately). CORS applies to browser PUT, not server-to-server MCP uploads.
 4. Add an R2 lifecycle expiration rule for keys starting with `uploads/` after **1 day**, cleaning expired staging uploads and chunk objects. Finalized assets use `assets/` and must not be expired by this rule. Set separate storage retention and deletion retry monitoring.
 5. Apply the new Prisma migration `20261011110000_media_assets` after review, then regenerate the Prisma client. Run the root CI checks, direct R2 signed PUT, chunk upload, corrupt file / wrong MIME, presigned URL reuse, rejected content, owner isolation and signed playback E2E against the dev bucket **before** exposing real uploads.
 

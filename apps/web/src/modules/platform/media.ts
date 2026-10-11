@@ -4,7 +4,7 @@ import { db } from "./db";
 import { fail, requireActor, type Actor } from "./auth";
 import {
   LIMITS, MIME_KIND, CHUNK_SIZE, partKey, readChunks, uploadTicket, previewUrl, putObject,
-  copyVerified, deleteObject, readObject, checkSize, sniff, importExternal,
+  deleteObject, readObject, checkSize, sniff, importExternal,
 } from "./storage";
 
 function safeMetadata(p: Record<string, any>) {
@@ -78,9 +78,9 @@ export async function mediaComplete(p: Record<string, any>, actor: Actor | null)
   const hash = createHash("sha256").update(bytes).digest("hex");
   if (hash !== item.sha256) fail(422, "checksum_mismatch", "Uploaded checksum is different from reservation");
   await sniff(bytes, item.kind, item.mimeType);
-  // Copy the verified snapshot to an immutable key: the PUT ticket cannot overwrite it.
-  if (p.partCount) await putObject(item.storageKey, bytes, item.mimeType);
-  else await copyVerified(item.uploadKey, item.storageKey, item.mimeType);
+  // Write exact validated buffer to a new private key. Do not use remote COPY:
+  // a presigned staging PUT remains reusable until expiry and could be raced.
+  await putObject(item.storageKey, bytes, item.mimeType);
   const updated = await db().mediaAsset.updateMany({
     where: { id: item.id, ownerId: item.ownerId, status: "UPLOADING" },
     data: { status: "READY", uploadKey: null, uploadExpiresAt: null },

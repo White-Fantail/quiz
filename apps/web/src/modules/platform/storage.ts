@@ -1,10 +1,8 @@
-import { createHash } from "node:crypto";
 import { lookup } from "node:dns/promises";
 import { request as httpsRequest } from "node:https";
 import { isIP } from "node:net";
 import {
-  S3Client, PutObjectCommand, GetObjectCommand, CopyObjectCommand,
-  DeleteObjectCommand,
+  S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { fileTypeFromBuffer } from "file-type";
@@ -43,11 +41,12 @@ export function client() {
   return cachedClient;
 }
 export async function uploadTicket(key: string, mimeType: string, digestHex: string) {
-  const digest = Buffer.from(digestHex, "hex").toString("base64");
+  // R2 S3 checksum feature support differs from AWS S3. The hash is verified
+  // against complete bytes BEFORE any trusted finalized object is stored.
   const url = await getSignedUrl(client(), new PutObjectCommand({
-    Bucket: bucket(), Key: key, ContentType: mimeType, ChecksumSHA256: digest,
+    Bucket: bucket(), Key: key, ContentType: mimeType,
   }), { expiresIn: 300 });
-  return { url, method: "PUT", headers: { "Content-Type": mimeType, "x-amz-checksum-sha256": digest }, expiresInSeconds: 300 };
+  return { url, method: "PUT", headers: { "Content-Type": mimeType }, expiresInSeconds: 300 };
 }
 export async function previewUrl(key: string, mime: string, filename?: string) {
   return getSignedUrl(client(), new GetObjectCommand({
@@ -58,14 +57,6 @@ export async function previewUrl(key: string, mime: string, filename?: string) {
 export async function putObject(key: string, bytes: Buffer, mimeType: string) {
   await client().send(new PutObjectCommand({
     Bucket: bucket(), Key: key, Body: bytes, ContentType: mimeType,
-    ChecksumSHA256: createHash("sha256").update(bytes).digest("base64"),
-  }));
-}
-export async function copyVerified(from: string, to: string, mimeType: string) {
-  await client().send(new CopyObjectCommand({
-    Bucket: bucket(), Key: to,
-    CopySource: encodeURIComponent(bucket()) + "/" + from.split("/").map(encodeURIComponent).join("/"),
-    ContentType: mimeType, MetadataDirective: "REPLACE",
   }));
 }
 export async function deleteObject(key: string) {
@@ -121,7 +112,8 @@ export function sniff(bytes: Buffer, declaredKind: string, declaredMime?: string
 }
 async function sniffAsync(bytes: Buffer, declaredKind: string, declaredMime?: string): Promise<string> {
   const detected = await fileTypeFromBuffer(bytes);
-  const mime = detected?.mime;
+  const mime = detected?.mime === "audio/x-wav" || detected?.mime === "audio/vnd.wave"
+    ? "audio/wav" : detected?.mime;
   // Audio OGG is distinguishable from video OGG only with deeper container inspection.
   // Limit support to audio-only ogg and reject uncertain media until transcoded.
   if (!mime || MIME_KIND[mime] !== declaredKind)
