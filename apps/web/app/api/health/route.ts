@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
 
 export function GET() {
-  return NextResponse.json({ status: "ok", service: "clupio-web", phase: "scaffold" });
+  return NextResponse.json({ status: "ok", service: "quizdip-web", phase: "scaffold" });
 }
