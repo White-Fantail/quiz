@@ -33,7 +33,8 @@ test("native guardian access requires a PIN and binds to original child's device
 });
 test("server applies time budgets to discovery, games and private treasures",()=>{
  const time=file("src/modules/kids/time.ts");
- assert.match(time,/DateTimeFormat/);
+ assert.match(time,/localChildDay/);
+ assert.match(file("../../packages/domain/src/kids-time.ts"),/DateTimeFormat/);
  assert.match(time,/kidUsageMinute\.count/);
  assert.match(time,/utcMinute:minute/);
  assert.match(time,/isolationLevel:"Serializable"/);
