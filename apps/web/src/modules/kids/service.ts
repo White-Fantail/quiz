@@ -4,7 +4,8 @@ import { checkPin, hashPin, newDeviceToken, tokenHash, readCookie, MAX_DEVICE_AG
 import type { Locale } from "../../i18n/core";
 
 export type KidAgeBand = "EARLY" | "MIDDLE" | "OLDER";
-export type KidProfileInput = { nickname:string; ageBand: KidAgeBand; locale: Locale; sessionMinutes:number };
+export type KidProfileInput = { nickname:string; ageBand: KidAgeBand; locale: Locale; sessionMinutes:number;
+ dailyMinutes?:number;playSessionMinutes?:number;breakEveryMinutes?:number;timeZone?:string };
 export function kidTokenFromHeaders(headers: Headers): string | null { return readCookie(headers.get("cookie")); }
 
 export async function findKidDevice(token: string | null) {
@@ -55,7 +56,7 @@ export async function guardianOverview(guardianId:string) {
   const [pin,profiles,devices] = await Promise.all([
     db().kidGuardianPin.findUnique({where:{guardianId},select:{guardianId:true}}),
     db().kidProfile.findMany({where:{guardianId},orderBy:{createdAt:"asc"},select:{
-      id:true,nickname:true,ageBand:true,locale:true,sessionMinutes:true,createdAt:true
+      id:true,nickname:true,ageBand:true,locale:true,sessionMinutes:true,dailyMinutes:true,playSessionMinutes:true,breakEveryMinutes:true,timeZone:true,createdAt:true
     }}),
     db().kidDeviceSession.findMany({where:{guardianId,revokedAt:null,expiresAt:{gt:new Date()}},orderBy:{createdAt:"desc"},select:{
       id:true,profileId:true,deviceName:true,createdAt:true,expiresAt:true
@@ -67,19 +68,32 @@ export async function addKidProfile(guardianId:string,input:KidProfileInput) {
   if (await db().kidProfile.count({where:{guardianId}}) >= 8)
     fail(409,"kid_profile_limit","At most eight child profiles are supported");
   return db().kidProfile.create({data:{
-    guardianId,nickname:input.nickname,ageBand:input.ageBand,locale:input.locale,sessionMinutes:input.sessionMinutes
+    guardianId,nickname:input.nickname,ageBand:input.ageBand,locale:input.locale,sessionMinutes:input.sessionMinutes,
+    ...(input.dailyMinutes!==undefined?{dailyMinutes:input.dailyMinutes}:{}),
+    ...(input.playSessionMinutes!==undefined?{playSessionMinutes:input.playSessionMinutes}:{}),
+    ...(input.breakEveryMinutes!==undefined?{breakEveryMinutes:input.breakEveryMinutes}:{}),
+    ...(input.timeZone?{timeZone:input.timeZone}:{})
   },select:{
     id:true,nickname:true,ageBand:true,locale:true,sessionMinutes:true
   }});
 }
 export async function updateKidProfile(guardianId:string,id:string,input:KidProfileInput) {
+  const original=await db().kidProfile.findFirst({where:{id,guardianId}});
+  if(!original)fail(404,"kid_profile_missing","Child profile not found");
   const updated=await db().kidProfile.updateMany({where:{id,guardianId},data:{
-    nickname:input.nickname,ageBand:input.ageBand,locale:input.locale,sessionMinutes:input.sessionMinutes
+    nickname:input.nickname,ageBand:input.ageBand,locale:input.locale,sessionMinutes:input.sessionMinutes,
+    ...(input.dailyMinutes!==undefined?{dailyMinutes:input.dailyMinutes}:{}),
+    ...(input.playSessionMinutes!==undefined?{playSessionMinutes:input.playSessionMinutes}:{}),
+    ...(input.breakEveryMinutes!==undefined?{breakEveryMinutes:input.breakEveryMinutes}:{}),
+    ...(input.timeZone?{timeZone:input.timeZone}:{})
   }});
-  if (!updated.count) fail(404,"kid_profile_missing","Child profile not found");
-  // A changed language, age level or time allowance needs an explicit guardian re-activation.
-  await db().kidDeviceSession.updateMany({where:{guardianId,profileId:id,revokedAt:null},data:{revokedAt:new Date()}});
-  return {updated:true,devicesRevoked:true};
+  if(!updated.count)fail(404,"kid_profile_missing","Child profile not found");
+  // Only content language or age changes invalidate pairing; time budgets are live
+  // from the server and do not silently extend the device's native credential expiry.
+  const devicesRevoked=original.locale!==input.locale || original.ageBand!==input.ageBand;
+  if(devicesRevoked)await db().kidDeviceSession.updateMany({
+    where:{guardianId,profileId:id,revokedAt:null},data:{revokedAt:new Date()}});
+  return {updated:true,devicesRevoked};
 }
 export async function deleteKidProfile(guardianId:string,id:string) {
   // Remove private play history as well as the profile; cascading only the
