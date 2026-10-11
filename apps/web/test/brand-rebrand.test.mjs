@@ -10,7 +10,7 @@ test("QuizDip is the customer-facing brand across the web app and auth", () => {
     "app/(platform)/page.tsx",
     "app/(platform)/play/page.tsx",
     "app/(platform)/discover/page.tsx",
-    "app/(platform)/kids/page.tsx",
+    "app/account/kids/page.tsx",
     "app/(creator)/studio/page.tsx",
     "app/sign-in/page.tsx",
     "app/account/page.tsx",
