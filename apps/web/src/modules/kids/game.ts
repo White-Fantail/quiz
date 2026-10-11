@@ -2,7 +2,10 @@ import { createHash } from "node:crypto";
 import { db } from "../platform/db";
 import { execute } from "../platform/operations";
 import { fail } from "../platform/auth";
-import { getPlaySession } from "../platform/play";
+import { getPlaySession,playClue,playGuess } from "../platform/play";
+import { runCurrent } from "../platform/runs";
+import { signedPlayMedia } from "../platform/media";
+import type { Actor } from "../platform/auth";
 import { playableQuizWhere } from "../platform/content-locale";
 import type { nativeKidFromHeaders } from "./service";
 
@@ -11,6 +14,11 @@ type Mode = "RANDOM_FIVE"|"WEEKLY";
 const approvedOrigins=["ORIGINAL","LEGACY"];
 
 function owner(kid:Kid){return {profileId:kid.profileId,deviceId:kid.id};}
+/** Constructed solely after nativeKidFromHeaders verified the device bearer. */
+function childActor(kid:Kid):Actor {
+  return {id:"native-child",role:"KID",displayName:"",leaderboardEligible:false,
+    leaderboardOptIn:false,childScope:owner(kid)};
+}
 async function ownedRun(kid:Kid,runId:string) {
   const binding=await db().kidPlayRun.findUnique({where:{runId}});
   if(!binding || binding.profileId!==kid.profileId || binding.deviceId!==kid.id)
@@ -47,7 +55,7 @@ async function ownedSession(kid:Kid,sessionId:string,sessionToken:string){
     if(count!==ids.size)fail(409,"kid_media_withdrawn","Media is awaiting approval");
   }
   // Hash and account checks belong to the existing game engine. Never trust session ID alone.
-  await getPlaySession({sessionId,sessionToken},null);
+  await getPlaySession({sessionId,sessionToken},childActor(kid));
   return entry;
 }
 async function answerChoices(kid:Kid,sessionId:string,sessionToken:string){
@@ -98,7 +106,7 @@ export async function startKidSingle(kid:Kid,quizId:string){
 }
 export async function currentKidRun(kid:Kid,runId:string,runToken:string){
   await ownedRun(kid,runId);
-  const result=await execute("run_current",{runId,runToken,locale:kid.profile.locale,avoidQuizIds:[]},null) as any;
+  const result=await runCurrent({runId,runToken,locale:kid.profile.locale,avoidQuizIds:[]},childActor(kid)) as any;
   if(result?.lane!=="KIDS" || result?.locale!==kid.profile.locale)
     fail(403,"kid_run_invalid","Mismatched child content lane");
   if(result.sessionId){
@@ -121,15 +129,15 @@ export async function currentKidSingle(kid:Kid,sessionId:string,sessionToken:str
 }
 export async function kidClue(kid:Kid,sessionId:string,sessionToken:string){
   await ownedSession(kid,sessionId,sessionToken);
-  return execute("play_clue",{sessionId,sessionToken},null);
+  return playClue({sessionId,sessionToken},childActor(kid));
 }
 export async function kidGuess(kid:Kid,sessionId:string,sessionToken:string,guess:string){
   await ownedSession(kid,sessionId,sessionToken);
-  return execute("play_guess",{sessionId,sessionToken,guess},null);
+  return playGuess({sessionId,sessionToken,guess},childActor(kid));
 }
 export async function kidMedia(kid:Kid,sessionId:string,sessionToken:string,mediaId:string){
   await ownedSession(kid,sessionId,sessionToken);
-  return execute("play_media",{sessionId,sessionToken,mediaId},null);
+  return signedPlayMedia({sessionId,sessionToken,mediaId},childActor(kid));
 }
 /** Private progress only; never return an adult identity, public leaderboard or an answer key. */
 export async function kidTreasures(kid:Kid){
