@@ -211,7 +211,7 @@ model WeeklyChallenge {
   publishedAt DateTime?
   questions   WeeklyQuestion[]
   runs        PlayRun[]
-  @@unique([lane, weekStart])
+  @@index([lane, weekStart])
   @@index([status, weekStart, weekEnd])
 }
 
@@ -259,5 +259,5 @@ model PlayRunQuestion {
   quiz        Quiz @relation(fields: [quizId], references: [id])
   revision    QuizRevision @relation(fields: [revisionId], references: [id])
   @@id([runId, position])
-  @@unique([runId, quizId])
+  @@index([runId, quizId])
 }

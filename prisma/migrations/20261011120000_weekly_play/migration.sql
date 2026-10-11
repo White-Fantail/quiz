@@ -10,7 +10,9 @@ CREATE TABLE "WeeklyChallenge" (
   CONSTRAINT "WeeklyChallenge_status_check" CHECK ("status" IN ('SUBMITTED','SCHEDULED','SUSPENDED')),
   CONSTRAINT "WeeklyChallenge_week_check" CHECK ("weekEnd" > "weekStart")
 );
-CREATE UNIQUE INDEX "WeeklyChallenge_lane_weekStart_key" ON "WeeklyChallenge"("lane","weekStart");
+-- Many creators may propose a week; at most one staff-approved edition per lane/week.
+CREATE INDEX "WeeklyChallenge_lane_weekStart_idx" ON "WeeklyChallenge"("lane","weekStart");
+CREATE UNIQUE INDEX "WeeklyChallenge_unique_scheduled" ON "WeeklyChallenge"("lane","weekStart") WHERE "status"='SCHEDULED';
 CREATE INDEX "WeeklyChallenge_status_weekStart_weekEnd_idx" ON "WeeklyChallenge"("status","weekStart","weekEnd");
 
 CREATE TABLE "WeeklyQuestion" (
@@ -49,7 +51,7 @@ CREATE TABLE "PlayRunQuestion" (
   CONSTRAINT "PlayRunQuestion_revisionId_fkey" FOREIGN KEY ("revisionId") REFERENCES "QuizRevision"("id") ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT "PlayRunQuestion_position_check" CHECK ("position" >= 0)
 );
-CREATE UNIQUE INDEX "PlayRunQuestion_runId_quizId_key" ON "PlayRunQuestion"("runId","quizId");
+CREATE INDEX "PlayRunQuestion_runId_quizId_idx" ON "PlayRunQuestion"("runId","quizId");
 
 ALTER TABLE "PlaySession" ADD COLUMN "runId" TEXT;
 ALTER TABLE "PlaySession" ADD COLUMN "roundIndex" INTEGER;
