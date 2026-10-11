@@ -117,3 +117,12 @@ All actions require creator authentication; media identifiers and clue structure
 
 | GET /packs/:id/languages | quizdip_pack_languages | List pack languages and completion status |
 | PUT /packs/:id/languages/:locale | quizdip_pack_translation_upsert | Save translated pack title/description, optionally publish with `confirm:true` when all questions are available |
+
+## Phase 4 — reactions & analytics
+| REST | MCP | New behavior |
+| --- | --- | --- |
+| POST/DELETE /quizzes/:id/reviews | quizdip_review_upsert / quizdip_review_remove | `locale` and `kind` (QUIZ or TRANSLATION), requires completed play in language |
+| GET /quizzes/:id/reviews?locale=ko&kind=QUIZ | quizdip_reviews_list | Locale-specific review list |
+| GET /quizzes/:id/stats?locale=ko&version=1 | quizdip_quiz_stats | Per-language revision statistics |
+| GET /me/quizzes/:id/insights?locale=ko | quizdip_my_quiz_insights | Owner-only localized stats; `locale=all` combined |
+| GET /weekly/:id/insights?locale=all | quizdip_weekly_insights | Host/admin-only anonymized weekly summary |

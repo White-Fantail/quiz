@@ -103,3 +103,7 @@ Public quiz catalog, topic lookup, packs, single-play, random-five, infinite run
 ## Phase 3 translation Studio
 
 Open Studio → My Quiz → Language Versions to draft, AI-suggest (optional), review and publish English/Korean translations without overwriting the original language. Production requires migration `20261012100000_translation_versions`.
+
+## Phase 4 — language-specific reviews and metrics
+
+Ratings and quiz/translation feedback are now language-specific after finished plays. Studio offers per-language result filters. Weekly edition hosts can view per-language private aggregate insights through REST/MCP. Migration `20261012120000_locale_feedback_analytics` must be applied before production use.

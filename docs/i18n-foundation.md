@@ -59,3 +59,11 @@ Apply `npm run db:migrate` in a correctly configured staging database before ser
 - Migration `20261012100000_translation_versions` MUST be applied before serving this version. CI is not an independent staging DB/provider E2E test.
 
 - QuizPack localization metadata can also be maintained by its owner through `pack_languages` and `pack_translation_upsert` (REST/MCP). Publishing requires all pack questions to have published versions in that language. Pack metadata is currently managed through the API/MCP, not through a dedicated Studio pack editor.
+
+## Phase 4 — language-specific ratings and reports
+- `Review` uniquely binds quiz/author/locale/kind (QUIZ or TRANSLATION), and pins last rated played `QuizRevision`. `Report` records locale and revision. Migration `20261012120000_locale_feedback_analytics` preserves old reviews/reports under `und`, not fabricated English/Korean.
+- Only an authenticated player with a completed `PlaySession` in that exact language may rate it. Translational quality reactions are distinct from overall quiz satisfaction and require an actual TRANSLATION localization. Public badges are specific to chosen locale and general QUIZ quality.
+- Studio quiz detail supports `all/en/ko/und` result and feedback filters, language-specific accuracy with no false attribution of legacy sessions, and translation-quality counters.
+- `quiz_stats` accepts `locale` and optional language-local `version`, pinning counts to immutable revision ID.
+- Weekly challenge host/admin can fetch privacy-preserving aggregate per-language statistics via `weekly_insights`; only adult verified opt-in public ranking remains published, and separate per-locale weekly leaderboard logic is unchanged.
+- Apply this migration before activating Phase 4 in production; CI typechecks/builds but does not prove DB-backed integration or migrations ran.

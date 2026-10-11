@@ -22,7 +22,7 @@ test("studio owner listing uses validated server pagination and filters",()=>{
 
 test("private insights paginates reviews and never accepts a user-supplied owner",()=>{
   assert.deepEqual(parseOperation("my_quiz_insights",{quizId:id}),{
-    quizId:id,limit:20,offset:0
+    quizId:id,locale:"all",limit:20,offset:0
   });
   assert.equal(operations.my_quiz_insights.public,false);
   assert.equal("authorId" in parseOperation("my_quiz_insights",{quizId:id,authorId:"spoofed"}),false);
