@@ -1,11 +1,19 @@
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { KidsLocaleProvider } from "../src/state/locale";
+import { KidsLocaleProvider, useKidsLocale } from "../src/state/locale";
+import { KidsSessionProvider, useKidsSession } from "../src/state/session";
+import { useEffect } from "react";
 
+function PinLocaleToGuardian(){
+ const session=useKidsSession(),{chooseLocale}=useKidsLocale();
+ useEffect(()=>{if(session.status==="active")chooseLocale(session.session.profile.locale);},
+  [session.status,session.status==="active"?session.session.profile.locale:"",chooseLocale]);
+ return null;
+}
 export default function RootLayout(){
- return <SafeAreaProvider><KidsLocaleProvider>
+ return <SafeAreaProvider><KidsLocaleProvider><KidsSessionProvider><PinLocaleToGuardian/>
   <StatusBar style="dark"/>
   <Stack screenOptions={{headerShown:false}} />
- </KidsLocaleProvider></SafeAreaProvider>;
+ </KidsSessionProvider></KidsLocaleProvider></SafeAreaProvider>;
 }
