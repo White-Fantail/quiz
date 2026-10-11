@@ -66,3 +66,69 @@ export class QuizDipPublicApi {
     return { items:safe.slice(0,limit),hasMore:raw.length>limit };
   }
 }
+
+/** Native child capability is deliberately separate from adult Browser/Auth/MCP clients. */
+export type NativeKidProfile = {nickname:string;ageBand:"EARLY"|"MIDDLE"|"OLDER";locale:Locale};
+export type NativeKidSession = {active:true;profile:NativeKidProfile;expiresAt:string};
+export type NativePairResult = NativeKidSession & {token:string};
+export class QuizDipKidsDeviceApi {
+  readonly origin:string;
+  private readonly transport:typeof fetch;
+  constructor(origin:string,transport:typeof fetch=fetch,allowHttpLoopback=false) {
+    this.origin=normalizeApiOrigin(origin,allowHttpLoopback);
+    this.transport=transport;
+  }
+  private async request(method:"GET"|"POST",url:string, token?:string, body?:unknown):Promise<any> {
+    let response:Response;
+    try {
+      response=await this.transport(this.origin+"/api/kids/native"+url,{
+        method,credentials:"omit",cache:"no-store",redirect:"error",
+        headers:{"Accept":"application/json",...(body?{"Content-Type":"application/json"}:{}),
+          ...(token?{Authorization:"Bearer "+token}:{})},
+        ...(body?{body:JSON.stringify(body)}:{})
+      });
+    }catch { throw new ApiError("network_unavailable"); }
+    let result:any;
+    try { result=await response.json(); }
+    catch { throw new ApiError("invalid_response",response.status); }
+    if(!response.ok) throw new ApiError(typeof result?.error==="string"?result.error:"http_error",response.status);
+    if(!result || typeof result!=="object" || !("data" in result)) throw new ApiError("invalid_response");
+    return result.data;
+  }
+  private sessionData(data:any):NativeKidSession {
+    const p=data?.profile;
+    if(data?.active!==true || !p || typeof p.nickname!=="string" ||
+      !["EARLY","MIDDLE","OLDER"].includes(p.ageBand) || !["en","ko"].includes(p.locale) ||
+      typeof data.expiresAt!=="string" || !Number.isFinite(Date.parse(data.expiresAt)))
+      throw new ApiError("invalid_session_response");
+    return {active:true,profile:{nickname:p.nickname,ageBand:p.ageBand,locale:p.locale},expiresAt:data.expiresAt};
+  }
+  async pair(code:string,deviceName:string):Promise<NativePairResult> {
+    const data=await this.request("POST","",undefined,{action:"pair",code,deviceName});
+    if(typeof data?.token!=="string" || !/^[A-Za-z0-9_-]{40,90}$/.test(data.token))
+      throw new ApiError("invalid_pair_response");
+    return {...this.sessionData({...data,active:true}),token:data.token};
+  }
+  async session(token:string):Promise<NativeKidSession> {
+    return this.sessionData(await this.request("GET","?view=session",token));
+  }
+  async catalog(token:string, filters:KidsCatalogFilters={}, locale?:Locale):Promise<KidsCatalogPage> {
+    const offset=filters.offset??0,limit=filters.limit??8;
+    if(!Number.isInteger(offset) || offset<0 || offset>100000 || !Number.isInteger(limit) ||
+      limit<1 || limit>29) throw new ApiError("invalid_pagination");
+    const params=new URLSearchParams({view:"catalog",offset:String(offset),limit:String(limit+1)});
+    if(filters.answerType)params.set("answerType",filters.answerType);
+    if(filters.topic)params.set("topic",filters.topic);
+    if(locale)params.set("locale",locale); // Server verifies this against the guardian-pinned profile.
+    const data=await this.request("GET","?"+params,token);
+    const raw=data?.items;
+    if(!Array.isArray(raw)) throw new ApiError("invalid_response");
+    const safe=raw.filter((x:any)=>x && typeof x.id==="string" &&
+      typeof x.title==="string" && typeof x.prompt==="string" && x.kidsEligible===true);
+    return {items:safe.slice(0,limit),hasMore:raw.length>limit};
+  }
+  async unlock(token:string,pin:string):Promise<void> {
+    const result=await this.request("POST","",token,{action:"unlock",pin});
+    if(result?.unlocked!==true)throw new ApiError("invalid_unlock_response");
+  }
+}
