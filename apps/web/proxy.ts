@@ -20,6 +20,7 @@ export function proxy(request: NextRequest) {
     const resolvedPath = stripLocale(pathname);
     // Route-derived presentation shell: never honor a client-supplied shell header.
     headers.set("x-quizdip-shell", isKidsPath(resolvedPath) ? "kids" : "general");
+    headers.set("x-quizdip-path", resolvedPath);
     url.pathname = resolvedPath;
     const response = NextResponse.rewrite(url, { request: { headers } });
     response.cookies.set(LOCALE_COOKIE, locale, {

@@ -7,7 +7,9 @@ import { KIDS_TABS, kidsHref } from "../../../src/modules/kids/navigation";
 import "./kids.css";
 
 export default async function KidsLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  const locale = resolveLocale((await headers()).get("x-quizdip-locale"));
+  const requestHeaders = await headers();
+  const locale = resolveLocale(requestHeaders.get("x-quizdip-locale"));
+  const currentPath = requestHeaders.get("x-quizdip-path");
   return (
     <div className="kids-shell">
       <a className="kids-skip" href="#kids-content">{t(locale, "kids.skip")}</a>
@@ -23,7 +25,8 @@ export default async function KidsLayout({ children }: Readonly<{ children: Reac
       </main>
       <nav className="kids-tabbar" aria-label={t(locale, "kids.navigation")}>
         {KIDS_TABS.map(tab => (
-          <Link key={tab.path} className="kids-tab" href={kidsHref(tab.path, locale)}>
+          <Link key={tab.path} className="kids-tab" href={kidsHref(tab.path, locale)}
+            aria-current={currentPath === tab.path ? "page" : undefined}>
             <span className="kids-tab-emoji" aria-hidden="true">{tab.emoji}</span>
             <span>{t(locale, tab.key)}</span>
           </Link>
