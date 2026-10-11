@@ -8,11 +8,20 @@
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.quizdip.kids"
+      "bundleIdentifier": "com.quizdip.kids",
+      "infoPlist": {
+        "UIRequiresFullScreen": true
+      }
     },
     "android": {
       "package": "com.quizdip.kids",
-      "permissions": []
+      "permissions": [],
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "com.google.android.gms.permission.AD_ID"
+      ]
     },
     "plugins": [
       "expo-router",
