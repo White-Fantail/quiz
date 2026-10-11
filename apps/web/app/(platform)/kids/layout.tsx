@@ -22,7 +22,7 @@ export default async function KidsLayout({ children }: Readonly<{ children: Reac
   if (cookiePresent && !device && !isExit) redirect(localizeHref("/kids/exit",locale));
   if (!cookiePresent && !isGuardianArea) redirect(localizeHref("/kids/parent",locale));
   if (device && !isGuardianArea && !isExit && device.profile.locale !== locale)
-    redirect(localizeHref(currentPath,device.profile.locale));
+    redirect(localizeHref(currentPath,resolveLocale(device.profile.locale)));
   return (
     <div className="kids-shell">
       <a className="kids-skip" href="#kids-content">{t(locale, "kids.skip")}</a>

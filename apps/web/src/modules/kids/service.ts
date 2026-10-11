@@ -57,12 +57,16 @@ export async function guardianOverview(guardianId:string) {
 export async function addKidProfile(guardianId:string,input:KidProfileInput) {
   if (await db().kidProfile.count({where:{guardianId}}) >= 8)
     fail(409,"kid_profile_limit","At most eight child profiles are supported");
-  return db().kidProfile.create({data:{guardianId,...input},select:{
+  return db().kidProfile.create({data:{
+    guardianId,nickname:input.nickname,ageBand:input.ageBand,locale:input.locale,sessionMinutes:input.sessionMinutes
+  },select:{
     id:true,nickname:true,ageBand:true,locale:true,sessionMinutes:true
   }});
 }
 export async function updateKidProfile(guardianId:string,id:string,input:KidProfileInput) {
-  const updated=await db().kidProfile.updateMany({where:{id,guardianId},data:input});
+  const updated=await db().kidProfile.updateMany({where:{id,guardianId},data:{
+    nickname:input.nickname,ageBand:input.ageBand,locale:input.locale,sessionMinutes:input.sessionMinutes
+  }});
   if (!updated.count) fail(404,"kid_profile_missing","Child profile not found");
   // Activated devices use the profile's current locale and time policy on each request.
   return {updated:true};

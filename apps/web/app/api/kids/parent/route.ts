@@ -1,8 +1,8 @@
 import { z, ZodError } from "zod";
-import { actorFor, requireActor, requireSameOrigin, PlatformError, fail } from "../../../src/modules/platform/auth";
-import { auth } from "../../../src/lib/auth";
-import { guardianOverview, addKidProfile, updateKidProfile, deleteKidProfile, revokeKidDevice, setGuardianPin } from "../../../src/modules/kids/service";
-import { hasKidCookie } from "../../../src/modules/kids/credentials";
+import { actorFor, requireActor, requireSameOrigin, PlatformError, fail } from "../../../../src/modules/platform/auth";
+import { auth } from "../../../../src/lib/auth";
+import { guardianOverview, addKidProfile, updateKidProfile, deleteKidProfile, revokeKidDevice, setGuardianPin } from "../../../../src/modules/kids/service";
+import { hasKidCookie } from "../../../../src/modules/kids/credentials";
 
 export const runtime="nodejs";
 export const dynamic="force-dynamic";

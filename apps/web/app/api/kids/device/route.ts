@@ -1,8 +1,8 @@
 import { z, ZodError } from "zod";
-import { actorFor, requireActor, requireSameOrigin, PlatformError, fail } from "../../../src/modules/platform/auth";
-import { activateKidDevice, currentKidDevice, exitKidDevice, kidTokenFromHeaders, findKidDevice } from "../../../src/modules/kids/service";
-import { KIDS_COOKIE, MAX_DEVICE_AGE_SECONDS, hasKidCookie } from "../../../src/modules/kids/credentials";
-import { LOCALE_COOKIE } from "../../../src/i18n/core";
+import { actorFor, requireActor, requireSameOrigin, PlatformError, fail } from "../../../../src/modules/platform/auth";
+import { activateKidDevice, currentKidDevice, exitKidDevice, kidTokenFromHeaders, findKidDevice } from "../../../../src/modules/kids/service";
+import { KIDS_COOKIE, MAX_DEVICE_AGE_SECONDS, hasKidCookie } from "../../../../src/modules/kids/credentials";
+import { LOCALE_COOKIE } from "../../../../src/i18n/core";
 
 export const runtime="nodejs";
 export const dynamic="force-dynamic";

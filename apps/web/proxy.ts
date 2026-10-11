@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { KIDS_COOKIE } from "./src/modules/kids/credentials";
+import { KIDS_COOKIE } from "./src/modules/kids/constants";
 import { isKidsPath } from "./src/modules/kids/navigation";
 import { DEFAULT_LOCALE, LOCALE_COOKIE, isLocale, localeFromAcceptLanguage, localeFromPath, stripLocale } from "./src/i18n/core";
 
