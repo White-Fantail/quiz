@@ -9,7 +9,7 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
     "db:dev": "prisma migrate dev",
-    "build": "npm run db:generate && npm run build --workspace @clupio/web",
+    "build": "node scripts/build.mjs",
     "start": "npm run start --workspace @clupio/web",
     "typecheck": "npm run db:generate && npm run typecheck --workspace @clupio/domain && npm run typecheck --workspace @clupio/web",
     "test": "node --experimental-strip-types --test packages/domain/test/*.test.mjs apps/web/test/*.test.mjs"
