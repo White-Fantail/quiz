@@ -12,9 +12,11 @@ type Quiz = {
   creatorIntent?:{ageRange?:AgeRange;note?:string}|null;
   recommendedAudience?:{ageRange?:AgeRange;difficulty?:string}|null;
 };
-type Feedback = { id:string;rating:number;comment:string;createdAt:string;author:{displayName:string} };
+type Feedback = { id:string;rating:number;comment:string;locale?:string;createdAt:string;author:{displayName:string} };
 type Insights = {
   started:number;completed:number;solved:number;failed:number;inProgressOrAbandoned:number;
+  locale:string;languages:{locale:string;started:number;completed:number;solved:number;failed:number;successRate:number|null}[];
+  translationQuality?:{positive:number;negative:number};
   successRate:number|null;completionRate:number|null;averageCluesUsed:number|null;
   correctByClueStage:{stage:number;correct:number}[];
   reviews:{positive:number;negative:number;total:number;items:Feedback[];hasMore:boolean;
@@ -79,6 +81,7 @@ export default function StudioQuizDetail({quizId}:{quizId:string}){
   const [insightsLoading,setInsightsLoading]=useState(true);
   const [insightsError,setInsightsError]=useState("");
   const [feedbackPage,setFeedbackPage]=useState(0);
+  const [insightLocale,setInsightLocale]=useState<"all"|"en"|"ko"|"und">("all");
   const [feedbackRefresh,setFeedbackRefresh]=useState(0);
   const [saving,setSaving]=useState(false);
   const [notice,setNotice]=useState("");
@@ -93,13 +96,13 @@ export default function StudioQuizDetail({quizId}:{quizId:string}){
   },[quizId,refresh]);
   useEffect(()=>{
     let active=true;setInsightsLoading(true);setInsightsError("");
-    const params=new URLSearchParams({limit:String(REVIEW_PAGE_SIZE),offset:String(feedbackPage*REVIEW_PAGE_SIZE)});
+    const params=new URLSearchParams({limit:String(REVIEW_PAGE_SIZE),offset:String(feedbackPage*REVIEW_PAGE_SIZE),locale:insightLocale});
     void api("/me/quizzes/"+encodeURIComponent(quizId)+"/insights?"+params.toString())
       .then((data:Insights)=>{if(active)setInsights(data);})
       .catch(e=>{if(active)setInsightsError(e instanceof Error?e.message:"통계와 리뷰를 가져오지 못했어요.");})
       .finally(()=>{if(active)setInsightsLoading(false);});
     return ()=>{active=false;};
-  },[quizId,feedbackPage,feedbackRefresh]);
+  },[quizId,feedbackPage,feedbackRefresh,insightLocale]);
 
   function change<K extends keyof FormValues>(key:K,value:FormValues[K]){
     setForm(previous=>previous?{...previous,[key]:value}:previous);
@@ -261,8 +264,17 @@ export default function StudioQuizDetail({quizId}:{quizId:string}){
       </div>
     </form>}
 
+    {(tab==="results"||tab==="feedback")&&<section className="studio-locale-filter">
+      <label>분석 언어
+        <select value={insightLocale} onChange={e=>{setInsightLocale(e.target.value as "all"|"en"|"ko"|"und");setFeedbackPage(0);}}>
+          <option value="all">전체 언어</option><option value="ko">한국어</option>
+          <option value="en">English</option><option value="und">미분류 과거 기록</option>
+        </select>
+      </label>
+      <p className="muted">평가와 성공률은 선택한 언어 기준이며, 과거 언어 미분류 자료는 임의 배정하지 않습니다.</p>
+    </section>}
     {tab==="results"&&<section className="studio-results">
-      <h2>전체 버전의 풀이 결과</h2>
+      <h2>{insightLocale==="all"?"언어별 전체 풀이 결과":(insightLocale==="ko"?"한국어":insightLocale==="en"?"English":"미분류")+" 풀이 결과"}</h2>
       <p className="muted">퀴즈가 수정되기 전의 풀이도 합산합니다. 진행 중이거나 이탈한 플레이는 정답률 계산에서 제외됩니다.</p>
       {insightsLoading&&!insights&&<p role="status">통계를 불러오는 중…</p>}
       {insightsError&&<p role="alert" className="feedback">{insightsError}</p>}
@@ -284,6 +296,14 @@ export default function StudioQuizDetail({quizId}:{quizId:string}){
             <span>{s.stage}번째</span><div><span style={{width:(s.correct/Math.max(...insights.correctByClueStage.map(c=>c.correct))*100)+"%"}}/></div><b>{formatNumber(s.correct)}</b>
           </li>)}</ul>}
         </div>
+      </div>
+      <h3>언어별 정답률</h3>
+      <div className="studio-metric-grid">
+        {insights.languages.map(row=><div key={row.locale}>
+          <small>{row.locale==="ko"?"한국어":row.locale==="en"?"English":"미분류 / Legacy"}</small>
+          <strong>{formatPercent(row.successRate)}</strong>
+          <small>풀이 {formatNumber(row.completed)}회 / 시작 {formatNumber(row.started)}회</small>
+        </div>)}
       </div></>}
     </section>}
 
@@ -300,6 +320,7 @@ export default function StudioQuizDetail({quizId}:{quizId:string}){
             formatPercent(insights.reviews.positive/insights.reviews.total):"평가 더 필요"}</strong></div>
           <div><small>신고 접수 (집계)</small><strong>{formatNumber(insights.reports.total)}</strong></div>
         </div>
+        {insights.translationQuality&&<p className="muted">번역 품질 별도 평가 · 좋아요 {formatNumber(insights.translationQuality.positive)}회 / 아쉬워요 {formatNumber(insights.translationQuality.negative)}회</p>}
         <div className="studio-rating-trend">
           <h3>최근 평가 추이</h3>
           <p className="muted">평가의 마지막 저장일을 기준으로 해요. 현재 평가만 집계하며 과거 스냅샷은 아니에요.</p>
@@ -319,7 +340,7 @@ export default function StudioQuizDetail({quizId}:{quizId:string}){
         <h3>최근 리뷰</h3>
         {!insights.reviews.items.length?<p className="studio-empty">아직 남겨진 리뷰가 없어요.</p>:
           <div className="studio-review-list">{insights.reviews.items.map(r=><article key={r.id}>
-            <div><strong>{r.rating===1?"👍 좋아요":"👎 아쉬워요"}</strong>
+            <div><strong>{r.rating===1?"👍 좋아요":"👎 아쉬워요"}</strong> <small>{r.locale??"und"}</small>
               <small>{r.author.displayName} · {new Date(r.createdAt).toLocaleDateString("ko-NZ")}</small></div>
             <p>{r.comment||"텍스트 리뷰 없이 평가를 남겼습니다."}</p>
           </article>)}</div>}
