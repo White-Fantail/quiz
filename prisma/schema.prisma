@@ -32,6 +32,7 @@ model User {
   kidProfiles           KidProfile[]
   kidDeviceSessions     KidDeviceSession[]
   kidGuardianPin        KidGuardianPin?
+  kidPairTickets        KidPairTicket[]
   @@unique([issuer, subject])
 }
 
@@ -385,6 +386,7 @@ model KidProfile {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   devices         KidDeviceSession[]
+  pairTickets     KidPairTicket[]
   @@index([guardianId, updatedAt])
 }
 
@@ -404,10 +406,25 @@ model KidDeviceSession {
   profileId    String
   profile      KidProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
   tokenHash    String   @unique
+  clientKind   String   @default("WEB")
   deviceName   String
   createdAt    DateTime @default(now())
   expiresAt    DateTime
   revokedAt    DateTime?
   @@index([guardianId, revokedAt])
   @@index([profileId, revokedAt, expiresAt])
+}
+
+/** Guardian-authorized, one-time, short-lived native-device pairing tickets. Codes are never stored in plaintext. */
+model KidPairTicket {
+  id         String    @id @default(uuid())
+  guardianId String
+  guardian   User      @relation(fields: [guardianId], references: [id], onDelete: Cascade)
+  profileId  String
+  profile    KidProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  codeHash   String    @unique
+  createdAt  DateTime  @default(now())
+  expiresAt  DateTime
+  consumedAt DateTime?
+  @@index([guardianId, expiresAt, consumedAt])
 }
