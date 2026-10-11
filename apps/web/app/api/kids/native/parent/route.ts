@@ -6,6 +6,7 @@ import { addKidProfile,updateKidProfile,deleteKidProfile,revokeKidDevice,
 import { clearKidHistory } from "../../../../../src/modules/kids/history";
 import { fail,PlatformError } from "../../../../../src/modules/platform/auth";
 import { TIMEZONES } from "../../../../../src/modules/kids/time";
+import { db } from "../../../../../src/modules/platform/db";
 
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
@@ -32,6 +33,13 @@ const action=z.discriminatedUnion("action",[
  z.object({action:z.literal("pin_change"),previous:pin,pin}).strict()
 ]);
 function response(data:unknown){return Response.json({data},{headers});}
+/** Audit parent actions without child nicknames, PINs, codes, bearer credentials or quiz content. */
+async function audited(guardianId:string,action:string,result:unknown){
+ await db().auditLog.create({data:{
+   actorId:guardianId,action:"kids.native."+action,objectId:guardianId
+ }}).catch(()=>undefined);
+ return response(result);
+}
 function failure(e:unknown){
  if(e instanceof PlatformError)return Response.json({error:e.code,message:e.message},{status:e.status,headers});
  if(e instanceof ZodError)return Response.json({error:"validation_error"},{status:400,headers});
@@ -54,18 +62,18 @@ export async function POST(request:Request){
     fail(415,"invalid_content_type","JSON required");
   const kid=await nativeKidFromHeaders(request.headers);
   const p=action.parse(await request.json());
-  if(p.action==="authorize")return response(await grantParentAccess(kid,p.pin));
+  if(p.action==="authorize")return audited(kid.guardianId,p.action,await grantParentAccess(kid,p.pin));
   const parentHeader=request.headers.get("x-kids-parent");
   await requireParentAccess(kid,parentHeader);
   switch(p.action){
-    case "logout":return response(await endParentAccess(kid,parentHeader));
-    case "profile_add":return response(await addKidProfile(kid.guardianId,p.profile));
-    case "profile_update":return response(await updateKidProfile(kid.guardianId,p.id,p.profile));
-    case "profile_delete":return response(await deleteKidProfile(kid.guardianId,p.id));
-    case "history_delete":return response(await clearKidHistory(kid.guardianId,p.id));
-    case "device_revoke":return response(await revokeKidDevice(kid.guardianId,p.id));
-    case "native_pair_issue":return response(await issueNativePairTicket(kid.guardianId,p.profileId,p.pin));
-    case "pin_change":return response(await setGuardianPin(kid.guardianId,p.pin,p.previous));
+    case "logout":return audited(kid.guardianId,p.action,await endParentAccess(kid,parentHeader));
+    case "profile_add":return audited(kid.guardianId,p.action,await addKidProfile(kid.guardianId,p.profile));
+    case "profile_update":return audited(kid.guardianId,p.action,await updateKidProfile(kid.guardianId,p.id,p.profile));
+    case "profile_delete":return audited(kid.guardianId,p.action,await deleteKidProfile(kid.guardianId,p.id));
+    case "history_delete":return audited(kid.guardianId,p.action,await clearKidHistory(kid.guardianId,p.id));
+    case "device_revoke":return audited(kid.guardianId,p.action,await revokeKidDevice(kid.guardianId,p.id));
+    case "native_pair_issue":return audited(kid.guardianId,p.action,await issueNativePairTicket(kid.guardianId,p.profileId,p.pin));
+    case "pin_change":return audited(kid.guardianId,p.action,await setGuardianPin(kid.guardianId,p.pin,p.previous));
   }
  }catch(e){return failure(e);}
 }
