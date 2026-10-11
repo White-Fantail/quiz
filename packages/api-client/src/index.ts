@@ -11,7 +11,11 @@ export type KidsCatalogFilters = { answerType?: AnswerType; topic?: string; offs
 export type HealthStatus = { status: "ok"; service: string };
 
 export class ApiError extends Error {
-  constructor(readonly code: string, readonly status?: number) { super(code); this.name="ApiError"; }
+  readonly code: string;
+  readonly status?: number;
+  constructor(code: string, status?: number) {
+    super(code); this.name="ApiError"; this.code=code; this.status=status;
+  }
 }
 export function normalizeApiOrigin(raw: string, allowHttpLoopback=false): string {
   let url: URL;
@@ -25,8 +29,10 @@ export function normalizeApiOrigin(raw: string, allowHttpLoopback=false): string
 }
 export class QuizDipPublicApi {
   readonly origin: string;
-  constructor(origin: string, private readonly transport: typeof fetch=fetch, allowHttpLoopback=false) {
+  private readonly transport: typeof fetch;
+  constructor(origin: string, transport: typeof fetch=fetch, allowHttpLoopback=false) {
     this.origin=normalizeApiOrigin(origin,allowHttpLoopback);
+    this.transport=transport;
   }
   private async get(path: string, signal?: AbortSignal): Promise<unknown> {
     let response: Response;
