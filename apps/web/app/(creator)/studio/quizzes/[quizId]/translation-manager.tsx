@@ -159,7 +159,7 @@ export default function TranslationManager({quizId}:{quizId:string}){
         <button type="button" className="btn btn-primary"
           disabled={busy||!language||!verified||list.publication!=="PUBLISHED"||language.stale}
           onClick={()=>{
-            if(!window.confirm(message("이 번역 버전을 공개할까요?","Publish this translated version?")))return;
+            if(!language || !window.confirm(message("이 번역 버전을 공개할까요?","Publish this translated version?")))return;
             void transact(()=>request(apiBase+"/publish","POST",{
               expectedVersion:language.currentVersion,reviewed:true,confirm:true
             }),message("번역 버전을 공개했습니다.","Translated version published."));
