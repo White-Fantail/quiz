@@ -22,7 +22,7 @@ test("media operations exist for REST and are included in MCP shared tool regist
 });
 
 test("typed multimodal clue references are IDs, not arbitrary remote URL", () => {
-  const base = { title:"animal", prompt:"Guess", mode:"guess-animal",
+  const base = { title:"animal", prompt:"Guess", mode:"progressive-clues",answerType:"animal",
     answer:{canonical:"zebra"}, clues:[{type:"image",mediaId:id}] };
   assert.equal(parseOperation("quiz_create",base).clues[0].mediaId,id);
   assert.throws(()=>parseOperation("quiz_create",{...base,clues:[{type:"audio",media:{url:"https://untrusted.test/a.mp3"}}]}));

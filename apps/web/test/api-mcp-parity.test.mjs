@@ -5,7 +5,7 @@ import { operations, parseOperation } from "../src/modules/platform/contracts.ts
 
 test("every REST action is exposed as an MCP operation via the shared registry", () => {
   const names = Object.keys(operations);
-  assert.equal(names.length, 51);
+  assert.equal(names.length, 52);
   const restSource = readFileSync(new URL("../app/api/v1/[...segments]/route.ts", import.meta.url), "utf8");
   const mcpSource = readFileSync(new URL("../app/api/mcp/route.ts", import.meta.url), "utf8");
   for (const name of names) {
@@ -18,10 +18,10 @@ test("every REST action is exposed as an MCP operation via the shared registry",
 });
 
 test("quiz schema requires at least one usable clue and an answer", () => {
-  const good = { title: "Animal", prompt: "Who am I?", mode: "guess-animal",
+  const good = { title: "Animal", prompt: "Who am I?", mode: "progressive-clues", answerType: "animal",
     answer: { canonical: "dolphin", aliases: ["돌고래"] },
     clues: [{ type: "text", text: "I breathe air" }] };
-  assert.equal(parseOperation("quiz_create", good).mode, "guess-animal");
+  assert.equal(parseOperation("quiz_create", good).mode, "progressive-clues");
   assert.throws(() => parseOperation("quiz_create", { ...good, clues: [] }));
   assert.throws(() => parseOperation("quiz_create", { ...good, clues: [{ type: "image", media: { url: "https://unsafe.example/image.png" } }] }));
   assert.equal(parseOperation("quiz_create", { ...good, promptMediaIds: ["94f0792a-18e6-40c0-a480-0be6d46dbb37"], clues: [{ type: "image", mediaId: "94f0792a-18e6-40c0-a480-0be6d46dbb37" }] }).promptMediaIds.length, 1);

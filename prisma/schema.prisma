@@ -40,7 +40,9 @@ model Quiz {
   kidsEligible          Boolean       @default(false)
   creatorIntent         Json?
   recommendedAudience   Json?
-  categories            String[]      @default([])
+  mode                  String        @default("progressive-clues")
+  answerType            String        @default("other")
+  topicLinks            QuizTopic[]
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @updatedAt
   revisions             QuizRevision[]
@@ -62,6 +64,7 @@ model QuizRevision {
   title                 String
   prompt                String
   mode                  String
+  answerType            String        @default("other")
   answer                Json
   clues                 Json
   scoring               Json?
@@ -71,6 +74,28 @@ model QuizRevision {
   weeklyQuestions       WeeklyQuestion[]
   runQuestions          PlayRunQuestion[]
   @@unique([quizId, version])
+}
+
+model Topic {
+  id          String      @id @default(uuid())
+  key         String      @unique
+  name        String
+  aliases     String[]    @default([])
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  quizLinks   QuizTopic[]
+}
+
+model QuizTopic {
+  quizId      String
+  topicId     String
+  position    Int
+  isSpoiler   Boolean     @default(false)
+  quiz        Quiz        @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  topic       Topic       @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  @@id([quizId, topicId])
+  @@index([quizId, position])
+  @@index([topicId, isSpoiler])
 }
 
 model QuizPack {

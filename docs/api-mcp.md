@@ -7,6 +7,7 @@ The web UI, REST API and MCP tools reuse `execute()` and the same policy layer. 
 | Action | HTTP REST | MCP tool |
 | --- | --- | --- |
 | Capabilities and schemas | GET /api/v1/catalog | quizdip_catalog |
+| Topic discovery | GET /api/v1/topics?q=... | quizdip_topic_list |
 | Featured weekly edition and host | GET /api/v1/weekly/current | quizdip_weekly_current |
 | Creator's five-question weekly submission | POST /api/v1/weekly/submit | quizdip_weekly_submit |
 | ADMIN proposal queue and approved schedule | GET /api/v1/weekly/proposals, POST /api/v1/weekly/:id/publish | quizdip_weekly_proposals / quizdip_weekly_publish |
@@ -60,6 +61,8 @@ User review rating is `+1` or `-1` and requires a completed play. A report is a 
 **Success rate:** solved / (solved + failed). Active or abandoned games are not counted in the denominator. `quiz_stats.version` selects historic versions; omission selects the current version. The distribution `correctByClueStage` counts solved games at their final clue stage.
 
 **Ranking:** users must have separately verified adult eligibility, set by trusted server-side administration. This defaults to false. Aggregate score takes each user's highest solved score **once per quiz**, not every replay. Account-based ranking excludes anonymous sessions and unverified/child accounts. `my_stats.rank` is null until qualified.
+
+Metadata v2: `mode` is the play mechanic (`progressive-clues`); `answerType` is independent. `topics` replaces categories/tags, and GPT can suggest `recommendedAudience` separately from editable `creatorIntent`. Public topic discovery and filtering always hide spoiler-linked topics. Neither GPT nor a creator can set platform safety. No separate server AI classifier is deployed yet.
 
 General publication doesn't mean Kids approval: pending/unverified content is excluded from Kids mode; creators cannot alter the platform safety fields.
 

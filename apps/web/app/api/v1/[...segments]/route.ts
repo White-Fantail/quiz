@@ -10,6 +10,7 @@ type Match = { op: Operation; args: Record<string, unknown> };
 function route(method: string, segments: string[]): Match | null {
   const [a, b, c] = segments;
   if (a === "catalog" && method === "GET" && !b) return { op: "catalog", args: {} };
+  if (a === "topics" && !b && method === "GET") return { op: "topic_list", args: {} };
   if (a === "quizzes") {
     if (!b && method === "GET") return { op: "quiz_list", args: {} };
     if (!b && method === "POST") return { op: "quiz_create", args: {} };

@@ -1,4 +1,5 @@
 import { parseOperation, operations, type Operation } from "./contracts";
+import { topicList } from "./topics";
 import { fail, requireActor, type Actor } from "./auth";
 import { quizList, quizGet, quizCreate, quizUpdate, quizPublish, quizReview, quizReviewGet } from "./quiz";
 import { playStart, playClue, playGuess } from "./play";
@@ -14,14 +15,17 @@ export async function execute(name: Operation, raw: unknown, actor: Actor | null
   const p = parseOperation(name, raw);
   if (!operations[name].public) requireActor(actor);
   switch (name) {
-    case "catalog": return { modes: ["guess-animal", "guess-person", "guess-place", "guess-thing"],
+    case "catalog": return { modes: ["progressive-clues"],
+      answerTypes: ["person","animal","place","thing","event","concept","other"],
+      topics: { model:"unified", tool:"quizdip_topic_list", maxPerQuiz:12, normalizes:true },
       clueTypes: ["text", "image", "audio", "video", "map"], mediaReference: "mediaId", promptMediaIds: true,
       mediaLimitsBytes: { image: 12582912, audio: 26214400, video: 67108864 }, minClues: 1, maxClues: 15,
-      userAdjustable: ["creatorIntent", "categories", "clues", "answer"],
+      userAdjustable: ["answerType", "topics", "creatorIntent", "recommendedAudience", "clues", "answer"],
       platformControlled: ["safetyStatus", "kidsEligible"],
       playModes: ["WEEKLY","RANDOM_FIVE","INFINITE"], audiences: ["GENERAL","KIDS"],
       weeklyQuestions: 5, weeklyTimezone: "UTC", featuredCreator: true,
-      version: "v1", format: "progressive-clues" };
+      version: "v2", format: "progressive-clues" };
+    case "topic_list": return topicList(p);
     case "quiz_list": return quizList(p, actor);
     case "quiz_get": return quizGet(p.id, actor);
     case "quiz_create": return quizCreate(p, actor);

@@ -17,21 +17,32 @@ const mediaMetadata = {
 };
 const mediaKinds = z.enum(["image", "audio", "video"]);
 const mediaFormats = z.enum(["image/jpeg","image/png","image/webp","audio/mpeg","audio/wav","audio/ogg","video/mp4","video/webm"]);
+export const gameModeSchema = z.enum(["progressive-clues"]);
+export const answerTypeSchema = z.enum(["person","animal","place","thing","event","concept","other"]);
+const ageRangeSchema = z.object({
+  minimum: z.number().int().min(0).max(120).optional(),
+  maximum: z.number().int().min(0).max(120).optional()
+}).refine(v=>v.minimum===undefined||v.maximum===undefined||v.minimum<=v.maximum,"Minimum age exceeds maximum");
+const topicName = z.string().trim().min(1).max(80);
+const topicInputSchema = z.union([topicName, z.object({name:topicName,isSpoiler:z.boolean().optional()})]);
 export const quizFields = z.object({
   title: z.string().trim().min(1).max(180), prompt: z.string().trim().min(1).max(2000),
-  mode: z.enum(["guess-animal", "guess-person", "guess-place", "guess-thing"]),
+  mode: gameModeSchema.default("progressive-clues"),
+  answerType: answerTypeSchema.default("other"),
   answer: answerSchema, clues: z.array(clueSchema).min(1).max(15),
   promptMediaIds: z.array(mediaId).max(5).default([]),
-  categories: z.array(z.string().min(1).max(50)).max(8).optional(),
-  creatorIntent: z.object({ ageRange: z.object({ minimum: z.number().int().min(0).max(120).optional(), maximum: z.number().int().min(0).max(120).optional() }).optional(), note: z.string().max(400).optional() }).optional()
+  topics: z.array(topicInputSchema).max(12).optional(),
+  recommendedAudience: z.object({ ageRange: ageRangeSchema.optional(), difficulty: z.enum(["easy","medium","hard"]).optional() }).optional(),
+  creatorIntent: z.object({ ageRange: ageRangeSchema.optional(), note: z.string().max(400).optional() }).optional()
 });
 const paging = { limit: z.number().int().min(1).max(100).default(20), offset: z.number().int().min(0).default(0) };
 const session = { sessionId: uuid, sessionToken: z.string().min(32).max(200) };
 export const operations = {
   catalog: { public: true, description: "Supported game modes, clue formats and rules", schema: z.object({}) },
-  quiz_list: { public: true, description: "Search public quizzes or my own drafts", schema: z.object({ ...paging, mine: z.boolean().default(false), kids: z.boolean().default(false), mode: quizFields.shape.mode.optional() }) },
+  topic_list: { public: true, description: "Search established topics for discovery and authoring. New topic names are accepted on quiz creation.", schema: z.object({ ...paging, q: topicName.optional() }) },
+  quiz_list: { public: true, description: "Find quizzes by game mode, answer kind and topic", schema: z.object({ ...paging, mine: z.boolean().default(false), kids: z.boolean().default(false), mode: gameModeSchema.optional(), answerType: answerTypeSchema.optional(), topic: topicName.optional() }) },
   quiz_get: { public: true, description: "Get published quiz metadata or my full editable quiz", schema: z.object({ id: uuid }) },
-  quiz_create: { public: false, description: "Create a quiz draft with ordered clues", schema: quizFields },
+  quiz_create: { public: false, description: "Create ordered clues; infer answerType, relevant topics, age recommendation and difficulty. Platform safety is never creator input.", schema: quizFields },
   quiz_update: { public: false, description: "Edit my quiz as a new immutable revision", schema: quizFields.partial().extend({ id: uuid, expectedVersion: z.number().int().positive() }) },
   clues_replace: { public: false, description: "Replace my ordered clues as a new revision", schema: z.object({ id: uuid, expectedVersion: z.number().int().positive(), clues: quizFields.shape.clues }) },
   quiz_publish: { public: false, description: "Publish my quiz; explicit user confirmation needed", schema: z.object({ id: uuid, confirm: z.literal(true) }) },

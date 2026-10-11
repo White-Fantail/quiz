@@ -4,7 +4,9 @@ import type { QuizQuestion } from "@clupio/domain";
 export const demoQuiz: QuizQuestion = {
   id: "demo-dolphin",
   title: "바닷속 친구를 맞혀 봐!",
-  mode: "guess-animal",
+  mode: "progressive-clues",
+  answerType: "animal",
+  topics: [{ name: "바다 생물" }, { name: "돌고래", isSpoiler: true }],
   prompt: "나는 누구일까요?",
   answer: { canonical: "돌고래", aliases: ["dolphin"] },
   clues: [

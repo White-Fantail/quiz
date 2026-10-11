@@ -1,9 +1,8 @@
 /** Content model shared by future Web Studio, Play and Remote MCP. */
-export type QuizMode =
-  | "guess-animal"
-  | "guess-person"
-  | "guess-place"
-  | "guess-thing";
+/** Game mechanic, not the type of answer. */
+export type QuizMode = "progressive-clues";
+export type AnswerType = "person" | "animal" | "place" | "thing" | "event" | "concept" | "other";
+export interface QuizTopic { name: string; isSpoiler?: boolean; }
 
 export type Clue =
   | { id: string; order: number; type: "text"; text: string }
@@ -49,6 +48,8 @@ export interface QuizQuestion {
   id: string;
   title: string;
   mode: QuizMode;
+  answerType: AnswerType;
+  topics?: QuizTopic[];
   prompt: string;
   answer: { canonical: string; aliases: string[] };
   clues: Clue[];
