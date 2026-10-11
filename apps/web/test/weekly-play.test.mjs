@@ -88,3 +88,17 @@ test("web play is wired to server-authoritative gameplay and media playback",()=
   assert.match(view,/lane==="KIDS"/);
   assert.doesNotMatch(view,/demoQuiz/);
 });
+
+test("adult public ranking requires both opt-in consent and trusted verification",()=>{
+  const source=load("src/modules/platform/analytics.ts");
+  const run=load("src/modules/platform/runs.ts");
+  const schema=load("../../prisma/schema.prisma");
+  assert.match(source,/leaderboardOptIn: true/);
+  assert.match(source,/admin\.role!=="ADMIN"/);
+  assert.match(run,/leaderboardOptIn:true/);
+  assert.match(run,/row\.userId!==edition\.hostId/);
+  assert.match(schema,/leaderboardOptIn\s+Boolean\s+@default\(false\)/);
+  assert.throws(()=>parseOperation("ranking_optin",{enabled:true}));
+  assert.equal(parseOperation("ranking_optin",{enabled:true,confirm:true}).enabled,true);
+  assert.throws(()=>parseOperation("adult_verify",{userId:"some-user-id",verified:true,reason:"Identity checked"}));
+});

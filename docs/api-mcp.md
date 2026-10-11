@@ -16,6 +16,8 @@ The web UI, REST API and MCP tools reuse `execute()` and the same policy layer. 
 | Current question in fixed run | POST /api/v1/runs/:id/current | clupio_run_current |
 | End infinite practice | POST /api/v1/runs/:id/finish | clupio_run_finish |
 | User's run history | GET /api/v1/runs | clupio_run_history |
+| Public ranking user consent | PATCH /api/v1/me/ranking | clupio_ranking_optin |
+| Adult eligibility verification (ADMIN) | POST /api/v1/admin/verify-adult | clupio_adult_verify |
 | Reserve R2 media upload / upload small base64 chunk / seal asset | POST /api/v1/media/upload, POST /api/v1/media/:id/chunk, POST /api/v1/media/:id/complete | clupio_media_upload / clupio_media_chunk / clupio_media_complete |
 | Import media by approved HTTPS hostname | POST /api/v1/media/import | clupio_media_import |
 | My media asset library | GET /api/v1/media, GET /api/v1/media/:id | clupio_media_list / clupio_media_get |

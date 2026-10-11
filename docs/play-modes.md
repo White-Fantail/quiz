@@ -23,7 +23,7 @@ The other two modes are clearly **practice**:
 - `PlayRun` tracks lane, mode, current round, accumulated score, solved/failed, and end time. `PlayRunQuestion` stores the exact selected `quizId`/`revisionId` per index. The existing `PlaySession` tracks each question's unlocked clues and guesses, with one round session per run/index.
 - `play_guess` updates its round and the parent run **in one transaction**. Replayed requests or parallel guesses do not score twice. Client code never validates answers locally.
 - A signed-in Clupio user is limited to **one official first attempt per weekly edition** by a partial unique DB index. Reopening the mode resumes that same attempt, never creates a new ranked score. Authentication is optional for play, but guests are not in official standings.
-- Weekly public rankings are only for **GENERAL**, and only for separately verified, opt-in adult users. Kids players are never listed. Ties on the same cumulative score share the same place; elapsed time is not a tiebreaker. Scores are accumulated from server-graded questions and cannot be supplied by the client.
+- Weekly public rankings are only for **GENERAL**, and only for separately verified, explicitly opted-in adult users. Kids players are never listed. Ties on the same cumulative score share the same place; elapsed time is not a tiebreaker. Scores are accumulated from server-graded questions and cannot be supplied by the client.
 - Weekly-challenge questions are reserved from random practice and standalone `play_start` while the edition is scheduled and not yet expired. This reduces accidental spoilers; it is not a guarantee against sharing answers externally.
 - The run credential is a 256-bit secret; signed-in run tokens derive from `PLAY_RUN_SECRET` and the canonical Clupio account ID so a run can resume on another browser after sign-in. Anonymous run tokens are random capabilities, not eligible for official standings. Per-round play capabilities are derived from the run token and indexed question. Never log or include these in public rankings.
 - The run `expiresAt` is the edition's deadline for WEEKLY. Practice runs expire in 2 days (five) or 7 days (infinite). Rejected/expired attempts never create extra score. Running out of safe questions returns a clear error.
@@ -49,6 +49,8 @@ The other two modes are clearly **practice**:
 | Get current pinned question & unlocked clues | POST /api/v1/runs/:id/current | `clupio_run_current` |
 | Finish infinite practice voluntarily | POST /api/v1/runs/:id/finish | `clupio_run_finish` |
 | My recent runs | GET /api/v1/runs | `clupio_run_history` |
+| Player-owned opt-in for public ranking | PATCH /api/v1/me/ranking | `clupio_ranking_optin` |
+| ADMIN-only adult verification | POST /api/v1/admin/verify-adult | `clupio_adult_verify` |
 
 Existing question actions remain unchanged:
 - `clupio_play_clue`: `POST /api/v1/play/:sessionId/clue`
@@ -59,10 +61,14 @@ The weekly tools and browser UIs use `execute()` and share the same owner, audie
 
 ## Configuration and deployment
 
-- Apply the Prisma migration `20261011120000_weekly_play` **after** the existing user/media migrations.
+- Apply the Prisma migrations `20261011120000_weekly_play` and `20261011123000_ranking_optin` **after** the existing user/media migrations.
 - Set `PLAY_RUN_SECRET` to an independent randomly generated **32+ character** secret in **each** deployment environment. Do not rotate it mid-run without an explicit token-version migration (existing authenticated run tokens would change).
 - Configure actual Better Auth and PostgreSQL, R2 if using media clues, and Google/Apple OAuth as documented in `docs/auth-sso-mcp.md` and `docs/media-r2.md`.
 - Run `npm run test`, `npm run typecheck`, `npm run build`. Unit/parity tests do not replace an actual migrated Postgres + logged-in full weekly challenge test.
 - Before launch: test simultaneous first weekly attempt across devices, correct/incorrect scores, resume across devices, 5 round completion, safe media playback, zero questions, editorial UTC week rollover, author edits during a live week, admin restriction, Kids denied content, and public rankings. Add distributed play rate limiting, moderation workflows, Verified Adult opt-in management, analytics scalability and account age controls. These release gates are **not** implied complete by CI.
 
 No celebrity is enrolled and no real week is populated automatically by this code. Until an author submits five published quizzes and an admin schedules one, the weekly tile intentionally shows a no-edition state instead of inventing questions or authors.
+
+## Ranking privacy
+
+Official General weekly standings are **opt-in only**, for adults independently verified by trusted administrators. The user sets `leaderboardOptIn` in `/account` or `clupio_ranking_optin`; a trusted administrator sets `leaderboardEligible` using `clupio_adult_verify`. Both start false and both must be true. Staff must have independently substantiated age, not self-attestation. A weekly author cannot enter their own public scoreboard. Kids public rankings do not exist.
