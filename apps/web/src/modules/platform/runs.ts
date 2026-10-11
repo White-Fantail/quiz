@@ -43,6 +43,10 @@ export async function checkedRun(id: string, token: string, actor: Actor|null) {
   const run=await db().playRun.findUnique({where:{id},include:{weekly:true}});
   if (!run || !matchingToken(token,run.tokenHash)) fail(404,"run_not_found","Play run was not found");
   if (run.userId && run.userId!==actor?.id) fail(403,"forbidden","Run belongs to another account");
+  const kidBinding=await db().kidPlayRun.findUnique({where:{runId:id}});
+  if(kidBinding && (actor?.childScope?.profileId!==kidBinding.profileId ||
+      actor?.childScope?.deviceId!==kidBinding.deviceId))
+    fail(403,"kid_play_forbidden","A child-only run requires its authorized device");
   if (run.status === "ACTIVE" && run.expiresAt.getTime() <= Date.now())
     fail(410,"run_expired","This play run has expired");
   return run;
