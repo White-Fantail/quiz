@@ -1,6 +1,7 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { isCorrectAnswer, scoreForClues } from "@quizdip/domain";
 import { db } from "./db";
+import { ratingsForQuiz, myRatingForQuiz, ratingAccess } from "./ratings";
 import { fail, type Actor } from "./auth";
 
 function hashToken(token: string): string {
@@ -49,7 +50,9 @@ export async function playStart(p: Record<string, any>, actor: Actor | null) {
     quizId: quiz.id, revisionId: revision.id, userId: actor?.id, tokenHash: hashToken(token),
     usedClues: 1, expiresAt: new Date(Date.now() + 3600000)
   } });
+  const [ratings,myRating]=await Promise.all([ratingsForQuiz(quiz.id),myRatingForQuiz(quiz.id,actor)]);
   return { sessionId: session.id, sessionToken: token, title: revision.title, prompt: revision.prompt,
+    quizId:quiz.id,ratings,myRating,ratingAccess:ratingAccess(actor,quiz.authorId,session.userId),
     mode: revision.mode, quizVersion: revision.version, promptMediaIds: revision.promptMediaIds, clue: clues[0], clueIndex: 1, clueCount: clues.length };
 }
 export async function playClue(p: Record<string, any>, actor: Actor | null) {

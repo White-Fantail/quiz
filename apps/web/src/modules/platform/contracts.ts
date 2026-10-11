@@ -59,6 +59,7 @@ export const operations = {
   play_guess: { public: true, description: "Check my guess on the server", schema: z.object({ ...session, guess: z.string().trim().min(1).max(200) }) },
   reviews_list: { public: true, description: "Read public quiz reviews", schema: z.object({ quizId: uuid, ...paging }) },
   review_upsert: { public: false, description: "Rate and review a completed quiz", schema: z.object({ quizId: uuid, rating: z.union([z.literal(-1), z.literal(1)]), comment: z.string().max(2000).default("") }) },
+  review_remove: { public: false, description: "Remove my own quiz reaction", schema: z.object({quizId:uuid}) },
   report_create: { public: false, description: "Report a quiz issue", schema: z.object({ quizId: uuid, reason: z.enum(["WRONG_ANSWER", "WRONG_CLUE", "UNSAFE", "COPYRIGHT", "PRIVACY", "SPAM", "DUPLICATE"]), detail: z.string().trim().min(5).max(2000) }) },
   reports_mine: { public: false, description: "Track reports I submitted", schema: z.object(paging) },
   quiz_stats: { public: true, description: "Success rate, revision metrics, reviews and per-clue stages", schema: z.object({ quizId: uuid, version: z.number().int().positive().optional() }) },
@@ -140,6 +141,7 @@ export const operations = {
   run_finish: { public: true, description: "Stop an infinite or practice run and view its scores", schema: z.object({
     runId: uuid, runToken: z.string().min(32).max(200), confirm: z.literal(true)
   }) },
+  run_feedback: { public: true, description: "Read up to five completed run questions and reaction status by signed run token", schema: z.object({runId:uuid,runToken:z.string().min(32).max(200)}) },
   run_history: { public: false, description: "My latest scores and completed challenges", schema: z.object(paging) },
   ranking_optin: { public: false, description: "Set my own public ranking consent, independent of staff adult verification", schema: z.object({ enabled: z.boolean(), confirm: z.literal(true) }) },
   adult_verify: { public: false, description: "ADMIN ONLY: independently verify or revoke an adult ranking eligibility status", schema: z.object({

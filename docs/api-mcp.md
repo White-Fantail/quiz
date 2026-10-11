@@ -15,6 +15,7 @@ The web UI, REST API and MCP tools reuse `execute()` and the same policy layer. 
 | Weekly official first-attempt leaderboard | GET /api/v1/weekly/:id/standings | quizdip_weekly_standings |
 | Begin/resume weekly/five random/infinite | POST /api/v1/runs | quizdip_run_start |
 | Current question in fixed run | POST /api/v1/runs/:id/current | quizdip_run_current |
+| Completed run questions and ratings (requires run token) | POST /api/v1/runs/:id/feedback | quizdip_run_feedback |
 | End infinite practice | POST /api/v1/runs/:id/finish | quizdip_run_finish |
 | User's run history | GET /api/v1/runs | quizdip_run_history |
 | Public ranking user consent | PATCH /api/v1/me/ranking | quizdip_ranking_optin |
@@ -28,6 +29,7 @@ The web UI, REST API and MCP tools reuse `execute()` and the same policy layer. 
 | Session-gated signed media URL | POST /api/v1/play/:id/media | quizdip_play_media |
 | List public / own / Kids-eligible quizzes | GET /api/v1/quizzes | quizdip_quiz_list |
 | Get question (answer only for owner) | GET /api/v1/quizzes/:id | quizdip_quiz_get |
+| Clear own rating | DELETE /api/v1/quizzes/:id/reviews | quizdip_review_remove |
 | ADMIN inspect full quiz and answer | GET /api/v1/quizzes/:id/review | quizdip_quiz_review_get |
 | ADMIN independently approve Kids or restrict quiz | POST /api/v1/quizzes/:id/review | quizdip_quiz_review |
 | ADMIN inspect media | GET /api/v1/media/:id/review | quizdip_media_review_get |

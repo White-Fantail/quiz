@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { db } from "./db";
+import { ratingsForQuizzes, ratingsForQuiz } from "./ratings";
 import { fail, requireActor, type Actor } from "./auth";
 import { validateMediaReferences } from "./media";
 import { saveTopicLinks, topicSummaries, normalizeTopicKey } from "./topics";
@@ -19,12 +20,13 @@ export async function quizList(p: Record<string, any>, actor: Actor | null) {
   if (p.answerType) where.answerType = p.answerType;
   if (p.topic) where.topicLinks = { some: { topic: { key: normalizeTopicKey(p.topic) }, isSpoiler: false } };
   const rows = await db().quiz.findMany({ where, include: { topicLinks: { include: { topic: true }, orderBy: { position: "asc" } } }, orderBy: { updatedAt: "desc" }, skip: p.offset, take: p.limit });
+  const summaries = await ratingsForQuizzes(rows.map(q=>q.id));
   const items = await Promise.all(rows.map(async quiz => {
     const r = await revision(quiz.id, quiz.currentVersion);
     return { id: quiz.id, title: r.title, prompt: r.prompt, mode: r.mode, answerType: r.answerType,
       topics: topicSummaries(quiz.topicLinks, p.mine), clueCount: (r.clues as any[]).length,
       version: quiz.currentVersion, publication: quiz.publication, safetyStatus: quiz.safetyStatus,
-      recommendedAudience: quiz.recommendedAudience,
+      recommendedAudience: quiz.recommendedAudience, ratings: summaries.get(quiz.id),
       kidsEligible: quiz.kidsEligible && quiz.safetyStatus === "APPROVED" };
   }));
   return { items, offset: p.offset, limit: p.limit };
@@ -36,11 +38,12 @@ export async function quizGet(id: string, actor: Actor | null) {
   if (!owned && (quiz.publication !== "PUBLISHED" || quiz.safetyStatus === "RESTRICTED"))
     fail(404, "not_found", "Quiz not found");
   const r = await revision(id, quiz.currentVersion);
+  const ratings = await ratingsForQuiz(id);
   return { id, title: r.title, prompt: r.prompt, mode: r.mode, answerType: r.answerType,
     topics: topicSummaries(quiz.topicLinks, owned), clueCount: (r.clues as any[]).length, promptMediaIds: (owned ? r.promptMediaIds : undefined),
     version: quiz.currentVersion, publication: quiz.publication,
     creatorIntent: owned ? quiz.creatorIntent : undefined,
-    recommendedAudience: quiz.recommendedAudience, safetyStatus: quiz.safetyStatus,
+    recommendedAudience: quiz.recommendedAudience, ratings, safetyStatus: quiz.safetyStatus,
     kidsEligible: quiz.kidsEligible && quiz.safetyStatus === "APPROVED",
     ...(owned ? { answer: r.answer, clues: r.clues, authorId: quiz.authorId } : {}) };
 }

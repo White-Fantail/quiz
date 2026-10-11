@@ -4,8 +4,8 @@ import { fail, requireActor, type Actor } from "./auth";
 import { quizList, quizGet, quizCreate, quizUpdate, quizPublish, quizReview, quizReviewGet } from "./quiz";
 import { playStart, playClue, playGuess } from "./play";
 import { weeklyCurrent,weeklySubmit,weeklyPublish,weeklyProposals,weeklySuspend,weeklyStandings,
-  runStart,runCurrent,runFinish,runHistory } from "./runs";
-import { reviewsList, reviewUpsert, reportCreate, reportsMine, packCreate, packList, packUpdate } from "./social";
+  runStart,runCurrent,runFinish,runHistory,runFeedback } from "./runs";
+import { reviewsList, reviewUpsert, reviewRemove, reportCreate, reportsMine, packCreate, packList, packUpdate } from "./social";
 import { quizStats, myStats, me, leaderboard, rankingOptin, adultVerify } from "./analytics";
 import { userGet, creatorReviewsList, creatorReviewUpsert } from "./creators";
 import { myQuizzes, myQuizInsights } from "./studio";
@@ -43,6 +43,7 @@ export async function execute(name: Operation, raw: unknown, actor: Actor | null
     case "play_guess": return playGuess(p, actor);
     case "reviews_list": return reviewsList(p);
     case "review_upsert": return reviewUpsert(p, actor);
+    case "review_remove": return reviewRemove(p, actor);
     case "report_create": return reportCreate(p, actor);
     case "reports_mine": return reportsMine(p, actor);
     case "quiz_stats": return quizStats(p, actor);
@@ -76,6 +77,7 @@ export async function execute(name: Operation, raw: unknown, actor: Actor | null
     case "run_current": return runCurrent(p,actor);
     case "run_finish": return runFinish(p,actor);
     case "run_history": return runHistory(p,actor);
+    case "run_feedback": return runFeedback(p,actor);
     case "ranking_optin": return rankingOptin(p,actor);
     case "adult_verify": return adultVerify(p,actor);
     default: return fail(404, "operation_not_found", "Unknown operation");

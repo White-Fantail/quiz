@@ -1,4 +1,5 @@
 import { db } from "./db";
+import { ratingsForQuiz } from "./ratings";
 import { fail, requireActor, type Actor } from "./auth";
 
 async function getPublicQuiz(quizId: string) {
@@ -31,7 +32,14 @@ export async function reviewUpsert(p: Record<string, any>, actor: Actor | null) 
     create: { quizId: p.quizId, authorId: user.id, rating: p.rating, comment: p.comment },
     update: { rating: p.rating, comment: p.comment }
   });
-  return { id: review.id, rating: review.rating, comment: review.comment, updatedAt: review.updatedAt };
+  return { id: review.id, rating: review.rating, comment: review.comment, updatedAt: review.updatedAt,
+    ratings:await ratingsForQuiz(p.quizId) };
+}
+/** Clear an existing reaction without permitting other users to alter it. */
+export async function reviewRemove(p:Record<string,any>,actor:Actor|null) {
+  const user=requireActor(actor);
+  const deleted=await db().review.deleteMany({where:{quizId:p.quizId,authorId:user.id}});
+  return {removed:deleted.count>0,rating:null,ratings:await ratingsForQuiz(p.quizId)};
 }
 export async function reportCreate(p: Record<string, any>, actor: Actor | null) {
   const user = requireActor(actor);

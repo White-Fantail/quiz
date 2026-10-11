@@ -1,5 +1,6 @@
 import { createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { db } from "./db";
+import { ratingsForQuizzes, ratingsForQuiz, myRatingForQuiz, ratingAccess } from "./ratings";
 import { fail, requireActor, type Actor } from "./auth";
 import { utcWeekStart, WEEK_MS } from "./weekly-clock";
 import { selectUnseen } from "./unseen-questions";
@@ -279,7 +280,9 @@ export async function runCurrent(p:Record<string,any>,actor:Actor|null) {
   }
   if(!session) fail(409,"run_conflict","Retry the current question");
   const clues=revision.clues as Array<Record<string,unknown>>;
+  const [ratings,myRating]=await Promise.all([ratingsForQuiz(quiz.id),myRatingForQuiz(quiz.id,actor)]);
   return {...runSummary(run),sessionId:session.id,sessionToken:token,
+    ratings,myRating,ratingAccess:ratingAccess(actor,quiz.authorId,session.userId),
     round:run.currentIndex+1,quizId:round.quizId,quizVersion:revision.version,
     title:revision.title,prompt:revision.prompt,promptMediaIds:revision.promptMediaIds,
     clueIndex:session.usedClues,clueCount:clues.length,
@@ -294,6 +297,32 @@ export async function runFinish(p:Record<string,any>,actor:Actor|null) {
   if(run.status==="FINISHED") return runSummary(run);
   const updated=await db().playRun.update({where:{id:run.id},data:{status:"FINISHED",completedAt:new Date()}});
   return runSummary(updated);
+}
+/** Display finished questions only. Never expose answers or unplayed rounds. */
+export async function runFeedback(p:Record<string,any>,actor:Actor|null) {
+  const run=await checkedRun(p.runId,p.runToken,actor);
+  if(run.status!=="FINISHED")fail(409,"run_in_progress","Finish the run before rating questions");
+  const recentFirst=run.mode==="INFINITE";
+  const sessions=await db().playSession.findMany({
+    where:{runId:run.id,status:{in:["SOLVED","FAILED"]}},
+    select:{quizId:true,userId:true,roundIndex:true,revision:{select:{title:true}},
+      quiz:{select:{authorId:true}}},
+    orderBy:{roundIndex:recentFirst?"desc":"asc"},take:5
+  });
+  if(recentFirst)sessions.reverse();
+  const ids=sessions.map(s=>s.quizId);
+  const [ratings,previous]=await Promise.all([
+    ratingsForQuizzes(ids),
+    actor&&ids.length?db().review.findMany({
+      where:{authorId:actor.id,quizId:{in:ids}},select:{quizId:true,rating:true}
+    }):Promise.resolve([])
+  ]);
+  const saved=new Map(previous.map(r=>[r.quizId,r.rating]));
+  return {runId:run.id,items:sessions.map(s=>({
+    quizId:s.quizId,title:s.revision.title,round:(s.roundIndex??0)+1,
+    ratings:ratings.get(s.quizId),myRating:saved.get(s.quizId)??null,
+    ratingAccess:ratingAccess(actor,s.quiz.authorId,s.userId)
+  }))};
 }
 export async function runHistory(p:Record<string,any>,actor:Actor|null) {
   const user=requireActor(actor);

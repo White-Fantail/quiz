@@ -57,7 +57,8 @@ export async function myQuizInsights(p: Record<string, any>, actor: Actor | null
   const quiz = await db().quiz.findFirst({ where: { id: p.quizId, authorId: owner.id }, select: { id: true, currentVersion: true } });
   if (!quiz) fail(404, "not_found", "Quiz not found");
   const where = { quizId: quiz.id };
-  const [states, clues, average, ratings, reviewCount, feedback, reasons] = await Promise.all([
+  const now=Date.now(),lastWeek=new Date(now-7*86400000),previousWeek=new Date(now-14*86400000);
+  const [states, clues, average, ratings, reviewCount, feedback, reasons, recent, prior] = await Promise.all([
     db().playSession.groupBy({ by: ["status"], where, _count: { _all: true } }),
     db().playSession.groupBy({ by: ["usedClues"], where: { ...where, status: "SOLVED" },
       _count: { _all: true }, orderBy: { usedClues: "asc" } }),
@@ -68,7 +69,9 @@ export async function myQuizInsights(p: Record<string, any>, actor: Actor | null
     db().review.findMany({ where, select: { id: true, rating: true, comment: true, createdAt: true,
       author: { select: { displayName: true } } }, orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       skip: p.offset, take: p.limit }),
-    db().report.groupBy({ by: ["reason"], where, _count: { _all: true } })
+    db().report.groupBy({ by: ["reason"], where, _count: { _all: true } }),
+    db().review.groupBy({by:["rating"],where:{...where,updatedAt:{gte:lastWeek}},_count:{_all:true}}),
+    db().review.groupBy({by:["rating"],where:{...where,updatedAt:{gte:previousWeek,lt:lastWeek}},_count:{_all:true}})
   ]);
   const statusCount = (status: string) => states.find(s => s.status === status)?._count._all ?? 0;
   const started = states.reduce((sum, s) => sum + s._count._all, 0);
@@ -86,6 +89,8 @@ export async function myQuizInsights(p: Record<string, any>, actor: Actor | null
       positive: ratings.find(r => r.rating === 1)?._count._all ?? 0,
       negative: ratings.find(r => r.rating === -1)?._count._all ?? 0,
       total: reviewCount, items: feedback, offset: p.offset, limit: p.limit,
+      trend:{last7Days:{positive:recent.find(r=>r.rating===1)?._count._all??0,negative:recent.find(r=>r.rating===-1)?._count._all??0},
+        previous7Days:{positive:prior.find(r=>r.rating===1)?._count._all??0,negative:prior.find(r=>r.rating===-1)?._count._all??0}},
       hasMore: p.offset + feedback.length < reviewCount
     },
     reports: { total: reasons.reduce((sum, r) => sum + r._count._all, 0),

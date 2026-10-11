@@ -24,6 +24,7 @@ function route(method: string, segments: string[]): Match | null {
     if (b && c === "stats" && method === "GET") return { op: "quiz_stats", args: { quizId: b } };
     if (b && c === "reviews" && method === "GET") return { op: "reviews_list", args: { quizId: b } };
     if (b && c === "reviews" && method === "POST") return { op: "review_upsert", args: { quizId: b } };
+    if (b && c === "reviews" && method === "DELETE") return { op: "review_remove", args: { quizId: b } };
     if (b && c === "reports" && method === "POST") return { op: "report_create", args: { quizId: b } };
   }
   if (a === "packs" && !b) {
@@ -43,6 +44,7 @@ function route(method: string, segments: string[]): Match | null {
     if (!b && method === "GET") return { op: "run_history", args: {} };
     if (b && c === "current" && method === "POST") return { op: "run_current", args: { runId:b } };
     if (b && c === "finish" && method === "POST") return { op: "run_finish", args: { runId:b } };
+    if (b && c === "feedback" && method === "POST") return { op: "run_feedback", args: { runId:b } };
   }
   if (a === "play" && !b && method === "POST") return { op: "play_start", args: {} };
   if (a === "play" && b && c === "clue" && method === "POST") return { op: "play_clue", args: { sessionId: b } };
