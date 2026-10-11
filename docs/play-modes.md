@@ -91,3 +91,11 @@ The names above use the QuizDip MCP prefix (`quizdip_*`). The run-token namespac
 The default Play and homepage action is a fresh random five. The weekly identical-five competition is a visible but secondary recurring event. Daily challenges are deferred until publishing and retention metrics establish reliable supply. After finishing five, the player may actively choose another five; infinite remains an opt-in rather than automatic loop.
 
 The MVP currently collects all eligible quiz IDs and signed-in users' exposed/allocated IDs before filtering and shuffling. This can become slow with very large catalogs and should be replaced with an indexed anti-join/paginated random selection. Concurrent run starts can still race and allocate the same unseen question to the same user; a DB-enforced reservation/transactional user lock is a prerequisite for a strict concurrent guarantee. If a not-yet-opened random question is scheduled for weekly after the run is created, preallocation may conflict and should be handled before production high-stakes rankings. The content pool is finite: the product must not claim infinite supply.
+
+## Reactions and discovery quality
+
+- Individual Discover plays offer optional 👍/👎 reactions immediately after a server-confirmed SOLVED/FAILED outcome.
+- Random and weekly five-question runs collect optional per-question reactions together only after the run finishes; infinite runs display the last five completed questions when finished.
+- One review per signed-in player/quiz, with completion required, cannot review your own quiz; repeat the selected reaction to remove it or choose the other to change it. Guest completions cannot later be attributed automatically to a new signed-in session.
+- Public Discover and play show aggregate positive sentiment only once at least five ratings exist, to avoid misleading samples. Success rate and popularity are independent; player sentiment does not override safety or Kids approval.
+- Studio shows all-time reaction totals and two recent seven-day windows by latest review update, without exposing private reports. This is not a time-series snapshot.

@@ -16,7 +16,8 @@ type Insights = {
   started:number;completed:number;solved:number;failed:number;inProgressOrAbandoned:number;
   successRate:number|null;completionRate:number|null;averageCluesUsed:number|null;
   correctByClueStage:{stage:number;correct:number}[];
-  reviews:{positive:number;negative:number;total:number;items:Feedback[];hasMore:boolean};
+  reviews:{positive:number;negative:number;total:number;items:Feedback[];hasMore:boolean;
+    trend:{last7Days:{positive:number;negative:number};previous7Days:{positive:number;negative:number}}};
   reports:{total:number;byReason:{reason:string;count:number}[]};
 };
 type FormValues = {
@@ -272,7 +273,19 @@ export default function StudioQuizDetail({quizId}:{quizId:string}){
         <div className="studio-metric-grid studio-feedback-metrics">
           <div><small>좋아요</small><strong>{formatNumber(insights.reviews.positive)}</strong></div>
           <div><small>아쉬워요</small><strong>{formatNumber(insights.reviews.negative)}</strong></div>
+          <div><small>긍정 평가 비율</small><strong>{insights.reviews.total>=5?
+            formatPercent(insights.reviews.positive/insights.reviews.total):"평가 더 필요"}</strong></div>
           <div><small>신고 접수 (집계)</small><strong>{formatNumber(insights.reports.total)}</strong></div>
+        </div>
+        <div className="studio-rating-trend">
+          <h3>최근 평가 추이</h3>
+          <p className="muted">평가의 마지막 저장일을 기준으로 해요. 현재 평가만 집계하며 과거 스냅샷은 아니에요.</p>
+          {([["최근 7일",insights.reviews.trend.last7Days],["그 전 7일",insights.reviews.trend.previous7Days]] as const)
+            .map(([label,period])=><div key={label} className="studio-rating-period">
+              <strong>{label}</strong><span>👍 {period.positive} · 👎 {period.negative}</span>
+              <span>{period.positive+period.negative>=5?
+                formatPercent(period.positive/(period.positive+period.negative)):"평가 적음"}</span>
+            </div>)}
         </div>
         {insights.reports.byReason.length>0&&<div className="studio-report-summary">
           <h3>접수된 문제 유형</h3>
