@@ -95,5 +95,10 @@ export async function heartbeat(kid:Kid){
 }
 /** Reclaim old minute slots after 90 days. Admin cron only; profiles cascade on deletion. */
 export async function pruneOldUsage(now=new Date()){
-  return db().kidUsageMinute.deleteMany({where:{createdAt:{lt:new Date(now.getTime()-90*DAY_MS)}}});
+  const [usage,parents,tickets]=await Promise.all([
+    db().kidUsageMinute.deleteMany({where:{createdAt:{lt:new Date(now.getTime()-90*DAY_MS)}}}),
+    db().kidParentAccess.deleteMany({where:{expiresAt:{lt:new Date(now.getTime()-DAY_MS)}}}),
+    db().kidPairTicket.deleteMany({where:{expiresAt:{lt:new Date(now.getTime()-DAY_MS)}}})
+  ]);
+  return {count:usage.count,parentSessions:parents.count,pairTickets:tickets.count};
 }
