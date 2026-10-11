@@ -5,7 +5,7 @@
 
 Clupio is a playful, open quiz platform where people follow clues, discover answers, and create and share their own quizzes.
 
-> **Status:** REST API, authenticated Remote MCP adapters, PostgreSQL/Prisma models, migration and shared quiz/play/community services are implemented on `dev`. **Not production-ready:** no live database or OIDC provider has been provisioned or authenticated end-to-end; AI categorization, Kids safety automation, upload storage, and an operational admin console remain future work.
+> **Status:** REST API, authenticated Remote MCP adapters, PostgreSQL/Prisma models, migration and shared quiz/play/community services are implemented on `dev`. **Not production-ready:** Google/Apple SSO and MCP OAuth code have been added, but live credentials, Better Auth migrations and end-to-end sign-in have not yet been verified; AI categorization, Kids safety automation, upload storage, and an operational admin console remain future work.
 
 ## Get started
 
@@ -16,7 +16,7 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:3000. To exercise API/MCP, first configure `.env` from `.env.example`, provision PostgreSQL and an OIDC provider, run `npm run db:migrate`. Validation: `npm run test`, `npm run typecheck`, `npm run build`.
+Open http://localhost:3000. To exercise API/MCP, first configure `.env` from `.env.example`, provision PostgreSQL and Google/Apple credentials, run `npm run db:migrate` plus the Better Auth migration described in `docs/auth-sso-mcp.md`. Validation: `npm run test`, `npm run typecheck`, `npm run build`.
 
 ## Architecture: one Next.js app, separate responsibilities
 
@@ -72,3 +72,7 @@ See [AGENTS.md](AGENTS.md), [architecture](docs/architecture.md), [brand](docs/b
 ## API and MCP setup
 
 Read [API–MCP documentation](docs/api-mcp.md) for the parity matrix, security model, configuration and launch gates. All future functional additions require corresponding MCP support; see [AGENTS.md](AGENTS.md). The demo browser UI remains separate from the new persistent platform backend.
+
+## Single sign-on across web and MCP
+
+Google and Apple sign-in are at `/sign-in`. Link additional providers from `/account`, and approve external MCP clients at `/consent`. All browser and ChatGPT identities use one Better Auth user ID. See [SSO and MCP OAuth setup](docs/auth-sso-mcp.md) for provider callback URLs, environment variables, database migrations, security and test requirements. No accounts are silently joined based on matching email addresses.

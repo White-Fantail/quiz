@@ -44,13 +44,13 @@ General publication doesn't mean Kids approval: pending/unverified content is ex
 
 ## Operational requirements
 
-The repository contains the API and MCP implementation and an initial Prisma migration. It does not automatically provision accounts, social sign-in, the OAuth issuing provider, PostgreSQL, object storage, AI classifiers or a moderation backoffice.
+The repository contains the API and MCP implementation and an initial Prisma migration. It adds Better Auth Google/Apple sign-in, account linking, MCP OAuth authorization and consent flows in source, but does not provision live OAuth secrets, PostgreSQL, object storage, AI classifiers or a moderation backoffice.
 
 Before remote access:
-1. Provision **separate development and production** PostgreSQL databases. Populate `DATABASE_URL` (optional `DIRECT_URL`).
-2. Configure a trusted OAuth/OIDC issuer and `OIDC_ISSUER`, `OIDC_AUDIENCE`, `OIDC_JWKS_URL` with tokens containing `iss`, `aud`, `exp`, `sub`; set `PUBLIC_ORIGIN`. Configure the OAuth authorization service separately to enable host client sign-in.
-3. Apply `npm run db:migrate`, run `npm run typecheck`, `npm run test` and `npm run build`.
-4. Verify schema and tool registration, end-to-end authenticated owner restrictions, expired token denial, session replay races, Kids gating, rankings, and actual HTTP MCP calls.
-5. Before opening registration to the public, add distributed rate limits for all public play endpoints, moderation/abuse automation, provider-based adult eligibility verification, media storage/verification and content upload scanning. Current per-account daily publication/report limits are not a complete anti-abuse system.
+1. Follow [Google/Apple SSO and MCP OAuth setup](auth-sso-mcp.md). Configure and migrate development PostgreSQL before production.
+2. Configure Google and Apple provider credentials, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, and `PUBLIC_ORIGIN`. The old `OIDC_ISSUER`/`OIDC_AUDIENCE`/`OIDC_JWKS_URL` configuration has been replaced.
+3. Apply both migrations: Prisma domain (`npm run db:migrate`) and Better Auth auth/OAuth tables (`npx auth@1.7.7 migrate --config ./apps/web/src/lib/auth.ts --yes`).
+4. Run tests, typecheck and build, then verify signed-in web identity matches MCP `clupio_me` identity, linking, refresh, consent, account restrictions, Kids and rankings.
+5. Before public traffic, enable distributed OAuth and game rate limiting, moderation/abuse automation, adult eligibility checks and verified media storage.
 
 Never treat an MCP tool listed in metadata or a passing typecheck as proof that it is live with an authenticated DB.
