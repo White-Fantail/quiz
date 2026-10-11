@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 export const uuid = z.string().uuid();
+export const userId = z.string().regex(/^[a-f0-9]{64}$/);
 export const answerSchema = z.object({ canonical: z.string().trim().min(1).max(200), aliases: z.array(z.string().trim().min(1).max(200)).max(20).default([]) });
 const media = z.object({ url: z.url().max(2000), alt: z.string().max(500).optional(), transcript: z.string().max(2000).optional(), attribution: z.string().max(500).optional() });
 export const clueSchema = z.discriminatedUnion("type", [
@@ -39,7 +40,10 @@ export const operations = {
   me: { public: false, description: "My verified account and settings", schema: z.object({}) },
   my_quizzes: { public: false, description: "Manage questions I created", schema: z.object(paging) },
   my_stats: { public: false, description: "My private scores, attempts and rank", schema: z.object({}) },
-  leaderboard: { public: true, description: "Opt-in verified player rankings", schema: z.object({ ...paging, quizId: uuid.optional() }) }
+  leaderboard: { public: true, description: "Opt-in verified player rankings", schema: z.object({ ...paging, quizId: uuid.optional() }) },
+  user_get: { public: true, description: "View a creator's public profile and reputation", schema: z.object({ userId }) },
+  creator_reviews_list: { public: true, description: "Read the public reviews of a quiz creator", schema: z.object({ userId, ...paging }) },
+  creator_review_upsert: { public: false, description: "Rate a creator after finishing one of their questions", schema: z.object({ userId, rating: z.union([z.literal(-1), z.literal(1)]), comment: z.string().max(2000).default("") }) }
 } as const;
 export type Operation = keyof typeof operations;
 export function parseOperation(name: Operation, payload: unknown): Record<string, any> {
