@@ -155,7 +155,7 @@ export async function quizPublish(p: Record<string, any>, actor: Actor | null) {
   await validateMediaReferences(user.id, currentRevision.promptMediaIds as string[], currentRevision.clues as any[], true);
   if (old.publication !== "PUBLISHED") {
     const recent = await db().auditLog.count({ where: { actorId: user.id, action: "quiz.publish", createdAt: { gte: new Date(Date.now() - 86400000) } } });
-    if (recent >= 30) fail(429, "rate_limit", "Daily publication limit reached");
+    if (recent >= 100) fail(429, "rate_limit", "Daily publication limit reached");
   }
   await db().$transaction(async tx => {
     await tx.quiz.update({ where: { id: old.id }, data: { publication: "PUBLISHED", kidsEligible: false, safetyStatus: "PENDING" } });
