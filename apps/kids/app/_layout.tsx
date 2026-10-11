@@ -4,6 +4,8 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { KidsLocaleProvider, useKidsLocale } from "../src/state/locale";
 import { KidsSessionProvider, useKidsSession } from "../src/state/session";
 import { useEffect } from "react";
+import { KidsParentProvider } from "../src/state/parent";
+import { KidsTimeProvider } from "../src/state/time";
 
 function PinLocaleToGuardian(){
  const session=useKidsSession(),{chooseLocale}=useKidsLocale();
@@ -12,8 +14,8 @@ function PinLocaleToGuardian(){
  return null;
 }
 export default function RootLayout(){
- return <SafeAreaProvider><KidsLocaleProvider><KidsSessionProvider><PinLocaleToGuardian/>
+ return <SafeAreaProvider><KidsLocaleProvider><KidsSessionProvider><KidsParentProvider><KidsTimeProvider><PinLocaleToGuardian/>
   <StatusBar style="dark"/>
   <Stack screenOptions={{headerShown:false}} />
- </KidsSessionProvider></KidsLocaleProvider></SafeAreaProvider>;
+ </KidsTimeProvider></KidsParentProvider></KidsSessionProvider></KidsLocaleProvider></SafeAreaProvider>;
 }
