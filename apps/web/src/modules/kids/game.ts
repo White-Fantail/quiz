@@ -85,7 +85,21 @@ async function answerChoices(kid:Kid,sessionId:string,sessionToken:string){
   return sorted([correct,...sorted(decoys).slice(0,3)]);
 }
 export async function startKidRun(kid:Kid,mode:Mode,avoidQuizIds:string[]=[]){
-  const p={mode,lane:"KIDS",locale:kid.profile.locale,avoidQuizIds};
+  // Use the shared published question bank, but exclude this child's previously
+  // allocated and played quizzes across devices (up to the existing 1,000-ID cap).
+  let avoid=avoidQuizIds;
+  if(mode==="RANDOM_FIVE"){
+    const [seen,allocated]=await Promise.all([
+      db().playSession.findMany({where:{OR:[
+        {run:{is:{kidOwnership:{is:{profileId:kid.profileId}}}}},
+        {kidSingle:{is:{profileId:kid.profileId}}}
+      ]},select:{quizId:true},orderBy:{startedAt:"desc"},take:1000}),
+      db().playRunQuestion.findMany({where:{run:{is:{kidOwnership:{is:{profileId:kid.profileId}}}}},
+        select:{quizId:true},take:1000})
+    ]);
+    avoid=[...new Set([...avoidQuizIds,...seen.map(x=>x.quizId),...allocated.map(x=>x.quizId)])].slice(0,1000);
+  }
+  const p={mode,lane:"KIDS",locale:kid.profile.locale,avoidQuizIds:avoid};
   const run=await execute("run_start",p,null) as any;
   if(run?.lane!=="KIDS" || run?.locale!==kid.profile.locale || !run?.runId || !run?.runToken)
     fail(409,"kid_run_invalid","Game session was not created safely");
