@@ -15,7 +15,7 @@ test("Kids is a real native Expo app, not a webview shell",()=>{
 test("native discovery is read-only, locale-scoped and server-safe",()=>{
  const src=source("app/(tabs)/explore.tsx"),api=source("src/services/api.ts");
  assert.match(src,/api\.kidsCatalog\(locale/);
- assert.match(src,/kidsEligible/); // Contract is fail-closed in the shared API client.
+ assert.match(source("../../packages/api-client/src/index.ts"),/kidsEligible===true/);
  assert.doesNotMatch(src,/play_guess|play_start|answer\.canonical/);
  assert.match(api,/EXPO_PUBLIC_QUIZDIP_API_URL/);
  assert.doesNotMatch(api,/DATABASE_URL|BETTER_AUTH_SECRET/);
