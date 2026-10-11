@@ -1,16 +1,24 @@
 import Link from "next/link";
+import { headers } from "next/headers";
+import { auth } from "../../../src/lib/auth";
+import StudioWorkspace from "./studio-workspace";
 
-export default function StudioPage() {
-  return (
-    <section className="container inner-page compact">
-      <span className="eyebrow">QUIZDIP STUDIO</span>
-      <h1>누구나 퀴즈 제작자!</h1>
-      <p className="lead">만들고 싶은 퀴즈만 생각해 둬. 복잡한 설정 없이 제작하고 AI에게 도움받는 Studio를 준비하고 있어.</p>
-      <div className="placeholder-panel">
-        <h2>Studio는 개발 예정이에요</h2>
-        <p>퀴즈 제작 UI는 준비 중이지만, 이미지·음원·영상은 지금 미디어 보관함에서 업로드할 수 있어요. 문제 등록과 단서 연결은 REST/MCP API를 통해 지원해요.</p>
-        <div className="actions"><Link href="/studio/weekly" className="btn btn-primary">주간 출제자 도전하기</Link><Link href="/studio/media" className="btn btn-outline">미디어 보관함 열기</Link><Link href="/play" className="btn btn-outline">게임 먼저 체험하기</Link></div>
-      </div>
-    </section>
-  );
+export const dynamic = "force-dynamic";
+
+export default async function StudioPage() {
+  const session = await auth.api.getSession({ headers: await headers() });
+  return <main className="container inner-page studio-home">
+    <span className="eyebrow">QUIZDIP STUDIO</span>
+    <h1>내 퀴즈 스튜디오</h1>
+    <p className="lead">직접 만든 문제를 검색하고 관리하며, 플레이 결과와 피드백으로 더 재미있게 다듬어 보세요.</p>
+    <div className="actions studio-home-actions">
+      <Link href="/studio/weekly" className="btn btn-outline">주간 출제자 도전하기</Link>
+      <Link href="/studio/media" className="btn btn-outline">미디어 보관함</Link>
+    </div>
+    {!session ? <section className="placeholder-panel">
+      <h2>로그인하고 내 문제를 관리하세요</h2>
+      <p>QuizDip 계정으로 등록한 퀴즈, 결과, 피드백은 작성자 본인에게만 관리 권한이 있어요.</p>
+      <Link href="/sign-in?callbackURL=%2Fstudio" className="btn btn-primary">Google·Apple 로그인</Link>
+    </section> : <StudioWorkspace/>}
+  </main>;
 }
