@@ -1,7 +1,6 @@
 import { ZodError } from "zod";
 import { actorFor, requireSameOrigin, PlatformError } from "../../../../src/modules/platform/auth";
 import { hasKidCookie } from "../../../../src/modules/kids/credentials";
-import { currentKidDevice } from "../../../../src/modules/kids/service";
 import { fail } from "../../../../src/modules/platform/auth";
 import { execute } from "../../../../src/modules/platform/operations";
 import type { Operation } from "../../../../src/modules/platform/contracts";
@@ -113,17 +112,10 @@ export async function handle(request: Request, context: Context): Promise<Respon
       ? parseQuery(url.searchParams) : await request.json();
     if (!body || typeof body !== "object" || Array.isArray(body)) return Response.json({ error: "invalid_body" }, { status: 400 });
     requireSameOrigin(request);
-    // Child capability cannot inherit the browser's Better Auth guardian identity.
-    // Only already-moderated, same-language Kids catalog reads are allowed.
-    if (hasKidCookie(request.headers.get("cookie"))) {
-      const kid = await currentKidDevice(request.headers);
-      if (!kid) fail(403,"kid_session_expired","Child session inactive; ask your guardian");
-      if (request.method !== "GET" || !["quiz_list","topic_list"].includes(match.op)
-        || body.kids !== true || body.mine === true || body.locale !== kid.profile.locale)
-        fail(403,"kid_api_restricted","This action is not available in Kids mode");
-      const result = await execute(match.op, { ...body, ...match.args }, null);
-      return Response.json({data:result},{headers:{"Cache-Control":"no-store"}});
-    }
+    // A previously locked browser must remain locked until its guardian
+    // verifies the PIN on the dedicated retired-device exit page.
+    if (hasKidCookie(request.headers.get("cookie")))
+      fail(403,"legacy_kid_retired","Guardian PIN unlock is required for this browser");
     const actor = await actorFor(request);
     const result = await execute(match.op, { ...body, ...match.args }, actor);
     return Response.json({ data: result }, { headers: { "Cache-Control": "no-store" } });
