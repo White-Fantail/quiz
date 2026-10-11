@@ -4,7 +4,7 @@ import { db } from "./db";
 import { fail, requireActor, type Actor } from "./auth";
 import {
   LIMITS, MIME_KIND, CHUNK_SIZE, partKey, readChunks, uploadTicket, previewUrl, putObject,
-  deleteObject, readObject, checkSize, sniff, importExternal,
+  deleteObject, readObject, checkSize, sniff, importExternal, objectExists,
 } from "./storage";
 
 function safeMetadata(p: Record<string, any>) {
@@ -25,7 +25,7 @@ export function mediaSummary(item: any) {
   return { id: item.id, kind: item.kind, mimeType: item.mimeType, sizeBytes: item.sizeBytes,
     originalName: item.originalName, status: item.status, moderationStatus: item.moderationStatus,
     alt: item.alt, transcript: item.transcript, attribution: item.attribution, license: item.license,
-    sourceUrl: item.sourceUrl, parentId: item.parentId, createdAt: item.createdAt, updatedAt: item.updatedAt };
+    sourceUrl: item.sourceUrl, parentId: item.parentId, createdAt: item.createdAt, updatedAt: item.updatedAt, uploadExpiresAt: item.uploadExpiresAt };
 }
 async function dailyLimit(ownerId: string) {
   const count = await db().mediaAsset.count({
@@ -118,17 +118,98 @@ export async function mediaImport(p: Record<string, any>, actor: Actor | null) {
     throw error;
   }
 }
+/** Stable reference IDs across all quiz revisions, not only the currently published revision.
+ * Old revisions continue to block deletion, so the "unused" filter must agree.
+ */
+async function referencedMediaIds(ownerId: string): Promise<string[]> {
+  const rows = await db().$queryRaw<Array<{ id: string }>>`
+    SELECT DISTINCT refs.id
+    FROM "Quiz" q JOIN "QuizRevision" r ON r."quizId" = q."id"
+    CROSS JOIN LATERAL (
+      SELECT jsonb_array_elements_text(r."promptMediaIds") AS id
+      UNION ALL
+      SELECT c.value ->> 'mediaId' AS id FROM jsonb_array_elements(r."clues") c
+    ) refs
+    WHERE q."authorId" = ${ownerId} AND refs.id IS NOT NULL
+  `;
+  return rows.map(row => row.id);
+}
+
+async function mediaUsage(id: string, ownerId: string) {
+  const matches = await db().$queryRaw<Array<{
+    quizId: string; title: string; version: number; isCurrent: boolean; publication: string;
+  }>>`
+    SELECT r."quizId" AS "quizId", r."title", r."version",
+      (q."currentVersion" = r."version") AS "isCurrent", q."publication"
+    FROM "QuizRevision" r JOIN "Quiz" q ON q."id" = r."quizId"
+    WHERE q."authorId" = ${ownerId}
+      AND (r."promptMediaIds" @> ${JSON.stringify([id])}::jsonb
+        OR r."clues" @> ${JSON.stringify([{ mediaId: id }])}::jsonb)
+    ORDER BY "isCurrent" DESC, r."version" DESC
+    LIMIT 51
+  `;
+  return { items: matches.slice(0,50), hasMore: matches.length > 50 };
+}
+
+async function thumbnailFor(item: any): Promise<string | undefined> {
+  if (item.status !== "READY" || item.kind !== "image") return undefined;
+  const key = `assets/${item.id}/thumbnail.webp`;
+  try {
+    if (!(await objectExists(key))) {
+      // The owner is authorized before we read the private original.
+      // Generate at most a 320x240 WebP, store in a private immutable R2 key.
+      const original = await readObject(item.storageKey, LIMITS.image);
+      const thumb = await sharp(original, { limitInputPixels: 30000000, failOn: "error" })
+        .rotate().resize({ width: 320, height: 240, fit: "inside", withoutEnlargement: true })
+        .webp({ quality: 70 }).toBuffer();
+      await putObject(key, thumb, "image/webp");
+    }
+    return await previewUrl(key, "image/webp");
+  } catch (error) {
+    // Legacy or malformed image should not block the owner's detail page.
+    console.warn("Owner thumbnail failed; falling back to original", item.id, error);
+    return undefined;
+  }
+}
 export async function mediaList(p: Record<string, any>, actor: Actor | null) {
   const user = requireActor(actor);
-  const rows = await db().mediaAsset.findMany({
-    where: { ownerId: user.id, deletedAt: null }, orderBy: { createdAt: "desc" }, skip: p.offset, take: p.limit,
-  });
-  return { items: rows.map(mediaSummary), offset: p.offset, limit: p.limit };
+  const where: Record<string, any> = { ownerId: user.id, deletedAt: null };
+  if (p.kind && p.kind !== "all") where.kind = p.kind;
+  if (p.moderation && p.moderation !== "all") where.moderationStatus = p.moderation;
+  if (p.status && p.status !== "all") where.status = p.status;
+  if (p.search?.trim()) where.OR = [
+    { originalName: { contains: p.search.trim(), mode: "insensitive" } },
+    { alt: { contains: p.search.trim(), mode: "insensitive" } },
+    { attribution: { contains: p.search.trim(), mode: "insensitive" } },
+  ];
+  if (p.usage === "used" || p.usage === "unused") {
+    const ids = await referencedMediaIds(user.id);
+    // An empty list must not accidentally turn the "used" filter into all results.
+    where.id = p.usage === "used" ? { in: ids } : { notIn: ids };
+  }
+  const orderBy = p.sort === "oldest" ? [{ createdAt: "asc" },{ id: "asc" }]
+    : p.sort === "name" ? [{ originalName: "asc" },{ id: "asc" }]
+    : p.sort === "size" ? [{ sizeBytes: "desc" },{ id: "asc" }]
+    : [{ createdAt: "desc" },{ id: "desc" }];
+  const [rows,total] = await Promise.all([
+    db().mediaAsset.findMany({ where, orderBy, skip: p.offset, take: p.limit }),
+    db().mediaAsset.count({ where }),
+  ]);
+  return { items: rows.map(mediaSummary), offset: p.offset, limit: p.limit,
+    total, hasMore: p.offset + rows.length < total };
 }
 export async function mediaGet(p: Record<string, any>, actor: Actor | null) {
   const item = await asset(p.id, actor);
-  return { ...mediaSummary(item), ...(item.status === "READY"
-    ? { previewUrl: await previewUrl(item.storageKey, item.mimeType), previewExpiresInSeconds: 60 } : {}) };
+  const user = requireActor(actor);
+  const [usage, thumbnailUrl] = await Promise.all([
+    mediaUsage(item.id,user.id), thumbnailFor(item),
+  ]);
+  return { ...mediaSummary(item), usage,
+    ...(item.status === "READY" ? {
+      previewUrl: await previewUrl(item.storageKey, item.mimeType), previewExpiresInSeconds: 60,
+      ...(thumbnailUrl ? { thumbnailUrl } : {}),
+    } : {}),
+  };
 }
 export async function mediaUpdate(p: Record<string, any>, actor: Actor | null) {
   const old = await asset(p.id, actor);
@@ -173,6 +254,7 @@ export async function mediaDelete(p: Record<string, any>, actor: Actor | null) {
   // Deletion is idempotent. Storage lifecycle cleanup should retry on provider errors.
   try {
     await deleteObject(old.storageKey);
+    if (old.kind === "image") await deleteObject(`assets/${old.id}/thumbnail.webp`);
     if (old.uploadKey) await deleteObject(old.uploadKey);
   } catch (error) {
     console.error("Media object cleanup failed", error);
