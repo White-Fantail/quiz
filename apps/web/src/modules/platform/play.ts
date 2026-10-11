@@ -1,5 +1,5 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
-import { isCorrectAnswer, scoreForClues } from "@clupio/domain";
+import { isCorrectAnswer, scoreForClues } from "@quizdip/domain";
 import { db } from "./db";
 import { fail, type Actor } from "./auth";
 

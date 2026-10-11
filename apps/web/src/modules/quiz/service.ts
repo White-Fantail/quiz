@@ -1,5 +1,5 @@
 import { demoQuiz } from "./demo-quiz.ts";
-import type { QuizQuestion } from "@clupio/domain";
+import type { QuizQuestion } from "@quizdip/domain";
 
 /**
  * Tiny read-only service for the scaffold's demo endpoint.

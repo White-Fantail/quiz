@@ -15,7 +15,7 @@ test("production build migrates Prisma, then Better Auth, before Next.js", () =>
     "Apply Prisma migrations", "Apply Better Auth migrations", "Generate Prisma client", "Build Next.js",
   ]);
   assert.ok(steps[1].args.includes("auth@1.7.7"));
-  assert.deepEqual(steps[3].args, ["run", "build:next", "--workspace", "@clupio/web"]);
+  assert.deepEqual(steps[3].args, ["run", "build:next", "--workspace", "@quizdip/web"]);
 });
 
 test("preview, local and CI builds never modify a database", () => {
