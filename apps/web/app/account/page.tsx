@@ -62,6 +62,13 @@ export default async function AccountPage() {
       <Link href={localizeHref("/admin", locale)} className="btn btn-primary">{msg("account.admin")}</Link>
     </div>}
     <div className="placeholder-panel">
+      <h2>{msg("kids.guardian.title")}</h2>
+      <p className="muted">{msg("kids.native.pairHelp")}</p>
+      <Link className="btn btn-outline" href={localizeHref("/account/kids",locale)}>
+        {msg("kids.native.pairTitle")}
+      </Link>
+    </div>
+    <div className="placeholder-panel">
       <h2>{msg("account.providers")}</h2>
       <AccountActions google={availableProviders.google} apple={availableProviders.apple} />
     </div>
