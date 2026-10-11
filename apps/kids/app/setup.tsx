@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { Redirect } from "expo-router";
 import { ApiError } from "@quizdip/api-client";
 import { Screen, Banner } from "../src/components/Screen";
@@ -13,11 +13,7 @@ export default function SetupScreen(){
  const [code,setCode]=useState(""),[deviceName,setDeviceName]=useState("My iPad");
  const [error,setError]=useState(""),[busy,setBusy]=useState(false);
  if(session.status==="active")return <Redirect href="/" />;
- const parentUrl=publicApi?.origin+"/" + locale + "/kids/parent";
- const openParent=async()=>{
-   if(!publicApi){setError(t("native.notConfigured"));return;}
-   try{await Linking.openURL(parentUrl);}catch{setError(t("native.unavailable"));}
- };
+ const parentUrl=publicApi?.origin+"/"+locale+"/kids/parent";
  const redeem=async()=>{
    if(busy)return;
    setError("");setBusy(true);
@@ -45,9 +41,10 @@ export default function SetupScreen(){
        <Text style={locale===lang?styles.langTextSelected:styles.langText}>{lang==="en"?"English":"한국어"}</Text>
      </Pressable>)}
    </View>
-   <Pressable style={styles.outline} accessibilityRole="button" onPress={()=>void openParent()}>
-     <Text style={styles.outlineText}>🔗 {t("native.pair.open")}</Text>
-   </Pressable>
+   <View style={styles.outline}>
+     <Text style={styles.outlineText}>🔒 {t("native.pair.open")}</Text>
+     <Text selectable style={styles.parentUrl}>{parentUrl??t("native.notConfigured")}</Text>
+   </View>
    <View style={styles.panel}>
      <Text style={styles.label}>{t("native.pair.code")}</Text>
      <TextInput value={code} onChangeText={setCode} autoCapitalize="characters"
@@ -81,5 +78,6 @@ const styles=StyleSheet.create({
  disabled:{opacity:0.5},
  outline:{borderWidth:2,borderColor:theme.colors.accent,borderRadius:15,padding:16},
  outlineText:{textAlign:"center",color:theme.colors.accent,fontWeight:"800"},
+ parentUrl:{textAlign:"center",marginTop:10,color:theme.colors.ink,fontSize:13},
  error:{color:theme.colors.error,fontSize:14}
 });
