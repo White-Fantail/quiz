@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { formatMediaBytes, mediaUploadLabel, mediaModerationNames } from "../../../../src/lib/media-view";
 
 type Kind = "image" | "audio" | "video";
 type Media = {
@@ -28,21 +29,6 @@ const kinds: Record<string,Kind> = {
   "video/mp4":"video", "video/webm":"video",
 };
 
-export function formatMediaBytes(value: number): string {
-  if (value < 1024) return value + " B";
-  if (value < 1024 ** 2) return (value / 1024).toFixed(value < 10 * 1024 ? 1 : 0) + " KB";
-  if (value < 1024 ** 3) return (value / (1024 ** 2)).toFixed(1) + " MB";
-  return (value / (1024 ** 3)).toFixed(1) + " GB";
-}
-function uploadLabel(item: Media): string {
-  if (item.status === "READY") return "업로드 완료";
-  if (item.status === "UPLOADING" && item.uploadExpiresAt && new Date(item.uploadExpiresAt).getTime() <= Date.now()) return "업로드 만료";
-  if (item.status === "UPLOADING") return "업로드 중";
-  return "업로드 " + item.status;
-}
-const moderationNames: Record<string,string> = {
-  PENDING: "안전 검토 대기", APPROVED: "안전 검토 승인", RESTRICTED: "사용 제한",
-};
 const kindNames: Record<Kind,string> = { image:"이미지", audio:"오디오", video:"동영상" };
 function hex(bytes: ArrayBuffer): string {
   return [...new Uint8Array(bytes)].map(byte => byte.toString(16).padStart(2, "0")).join("");
@@ -265,8 +251,8 @@ export default function MediaLibrary() {
           <h3 title={item.originalName}>{item.originalName}</h3>
           <p className="media-card-meta">{kindNames[item.kind]} · {formatMediaBytes(item.sizeBytes)}</p>
           <div className="media-state-line">
-            <span className={"media-state-chip "+(item.status==="READY"?"media-ok":"media-wait")}>{uploadLabel(item)}</span>
-            <span className={"media-state-chip "+(item.moderationStatus==="APPROVED"?"media-ok":item.moderationStatus==="RESTRICTED"?"media-blocked":"media-wait")}>{moderationNames[item.moderationStatus]||item.moderationStatus}</span>
+            <span className={"media-state-chip "+(item.status==="READY"?"media-ok":"media-wait")}>{mediaUploadLabel(item.status,item.uploadExpiresAt)}</span>
+            <span className={"media-state-chip "+(item.moderationStatus==="APPROVED"?"media-ok":item.moderationStatus==="RESTRICTED"?"media-blocked":"media-wait")}>{mediaModerationNames[item.moderationStatus]||item.moderationStatus}</span>
           </div>
           <div className="media-card-actions">
             <button className="btn btn-outline" type="button" onClick={()=>void show(item)} disabled={busy} aria-expanded={expandedId===item.id}>
@@ -283,7 +269,7 @@ export default function MediaLibrary() {
               {details.previewUrl && details.kind==="audio" && <audio controls preload="none" src={details.previewUrl}/>}
               {details.previewUrl && details.kind==="video" && <video controls preload="none" className="media-preview" src={details.previewUrl}/>}
               <p className="media-identity">ID: <code>{item.id}</code></p>
-              <p>안전성: {moderationNames[item.moderationStatus]||item.moderationStatus} · 자동 미리보기는 공개 승인을 뜻하지 않습니다.</p>
+              <p>안전성: {mediaModerationNames[item.moderationStatus]||item.moderationStatus} · 자동 미리보기는 공개 승인을 뜻하지 않습니다.</p>
               <h4>사용 중인 퀴즈 / 버전</h4>
               {!details.usage?.items?.length && <p>연결된 퀴즈가 없습니다. 이 ID를 복사하여 새 문제에 사용할 수 있어요.</p>}
               {details.usage?.items?.map(link=><div className="media-usage-row" key={link.quizId+":"+link.version}>
