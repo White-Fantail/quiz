@@ -102,7 +102,9 @@ test("child-safe reports are structured, owned, duplicate-limited and moderator-
  assert.match(admin,/kidSafetyReport.groupBy/);
  const native=file("../kids/app/game.tsx");
  assert.match(native,/kidsApi.report/);
- assert.doesNotMatch(native,/TextInput[^]*reportNotice/);
+ const reportChoices=native.slice(native.indexOf("{reportOpen?<View"),native.indexOf("{ended?<Pressable"));
+ assert.ok(reportChoices.includes("sendReport(reason)"));
+ assert.doesNotMatch(reportChoices,/TextInput/);
 });
 test("parent activity audit never stores a child's nickname or security credential",()=>{
  const parent=file("app/api/kids/native/parent/route.ts");
