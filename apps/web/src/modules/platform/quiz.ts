@@ -32,7 +32,7 @@ export async function quizList(p: Record<string, any>, actor: Actor | null) {
     localizations: { where: { locale } },
     topicLinks: { include: { topic: { include: { localizations: { where: { locale } } } } }, orderBy: { position: "asc" } }
   }, orderBy: { updatedAt: "desc" }, skip: p.offset, take: p.limit });
-  const summaries = await ratingsForQuizzes(rows.map(q=>q.id));
+  const summaries = await ratingsForQuizzes(rows.map(q=>q.id),locale);
   const selected = await db().quizRevision.findMany({
     where: { OR: rows.map(q => {
       const l = q.localizations[0];
@@ -65,7 +65,7 @@ export async function quizGet(id: string, actor: Actor | null, locale: Locale = 
   // Owners can always manage legacy unclassified quiz versions in Studio.
   const r = owned ? await revision(id, quiz.currentVersion)
     : (await currentPlayableRevision(id, locale)).revision;
-  const ratings = await ratingsForQuiz(id);
+  const ratings = await ratingsForQuiz(id,locale);
   return { id, title: r.title, prompt: r.prompt, mode: r.mode, answerType: r.answerType,
     locale: owned ? quiz.sourceLocale : locale,
     topics: owned ? topicSummaries(quiz.topicLinks, true) : localizedTopicSummaries(quiz.topicLinks),

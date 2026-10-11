@@ -329,7 +329,7 @@ export async function runCurrent(p:Record<string,any>,actor:Actor|null) {
   }
   if(!session) fail(409,"run_conflict","Retry the current question");
   const clues=revision.clues as Array<Record<string,unknown>>;
-  const [ratings,myRating]=await Promise.all([ratingsForQuiz(quiz.id),myRatingForQuiz(quiz.id,actor)]);
+  const [ratings,myRating]=await Promise.all([ratingsForQuiz(quiz.id,run.locale as Locale),myRatingForQuiz(quiz.id,actor,run.locale as Locale)]);
   return {...runSummary(run),sessionId:session.id,sessionToken:token,
     ratings,myRating,ratingAccess:ratingAccess(actor,quiz.authorId,session.userId),
     round:run.currentIndex+1,quizId:round.quizId,locale:run.locale,quizVersion:revision.version,
@@ -361,9 +361,9 @@ export async function runFeedback(p:Record<string,any>,actor:Actor|null) {
   if(recentFirst)sessions.reverse();
   const ids=sessions.map(s=>s.quizId);
   const [ratings,previous]=await Promise.all([
-    ratingsForQuizzes(ids),
+    ratingsForQuizzes(ids,run.locale as Locale),
     actor&&ids.length?db().review.findMany({
-      where:{authorId:actor.id,quizId:{in:ids}},select:{quizId:true,rating:true}
+      where:{authorId:actor.id,quizId:{in:ids},locale:run.locale,kind:"QUIZ"},select:{quizId:true,rating:true}
     }):Promise.resolve([])
   ]);
   const saved=new Map(previous.map(r=>[r.quizId,r.rating]));

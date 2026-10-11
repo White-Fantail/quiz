@@ -55,9 +55,10 @@ export async function playStart(p: Record<string, any>, actor: Actor | null) {
     quizId: quiz.id, revisionId: revision.id, locale: p.locale, userId: actor?.id, tokenHash: hashToken(token),
     usedClues: 1, expiresAt: new Date(Date.now() + 3600000)
   } });
-  const [ratings,myRating]=await Promise.all([ratingsForQuiz(quiz.id),myRatingForQuiz(quiz.id,actor)]);
+  const [ratings,myRating]=await Promise.all([ratingsForQuiz(quiz.id,p.locale),myRatingForQuiz(quiz.id,actor,p.locale)]);
   return { sessionId: session.id, sessionToken: token, title: revision.title, prompt: revision.prompt,
     quizId:quiz.id,ratings,myRating,ratingAccess:ratingAccess(actor,quiz.authorId,session.userId),
+    isTranslation:translation.origin==="TRANSLATION",
     mode: revision.mode, locale: p.locale, quizVersion: revision.version, promptMediaIds: revision.promptMediaIds, clue: clues[0], clueIndex: 1, clueCount: clues.length };
 }
 export async function playClue(p: Record<string, any>, actor: Actor | null) {
