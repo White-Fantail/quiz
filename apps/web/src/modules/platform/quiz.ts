@@ -116,11 +116,14 @@ export async function quizReview(p: Record<string,any>,actor:Actor|null) {
     await validateMediaReferences(quiz.authorId,revision.promptMediaIds as string[],revision.clues as any[],true);
   }
   const updated=await db().$transaction(async tx=>{
-    const row=await tx.quiz.update({where:{id:quiz.id},
+    // Do not approve an unseen newer revision if its creator edits concurrently.
+    const changed=await tx.quiz.updateMany({where:{id:quiz.id,currentVersion:quiz.currentVersion},
       data:{safetyStatus:p.verdict,kidsEligible:p.verdict==="APPROVED"&&p.kidsEligible}});
+    if(changed.count!==1) fail(409,"revision_conflict","Quiz changed during moderation. Review again");
     await tx.auditLog.create({data:{actorId:admin.id,action:"quiz.review",objectId:quiz.id,
-      detail:{verdict:p.verdict,kidsEligible:p.kidsEligible,reason:p.reason,version:row.currentVersion}}});
-    return row;
+      detail:{verdict:p.verdict,kidsEligible:p.kidsEligible,reason:p.reason,version:quiz.currentVersion}}});
+    return {id:quiz.id,safetyStatus:p.verdict,kidsEligible:p.verdict==="APPROVED"&&p.kidsEligible,
+      currentVersion:quiz.currentVersion};
   });
   return {id:updated.id,safetyStatus:updated.safetyStatus,kidsEligible:updated.kidsEligible,
     version:updated.currentVersion};
