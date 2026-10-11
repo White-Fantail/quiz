@@ -21,7 +21,7 @@ export default function TreasuresScreen(){
      .finally(()=>{if(live)setLoading(false);});
    return ()=>{live=false;};
  },[token,retry]));
- return <Screen title={t("kids.treasures.title")} subtitle={t("kids.treasures.lead")}>
+ return <Screen title={t("kids.treasures.title")} subtitle={t("native.treasure.private")}>
    <Banner emoji="⭐" title={t("native.treasure.heading")} detail={t("native.treasure.private")} tint={theme.colors.lilac}/>
    {loading?<ActivityIndicator color={theme.colors.accent}/>:
      error?<Pressable accessibilityRole="button" onPress={()=>setRetry(x=>x+1)} style={styles.card}>
