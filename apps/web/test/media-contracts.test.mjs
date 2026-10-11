@@ -73,3 +73,10 @@ test("Studio media library uses the same REST endpoints as MCP without separate 
   assert.match(studio, /"\/transform"/);
   assert.match(page, /auth\.api\.getSession/);
 });
+
+test("admin media preview is distinct from owner asset edit and delete",()=>{
+  const media=load("src/modules/platform/media.ts");
+  assert.match(media,/export async function mediaReviewGet/);
+  assert.match(media,/user\.role!=="ADMIN"/);
+  assert.match(media,/previewExpiresInSeconds:60/);
+});

@@ -72,3 +72,9 @@ No celebrity is enrolled and no real week is populated automatically by this cod
 ## Ranking privacy
 
 Official General weekly standings are **opt-in only**, for adults independently verified by trusted administrators. The user sets `leaderboardOptIn` in `/account` or `clupio_ranking_optin`; a trusted administrator sets `leaderboardEligible` using `clupio_adult_verify`. Both start false and both must be true. Staff must have independently substantiated age, not self-attestation. A weekly author cannot enter their own public scoreboard. Kids public rankings do not exist.
+
+## Child-safety moderation
+
+Kids is **not** a creator-selected age label. An independent platform moderator inspects the complete answer, all clues and media and explicitly grants safetyStatus=APPROVED and kidsEligible=true. The moderator UI is /admin/quiz-review, with ADMIN-only quiz_review_get and media_review_get inspection followed by quiz_review and media_review audited decisions. A creator cannot override a restriction. Approval updates are revision-pinned with currentVersion optimistic concurrency, so the moderator cannot inadvertently approve newly edited clues they did not inspect.
+
+This is a trusted human review workflow; AI classifiers, child-account eligibility and production abuse protection remain future release gates.

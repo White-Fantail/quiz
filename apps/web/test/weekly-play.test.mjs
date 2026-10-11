@@ -102,3 +102,18 @@ test("adult public ranking requires both opt-in consent and trusted verification
   assert.equal(parseOperation("ranking_optin",{enabled:true,confirm:true}).enabled,true);
   assert.throws(()=>parseOperation("adult_verify",{userId:"some-user-id",verified:true,reason:"Identity checked"}));
 });
+
+test("child safety moderation is privileged, human-approved and revision-bound",()=>{
+  const quiz=load("src/modules/platform/quiz.ts");
+  const media=load("src/modules/platform/media.ts");
+  assert.match(quiz,/admin\.role!=="ADMIN"/);
+  assert.match(quiz,/currentVersion:quiz\.currentVersion/);
+  assert.match(quiz,/changed\.count!==1/);
+  assert.match(quiz,/validateMediaReferences\(quiz\.authorId/);
+  assert.match(media,/user\.role!=="ADMIN"/);
+  assert.throws(()=>parseOperation("quiz_review",{id:a,verdict:"APPROVED",kidsEligible:true,reason:"Reviewed"}));
+  assert.equal(parseOperation("quiz_review",{id:a,verdict:"APPROVED",kidsEligible:true,reason:"Reviewed",confirm:true}).kidsEligible,true);
+  const routes=load("app/api/v1/[...segments]/route.ts");
+  for(const name of ["quiz_review_get","quiz_review","media_review_get","media_review"])
+    assert.match(routes,new RegExp('op: "'+name+'"'));
+});

@@ -27,6 +27,9 @@ The web UI, REST API and MCP tools reuse `execute()` and the same policy layer. 
 | Session-gated signed media URL | POST /api/v1/play/:id/media | clupio_play_media |
 | List public / own / Kids-eligible quizzes | GET /api/v1/quizzes | clupio_quiz_list |
 | Get question (answer only for owner) | GET /api/v1/quizzes/:id | clupio_quiz_get |
+| ADMIN inspect full quiz and answer | GET /api/v1/quizzes/:id/review | clupio_quiz_review_get |
+| ADMIN independently approve Kids or restrict quiz | POST /api/v1/quizzes/:id/review | clupio_quiz_review |
+| ADMIN inspect media | GET /api/v1/media/:id/review | clupio_media_review_get |
 | Create versioned question | POST /api/v1/quizzes | clupio_quiz_create |
 | Edit with expectedVersion | PATCH /api/v1/quizzes/:id | clupio_quiz_update |
 | Replace clue sequence | PUT /api/v1/quizzes/:id/clues | clupio_clues_replace |

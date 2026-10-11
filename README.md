@@ -84,3 +84,7 @@ The authenticated Studio media library at `/studio/media` uploads image, audio a
 ## Weekly spotlight and practice play
 
 The main `/play` experience is the **featured creator's same five questions for everyone** in a Monday-to-Monday UTC edition, with separate GENERAL and KIDS audiences. Creators submit five owned quizzes through `/studio/weekly` or REST/MCP; an authorized moderator schedules one per week/lane through `/admin/weekly`. Players choose the weekly, random-five or infinite mode, use server-side progressive clues, and receive question and run scores. The weekly public ranking requires both verified adult status and explicit player opt-in, and is GENERAL only. See [weekly play design, tools and deployment](docs/play-modes.md). Configure `PLAY_RUN_SECRET` and apply the weekly Prisma migration before using these endpoints.
+
+## Trusted safety moderation
+
+Staff can inspect full quiz answers, clues and media via /admin/quiz-review before approving Kids eligibility. REST and MCP share the four ADMIN-only quiz_review_get, quiz_review, media_review_get and media_review operations. This is human moderation, not a live automatic AI classifier.

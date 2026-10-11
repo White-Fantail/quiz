@@ -60,3 +60,7 @@ MCP is a full Clupio product interface, **not just an authoring connector**. Eve
 2. Integrate changes **fast-forward-only**; no merge commits, squash merges or force pushes.
 3. Implement in small steps with tests, typechecking, builds, authorization checks and regression coverage.
 4. Keep separate dev/prod secrets and persistence once introduced.
+
+## Moderator play safety release requirement
+- The Kids manual review console is /admin/quiz-review. Its read operations quiz_review_get and media_review_get deliberately return sensitive answers and signed unapproved media **only** to authenticated ADMIN; all other public tool routes must keep staged answers and media secret.
+- A Kids approval requires all media preapproved, currentVersion optimistic concurrency and auditable reason; creators cannot approve themselves or override RESTRICTED.
