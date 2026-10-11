@@ -2,8 +2,13 @@
   "name": "quizdip",
   "private": true,
   "version": "0.2.0",
-  "workspaces": ["apps/*", "packages/*"],
-  "engines": { "node": ">=22.12.0" },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=22.13.0"
+  },
   "scripts": {
     "dev": "npm run dev --workspace @quizdip/web",
     "db:generate": "prisma generate",
@@ -11,8 +16,16 @@
     "db:dev": "prisma migrate dev",
     "build": "node scripts/build.mjs",
     "start": "npm run start --workspace @quizdip/web",
-    "typecheck": "npm run db:generate && npm run typecheck --workspace @quizdip/domain && npm run typecheck --workspace @quizdip/web",
-    "test": "node --experimental-strip-types --test packages/domain/test/*.test.mjs apps/web/test/*.test.mjs"
+    "typecheck": "npm run db:generate && npm run typecheck --workspace @quizdip/domain && npm run typecheck --workspace @quizdip/i18n && npm run typecheck --workspace @quizdip/api-client && npm run typecheck --workspace @quizdip/web && npm run kids:typecheck",
+    "test": "node --experimental-strip-types --test packages/domain/test/*.test.mjs packages/i18n/test/*.test.mjs packages/api-client/test/*.test.mjs apps/web/test/*.test.mjs",
+    "kids:dev": "npm run start --workspace @quizdip/kids",
+    "kids:typecheck": "npm run typecheck --workspace @quizdip/kids",
+    "kids:bundle:ios": "npm run bundle:ios --workspace @quizdip/kids",
+    "kids:bundle:android": "npm run bundle:android --workspace @quizdip/kids"
   },
-  "devDependencies": { "prisma": "7.10.0", "typescript": "^5.9.0", "@types/node": "^22.15.0" }
+  "devDependencies": {
+    "prisma": "7.10.0",
+    "typescript": "^5.9.0",
+    "@types/node": "^22.15.0"
+  }
 }
