@@ -19,12 +19,12 @@ function route(method: string, segments: string[]): Match | null {
     if (b && c === "suspend" && method === "POST") return { op: "weekly_suspend", args: { challengeId:b } };
     if (b && c === "review" && method === "GET") return { op: "quiz_review_get", args: { id:b } };
     if (b && c === "review" && method === "POST") return { op: "quiz_review", args: { id:b } };
-    if (b && c === "languages" && !d && method === "GET") return {op:"quiz_languages",args:{id:b}};
-    if (b && c === "languages" && d && !e && method === "GET") return {op:"quiz_translation_get",args:{id:b,locale:d}};
-    if (b && c === "languages" && d && !e && method === "PUT") return {op:"quiz_translation_save",args:{id:b,locale:d}};
-    if (b && c === "languages" && d && e === "generate" && !f && method === "POST") return {op:"quiz_translation_generate",args:{id:b,locale:d}};
-    if (b && c === "languages" && d && e === "publish" && !f && method === "POST") return {op:"quiz_translation_publish",args:{id:b,locale:d}};
-    if (b && c === "languages" && d && e === "hide" && !f && method === "POST") return {op:"quiz_translation_hide",args:{id:b,locale:d}};
+    if (b && c === "languages" && !d && method === "GET") return {op: "quiz_languages",args:{id:b}};
+    if (b && c === "languages" && d && !e && method === "GET") return {op: "quiz_translation_get",args:{id:b,locale:d}};
+    if (b && c === "languages" && d && !e && method === "PUT") return {op: "quiz_translation_save",args:{id:b,locale:d}};
+    if (b && c === "languages" && d && e === "generate" && !f && method === "POST") return {op: "quiz_translation_generate",args:{id:b,locale:d}};
+    if (b && c === "languages" && d && e === "publish" && !f && method === "POST") return {op: "quiz_translation_publish",args:{id:b,locale:d}};
+    if (b && c === "languages" && d && e === "hide" && !f && method === "POST") return {op: "quiz_translation_hide",args:{id:b,locale:d}};
     if (b && c === "language" && !d && method === "POST") return { op: "quiz_language_set", args: { id: b } };
     if (b && c === "publish" && method === "POST") return { op: "quiz_publish", args: { id: b } };
     if (b && c === "clues" && method === "PUT") return { op: "clues_replace", args: { id: b } };
