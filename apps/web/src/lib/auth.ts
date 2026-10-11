@@ -4,6 +4,7 @@ import { mcp } from "@better-auth/mcp";
 import { cimd } from "@better-auth/cimd";
 import { fetchClientMetadataResource } from "@better-auth/cimd/node";
 import { Pool } from "pg";
+import { importPKCS8, SignJWT } from "jose";
 
 /** The browser, REST API and MCP all identify the same Better Auth user. */
 export const siteOrigin = (process.env.BETTER_AUTH_URL || process.env.PUBLIC_ORIGIN || "http://localhost:3000").replace(/\/$/, "");
@@ -23,8 +24,23 @@ export function authPool(): Pool {
 // An unavailable social provider must not render a broken sign-in button.
 export const availableProviders = {
   google: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
-  apple: !!(process.env.APPLE_CLIENT_ID && process.env.APPLE_CLIENT_SECRET),
+  apple: !!(process.env.APPLE_CLIENT_ID && (
+    process.env.APPLE_CLIENT_SECRET ||
+    (process.env.APPLE_TEAM_ID && process.env.APPLE_KEY_ID && process.env.APPLE_PRIVATE_KEY)
+  )),
 };
+
+async function appleClientSecret(): Promise<string> {
+  if (process.env.APPLE_CLIENT_SECRET) return process.env.APPLE_CLIENT_SECRET;
+  const { APPLE_CLIENT_ID: clientId, APPLE_TEAM_ID: teamId, APPLE_KEY_ID: keyId, APPLE_PRIVATE_KEY: rawKey } = process.env;
+  if (!clientId || !teamId || !keyId || !rawKey) throw new Error("Apple OAuth is not configured");
+  const signingKey = await importPKCS8(rawKey.replace(/\\n/g, "\n"), "ES256");
+  const now = Math.floor(Date.now() / 1000);
+  return new SignJWT({})
+    .setProtectedHeader({ alg: "ES256", kid: keyId })
+    .setIssuer(teamId).setSubject(clientId).setAudience("https://appleid.apple.com")
+    .setIssuedAt(now).setExpirationTime(now + 180 * 24 * 3600).sign(signingKey);
+}
 
 export const auth = betterAuth({
   appName: "Clupio",
@@ -37,7 +53,7 @@ export const auth = betterAuth({
       ? { google: { clientId: process.env.GOOGLE_CLIENT_ID!, clientSecret: process.env.GOOGLE_CLIENT_SECRET! } }
       : {}),
     ...(availableProviders.apple
-      ? { apple: { clientId: process.env.APPLE_CLIENT_ID!, clientSecret: process.env.APPLE_CLIENT_SECRET! } }
+      ? { apple: async () => ({ clientId: process.env.APPLE_CLIENT_ID!, clientSecret: await appleClientSecret() }) }
       : {}),
   },
   account: {
