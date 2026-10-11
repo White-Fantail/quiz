@@ -66,3 +66,16 @@ test("REST and MCP routing parity for all six translation actions",()=>{
     assert.match(route,new RegExp('op: "'+name+'"'));
   }
 });
+
+test("pack translation publication is guarded by full-language coverage",()=>{
+  const names=["pack_languages","pack_translation_upsert"];
+  for(const name of names)assert.equal(operations[name].public,false);
+  assert.equal(parseOperation("pack_languages",{id}).id,id);
+  assert.throws(()=>parseOperation("pack_translation_upsert",{id,locale:"ja",title:"Translated"}));
+  assert.equal(parseOperation("pack_translation_upsert",{id,locale:"ko",title:"뉴질랜드 퀴즈"}).status,"DRAFT");
+  assert.equal(parseOperation("pack_translation_upsert",{id,locale:"ko",title:"뉴질랜드 퀴즈",status:"PUBLISHED",confirm:true}).confirm,true);
+  const social=read("src/modules/platform/social.ts");
+  assert.match(social,/incomplete_pack_locale/);
+  assert.match(social,/playableQuizWhere\(p.locale\)/);
+  assert.match(social,/pack.translation.save/);
+});

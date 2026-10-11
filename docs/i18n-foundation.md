@@ -57,3 +57,5 @@ Apply `npm run db:migrate` in a correctly configured staging database before ser
 - Source revision ID and optimistic version are checked before save/publish. Clue count, type, media ownership and map coordinates cannot be changed through translation. Audio/video reuse across languages is blocked at publish. Publishing resets overall safety review to PENDING and Kids eligibility to false.
 - Old public translated revision remains visible until explicitly replaced/hidden. Original change marks translation stale and blocks publishing until revised.
 - Migration `20261012100000_translation_versions` MUST be applied before serving this version. CI is not an independent staging DB/provider E2E test.
+
+- QuizPack localization metadata can also be maintained by its owner through `pack_languages` and `pack_translation_upsert` (REST/MCP). Publishing requires all pack questions to have published versions in that language. Pack metadata is currently managed through the API/MCP, not through a dedicated Studio pack editor.

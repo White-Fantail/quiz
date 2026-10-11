@@ -114,3 +114,6 @@ Public UI routes are /en/... and /ko/... through Next.js proxy rewrites. REST, M
 | POST /quizzes/:id/languages/:locale/hide | quizdip_quiz_translation_hide | Hide with `confirm:true` |
 
 All actions require creator authentication; media identifiers and clue structure must match the source.
+
+| GET /packs/:id/languages | quizdip_pack_languages | List pack languages and completion status |
+| PUT /packs/:id/languages/:locale | quizdip_pack_translation_upsert | Save translated pack title/description, optionally publish with `confirm:true` when all questions are available |
