@@ -16,7 +16,7 @@
 **Important limitations and release gates:** 
 - No true native geographic map renderer yet: map clues show approved location coordinates; add tested map visualization before advertising rich interactive maps.
 - A small Kids question bank may not support a five-question run or enough plausible multiple-choice options; display the shortage and offer single-quiz discovery, never fall back to General or unapproved translations.
-- Profile-level recommendations currently rank age relevance only within a fetched page, not full personalized ML discovery. Badge thresholds count solved plays and may include repeats; content discovery tiles are deduplicated by quiz.
+- Profile-level recommendations currently rank age relevance only within a fetched page, not full personalized ML discovery. Badge thresholds count distinct solved quizzes; recent discovery titles appear only while their current language revision is still published and approved.
 - Real PostgreSQL migration, node test/typecheck/build, actual iPad/Android playback (especially signed R2 assets), resumed/expired/revoked token and parallel request E2E are **not yet verified** in this environment. Existing Vercel build-rate-limit failure is not a valid code build result.
 - Phase 4 remains: full native guardian settings, authoritative daily time budgets, parental insights, deletion/privacy retention audit and app-store compliance. Phase 5 web Kids removal is **not begun**.
 
