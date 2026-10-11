@@ -81,7 +81,7 @@ export const operations = {
     usage: z.enum(["all", "used", "unused"]).default("all"),
     sort: z.enum(["newest", "oldest", "name", "size"]).default("newest"),
   }) },
-  media_get: { public: false, description: "Get a media asset and short-lived owner preview URL", schema: z.object({ id: mediaId }) },
+  media_get: { public: false, description: "Get a media asset, owner preview, thumbnail and quiz usage", schema: z.object({ id: mediaId, purpose: z.enum(["detail", "thumbnail"]).default("detail") }) },
   media_update: { public: false, description: "Edit attribution or accessible text of my media, resetting moderation", schema: z.object({ id: mediaId, ...mediaMetadata }) },
   media_delete: { public: false, description: "Delete unreferenced media with explicit confirmation", schema: z.object({ id: mediaId, confirm: z.literal(true) }) },
   media_transform: { public: false, description: "Create an immutable derived image crop, blur or progressive reveal", schema: z.object({
