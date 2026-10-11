@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { createBuildPlan } from "../../../scripts/build-plan.mjs";
 
 const productionEnv = {
@@ -14,6 +15,7 @@ test("production build migrates Prisma, then Better Auth, before Next.js", () =>
     "Apply Prisma migrations", "Apply Better Auth migrations", "Generate Prisma client", "Build Next.js",
   ]);
   assert.ok(steps[1].args.includes("auth@1.7.7"));
+  assert.deepEqual(steps[3].args, ["run", "build:next", "--workspace", "@clupio/web"]);
 });
 
 test("preview, local and CI builds never modify a database", () => {
@@ -33,4 +35,13 @@ test("production fails closed without required DB/auth configuration", () => {
 
 test("production fails closed on a non-main branch", () => {
   assert.throws(() => createBuildPlan({ ...productionEnv, VERCEL_GIT_COMMIT_REF: "dev" }), /not from main/);
+});
+
+test("both Vercel workspace and repository-root builds reach the same migration runner without recursion", () => {
+  const rootPackage = JSON.parse(readFileSync(new URL("../../../package.json", import.meta.url), "utf8"));
+  const webPackage = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
+  assert.equal(rootPackage.scripts.build, "node scripts/build.mjs");
+  assert.equal(webPackage.scripts.build, "node ../../scripts/build.mjs");
+  assert.equal(webPackage.scripts["build:next"], "next build");
+  assert.equal(createBuildPlan(productionEnv).at(-1).args[1], "build:next");
 });
