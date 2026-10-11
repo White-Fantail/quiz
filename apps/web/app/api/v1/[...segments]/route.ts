@@ -1,5 +1,5 @@
 import { ZodError } from "zod";
-import { actorFor, PlatformError } from "../../../../src/modules/platform/auth";
+import { actorFor, requireSameOrigin, PlatformError } from "../../../../src/modules/platform/auth";
 import { execute } from "../../../../src/modules/platform/operations";
 import type { Operation } from "../../../../src/modules/platform/contracts";
 
@@ -59,6 +59,7 @@ export async function handle(request: Request, context: Context): Promise<Respon
     if (size > 1000000) return Response.json({ error: "too_large" }, { status: 413 });
     const body = request.method === "GET" ? parseQuery(url.searchParams) : await request.json();
     if (!body || typeof body !== "object" || Array.isArray(body)) return Response.json({ error: "invalid_body" }, { status: 400 });
+    requireSameOrigin(request);
     const actor = await actorFor(request);
     const result = await execute(match.op, { ...body, ...match.args }, actor);
     return Response.json({ data: result }, { headers: { "Cache-Control": "no-store" } });
