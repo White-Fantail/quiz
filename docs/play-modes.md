@@ -2,11 +2,12 @@
 
 ## Product structure
 
-The primary product is **the featured creator's five-question challenge of the week**. The same five items, immutable revisions and ordering are shared by everyone around the world, with **one edition per UTC week and audience lane**. A featured human creator is the actual owner of the five questions, not a display-name string typed by staff. Creators may propose editions through Studio or MCP; only an authenticated ADMIN can publish a proposed schedule and independently mark a host as verified. A verified badge is never an automatic claim of celebrity status.
+The primary product is **fresh random five-question free play**. The featured creator's globally shared five-question weekly challenge is a recurring competitive event, not the default play mode. The same five items, immutable revisions and ordering are shared by everyone around the world, with **one edition per UTC week and audience lane**. A featured human creator is the actual owner of the five questions, not a display-name string typed by staff. Creators may propose editions through Studio or MCP; only an authenticated ADMIN can publish a proposed schedule and independently mark a host as verified. A verified badge is never an automatic claim of celebrity status.
 
-The other two modes are clearly **practice**:
-- `RANDOM_FIVE`: a server-randomized five-question, no-duplicate set drawn from eligible published quizzes, distinct for each new run
-- `INFINITE`: one question after another, selecting new published questions as play progresses; if the catalog is small, questions can repeat after the recent window
+Both free-play modes use the single published question bank:
+- `RANDOM_FIVE`: the default; five fresh eligible questions per run, with "five more" offered after completion
+- `INFINITE`: a secondary opt-in, revealing one new question at a time and ending clearly when the unseen pool is exhausted
+- Signed-in users' previous `PlaySession` exposures and allocated `PlayRunQuestion` IDs are excluded across modes. Guests submit a best-effort same-browser `avoidQuizIds` history (up to 1,000 IDs); cleared storage or switching devices cannot be reconciled without login.
 - All three modes have `GENERAL` and `KIDS` lanes. Kids uses **only** `publication=PUBLISHED, safetyStatus=APPROVED, kidsEligible=true`. General excludes restricted questions. Separate weekly editions are independently curated. Kids has **no public player standings**.
 
 ### Edition timing
@@ -24,7 +25,10 @@ The other two modes are clearly **practice**:
 - `play_guess` updates its round and the parent run **in one transaction**. Replayed requests or parallel guesses do not score twice. Client code never validates answers locally.
 - A signed-in QuizDip user is limited to **one official first attempt per weekly edition** by a partial unique DB index. Reopening the mode resumes that same attempt, never creates a new ranked score. Authentication is optional for play, but guests are not in official standings.
 - Weekly public rankings are only for **GENERAL**, and only for separately verified, explicitly opted-in adult users. Kids players are never listed. Ties on the same cumulative score share the same place; elapsed time is not a tiebreaker. Scores are accumulated from server-graded questions and cannot be supplied by the client.
-- Weekly-challenge questions are reserved from random practice and standalone `play_start` while the edition is scheduled and not yet expired. This reduces accidental spoilers; it is not a guarantee against sharing answers externally.
+- Weekly-challenge questions are temporarily reserved from free play and standalone `play_start` while a scheduled edition has not ended. No second question bank is created.
+- A previously viewed weekly question disqualifies the signed-in player's first weekly attempt from the official ranking; `PlayRun.officialEligible` freezes this check at creation. Players may still enjoy the same five questions informally. Official rankings require this flag as well as trusted adult verification and opt-in.
+- Never recycle known questions when the free-play bank runs out. If fewer than five eligible unseen questions remain, starting a new five-round run gives a clear shortage message; the optional continuous mode ends with an exhausted result instead of repeating old questions.
+- Scheduled-weekly reservation does not erase exposures occurring before the editor scheduled it. Guest/device-crossing and answer-sharing protections have unavoidable limits; official rankings are reserved for signed-in eligible users.
 - The run credential is a 256-bit secret; signed-in run tokens derive from `PLAY_RUN_SECRET` and the canonical QuizDip account ID so a run can resume on another browser after sign-in. Anonymous run tokens are random capabilities, not eligible for official standings. Per-round play capabilities are derived from the run token and indexed question. Never log or include these in public rankings.
 - The run `expiresAt` is the edition's deadline for WEEKLY. Practice runs expire in 2 days (five) or 7 days (infinite). Rejected/expired attempts never create extra score. Running out of safe questions returns a clear error.
 
@@ -45,8 +49,8 @@ The other two modes are clearly **practice**:
 | Schedule fixed edition (ADMIN) | POST /api/v1/weekly/:id/publish | `quizdip_weekly_publish` |
 | Suspend (ADMIN) | POST /api/v1/weekly/:id/suspend | `quizdip_weekly_suspend` |
 | Weekly ranked adult standings | GET /api/v1/weekly/:id/standings | `quizdip_weekly_standings` |
-| Begin or resume a multi-round run | POST /api/v1/runs | `quizdip_run_start` |
-| Get current pinned question & unlocked clues | POST /api/v1/runs/:id/current | `quizdip_run_current` |
+| Begin or resume a multi-round run (`avoidQuizIds` optional) | POST /api/v1/runs | `quizdip_run_start` |
+| Get current pinned question & unlocked clues (`avoidQuizIds` optional) | POST /api/v1/runs/:id/current | `quizdip_run_current` |
 | Finish infinite practice voluntarily | POST /api/v1/runs/:id/finish | `quizdip_run_finish` |
 | My recent runs | GET /api/v1/runs | `quizdip_run_history` |
 | Player-owned opt-in for public ranking | PATCH /api/v1/me/ranking | `quizdip_ranking_optin` |
@@ -80,3 +84,10 @@ Kids is **not** a creator-selected age label. An independent platform moderator 
 This is a trusted human review workflow; AI classifiers, child-account eligibility and production abuse protection remain future release gates.
 
 The names above use the QuizDip MCP prefix (`quizdip_*`). The run-token namespace remains unchanged so in-progress play continues to work.
+
+
+## Operational direction and limitations
+
+The default Play and homepage action is a fresh random five. The weekly identical-five competition is a visible but secondary recurring event. Daily challenges are deferred until publishing and retention metrics establish reliable supply. After finishing five, the player may actively choose another five; infinite remains an opt-in rather than automatic loop.
+
+The MVP currently collects all eligible quiz IDs and signed-in users' exposed/allocated IDs before filtering and shuffling. This can become slow with very large catalogs and should be replaced with an indexed anti-join/paginated random selection. Concurrent run starts can still race and allocate the same unseen question to the same user; a DB-enforced reservation/transactional user lock is a prerequisite for a strict concurrent guarantee. If a not-yet-opened random question is scheduled for weekly after the run is created, preallocation may conflict and should be handled before production high-stakes rankings. The content pool is finite: the product must not claim infinite supply.

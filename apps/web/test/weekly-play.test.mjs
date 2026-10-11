@@ -60,6 +60,11 @@ test("frozen weekly revisions, verified authors and first-attempt uniqueness are
   assert.match(source,/editionAvailable/);
   assert.match(source,/user\.role!=="ADMIN"/);
   assert.match(source,/randomChoices/);
+  assert.match(source,/userExcludedQuestions/);
+  assert.match(source,/selectUnseen/);
+  assert.match(source,/officialEligible/);
+  assert.doesNotMatch(source,/candidates\\.length>=count\\?candidates:eligible/);
+  assert.doesNotMatch(source,/take:30,select:\\{quizId:true\\}/);
   assert.match(source,/weeklyQuestion\.findMany/);
   assert.match(source,/u\."leaderboardEligible"=TRUE/);
   assert.match(source,/return runStart\(p,actor\)/);
@@ -69,6 +74,8 @@ test("frozen weekly revisions, verified authors and first-attempt uniqueness are
   assert.match(migration,/PlayRun_one_weekly_account/);
   assert.match(migration,/WeeklyChallenge_unique_scheduled/);
   assert.match(schema,/model WeeklyChallenge/);
+  assert.match(schema,/officialEligible\\s+Boolean/);
+  assert.match(source,/pr\\."officialEligible"=TRUE/);
 });
 
 test("kids weekly eligibility excludes pending and restricted questions and never exposes kid ranking",()=>{
