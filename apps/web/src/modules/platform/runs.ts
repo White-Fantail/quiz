@@ -425,7 +425,7 @@ export async function weeklyStandings(p:Record<string,any>) {
     FROM "PlayRun" pr
     JOIN "User" u ON u."id"=pr."userId"
     WHERE pr."weeklyId"=${edition.id} AND pr."locale"=${p.locale} AND pr."mode"='WEEKLY' AND pr."status"='FINISHED'
-      AND pr."officialEligible"=TRUE AND pr."officialEligible"=TRUE AND u."leaderboardEligible"=TRUE AND u."leaderboardOptIn"=TRUE
+      AND pr."officialEligible"=TRUE AND u."leaderboardEligible"=TRUE AND u."leaderboardOptIn"=TRUE
       AND pr."userId" <> ${edition.hostId}
     ORDER BY pr."score" DESC, pr."completedAt" ASC
     LIMIT ${p.limit} OFFSET ${p.offset}
@@ -436,7 +436,7 @@ export async function weeklyStandings(p:Record<string,any>) {
       SELECT COUNT(*)::INTEGER AS "total" FROM "PlayRun" pr
       JOIN "User" u ON u."id"=pr."userId"
       WHERE pr."weeklyId"=${edition.id} AND pr."locale"=${p.locale} AND pr."mode"='WEEKLY' AND pr."status"='FINISHED'
-        AND u."leaderboardEligible"=TRUE AND u."leaderboardOptIn"=TRUE
+        AND pr."officialEligible"=TRUE AND u."leaderboardEligible"=TRUE AND u."leaderboardOptIn"=TRUE
         AND pr."userId" <> ${edition.hostId}
     `;
     total=fallback[0]?.total??0;
@@ -444,4 +444,41 @@ export async function weeklyStandings(p:Record<string,any>) {
   return {challengeId:edition.id,locale:p.locale,
     items:rows.map(row=>({rank:row.rank,displayName:row.displayName,score:row.score,solved:row.solved})),
     total,rankingBasis:"first official attempt; verified opt-in adult accounts only; score ties share rank"};
+}
+
+/** Private per-language weekly summary, never expose player names or individual answers. */
+export async function weeklyInsights(p:Record<string,any>,actor:Actor|null) {
+  const user=requireActor(actor);
+  const edition=await db().weeklyChallenge.findUnique({
+    where:{id:p.challengeId},
+    select:{id:true,hostId:true,lane:true,status:true,weekStart:true}
+  });
+  if(!edition)fail(404,"not_found","Weekly challenge not found");
+  if(user.role!=="ADMIN" && edition.hostId!==user.id)
+    fail(403,"forbidden","Weekly insights are only for the host or an administrator");
+  const locale=p.locale as "en"|"ko"|"und"|"all";
+  const where={weeklyId:edition.id,mode:"WEEKLY",...(locale==="all"?{}:{locale})};
+  const [grouped,stages]=await Promise.all([
+    db().playRun.groupBy({by:["locale","status"],where,
+      _count:{_all:true},_avg:{score:true},_sum:{score:true,solved:true,failed:true}}),
+    db().playSession.groupBy({by:["locale","status"],where:{
+      run:{weeklyId:edition.id,mode:"WEEKLY"},...(locale==="all"?{}:{locale})
+    },_count:{_all:true}})
+  ]);
+  const languages=["en","ko","und"].map(language=>{
+    const runs=grouped.filter(row=>row.locale===language);
+    const completed=runs.find(row=>row.status==="FINISHED");
+    const rounds=stages.filter(row=>row.locale===language);
+    const count=(status:string)=>rounds.find(row=>row.status===status)?._count._all??0;
+    const solved=count("SOLVED"),failed=count("FAILED");
+    const started=runs.reduce((sum,row)=>sum+row._count._all,0);
+    return {locale:language,started,finished:completed?._count._all??0,
+      roundsCompleted:solved+failed,solved,failed,
+      successRate:solved+failed?solved/(solved+failed):null,
+      averageCompletedRunScore:completed?._avg.score??null};
+  });
+  return {challengeId:edition.id,lane:edition.lane,status:edition.status,locale,
+    weekStart:edition.weekStart,
+    languages:locale==="all"?languages:languages.filter(item=>item.locale===locale),
+    note:"Private aggregate statistics only; no player identities, raw answers or child rankings."};
 }

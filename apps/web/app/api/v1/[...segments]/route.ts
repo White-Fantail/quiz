@@ -47,6 +47,7 @@ function route(method: string, segments: string[]): Match | null {
     if (b === "proposals" && !c && method === "GET") return { op: "weekly_proposals", args: {} };
     if (b === "submit" && !c && method === "POST") return { op: "weekly_submit", args: {} };
     if (b && c === "publish" && method === "POST") return { op: "weekly_publish", args: { challengeId:b } };
+    if (b && c === "insights" && !d && method === "GET") return { op: "weekly_insights", args: { challengeId:b } };
     if (b && c === "standings" && method === "GET") return { op: "weekly_standings", args: { challengeId:b } };
   }
   if (a === "runs") {
@@ -105,7 +106,8 @@ export async function handle(request: Request, context: Context): Promise<Respon
     const url = new URL(request.url);
     const size = Number(request.headers.get("content-length") ?? 0);
     if (size > 1000000) return Response.json({ error: "too_large" }, { status: 413 });
-    const body = request.method === "GET" ? parseQuery(url.searchParams) : await request.json();
+    const body = request.method === "GET" || request.method === "DELETE"
+      ? parseQuery(url.searchParams) : await request.json();
     if (!body || typeof body !== "object" || Array.isArray(body)) return Response.json({ error: "invalid_body" }, { status: 400 });
     requireSameOrigin(request);
     const actor = await actorFor(request);

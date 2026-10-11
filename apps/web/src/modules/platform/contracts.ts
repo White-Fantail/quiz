@@ -148,6 +148,7 @@ export const operations = {
   weekly_suspend: { public: false, description: "ADMIN ONLY: suspend an edition with audit record", schema: z.object({
     challengeId: uuid, reason: z.string().trim().min(5).max(1000), confirm: z.literal(true)
   }) },
+  weekly_insights: { public:false, description:"Private aggregate weekly performance split by locale, host or admin only", schema:z.object({challengeId:uuid,locale:z.enum(["en","ko","und","all"]).default("all")}) },
   weekly_standings: { public: true, description: "Verified opt-in adults' first-attempt scores for the selected General weekly challenge", schema: z.object({
     challengeId: uuid, locale: optionalLocale, ...paging
   }) },

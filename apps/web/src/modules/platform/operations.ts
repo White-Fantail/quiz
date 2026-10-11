@@ -5,7 +5,7 @@ import { topicList } from "./topics";
 import { fail, requireActor, type Actor } from "./auth";
 import { quizList, quizGet, quizCreate, quizUpdate, quizPublish, quizLanguageSet, quizReview, quizReviewGet } from "./quiz";
 import { playStart, playClue, playGuess } from "./play";
-import { weeklyCurrent,weeklySubmit,weeklyPublish,weeklyProposals,weeklySuspend,weeklyStandings,
+import { weeklyCurrent,weeklySubmit,weeklyPublish,weeklyProposals,weeklySuspend,weeklyStandings,weeklyInsights,
   runStart,runCurrent,runFinish,runHistory,runFeedback } from "./runs";
 import { reviewsList, reviewUpsert, reviewRemove, reportCreate, reportsMine, packCreate, packList, packUpdate, packLanguageSet, packLanguages, packTranslationUpsert } from "./social";
 import { quizStats, myStats, me, leaderboard, rankingOptin, adultVerify } from "./analytics";
@@ -87,6 +87,7 @@ export async function execute(name: Operation, raw: unknown, actor: Actor | null
     case "weekly_proposals": return weeklyProposals(p,actor);
     case "weekly_suspend": return weeklySuspend(p,actor);
     case "weekly_standings": return weeklyStandings(p);
+    case "weekly_insights": return weeklyInsights(p,actor);
     case "run_start": return runStart(p,actor);
     case "run_current": return runCurrent(p,actor);
     case "run_finish": return runFinish(p,actor);
