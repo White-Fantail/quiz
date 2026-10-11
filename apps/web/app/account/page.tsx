@@ -39,11 +39,24 @@ export default async function AccountPage() {
       <Link className="text-button" href="/">홈으로 돌아가기</Link>
     </main>;
   }
+
+  // The administrator link is convenience only; /admin and its APIs check roles independently.
+  let isAdmin = false;
+  try {
+    const { actorByIdentity } = await import("../../src/modules/platform/auth");
+    isAdmin = (await actorByIdentity(session.user.id)).role === "ADMIN";
+  } catch (error) {
+    console.error("[account] Could not resolve platform role", error);
+  }
+
   return <main className="container inner-page compact">
     <span className="small-tag">My QuizDip</span>
     <h1>내 계정</h1>
     <p>안녕하세요, <b>{session.user.name}</b>!</p>
     <p className="muted">웹사이트와 MCP는 동일한 QuizDip 사용자 ID를 사용해요. 추가 로그인 수단은 직접 연결할 수 있어요.</p>
+    {isAdmin && <div className="actions">
+      <Link href="/admin" className="btn btn-primary">관리자 대시보드</Link>
+    </div>}
     <div className="placeholder-panel">
       <h2>연결된 로그인 수단</h2>
       <AccountActions google={availableProviders.google} apple={availableProviders.apple} />
