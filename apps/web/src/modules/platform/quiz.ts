@@ -125,3 +125,16 @@ export async function quizReview(p: Record<string,any>,actor:Actor|null) {
   return {id:updated.id,safetyStatus:updated.safetyStatus,kidsEligible:updated.kidsEligible,
     version:updated.currentVersion};
 }
+
+export async function quizReviewGet(p:Record<string,any>,actor:Actor|null) {
+  const admin=requireActor(actor);
+  if(admin.role!=="ADMIN") fail(403,"admin_required","Quiz review details require administrator authority");
+  const item=await db().quiz.findUnique({where:{id:p.id}});
+  if(!item) fail(404,"not_found","Quiz not found");
+  const current=await db().quizRevision.findUnique({where:{quizId_version:{quizId:item.id,version:item.currentVersion}}});
+  if(!current) fail(409,"invalid_revision","Quiz revision unavailable");
+  return {id:item.id,authorId:item.authorId,version:item.currentVersion,
+    title:current.title,prompt:current.prompt,mode:current.mode,answer:current.answer,
+    clues:current.clues,promptMediaIds:current.promptMediaIds,creatorIntent:item.creatorIntent,
+    safetyStatus:item.safetyStatus,kidsEligible:item.kidsEligible,publication:item.publication};
+}
