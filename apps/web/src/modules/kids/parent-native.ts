@@ -36,7 +36,7 @@ export async function parentDashboard(guardianId:string){
  const overview=await guardianOverview(guardianId);
  const now=new Date();
  const profiles=await Promise.all(overview.profiles.map(async profile=>{
-   const weekStart=new Date(now.getTime()-6*86400000);
+   const weekStart=new Date(now.getTime()-7*86400000);
    const [usage,plays]=await Promise.all([
      db().kidUsageMinute.findMany({where:{profileId:profile.id,createdAt:{gte:weekStart}},
        select:{localDay:true}}),
