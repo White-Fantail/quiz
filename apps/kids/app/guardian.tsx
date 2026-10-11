@@ -19,7 +19,7 @@ const sessions=[0,10,15,20,30,45,60] as const;
 const breaks=[0,15,20,30] as const;
 type Editable=Omit<GuardianChildProfile,"id">;
 const defaults:Editable={nickname:"",ageBand:"MIDDLE",locale:"en",sessionMinutes:0,
- dailyMinutes:30,playSessionMinutes:20,breakEveryMinutes:20,timeZone:"Pacific/Auckland"};
+ dailyMinutes:30,playSessionMinutes:30,breakEveryMinutes:15,timeZone:"Pacific/Auckland"};
 function ChoiceRow<T extends string|number>({values,value,onChange}:{
  values:Choice<T>[];value:T;onChange:(v:T)=>void
 }){
