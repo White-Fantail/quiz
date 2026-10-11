@@ -8,6 +8,7 @@ import { Screen } from "../src/components/Screen";
 import { KidClueView,SafeKidMedia } from "../src/components/KidClueView";
 import { useKidsLocale } from "../src/state/locale";
 import { useKidsSession } from "../src/state/session";
+import { useKidsTime } from "../src/state/time";
 import { kidsApi } from "../src/services/api";
 import { theme } from "../src/theme";
 
@@ -40,6 +41,7 @@ async function read():Promise<Ref|null>{
 export default function KidGameScreen(){
  const params=useLocalSearchParams<{quizId?:string;mode?:string}>();
  const kid=useKidsSession(),{t}=useKidsLocale(),router=useRouter();
+ const time=useKidsTime();
  const [reference,setReference]=useState<Ref|null>(null);
  const [question,setQuestion]=useState<KidQuestion|null>(null);
  const [summary,setSummary]=useState<KidRunResult|null>(null);
@@ -131,6 +133,8 @@ export default function KidGameScreen(){
    if(kid.status==="checking")return <Screen title="QuizDip Kids"><ActivityIndicator/></Screen>;
    return <Redirect href="/setup"/>;
  }
+ if(time.status==="blocked")return <Redirect href="/time-up" />;
+ if(time.status==="checking")return <Screen title={t("native.session.checking")}><ActivityIndicator/></Screen>;
  if(loading)return <Screen title={t("native.play.loading")}><ActivityIndicator color={theme.colors.accent}/></Screen>;
  if(error&&!question&&!summary)return <Screen title={t("native.play.error")}>
    <Text style={styles.note}>{error}</Text>
