@@ -73,7 +73,14 @@ export const operations = {
   media_import: { public: false, description: "Import HTTPS media from a server-approved host into private storage", schema: z.object({
     url: z.url().max(2000), kind: mediaKinds, filename: z.string().min(1).max(200), ...mediaMetadata
   }) },
-  media_list: { public: false, description: "List media assets owned by the signed-in user", schema: z.object(paging) },
+  media_list: { public: false, description: "Search and paginate my media, including optional usage filtering", schema: z.object({
+    ...paging, search: z.string().trim().max(120).default(""),
+    kind: z.enum(["all", "image", "audio", "video"]).default("all"),
+    moderation: z.enum(["all", "PENDING", "APPROVED", "RESTRICTED"]).default("all"),
+    status: z.enum(["all", "READY", "UPLOADING"]).default("all"),
+    usage: z.enum(["all", "used", "unused"]).default("all"),
+    sort: z.enum(["newest", "oldest", "name", "size"]).default("newest"),
+  }) },
   media_get: { public: false, description: "Get a media asset and short-lived owner preview URL", schema: z.object({ id: mediaId }) },
   media_update: { public: false, description: "Edit attribution or accessible text of my media, resetting moderation", schema: z.object({ id: mediaId, ...mediaMetadata }) },
   media_delete: { public: false, description: "Delete unreferenced media with explicit confirmation", schema: z.object({ id: mediaId, confirm: z.literal(true) }) },
