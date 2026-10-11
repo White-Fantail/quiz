@@ -1,18 +1,11 @@
 import { NextResponse } from "next/server";
-import { demoQuiz } from "../../../../src/data/demo-quiz";
+import { listDemoQuizSummaries } from "../../../../src/modules/quiz/service";
 
-/** Demo metadata only. Public production APIs must never leak answer data. */
+/** Demo metadata only. Never return correct answers from this endpoint. */
 export function GET() {
   return NextResponse.json({
     demo: true,
     message: "No persistent/public quiz catalog is available yet.",
-    items: [
-      {
-        id: demoQuiz.id,
-        title: demoQuiz.title,
-        mode: demoQuiz.mode,
-        clueCount: demoQuiz.clues.length,
-      },
-    ],
+    items: listDemoQuizSummaries(),
   });
 }

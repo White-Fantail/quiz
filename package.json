@@ -14,7 +14,7 @@
     "build": "npm run build --workspace @clupio/web",
     "start": "npm run start --workspace @clupio/web",
     "typecheck": "npm run typecheck --workspace @clupio/domain && npm run typecheck --workspace @clupio/web",
-    "test": "node --experimental-strip-types --test packages/domain/test/*.test.mjs"
+    "test": "node --experimental-strip-types --test packages/domain/test/*.test.mjs apps/web/test/*.test.mjs"
   },
   "devDependencies": {
     "typescript": "^5.9.0",

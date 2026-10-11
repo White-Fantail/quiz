@@ -1,22 +1,27 @@
-# Development instructions — Clupio
+# Clupio AI development instructions
 
-## Product intent
-Clupio is a playful open quiz platform: people follow progressive clues, discover answers, and create/share their own quizzes. Official brand: **Clupio (클루피오)**; repo name stays `quiz`.
+## Product and branding
+Clupio is a friendly quiz playground centered on progressive clues and the joy of discovery. External name: **Clupio (클루피오)**; repository name: `quiz`. Follow [docs/brand.md](docs/brand.md).
 
-## Non-negotiable rules
-1. **Develop on `dev`**. Do not modify/merge `main` unless the user explicitly asks.
-2. Integrations between branches must be **fast-forward only**. Never use merge commits, squash merging, or force-push shared branch history.
-3. Keep creator intent, AI recommendations/difficulty, and platform-controlled safety **separate**.
-4. Creators must **never** be able to set or override platform safety decisions.
-5. Publishing ordinary content should be low-friction, subject to automatic anti-abuse and safety controls. **Kids eligibility requires affirmative platform approval**; pending or uncertain content must be hidden from Kids.
-6. Implement one shared domain and business-policy layer; web and MCP must not duplicate publication/moderation authorization logic.
-7. Support multimodal clue types and multiple game rules without imposing one fixed clue count or scoring model.
-8. Never state that unimplemented or untested AI, authentication, DB, MCP, or Kids moderation exists.
-9. Prioritize privacy/minimal collection for minors, accessibility, factual accuracy and fair treatment of political/historical content.
-10. Implement in small steps, add tests, and verify types/build/regressions where tooling is available.
+## Architecture
+- Implement a **single Next.js modular monolith** on Vercel: public Play/Discover, creator Studio, restricted Admin, REST API and future Remote MCP share one deployment.
+- Web page, Server Action, REST route and MCP tool adapters must call the **same service/policy layer**. Do not duplicate publishing/safety rules or call internal HTTP endpoints unnecessarily from server code.
+- Use `apps/web/app/(platform)` for public UI, `(creator)` for Studio, `admin` for admin pages, `api/v1` for REST and `api/mcp` for remote MCP.
+- Business modules live in `apps/web/src/modules`; pure cross-cutting types/helpers in `packages/domain`; future Prisma/PostgreSQL schema in `prisma`.
+- Admin pages **and admin APIs** must independently enforce server-side ADMIN authorization. Keep admin inaccessible until real authentication exists.
+- Real answers and privileged logic must stay server-side; the existing browser sample is a deliberate non-production demo.
+- No live MCP transport, account system, database, AI categorization, Kids review, publication or admin features are implemented yet. The MCP route intentionally responds HTTP 501.
 
-## Brand
-Main: #6255E8; mint: #52D8B4; yellow: #FFD36E; coral: #FF8D83; ink: #252642; canvas: #F8F7FC. Core areas: Play, Discover, Studio. Kids is a mode, not a second platform. The Pio mascot is conceptual; do not invent an approved official asset.
+## Product and safety
+1. Keep creator target intent, AI recommendations/difficulty and platform-controlled safety **independent**.
+2. Creators cannot set or override platform safety.
+3. Ordinary publishing should be low friction with automatic anti-abuse/safety checks; Kids eligibility requires affirmative platform approval.
+4. Preserve multimodal clues and variable game rules; never force the same clue count/scoring onto every mode.
+5. Collect minimal children's data. Be accurate and neutral on politics/history.
+6. Never claim planned or untested functionality exists.
 
-## Status
-This initial repository is only a scaffold with a local sample game. Read docs/roadmap.md for planned features.
+## Git and validation
+1. Work on `dev` by default; do not merge into `main` unless explicitly asked.
+2. Integrate changes **fast-forward-only**; no merge commits, squash merges or force pushes.
+3. Implement in small steps with tests, typechecking, builds, authorization checks and regression coverage.
+4. Keep separate dev/prod secrets and persistence once introduced.

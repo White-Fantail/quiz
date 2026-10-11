@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { isCorrectAnswer, scoreForClues } from "@clupio/domain";
-import { demoQuiz } from "../../src/data/demo-quiz";
+import { demoQuiz } from "../../../src/modules/quiz/demo-quiz";
 
 export default function PlayPage() {
   const [cluesUsed, setCluesUsed] = useState(1);
