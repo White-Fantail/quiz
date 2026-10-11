@@ -82,7 +82,28 @@ export const operations = {
   }) },
   play_media: { public: true, description: "Renew time-limited playback URL for a revealed clue or prompt media", schema: z.object({
     ...session, mediaId
-  }) }
+  }) },
+  weekly_current: { public: true, description: "This week's globally fixed five questions and featured creator, separately for General/Kids", schema: z.object({ lane: z.enum(["GENERAL","KIDS"]).default("GENERAL") }) },
+  weekly_submit: { public: false, description: "Submit five original published questions as next week's host; staff schedules editions", schema: z.object({
+    lane: z.enum(["GENERAL","KIDS"]), weekStart: z.iso.date(), title: z.string().trim().min(3).max(180),
+    description: z.string().max(1000).default(""), quizIds: z.array(uuid).length(5).refine(a=>new Set(a).size===5)
+  }) },
+  weekly_publish: { public: false, description: "ADMIN ONLY: freeze the author's five revisions and publish the weekly edition", schema: z.object({
+    challengeId: uuid, verifiedHost: z.boolean().default(false), confirm: z.literal(true)
+  }) },
+  weekly_standings: { public: true, description: "Verified opt-in adults' first-attempt scores for the selected General weekly challenge", schema: z.object({
+    challengeId: uuid, ...paging
+  }) },
+  run_start: { public: true, description: "Begin/resume weekly, five random, or infinite play in General/Kids lane", schema: z.object({
+    mode: z.enum(["WEEKLY","RANDOM_FIVE","INFINITE"]), lane: z.enum(["GENERAL","KIDS"]).default("GENERAL")
+  }) },
+  run_current: { public: true, description: "Get or resume the current server-side question of a run without revealing later clues", schema: z.object({
+    runId: uuid, runToken: z.string().min(32).max(200)
+  }) },
+  run_finish: { public: true, description: "Stop an infinite or practice run and view its scores", schema: z.object({
+    runId: uuid, runToken: z.string().min(32).max(200), confirm: z.literal(true)
+  }) },
+  run_history: { public: false, description: "My latest scores and completed challenges", schema: z.object(paging) }
 } as const;
 export type Operation = keyof typeof operations;
 export function parseOperation(name: Operation, payload: unknown): Record<string, any> {

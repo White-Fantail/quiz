@@ -22,6 +22,8 @@ model User {
   reviews               Review[]
   reports               Report[]
   mediaAssets           MediaAsset[]
+  featuredWeeks         WeeklyChallenge[]
+  playRuns              PlayRun[]
   creatorReviewsReceived CreatorReview[] @relation("CreatorReceived")
   creatorReviewsWritten  CreatorReview[] @relation("CreatorWritten")
   @@unique([issuer, subject])
@@ -42,6 +44,8 @@ model Quiz {
   updatedAt             DateTime      @updatedAt
   revisions             QuizRevision[]
   packItems             PackQuestion[]
+  weeklyQuestions       WeeklyQuestion[]
+  runQuestions          PlayRunQuestion[]
   sessions              PlaySession[]
   reviews               Review[]
   reports               Report[]
@@ -63,6 +67,8 @@ model QuizRevision {
   promptMediaIds        Json          @default("[]")
   createdAt             DateTime      @default(now())
   sessions              PlaySession[]
+  weeklyQuestions       WeeklyQuestion[]
+  runQuestions          PlayRunQuestion[]
   @@unique([quizId, version])
 }
 
@@ -97,6 +103,9 @@ model PlaySession {
   userId                String?
   user                  User?         @relation(fields: [userId], references: [id])
   tokenHash             String
+  runId                 String?
+  run                   PlayRun? @relation(fields: [runId], references: [id])
+  roundIndex            Int?
   status                String        @default("ACTIVE")
   usedClues             Int           @default(1)
   wrongGuesses          Int           @default(0)
@@ -104,6 +113,7 @@ model PlaySession {
   startedAt             DateTime      @default(now())
   expiresAt             DateTime
   finishedAt            DateTime?
+  @@unique([runId, roundIndex])
   @@index([quizId, revisionId, status])
   @@index([userId, status, score])
 }
@@ -184,4 +194,70 @@ model MediaAsset {
   deletedAt         DateTime?
   @@index([ownerId, status, createdAt])
   @@index([parentId])
+}
+
+model WeeklyChallenge {
+  id          String    @id @default(uuid())
+  lane        String
+  weekStart   DateTime
+  weekEnd     DateTime
+  hostId      String
+  host        User      @relation(fields: [hostId], references: [id])
+  title       String
+  description String    @default("")
+  status      String    @default("SUBMITTED")
+  verifiedHost Boolean  @default(false)
+  createdAt   DateTime  @default(now())
+  publishedAt DateTime?
+  questions   WeeklyQuestion[]
+  runs        PlayRun[]
+  @@unique([lane, weekStart])
+  @@index([status, weekStart, weekEnd])
+}
+
+model WeeklyQuestion {
+  challengeId String
+  position    Int
+  quizId      String
+  revisionId  String
+  challenge   WeeklyChallenge @relation(fields: [challengeId], references: [id])
+  quiz        Quiz @relation(fields: [quizId], references: [id])
+  revision    QuizRevision @relation(fields: [revisionId], references: [id])
+  @@id([challengeId, position])
+  @@unique([challengeId, quizId])
+}
+
+model PlayRun {
+  id          String    @id @default(uuid())
+  mode        String
+  lane        String
+  userId      String?
+  user        User?     @relation(fields: [userId], references: [id])
+  weeklyId    String?
+  weekly      WeeklyChallenge? @relation(fields: [weeklyId], references: [id])
+  tokenHash   String
+  currentIndex Int      @default(0)
+  score       Int       @default(0)
+  solved      Int       @default(0)
+  failed      Int       @default(0)
+  status      String    @default("ACTIVE")
+  expiresAt   DateTime
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+  questions   PlayRunQuestion[]
+  sessions    PlaySession[]
+  @@index([userId, startedAt])
+  @@index([weeklyId, status, score])
+}
+
+model PlayRunQuestion {
+  runId       String
+  position    Int
+  quizId      String
+  revisionId  String
+  run         PlayRun @relation(fields: [runId], references: [id])
+  quiz        Quiz @relation(fields: [quizId], references: [id])
+  revision    QuizRevision @relation(fields: [revisionId], references: [id])
+  @@id([runId, position])
+  @@unique([runId, quizId])
 }
