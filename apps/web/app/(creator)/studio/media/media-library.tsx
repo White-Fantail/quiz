@@ -99,6 +99,7 @@ export default function MediaLibrary() {
   const [attribution,setAttribution] = useState("");
   const [details,setDetails] = useState<MediaDetails|null>(null);
   const [detailsLoading,setDetailsLoading] = useState(false);
+  const detailRequest = useRef(0);
   const [expandedId,setExpandedId] = useState<string|null>(null);
   const [busy,setBusy] = useState(false);
   const [error,setError] = useState("");
@@ -124,7 +125,7 @@ export default function MediaLibrary() {
   }, [search,kind,moderation,status,usage,sort,page,refresh]);
 
   function reload() { setRefresh(n=>n+1); }
-  function newFilter(update: () => void) { setPage(0); setExpandedId(null);setDetails(null);update(); }
+  function newFilter(update: () => void) { detailRequest.current++;setPage(0);setExpandedId(null);setDetails(null);update(); }
   async function upload() {
     if (!selected) return;
     setBusy(true); setError(""); setNotice("");
@@ -149,13 +150,14 @@ export default function MediaLibrary() {
     finally{setBusy(false);}
   }
   async function show(item: Media) {
-    if (expandedId === item.id) { setExpandedId(null);setDetails(null);return; }
+    const requestId=++detailRequest.current;
+    if (expandedId === item.id) { setExpandedId(null);setDetails(null);setDetailsLoading(false);return; }
     setExpandedId(item.id);setDetails(null);setDetailsLoading(true);setError("");
     try {
       const detail: MediaDetails = await api("/media/"+item.id);
-      setDetails(current => current?.id === item.id ? current : detail);
-    } catch(e){setError(e instanceof Error?e.message:"상세 정보를 불러오지 못했어요.");}
-    finally{setDetailsLoading(false);}
+      if (detailRequest.current === requestId) setDetails(detail);
+    } catch(e){if (detailRequest.current === requestId) setError(e instanceof Error?e.message:"상세 정보를 불러오지 못했어요.");}
+    finally{if (detailRequest.current === requestId) setDetailsLoading(false);}
   }
   async function blur(item: Media) {
     setBusy(true);setError("");
@@ -282,9 +284,9 @@ export default function MediaLibrary() {
         </article>)}
       </div>
       <nav className="media-pagination" aria-label="미디어 페이지">
-        <button type="button" className="btn btn-outline" disabled={page===0||loading} onClick={()=>{setPage(n=>n-1);setExpandedId(null);setDetails(null);}}>이전</button>
+        <button type="button" className="btn btn-outline" disabled={page===0||loading} onClick={()=>{detailRequest.current++;setPage(n=>n-1);setExpandedId(null);setDetails(null);}}>이전</button>
         <span>{page+1} / {pages} 페이지 · 총 {total.toLocaleString("ko-KR")}개</span>
-        <button type="button" className="btn btn-outline" disabled={page+1>=pages||loading} onClick={()=>{setPage(n=>n+1);setExpandedId(null);setDetails(null);}}>다음</button>
+        <button type="button" className="btn btn-outline" disabled={page+1>=pages||loading} onClick={()=>{detailRequest.current++;setPage(n=>n+1);setExpandedId(null);setDetails(null);}}>다음</button>
       </nav>
     </section>
   </div>;
