@@ -95,7 +95,7 @@ Run against **dev** DB first. Review migrations, take backup before prod, and us
 
 ## Automatic migrations during Vercel builds
 
-The root `npm run build` delegates to `scripts/build.mjs`. It runs migrations **only** when Vercel provides both `VERCEL=1` and `VERCEL_ENV=production`:
+Both the repository-root `npm run build` and Vercel's auto-detected `@clupio/web` workspace `npm run build` delegate to `scripts/build.mjs`. The runner sets its command working directory to the repository root, and invokes the separate `@clupio/web` `build:next` script to avoid recursion. It runs migrations **only** when Vercel provides both `VERCEL=1` and `VERCEL_ENV=production`:
 
 1. Check `DATABASE_URL`, `BETTER_AUTH_URL` and `BETTER_AUTH_SECRET` are configured. Refuse an explicitly non-`main` production build.
 2. Run `npm run db:migrate` (Prisma domain migrations).
