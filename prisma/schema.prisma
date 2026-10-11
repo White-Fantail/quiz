@@ -29,6 +29,9 @@ model User {
   playRuns              PlayRun[]
   creatorReviewsReceived CreatorReview[] @relation("CreatorReceived")
   creatorReviewsWritten  CreatorReview[] @relation("CreatorWritten")
+  kidProfiles           KidProfile[]
+  kidDeviceSessions     KidDeviceSession[]
+  kidGuardianPin        KidGuardianPin?
   @@unique([issuer, subject])
 }
 
@@ -368,4 +371,43 @@ model PlayRunQuestion {
   revision    QuizRevision @relation(fields: [revisionId], references: [id])
   @@id([runId, position])
   @@index([runId, quizId])
+}
+
+/** Child profiles are owned by verified guardian QuizDip accounts, never public users. */
+model KidProfile {
+  id              String   @id @default(uuid())
+  guardianId      String
+  guardian        User     @relation(fields: [guardianId], references: [id], onDelete: Cascade)
+  nickname        String
+  ageBand         String   @default("MIDDLE")
+  locale          String   @default("en")
+  sessionMinutes  Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  devices         KidDeviceSession[]
+  @@index([guardianId, updatedAt])
+}
+
+model KidGuardianPin {
+  guardianId       String   @id
+  guardian         User     @relation(fields: [guardianId], references: [id], onDelete: Cascade)
+  hash             String
+  attempts         Int      @default(0)
+  lockedUntil      DateTime?
+  updatedAt        DateTime @updatedAt
+}
+
+model KidDeviceSession {
+  id           String   @id @default(uuid())
+  guardianId   String
+  guardian     User     @relation(fields: [guardianId], references: [id], onDelete: Cascade)
+  profileId    String
+  profile      KidProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  tokenHash    String   @unique
+  deviceName   String
+  createdAt    DateTime @default(now())
+  expiresAt    DateTime
+  revokedAt    DateTime?
+  @@index([guardianId, revokedAt])
+  @@index([profileId, revokedAt, expiresAt])
 }
