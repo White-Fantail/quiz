@@ -1,6 +1,6 @@
 import { db } from "../platform/db";
 import { fail } from "../platform/auth";
-import { checkPin, hashPin, newDeviceToken, tokenHash, readCookie, MAX_DEVICE_AGE_SECONDS } from "./credentials";
+import { checkPin, hashPin, newDeviceToken, tokenHash, readCookie, MAX_DEVICE_AGE_SECONDS, createPairCode, normalizePairCode, pairCodeHash } from "./credentials";
 import type { Locale } from "../../i18n/core";
 
 export type KidAgeBand = "EARLY" | "MIDDLE" | "OLDER";
@@ -98,6 +98,13 @@ export async function setGuardianPin(guardianId:string,pin:string,previous?:stri
   await db().kidGuardianPin.upsert({where:{guardianId},create:{guardianId,hash},update:{
     hash,attempts:0,lockedUntil:null
   }});
+  if(current) {
+    const now=new Date();
+    await Promise.all([
+      db().kidDeviceSession.updateMany({where:{guardianId,clientKind:"NATIVE",revokedAt:null},data:{revokedAt:now}}),
+      db().kidPairTicket.updateMany({where:{guardianId,consumedAt:null},data:{consumedAt:now}})
+    ]);
+  }
   return {pinConfigured:true};
 }
 export async function activateKidDevice(guardianId:string, profileId:string, pin:string,deviceName:string) {
@@ -121,5 +128,74 @@ export async function exitKidDevice(token:string,pin:string) {
   await db().kidDeviceSession.updateMany({
     where:{id:device.id,revokedAt:null},data:{revokedAt:new Date()}
   });
+  return {unlocked:true};
+}
+
+/** Authorize one native device after a trusted signed-in guardian verifies their PIN. */
+export async function issueNativePairTicket(guardianId: string, profileId: string, pin: string) {
+  await checkGuardianPin(guardianId, pin);
+  const profile = await db().kidProfile.findFirst({where:{id:profileId,guardianId}});
+  if (!profile) fail(404,"kid_profile_missing","Child profile does not belong to this guardian");
+  const now = new Date();
+  const [activeDevices,pending] = await Promise.all([
+    db().kidDeviceSession.count({where:{guardianId,revokedAt:null,expiresAt:{gt:now}}}),
+    db().kidPairTicket.count({where:{guardianId,consumedAt:null,expiresAt:{gt:now}}})
+  ]);
+  if(activeDevices >= 10) fail(409,"kid_device_limit","At most ten active child devices");
+  if(pending >= 3) fail(429,"kid_pair_limit","Too many active pairing tickets");
+  const code = createPairCode();
+  const expiresAt = new Date(Date.now()+5*60*1000);
+  await db().kidPairTicket.create({data:{guardianId,profileId,codeHash:pairCodeHash(normalizePairCode(code)!),expiresAt}});
+  return {code,expiresAt:expiresAt.toISOString()};
+}
+
+/** A ticket is claimed atomically; parallel replays cannot issue another device token. */
+export async function redeemNativePairTicket(codeInput: string, deviceName: string) {
+  const normalized = normalizePairCode(codeInput);
+  if(!normalized) fail(400,"invalid_pair_code","Invalid pairing code format");
+  const codeHash = pairCodeHash(normalized);
+  const token = newDeviceToken();
+  const now = new Date();
+  return db().$transaction(async tx => {
+    const claimed = await tx.kidPairTicket.updateMany({
+      where:{codeHash,consumedAt:null,expiresAt:{gt:now}},
+      data:{consumedAt:now}
+    });
+    if(claimed.count !== 1) fail(403,"pair_unavailable","Pairing code invalid, used, or expired");
+    const ticket = await tx.kidPairTicket.findUnique({where:{codeHash},include:{profile:true}});
+    if(!ticket || ticket.guardianId!==ticket.profile.guardianId)
+      fail(403,"pair_unavailable","Invalid pairing guardian");
+    const active = await tx.kidDeviceSession.count({where:{
+      guardianId:ticket.guardianId,revokedAt:null,expiresAt:{gt:now}
+    }});
+    if(active >= 10) fail(409,"kid_device_limit","At most ten active child devices");
+    const expiresAt=new Date(Date.now()+MAX_DEVICE_AGE_SECONDS*1000);
+    await tx.kidDeviceSession.create({data:{
+      guardianId:ticket.guardianId,profileId:ticket.profileId,
+      clientKind:"NATIVE",tokenHash:tokenHash(token),deviceName,expiresAt
+    }});
+    return {token,expiresAt:expiresAt.toISOString(),profile:{
+      nickname:ticket.profile.nickname,ageBand:ticket.profile.ageBand,locale:ticket.profile.locale
+    }};
+  });
+}
+
+/** Native credentials have an isolated scope. Never interpret web device cookies or guardian login here. */
+export async function nativeKidFromHeaders(headers: Headers) {
+  const auth = headers.get("authorization");
+  const match = auth?.match(/^Bearer ([A-Za-z0-9_-]{40,90})$/);
+  if(!match) fail(401,"native_auth_required","Native child device credential required");
+  const session = await findKidDevice(match[1]);
+  if(!session || session.clientKind!=="NATIVE" || session.revokedAt ||
+      session.expiresAt.getTime()<=Date.now() || session.guardianId!==session.profile.guardianId)
+    fail(401,"native_session_invalid","Native device authorization expired or revoked");
+  return session;
+}
+export async function releaseNativeKidDevice(sessionId: string, guardianId: string, pin: string) {
+  await checkGuardianPin(guardianId,pin);
+  const result=await db().kidDeviceSession.updateMany({where:{
+    id:sessionId,guardianId,clientKind:"NATIVE",revokedAt:null
+  },data:{revokedAt:new Date()}});
+  if(!result.count) fail(401,"native_session_invalid","Device already revoked");
   return {unlocked:true};
 }
