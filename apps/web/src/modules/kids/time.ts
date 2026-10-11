@@ -1,4 +1,5 @@
 import { db } from "../platform/db";
+import { localChildDay,utcMinuteSlot } from "@quizdip/domain";
 import { fail } from "../platform/auth";
 import type { nativeKidFromHeaders } from "./service";
 
@@ -10,11 +11,7 @@ export const USAGE_PULSE_MS=45_000;
 const DAY_MS=86_400_000;
 
 /** Date is calculated by the server, not by user-supplied clocks or locale. */
-export function localDay(now:Date, zone:string):string {
-  const p=new Intl.DateTimeFormat("en-US",{timeZone:zone,year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(now);
-  const part=(type:string)=>p.find(x=>x.type===type)?.value??"";
-  return part("year")+"-"+part("month")+"-"+part("day");
-}
+export const localDay=localChildDay;
 export async function status(kid:Kid,now=new Date()){
   const localDate=localDay(now,kid.profile.timeZone);
   const used=await db().kidUsageMinute.count({where:{profileId:kid.profileId,localDay:localDate}});
@@ -32,7 +29,7 @@ export async function requirePlayable(kid:Kid,now=new Date()){
   const state=await status(kid,now);
   if(kid.breakUntil && kid.breakUntil>now)fail(429,"kid_break_required","A short rest is required");
   if(state.limitReached){
-    const minute=Math.floor(now.getTime()/60000);
+    const minute=utcMinuteSlot(now);
     const existing=await db().kidUsageMinute.findUnique({where:{profileId_utcMinute:{profileId:kid.profileId,utcMinute:minute}}});
     if(!existing)fail(429,"kid_daily_limit","Daily play time is finished");
   }
@@ -56,7 +53,7 @@ export async function heartbeat(kid:Kid){
           device.profileId!==kid.profileId)fail(401,"native_session_invalid","Device no longer active");
         if(device.breakUntil && device.breakUntil>now)
           fail(429,"kid_break_required","Take a short break");
-        const minute=Math.floor(now.getTime()/60000),today=localDay(now,device.profile.timeZone);
+        const minute=utcMinuteSlot(now),today=localDay(now,device.profile.timeZone);
         const count=await tx.kidUsageMinute.count({where:{profileId:device.profileId,localDay:today}});
         const present=await tx.kidUsageMinute.findUnique({where:{profileId_utcMinute:{
           profileId:device.profileId,utcMinute:minute}}});
