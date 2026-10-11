@@ -1,0 +1,24 @@
+{
+  "expo": {
+    "name": "QuizDip Kids",
+    "slug": "quizdip-kids",
+    "scheme": "quizdipkids",
+    "version": "0.1.0",
+    "orientation": "default",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.quizdip.kids"
+    },
+    "android": {
+      "package": "com.quizdip.kids",
+      "permissions": []
+    },
+    "plugins": [
+      "expo-router"
+    ],
+    "experiments": {
+      "tsconfigPaths": true
+    }
+  }
+}
