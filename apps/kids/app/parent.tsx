@@ -4,11 +4,13 @@ import { Redirect, useRouter } from "expo-router";
 import { ApiError } from "@quizdip/api-client";
 import { Screen, Banner } from "../src/components/Screen";
 import { useKidsSession } from "../src/state/session";
+import { useParentAccess } from "../src/state/parent";
 import { useKidsLocale } from "../src/state/locale";
 import { theme } from "../src/theme";
 
 export default function ParentGate(){
  const kid=useKidsSession(),{t}=useKidsLocale(),router=useRouter();
+ const parent=useParentAccess();
  const [pin,setPin]=useState(""),[error,setError]=useState(""),[busy,setBusy]=useState(false);
  if(kid.status==="unpaired")return <Redirect href="/setup" />;
  if(kid.status==="checking"||kid.status==="unavailable")return <Screen title={t("native.session.checking")}>
@@ -19,13 +21,13 @@ export default function ParentGate(){
  const unlock=async()=>{
    if(pin.length!==6||busy)return;
    setBusy(true);setError("");
-   try {await kid.unlock(pin);setPin("");router.replace("/setup");}
+   try {await parent.authorize(pin);setPin("");router.replace("/guardian");}
    catch(e){setPin("");setError(e instanceof ApiError && e.code==="kid_pin_locked"
      ?t("native.guardian.locked"):t("native.guardian.failed"));}
    finally{setBusy(false);}
  };
  return <Screen title={t("native.guardian.title")} subtitle={t("native.guardian.detail")}>
-   <Banner emoji="🔒" title={t("native.guardian.title")} detail={t("native.guardian.settings")}/>
+   <Banner emoji="🔒" title={t("native.guardian.title")} detail={t("native.parent.pinHelp")}/>
    <View style={styles.panel}>
      <Text style={styles.label}>{t("native.guardian.pin")}</Text>
      <TextInput value={pin} onChangeText={setPin} keyboardType="number-pad"
@@ -34,7 +36,7 @@ export default function ParentGate(){
      {error?<Text accessibilityRole="alert" style={styles.error}>{error}</Text>:null}
      <Pressable accessibilityRole="button" disabled={pin.length!==6||busy}
        onPress={()=>void unlock()} style={[styles.button,(pin.length!==6||busy)&&styles.disabled]}>
-       <Text style={styles.buttonText}>{t("native.guardian.unlock")}</Text>
+       <Text style={styles.buttonText}>{t("native.parent.manage")}</Text>
      </Pressable>
      <Pressable accessibilityRole="button" onPress={()=>router.replace("/")}>
        <Text style={styles.action}>{t("native.guardian.back")}</Text>
