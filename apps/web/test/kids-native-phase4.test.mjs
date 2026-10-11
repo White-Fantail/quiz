@@ -8,7 +8,7 @@ test("phase four stores separate native play limits and shared minute slots",()=
  const sql=file("../../prisma/migrations/20261012210000_kids_native_parent_time/migration.sql");
  for(const field of ["dailyMinutes","playSessionMinutes","breakEveryMinutes","timeZone"]){
   assert.match(schema,new RegExp(field+"\\s+"));
-  assert.match(sql,new RegExp("ADD COLUMN \\""+field+"\\""));
+  assert.ok(sql.includes('ADD COLUMN "'+field+'"'));
  }
  assert.match(schema,/model KidUsageMinute/);
  assert.match(sql,/KidUsageMinute_profileId_utcMinute_key/);
