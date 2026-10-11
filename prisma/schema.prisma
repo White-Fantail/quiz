@@ -33,8 +33,6 @@ model User {
   kidDeviceSessions     KidDeviceSession[]
   kidGuardianPin        KidGuardianPin?
   kidPairTickets        KidPairTicket[]
-  kidPlayRuns           KidPlayRun[]
-  kidSinglePlays        KidPlaySingle[]
   @@unique([issuer, subject])
 }
 
