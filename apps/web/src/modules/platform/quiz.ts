@@ -6,6 +6,7 @@ import { validateMediaReferences } from "./media";
 import { saveTopicLinks, topicSummaries, normalizeTopicKey, localizedTopicSummaries } from "./topics";
 import { playableQuizWhere, currentPlayableRevision } from "./content-locale";
 import type { Locale } from "../../i18n/core";
+import { detectQuizLocale } from "./translation-language";
 function normalizeClues(clues: any[]) {
   return clues.map((clue, i) => ({ ...clue, id: randomUUID(), order: i + 1 }));
 }
@@ -36,7 +37,7 @@ export async function quizList(p: Record<string, any>, actor: Actor | null) {
     where: { OR: rows.map(q => {
       const l = q.localizations[0];
       return { quizId: q.id, version: p.mine ? q.currentVersion : l?.publishedVersion ?? -1,
-        ...(p.mine ? {} : { localizationId: l?.id ?? "" }) };
+        ...(p.mine ? {localization: {origin: {in:["ORIGINAL","LEGACY"]}}} : { localizationId: l?.id ?? "" }) };
     }) }
   });
   const revisions = new Map(selected.map(r => [r.quizId, r]));
@@ -80,25 +81,26 @@ export async function quizCreate(p: Record<string, any>, actor: Actor | null) {
   const count = await db().quiz.count({ where: { authorId: user.id, createdAt: { gte: new Date(Date.now() - 86400000) } } });
   if (count >= 100) fail(429, "rate_limit", "Daily creation limit reached");
   await validateMediaReferences(user.id, p.promptMediaIds ?? [], p.clues);
+  const locale = p.locale ?? detectQuizLocale(p);
   const localizationId = randomUUID();
   const quiz = await db().$transaction(async tx => {
     const created = await tx.quiz.create({ data: {
-      authorId: user.id, mode: p.mode, answerType: p.answerType, sourceLocale: p.locale,
+      authorId: user.id, mode: p.mode, answerType: p.answerType, sourceLocale: locale,
       ...(p.creatorIntent ? { creatorIntent: p.creatorIntent } : {}),
       ...(p.recommendedAudience ? { recommendedAudience: p.recommendedAudience } : {}),
     } });
     await tx.quizLocalization.create({ data: {
-      id:localizationId,quizId:created.id,locale:p.locale,status:"DRAFT",currentVersion:1,origin:"ORIGINAL"
+      id:localizationId,quizId:created.id,locale,status:"DRAFT",currentVersion:1,origin:"ORIGINAL"
     } });
     await tx.quizRevision.create({data:{
       quizId:created.id,version:1,localizationId,
       title:p.title,prompt:p.prompt,mode:p.mode,answerType:p.answerType,
       answer:p.answer,clues:normalizeClues(p.clues),promptMediaIds:p.promptMediaIds ?? []
     }});
-    await saveTopicLinks(tx, created.id, p.topics ?? [], p.answer, p.locale);
+    await saveTopicLinks(tx, created.id, p.topics ?? [], p.answer, locale);
     return created;
   });
-  return quizGet(quiz.id, actor, p.locale === "und" ? "en" : p.locale);
+  return quizGet(quiz.id, actor, locale === "und" ? "en" : locale);
 }
 export async function quizUpdate(p: Record<string, any>, actor: Actor | null) {
   const user = requireActor(actor);

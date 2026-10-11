@@ -9,6 +9,11 @@ export const clueSchema = z.discriminatedUnion("type", [
   z.object({ type: z.enum(["image", "audio", "video"]), mediaId, text: z.string().max(1000).optional() }),
   z.object({ type: z.literal("map"), map: z.object({ latitude: z.number().min(-90).max(90), longitude: z.number().min(-180).max(180), zoom: z.number().min(1).max(20).optional() }), text: z.string().max(1000).optional() })
 ]);
+export const translationFields = z.object({
+  title:z.string().trim().min(1).max(180),prompt:z.string().trim().min(1).max(2000),
+  answer:answerSchema,clues:z.array(clueSchema).min(1).max(15)
+});
+export type TranslationFields = z.infer<typeof translationFields>;
 const mediaMetadata = {
   alt: z.string().max(500).optional(),
   transcript: z.string().max(5000).optional(),
@@ -27,7 +32,7 @@ const topicName = z.string().trim().min(1).max(80);
 const topicInputSchema = z.union([topicName, z.object({name:topicName,isSpoiler:z.boolean().optional()})]);
 export const quizFields = z.object({
   title: z.string().trim().min(1).max(180), prompt: z.string().trim().min(1).max(2000),
-  locale: z.enum(["en", "ko", "und"]).default("und"),
+  locale: z.enum(["en", "ko", "und"]).optional(),
   mode: gameModeSchema.default("progressive-clues"),
   answerType: answerTypeSchema.default("other"),
   answer: answerSchema, clues: z.array(clueSchema).min(1).max(15),
@@ -48,6 +53,12 @@ export const operations = {
   quiz_create: { public: false, description: "Create ordered clues; infer answerType, relevant topics, age recommendation and difficulty. Platform safety is never creator input.", schema: quizFields },
   quiz_update: { public: false, description: "Edit my quiz as a new immutable revision", schema: quizFields.partial().extend({ id: uuid, expectedVersion: z.number().int().positive() }) },
   clues_replace: { public: false, description: "Replace my ordered clues as a new revision", schema: z.object({ id: uuid, expectedVersion: z.number().int().positive(), clues: quizFields.shape.clues }) },
+  quiz_languages: { public:false, description:"List owned quiz language versions and unpublished changes", schema:z.object({id:uuid,includeContent:z.boolean().default(false)}) },
+  quiz_translation_get: { public:false, description:"Get one owned localized editable revision", schema:z.object({id:uuid,locale: z.enum(["en","ko"])}) },
+  quiz_translation_generate: { public:false, description:"Generate optional AI-translated draft suggestion, without saving or publishing", schema:z.object({id:uuid,locale:z.enum(["en","ko"])}) },
+  quiz_translation_save: { public:false, description:"Save a manually reviewed translated draft as independent immutable revision", schema:z.object({id:uuid,locale:z.enum(["en","ko"]),sourceRevisionId:uuid,expectedVersion:z.number().int().min(0),fields:translationFields}) },
+  quiz_translation_publish: { public:false, description:"Publish a reviewed translated revision without changing source; resets global safety review", schema:z.object({id:uuid,locale:z.enum(["en","ko"]),expectedVersion:z.number().int().positive(),reviewed:z.literal(true),confirm:z.literal(true)}) },
+  quiz_translation_hide: { public:false, description:"Hide a non-source translation with explicit confirmation", schema:z.object({id:uuid,locale:z.enum(["en","ko"]),confirm:z.literal(true)}) },
   quiz_language_set: { public: false, description: "Confirm the original language of a legacy unclassified quiz without translating it", schema: z.object({ id: uuid, locale: localeCode, confirm: z.literal(true) }) },
   quiz_publish: { public: false, description: "Publish my quiz; explicit user confirmation needed", schema: z.object({ id: uuid, confirm: z.literal(true) }) },
   quiz_review_get: { public: false, description: "ADMIN ONLY: inspect quiz questions and answers for safety", schema: z.object({id:uuid}) },

@@ -1,4 +1,5 @@
 import { parseOperation, operations, type Operation } from "./contracts";
+import { quizLanguages,quizTranslationGet,quizTranslationGenerate,quizTranslationSave,quizTranslationPublish,quizTranslationHide } from "./translations";
 import { localeGet, localeUpdate } from "./locale";
 import { topicList } from "./topics";
 import { fail, requireActor, type Actor } from "./auth";
@@ -35,6 +36,12 @@ export async function execute(name: Operation, raw: unknown, actor: Actor | null
     case "clues_replace": return quizUpdate({ id: p.id, expectedVersion: p.expectedVersion, clues: p.clues }, actor);
     case "quiz_publish": return quizPublish(p, actor);
     case "quiz_language_set": return quizLanguageSet(p, actor);
+    case "quiz_languages": return quizLanguages(p,actor);
+    case "quiz_translation_get": return quizTranslationGet(p,actor);
+    case "quiz_translation_generate": return quizTranslationGenerate(p,actor);
+    case "quiz_translation_save": return quizTranslationSave(p,actor);
+    case "quiz_translation_publish": return quizTranslationPublish(p,actor);
+    case "quiz_translation_hide": return quizTranslationHide(p,actor);
     case "quiz_review_get": return quizReviewGet(p,actor);
     case "quiz_review": return quizReview(p, actor);
     case "pack_list": return packList(p, actor);

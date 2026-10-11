@@ -5,7 +5,7 @@ import { operations, parseOperation } from "../src/modules/platform/contracts.ts
 
 test("every REST action is exposed as an MCP operation via the shared registry", () => {
   const names = Object.keys(operations);
-  assert.equal(names.length, 59);
+  assert.equal(names.length, 65);
   const restSource = readFileSync(new URL("../app/api/v1/[...segments]/route.ts", import.meta.url), "utf8");
   const mcpSource = readFileSync(new URL("../app/api/mcp/route.ts", import.meta.url), "utf8");
   for (const name of names) {
