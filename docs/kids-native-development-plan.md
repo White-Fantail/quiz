@@ -1,6 +1,24 @@
 # QuizDip Kids — 독립 모바일 앱 전환 개발 계획
 
-> 상태: Phase 1·2 소스 구현 / 실제 빌드·배포·실기기 E2E 미검증. 기준 브랜치: `dev` (2026-10-12 확인). 이 문서는 **모바일 기능 개발 4단계 + 기존 웹 Kids 제거 1단계**를 정의한다. 현재 웹 구현 완료 상태와 목표 구현 상태를 혼동하지 않는다.
+> 상태: Phase 1–3 소스 구현 / 실제 빌드·배포·실기기 E2E 미검증. 기준 브랜치: `dev` (2026-10-12 확인). 이 문서는 **모바일 기능 개발 4단계 + 기존 웹 Kids 제거 1단계**를 정의한다. 현재 웹 구현 완료 상태와 목표 구현 상태를 혼동하지 않는다.
+
+## Phase 3 implementation record (2026-10-12)
+
+**Implemented on dev in source (not yet runtime certified):**
+- `20261012200000_kids_native_play` adds private `KidPlayRun` and `KidPlaySingle` child/device ownership of existing shared PlayRun and PlaySession.
+- Guarded `/api/kids/native/play` only accepts native child bearer and explicitly permitted actions: Kids RANDOM_FIVE or WEEKLY start/current, Kids-only standalone start/current, clue reveal, server-graded guesses, 60-second approved-media URL retrieval and private treasures.
+- The shared `checkedRun` and `getPlaySession` now **also** reject child-owned run/session tokens on the ordinary anonymous General REST and MCP paths. Only the internal verified child scope can act. The trusted game engine still grades; no answer keys are returned before success/failure (the younger-child multiple-choice format intentionally provides candidate answers).
+- Kids content is checked on every action: trusted `APPROVED + kidsEligible`, locale/revision pinned to the guardian language, ORIGINAL/LEGACY review gate and READY+APPROVED media. Revocations fail closed.
+- Native game uses a secure locally saved run capability, resume/restart flow, 5 questions, separate weekly run, a Discover single-quiz route, progressive hints, image/audio/video with short-lived URLs, text and coordinate clues, server answers, 2–4 touch choices for EARLY/MIDDLE when a sufficiently varied safe pool exists, and text input for OLDER or thin quiz pools.
+- Child-only treasure shelf derives solved/completed sessions and badge thresholds, without a child leaderboard, public player profile, creator identities or ratings. Existing reviews remain adult-account only. Previously exposed and allocated questions are excluded on new RANDOM_FIVE runs up to the platform's 1,000-ID limit.
+- Guardian profile deletion deletes associated native child sessions, scores and run questions transactionally.
+
+**Important limitations and release gates:** 
+- No true native geographic map renderer yet: map clues show approved location coordinates; add tested map visualization before advertising rich interactive maps.
+- A small Kids question bank may not support a five-question run or enough plausible multiple-choice options; display the shortage and offer single-quiz discovery, never fall back to General or unapproved translations.
+- Profile-level recommendations currently rank age relevance only within a fetched page, not full personalized ML discovery. Badge thresholds count solved plays and may include repeats; content discovery tiles are deduplicated by quiz.
+- Real PostgreSQL migration, node test/typecheck/build, actual iPad/Android playback (especially signed R2 assets), resumed/expired/revoked token and parallel request E2E are **not yet verified** in this environment. Existing Vercel build-rate-limit failure is not a valid code build result.
+- Phase 4 remains: full native guardian settings, authoritative daily time budgets, parental insights, deletion/privacy retention audit and app-store compliance. Phase 5 web Kids removal is **not begun**.
 
 ## Phase 2 implementation record (2026-10-12)
 
