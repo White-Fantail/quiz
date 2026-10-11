@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams,useRouter } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import type { AnswerType } from "@quizdip/domain";
 import type { KidsCatalogItem } from "@quizdip/api-client";
@@ -23,6 +23,7 @@ function category(value: unknown): Category {
 }
 
 export default function ExploreScreen(){
+ const router=useRouter();
  const {answerType:routeType,topic:routeTopic}=useLocalSearchParams<{answerType?:string;topic?:string}>();
  const {locale,t}=useKidsLocale();
  const kid=useKidsSession();
@@ -72,14 +73,15 @@ export default function ExploreScreen(){
    </View>:null}
   {state==="ready" && items.length===0?<Text style={styles.message}>{t("native.noQuizzes")}</Text>:null}
   <View style={styles.list}>
-   {items.map(quiz=><View key={quiz.id} style={styles.card} accessible accessibilityLabel={quiz.title}>
+   {items.map(quiz=><Pressable key={quiz.id} accessibilityRole="button" onPress={()=>router.push({pathname:"/game",params:{quizId:quiz.id}})}
+      style={styles.card} accessibilityLabel={quiz.title}>
      <Text style={styles.cardEmoji}>{quiz.answerType==="animal"?"🐾":quiz.answerType==="place"?"🌏":"🌟"}</Text>
      <View style={{flex:1}}>
        <Text style={styles.cardTitle}>{quiz.title}</Text>
        <Text numberOfLines={3} style={styles.cardText}>{quiz.prompt}</Text>
-       <Text style={styles.approved}>✓ {t("kids.explore.approved")}</Text>
+       <Text style={styles.approved}>✓ {t("kids.explore.approved")} · {t("native.play.open")}</Text>
      </View>
-    </View>)}
+    </Pressable>)}
   </View>
   {state==="ready" && (page>0||hasMore)?<View style={styles.pagination}>
     <Pressable accessibilityRole="button" disabled={page===0} onPress={()=>setPage(p=>Math.max(0,p-1))}>
@@ -90,7 +92,7 @@ export default function ExploreScreen(){
       <Text style={[styles.action,!hasMore&&styles.disabled]}>{t("kids.explore.next")}</Text>
     </Pressable>
    </View>:null}
-  <Text style={styles.note}>{t("native.readOnly")}</Text>
+  <Text style={styles.note}>{t("native.play.discoverHelp")}</Text>
  </Screen>;
 }
 const styles=StyleSheet.create({
