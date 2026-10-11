@@ -29,6 +29,7 @@ export default function GuardianPanel() {
   const [activeProfile,setActiveProfile]=useState("");
   const [deviceName,setDeviceName]=useState("My iPad");
   const [activationPin,setActivationPin]=useState("");
+  const [pairTicket,setPairTicket]=useState<{code:string;expiresAt:string}|null>(null);
   const [editingId,setEditingId]=useState("");
   const [editing,setEditing]=useState<FormProfile>({...defaultProfile});
   const refresh=useCallback(async()=>setOverview(await api("parent")),[]);
@@ -153,6 +154,28 @@ export default function GuardianPanel() {
           {t("kids.guardian.activate")}
         </button>
       </form>
+      <section className="kids-guardian-card">
+        <h3>📲 {t("kids.native.pairTitle")}</h3>
+        <p>{t("kids.native.pairHelp")}</p>
+        <button type="button" className="kids-guardian-button"
+          disabled={busy||!overview.pinConfigured||!overview.profiles.length||activationPin.length!==6}
+          onClick={async()=>{
+            setBusy(true);setError("");setPairTicket(null);
+            try {
+              const selected=overview.profiles.find(x=>x.id===activeProfile)??overview.profiles[0];
+              if(!selected)throw new Error(t("kids.guardian.needProfile"));
+              const result=await api("parent","POST",{action:"native_pair_issue",profileId:selected.id,pin:activationPin});
+              setPairTicket(result);setActivationPin("");
+            }catch(e){setError(e instanceof Error?e.message:String(e));}
+            finally{setBusy(false);}
+          }}>{t("kids.native.generate")}</button>
+        {pairTicket&&<div className="kids-notice" role="status" aria-live="polite">
+          <strong>{t("kids.native.codeLabel")}</strong>
+          <p style={{fontSize:"1.5rem",fontWeight:800,letterSpacing:"0.06em",overflowWrap:"anywhere"}}>{pairTicket.code}</p>
+          <p>{t("kids.native.expires")}: {new Date(pairTicket.expiresAt).toLocaleTimeString(locale)}</p>
+          <p>{t("kids.native.oneTime")}</p>
+        </div>}
+      </section>
       <p className="kids-explore-note">{t("kids.guardian.deviceNote")}</p>
       <h3>{t("kids.guardian.activeDevices")}</h3>
       {overview.devices.length===0?<p>{t("kids.guardian.noDevices")}</p>:
