@@ -9,7 +9,7 @@ type Media = {
   sizeBytes: number; status: string; moderationStatus: string;
   alt: string; attribution: string; createdAt: string; uploadExpiresAt?: string | null;
 };
-type MediaUsage = { quizId: string; title: string; version: number; isCurrent: boolean; publication: string };
+type MediaUsage = { quizId: string; title: string; version: number; isCurrent: boolean; publication: string; inPrompt: boolean; cluePositions: number[] };
 type MediaDetails = Media & {
   previewUrl?: string; thumbnailUrl?: string; previewExpiresInSeconds?: number;
   usage?: { items: MediaUsage[]; hasMore: boolean };
@@ -275,7 +275,7 @@ export default function MediaLibrary() {
               <h4>사용 중인 퀴즈 / 버전</h4>
               {!details.usage?.items?.length && <p>연결된 퀴즈가 없습니다. 이 ID를 복사하여 새 문제에 사용할 수 있어요.</p>}
               {details.usage?.items?.map(link=><div className="media-usage-row" key={link.quizId+":"+link.version}>
-                <div><b>{link.title}</b><small>버전 {link.version} · {link.isCurrent?"현재 버전":"이전 버전"} · {link.publication==="PUBLISHED"?"공개":"비공개"}</small></div>
+                <div><b>{link.title}</b><small>버전 {link.version} · {link.isCurrent?"현재 버전":"이전 버전"} · {link.publication==="PUBLISHED"?"공개":"비공개"} · {[link.inPrompt?"문제 본문":null,...(link.cluePositions||[]).map(n=>n+"번 단서")].filter(Boolean).join(", ")}</small></div>
                 <button type="button" className="text-button" onClick={()=>void copyId(link.quizId)}>퀴즈 ID 복사</button>
               </div>)}
               {details.usage?.hasMore && <p>다른 과거 버전 사용 이력도 있습니다.</p>}
