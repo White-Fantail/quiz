@@ -7,7 +7,7 @@ test("native child play data is private and deletes with its owning profile",()=
   const schema=file("../../prisma/schema.prisma"),sql=file("../../prisma/migrations/20261012200000_kids_native_play/migration.sql");
   for(const model of ["KidPlayRun","KidPlaySingle"]){
     assert.match(schema,new RegExp("model "+model+" \\{"));
-    assert.match(sql,new RegExp("CREATE TABLE \\""+model+"\\""));
+    assert.ok(sql.includes('CREATE TABLE "'+model+'"'));
   }
   assert.match(sql,/REFERENCES "KidProfile"\("id"\) ON DELETE CASCADE/);
   assert.match(schema,/kidOwnership\s+KidPlayRun\?/);
