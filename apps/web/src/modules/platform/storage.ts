@@ -2,7 +2,7 @@ import { lookup } from "node:dns/promises";
 import { request as httpsRequest } from "node:https";
 import { isIP } from "node:net";
 import {
-  S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand,
+  S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, HeadObjectCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { fileTypeFromBuffer } from "file-type";
@@ -59,6 +59,18 @@ export async function putObject(key: string, bytes: Buffer, mimeType: string) {
     Bucket: bucket(), Key: key, Body: bytes, ContentType: mimeType,
   }));
 }
+/** Probe a private thumbnail without swallowing permission or network failures. */
+export async function objectExists(key: string): Promise<boolean> {
+  try {
+    await client().send(new HeadObjectCommand({ Bucket: bucket(), Key: key }));
+    return true;
+  } catch (error) {
+    const e = error as { name?: string; $metadata?: { httpStatusCode?: number } };
+    if (e.$metadata?.httpStatusCode === 404 || e.name === "NotFound" || e.name === "NoSuchKey") return false;
+    throw error;
+  }
+}
+
 export async function deleteObject(key: string) {
   await client().send(new DeleteObjectCommand({ Bucket: bucket(), Key: key }));
 }
