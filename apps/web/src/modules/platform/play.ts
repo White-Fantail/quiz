@@ -19,6 +19,13 @@ export async function getPlaySession(p: Record<string, any>, actor: Actor | null
   if (provided.length !== expected.length || !timingSafeEqual(provided, expected))
     fail(403, "forbidden", "Invalid session capability");
   if (session.userId && session.userId !== actor?.id) fail(403, "forbidden", "Session belongs to another account");
+  // An anonymous game capability alone must never bypass native child ownership.
+  const child = session.runId
+    ? await db().kidPlayRun.findUnique({where:{runId:session.runId}})
+    : await db().kidPlaySingle.findUnique({where:{sessionId:session.id}});
+  if (child && (actor?.childScope?.profileId!==child.profileId ||
+      actor?.childScope?.deviceId!==child.deviceId))
+    fail(403,"kid_play_forbidden","A child-only game requires its authorized device");
   if (session.expiresAt.getTime() < Date.now()) fail(410, "session_expired", "Start another game");
   if (session.locale !== "und" && (session.revision.localization?.locale !== session.locale ||
     session.revision.localization.status !== "PUBLISHED"))
