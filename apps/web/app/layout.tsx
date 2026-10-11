@@ -9,6 +9,14 @@ import "./globals.css";
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = resolveLocale((await headers()).get("x-quizdip-locale"));
+  const kids = (await headers()).get("x-quizdip-shell") === "kids";
+  if (kids) {
+    const title = locale === "ko" ? "QuizDip Kids — 호기심 가득한 퀴즈 놀이터" : "QuizDip Kids — Explore and discover";
+    const description = t(locale, "kids.meta");
+    return { title, applicationName: "QuizDip Kids", description,
+      openGraph: { title, description, siteName: "QuizDip Kids", type: "website" },
+      twitter: { card: "summary", title, description } };
+  }
   const description = t(locale, "meta.description");
   const title = locale === "ko" ? "QuizDip — 단서를 따라, 재미를 발견해" : "QuizDip — Follow the clues. Find the fun.";
   return {
@@ -29,11 +37,14 @@ const navLinks = [
 ] as const;
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  const locale = resolveLocale((await headers()).get("x-quizdip-locale"));
+  const requestHeaders = await headers();
+  const locale = resolveLocale(requestHeaders.get("x-quizdip-locale"));
+  const kidsShell = requestHeaders.get("x-quizdip-shell") === "kids";
   return (
     <html lang={locale}>
       <body>
         <LocaleProvider locale={locale}>
+          {kidsShell ? children : <>
           <header className="site-header">
             <div className="container header-inner">
               <Link href={localizeHref("/", locale)} className="wordmark" aria-label={t(locale, "nav.home")}>QuizDip<span className="wordmark-dot">.</span></Link>
@@ -47,6 +58,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
           </header>
           <main>{children}</main>
           <footer className="site-footer"><div className="container">© QuizDip · Create it. Play it. Share it.</div></footer>
+          </>}
         </LocaleProvider>
       </body>
     </html>

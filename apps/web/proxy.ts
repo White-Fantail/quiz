@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { isKidsPath } from "./src/modules/kids/navigation";
 import { DEFAULT_LOCALE, LOCALE_COOKIE, isLocale, localeFromAcceptLanguage, localeFromPath, stripLocale } from "./src/i18n/core";
 
 function bypass(path: string): boolean {
@@ -16,7 +17,10 @@ export function proxy(request: NextRequest) {
   if (locale) {
     const headers = new Headers(request.headers);
     headers.set("x-quizdip-locale", locale);
-    url.pathname = stripLocale(pathname);
+    const resolvedPath = stripLocale(pathname);
+    // Route-derived presentation shell: never honor a client-supplied shell header.
+    headers.set("x-quizdip-shell", isKidsPath(resolvedPath) ? "kids" : "general");
+    url.pathname = resolvedPath;
     const response = NextResponse.rewrite(url, { request: { headers } });
     response.cookies.set(LOCALE_COOKIE, locale, {
       path: "/", maxAge: 31536000, sameSite: "lax", secure: request.nextUrl.protocol === "https:"
