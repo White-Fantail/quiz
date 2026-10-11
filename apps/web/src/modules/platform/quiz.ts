@@ -78,8 +78,6 @@ export async function quizGet(id: string, actor: Actor | null, locale: Locale = 
 }
 export async function quizCreate(p: Record<string, any>, actor: Actor | null) {
   const user = requireActor(actor);
-  const count = await db().quiz.count({ where: { authorId: user.id, createdAt: { gte: new Date(Date.now() - 86400000) } } });
-  if (count >= 100) fail(429, "rate_limit", "Daily creation limit reached");
   await validateMediaReferences(user.id, p.promptMediaIds ?? [], p.clues);
   const locale = p.locale ?? detectQuizLocale({title:p.title,prompt:p.prompt,clues:p.clues});
   const localizationId = randomUUID();
