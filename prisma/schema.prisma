@@ -53,7 +53,6 @@ model Quiz {
   packItems             PackQuestion[]
   weeklyQuestions       WeeklyQuestion[]
   runQuestions          PlayRunQuestion[]
-  weeklyLocalized       WeeklyQuestionLocalization[]
   sessions              PlaySession[]
   reviews               Review[]
   reports               Report[]
@@ -80,6 +79,7 @@ model QuizRevision {
   sessions              PlaySession[]
   weeklyQuestions       WeeklyQuestion[]
   runQuestions          PlayRunQuestion[]
+  weeklyLocalized       WeeklyQuestionLocalization[]
   @@unique([quizId, version])
   @@unique([localizationId, version])
 }
