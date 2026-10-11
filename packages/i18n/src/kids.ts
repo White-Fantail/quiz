@@ -243,6 +243,13 @@ const en = {
   "native.time.retry": "Check again",
   "native.time.reminder": "Time for a little stretch and water break! 💧",
   "native.time.dismiss": "Tap to keep exploring for now.",
+  "native.report.title": "Tell us about a problem",
+  "native.report.help": "Choose what needs checking. A trusted moderator will review it.",
+  "native.report.unsafe": "Something feels unsafe",
+  "native.report.incorrect": "The answer seems wrong",
+  "native.report.broken": "Picture or sound isn't working",
+  "native.report.thanks": "Thanks! We'll check it.",
+  "native.report.failed": "Couldn't send the report. Try again later.",
 } as const;
 export type KidsMessageKey = keyof typeof en;
 const ko: Record<KidsMessageKey, string> = {
@@ -487,6 +494,13 @@ const ko: Record<KidsMessageKey, string> = {
   "native.time.retry": "다시 확인하기",
   "native.time.reminder": "몸을 쭉 펴고 물도 한 잔 마실까? 💧",
   "native.time.dismiss": "눌러서 다시 탐험하기",
+  "native.report.title": "문제 신고하기",
+  "native.report.help": "무엇이 잘못되었는지 골라 주세요. 운영자가 확인할게요.",
+  "native.report.unsafe": "안전하지 않은 내용이 있어요",
+  "native.report.incorrect": "정답이 잘못된 것 같아요",
+  "native.report.broken": "사진이나 소리가 안 나와요",
+  "native.report.thanks": "알려줘서 고마워! 확인할게.",
+  "native.report.failed": "신고를 보낼 수 없어요. 다음에 다시 시도해 주세요.",
 };
 export const KIDS_MESSAGES: Record<Locale, Record<KidsMessageKey, string>> = { en, ko };
 export function kidsT(locale: Locale, key: KidsMessageKey): string { return KIDS_MESSAGES[locale][key]; }
