@@ -83,3 +83,12 @@ Run against **dev** DB first. Review migrations, take backup before prod, and us
 - Existing unlinked Google and Apple Better Auth user records remain separate; there is **no automatic data merge** or account recovery tool yet.
 - OAuth refresh/revocation, discovery and redirect correctness must be verified against actual ChatGPT once deployed.
 - Configure production throttles and abuse protection for public authorization and play endpoints. Register OAuth client origin/redirect policies. Do not expose child profiles on ranking screens or bypass Kids content review.
+
+## Provider availability and /account recovery
+
+- The Google button is enabled only when both `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are present in the **deployed environment**. Google sign-in is supported; disabling an unconfigured button is not a substitute for setting up OAuth.
+- The Apple button is **visible but disabled (준비 중)** until an `APPLE_CLIENT_ID` and either a non-expired `APPLE_CLIENT_SECRET` JWT or **all** of `APPLE_TEAM_ID`, `APPLE_KEY_ID`, and `APPLE_PRIVATE_KEY` are configured. It activates automatically after a redeployment with complete credentials; it cannot be enabled from client-side state.
+- `/account` now distinguishes **auth service errors** from an actual anonymous session. Service errors render a retry message rather than crashing the page or inaccurately offering a fresh login. Anonymous visitors get the Google/Apple sign-in options directly on the account page.
+- `/sign-in` does **not** initialize the Better Auth database merely to discover provider availability. This lets visitors see correct sign-in status even if Better Auth initialization is temporarily unavailable.
+- To resolve a production `/account` error, check Vercel function logs (including database errors), verify `DATABASE_URL`, `BETTER_AUTH_SECRET`, the exact `BETTER_AUTH_URL` public origin and Google callback, and ensure **both** Prisma and Better Auth tables/migrations exist in the **correct production DB**. A UI fallback does **not** repair missing migrations or DB connectivity.
+- Verify real Google OAuth: anonymous `/account` → Google button → consent → `/api/auth/callback/google` → authenticated `/account` → `GET /api/v1/me`; test Apple disabled with missing or incomplete configuration. Live verification remains required after secrets/migrations are confirmed.

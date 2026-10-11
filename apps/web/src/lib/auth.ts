@@ -5,6 +5,8 @@ import { cimd } from "@better-auth/cimd";
 import { fetchClientMetadataResource } from "@better-auth/cimd/node";
 import { Pool } from "pg";
 import { importPKCS8, SignJWT } from "jose";
+import { availableProviders } from "./auth-providers";
+export { availableProviders } from "./auth-providers";
 
 /** The browser, REST API and MCP all identify the same Better Auth user. */
 export const siteOrigin = (process.env.BETTER_AUTH_URL || process.env.PUBLIC_ORIGIN || "http://localhost:3000").replace(/\/$/, "");
@@ -20,15 +22,6 @@ export function authPool(): Pool {
   }
   return globalPool.clupioAuthPool;
 }
-
-// An unavailable social provider must not render a broken sign-in button.
-export const availableProviders = {
-  google: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
-  apple: !!(process.env.APPLE_CLIENT_ID && (
-    process.env.APPLE_CLIENT_SECRET ||
-    (process.env.APPLE_TEAM_ID && process.env.APPLE_KEY_ID && process.env.APPLE_PRIVATE_KEY)
-  )),
-};
 
 async function appleClientSecret(): Promise<string> {
   if (process.env.APPLE_CLIENT_SECRET) return process.env.APPLE_CLIENT_SECRET;

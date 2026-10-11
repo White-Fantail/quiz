@@ -66,14 +66,15 @@ export default function AccountActions({ google, apple }: { google: boolean; app
     {(["google", "apple"] as const).map(provider => {
       const linked = accounts.find(item => item.providerId === provider);
       const enabled = provider === "google" ? google : apple;
-      if (!enabled && !linked) return null;
       return <div key={provider} className="connected-provider">
         <span><b>{provider === "google" ? "Google" : "Apple"}</b> {linked ? "· 연결됨" : "· 연결되지 않음"}</span>
         {linked && accounts.length > 1
           ? <button type="button" className="text-button" disabled={busy} onClick={() => unlink(linked.id)}>연결 해제</button>
           : !linked && enabled
             ? <button type="button" className="btn btn-outline" disabled={busy} onClick={() => link(provider)}>이 계정에 연결</button>
-            : null}
+            : !linked
+              ? <span className="muted">{provider === "apple" ? "준비 중" : "설정 필요"}</span>
+              : null}
       </div>;
     })}
     {rankingLoaded&&<div className="ranking-consent-setting">
