@@ -67,6 +67,24 @@ export class QuizDipPublicApi {
   }
 }
 
+
+export type KidClue = {id:string;order:number;type:"text"|"image"|"audio"|"video"|"map";
+  text?:string;mediaId?:string;map?:{latitude:number;longitude:number;zoom?:number}};
+export type KidQuestion = {sessionId:string;sessionToken:string;quizId:string;
+  title:string;prompt:string;promptMediaIds:string[];
+  clues:KidClue[];clueIndex:number;clueCount:number;sessionStatus:"ACTIVE"|"SOLVED"|"FAILED";
+  canGuess:boolean;options?:string[];round?:number;total?:number;score?:number;runId?:string;runToken?:string};
+export type KidRunStart = {runId:string;runToken:string;mode:"RANDOM_FIVE"|"WEEKLY";
+  lane:"KIDS";locale:Locale;status:string;total:number;completed:number;score:number};
+export type KidRunResult = {runId:string;status:"FINISHED";completed:number;total:number;
+  score:number;solved:number;failed:number;official:false};
+export type KidGuessResult = {status:"ACTIVE"|"SOLVED"|"FAILED";correct:boolean;
+  score:number;cluesUsed:number;answer?:string;next?:string};
+export type KidPlayMedia = {mediaId:string;url:string;expiresInSeconds:number;kind:"image"|"audio"|"video";mimeType:string};
+export type KidTreasures = {solved:number;completed:number;
+  discoveries:{quizId:string;title:string;score:number;at:string}[];
+  badges:{id:string;required:number;label:string;emoji:string}[]};
+
 /** Native child capability is deliberately separate from adult Browser/Auth/MCP clients. */
 export type NativeKidProfile = {nickname:string;ageBand:"EARLY"|"MIDDLE"|"OLDER";locale:Locale};
 export type NativeKidSession = {active:true;profile:NativeKidProfile;expiresAt:string};
@@ -126,6 +144,57 @@ export class QuizDipKidsDeviceApi {
     const safe=raw.filter((x:any)=>x && typeof x.id==="string" &&
       typeof x.title==="string" && typeof x.prompt==="string" && x.kidsEligible===true);
     return {items:safe.slice(0,limit),hasMore:raw.length>limit};
+  }
+
+  private async playRequest<T>(token:string,action:Record<string,unknown>):Promise<T> {
+    let response:Response;
+    try {response=await this.transport(this.origin+"/api/kids/native/play",{
+      method:"POST",credentials:"omit",cache:"no-store",redirect:"error",
+      headers:{"Accept":"application/json","Content-Type":"application/json",Authorization:"Bearer "+token},
+      body:JSON.stringify(action)
+    });}catch{throw new ApiError("network_unavailable");}
+    let body:any;
+    try{body=await response.json();}catch{throw new ApiError("invalid_response",response.status);}
+    if(!response.ok)throw new ApiError(typeof body?.error==="string"?body.error:"http_error",response.status);
+    if(!body||typeof body!=="object"||!("data" in body))throw new ApiError("invalid_response");
+    return body.data as T;
+  }
+  async startRun(token:string,mode:"RANDOM_FIVE"|"WEEKLY",avoidQuizIds:string[]=[]):Promise<KidRunStart> {
+    return this.playRequest(token,{action:"run_start",mode,avoidQuizIds});
+  }
+  async currentRun(token:string,runId:string,runToken:string):Promise<KidQuestion|KidRunResult> {
+    return this.playRequest(token,{action:"run_current",runId,runToken});
+  }
+  async startSingle(token:string,quizId:string):Promise<{sessionId:string;sessionToken:string}> {
+    return this.playRequest(token,{action:"single_start",quizId});
+  }
+  async currentSingle(token:string,sessionId:string,sessionToken:string):Promise<KidQuestion> {
+    return this.playRequest(token,{action:"single_current",sessionId,sessionToken});
+  }
+  async nextClue(token:string,sessionId:string,sessionToken:string):Promise<{clue:KidClue;clueIndex:number;clueCount:number}>{
+    return this.playRequest(token,{action:"clue",sessionId,sessionToken});
+  }
+  async guess(token:string,sessionId:string,sessionToken:string,guess:string):Promise<KidGuessResult> {
+    return this.playRequest(token,{action:"guess",sessionId,sessionToken,guess});
+  }
+  async playMedia(token:string,sessionId:string,sessionToken:string,mediaId:string):Promise<KidPlayMedia> {
+    const media=await this.playRequest<KidPlayMedia>(token,{action:"media",sessionId,sessionToken,mediaId});
+    if(!media||!["image","audio","video"].includes(media.kind)||
+      typeof media.url!=="string"||!media.url.startsWith("https://"))
+      throw new ApiError("invalid_media_response");
+    return media;
+  }
+  async treasures(token:string):Promise<KidTreasures> {
+    let response:Response;
+    try{response=await this.transport(this.origin+"/api/kids/native/play?view=treasures",{
+      method:"GET",credentials:"omit",cache:"no-store",redirect:"error",
+      headers:{"Accept":"application/json",Authorization:"Bearer "+token}
+    });}catch{throw new ApiError("network_unavailable");}
+    const result=await response.json().catch(()=>null);
+    if(!response.ok)throw new ApiError(typeof result?.error==="string"?result.error:"http_error",response.status);
+    if(!result?.data||!Array.isArray(result.data.badges)||!Array.isArray(result.data.discoveries))
+      throw new ApiError("invalid_response");
+    return result.data as KidTreasures;
   }
   async unlock(token:string,pin:string):Promise<void> {
     const result=await this.request("POST","",token,{action:"unlock",pin});
