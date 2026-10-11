@@ -4,6 +4,7 @@ import { quizList, quizGet, quizCreate, quizUpdate, quizPublish } from "./quiz";
 import { playStart, playClue, playGuess } from "./play";
 import { reviewsList, reviewUpsert, reportCreate, reportsMine, packCreate, packList, packUpdate } from "./social";
 import { quizStats, myStats, me, leaderboard } from "./analytics";
+import { userGet, creatorReviewsList, creatorReviewUpsert } from "./creators";
 
 export async function execute(name: Operation, raw: unknown, actor: Actor | null): Promise<unknown> {
   const p = parseOperation(name, raw);
@@ -35,6 +36,9 @@ export async function execute(name: Operation, raw: unknown, actor: Actor | null
     case "my_quizzes": return quizList({ ...p, mine: true, kids: false }, actor);
     case "my_stats": return myStats(p, actor);
     case "leaderboard": return leaderboard(p);
+    case "user_get": return userGet(p);
+    case "creator_reviews_list": return creatorReviewsList(p);
+    case "creator_review_upsert": return creatorReviewUpsert(p, actor);
     default: return fail(404, "operation_not_found", "Unknown operation");
   }
 }
