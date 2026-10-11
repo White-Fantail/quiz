@@ -31,8 +31,12 @@ export async function checkGuardianPin(guardianId: string, pin: string) {
   if (!record) fail(409,"kid_pin_unset","Set a guardian PIN first");
   if (record.lockedUntil && record.lockedUntil.getTime() > Date.now())
     fail(429,"kid_pin_locked","Too many attempts; try again later");
+  const afterCooldown = !!record.lockedUntil && record.lockedUntil.getTime() <= Date.now();
+  if (afterCooldown) {
+    await db().kidGuardianPin.update({where:{guardianId},data:{attempts:0,lockedUntil:null}});
+  }
   if (!checkPin(pin,record.hash)) {
-    const attempts = record.attempts + 1;
+    const attempts = (afterCooldown ? 0 : record.attempts) + 1;
     // Atomic increment avoids losing concurrent guesses; lockout is checked on every request.
     await db().kidGuardianPin.update({
       where:{guardianId},
@@ -48,7 +52,7 @@ export async function guardianOverview(guardianId:string) {
     db().kidProfile.findMany({where:{guardianId},orderBy:{createdAt:"asc"},select:{
       id:true,nickname:true,ageBand:true,locale:true,sessionMinutes:true,createdAt:true
     }}),
-    db().kidDeviceSession.findMany({where:{guardianId,revokedAt:null},orderBy:{createdAt:"desc"},select:{
+    db().kidDeviceSession.findMany({where:{guardianId,revokedAt:null,expiresAt:{gt:new Date()}},orderBy:{createdAt:"desc"},select:{
       id:true,profileId:true,deviceName:true,createdAt:true,expiresAt:true
     }})
   ]);
@@ -68,8 +72,9 @@ export async function updateKidProfile(guardianId:string,id:string,input:KidProf
     nickname:input.nickname,ageBand:input.ageBand,locale:input.locale,sessionMinutes:input.sessionMinutes
   }});
   if (!updated.count) fail(404,"kid_profile_missing","Child profile not found");
-  // Activated devices use the profile's current locale and time policy on each request.
-  return {updated:true};
+  // A changed language, age level or time allowance needs an explicit guardian re-activation.
+  await db().kidDeviceSession.updateMany({where:{guardianId,profileId:id,revokedAt:null},data:{revokedAt:new Date()}});
+  return {updated:true,devicesRevoked:true};
 }
 export async function deleteKidProfile(guardianId:string,id:string) {
   const deleted=await db().kidProfile.deleteMany({where:{id,guardianId}});
