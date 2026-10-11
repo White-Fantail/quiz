@@ -1,31 +1,44 @@
 import { db } from "./db";
 import { fail, requireActor, type Actor } from "./auth";
 
-export async function quizStats(p: Record<string, any>, actor: Actor | null) {
-  const quiz = await db().quiz.findUnique({ where: { id: p.quizId } });
-  if (!quiz || (quiz.authorId !== actor?.id &&
-      (quiz.publication !== "PUBLISHED" || quiz.safetyStatus === "RESTRICTED")))
-    fail(404, "not_found", "Quiz not found");
-  const version = p.version ?? quiz.currentVersion;
-  const revision = await db().quizRevision.findFirst({ where: { quizId: quiz.id, version, localization: { origin: {in:["ORIGINAL","LEGACY"]} } } });
-  if (!revision) fail(404, "not_found", "Quiz version not found");
-  const where = { quizId: quiz.id, revisionId: revision.id };
-  const [started, solved, failed, stage, used, positive, negative] = await Promise.all([
-    db().playSession.count({ where }), db().playSession.count({ where: { ...where, status: "SOLVED" } }),
-    db().playSession.count({ where: { ...where, status: "FAILED" } }),
-    db().playSession.groupBy({ by: ["usedClues"], where: { ...where, status: "SOLVED" }, _count: { _all: true }, orderBy: { usedClues: "asc" } }),
-    db().playSession.aggregate({ where: { ...where, status: { in: ["SOLVED", "FAILED"] } }, _avg: { usedClues: true } }),
-    db().review.count({ where: { quizId: quiz.id, rating: 1 } }),
-    db().review.count({ where: { quizId: quiz.id, rating: -1 } })
+export async function quizStats(p:Record<string,any>,actor:Actor|null) {
+  const quiz=await db().quiz.findUnique({where:{id:p.quizId}});
+  if(!quiz || (quiz.authorId!==actor?.id &&
+    (quiz.publication!=="PUBLISHED" || quiz.safetyStatus==="RESTRICTED")))
+    fail(404,"not_found","Quiz not found");
+  const loc=await db().quizLocalization.findUnique({
+    where:{quizId_locale:{quizId:quiz.id,locale:p.locale}}});
+  if(!loc || (quiz.authorId!==actor?.id && (loc.status!=="PUBLISHED" || loc.publishedVersion===null)))
+    fail(404,"locale_unavailable","This quiz language is unavailable");
+  const version=p.version??(quiz.authorId===actor?.id?loc.currentVersion:loc.publishedVersion);
+  const revision=await db().quizRevision.findUnique({
+    where:{localizationId_version:{localizationId:loc.id,version}}});
+  if(!revision)fail(404,"not_found","Quiz language revision not found");
+  const where={quizId:quiz.id,revisionId:revision.id,locale:p.locale};
+  const [started,solved,failed,stage,used,positive,negative,translation]=await Promise.all([
+    db().playSession.count({where}),
+    db().playSession.count({where:{...where,status:"SOLVED"}}),
+    db().playSession.count({where:{...where,status:"FAILED"}}),
+    db().playSession.groupBy({by:["usedClues"],where:{...where,status:"SOLVED"},
+      _count:{_all:true},orderBy:{usedClues:"asc"}}),
+    db().playSession.aggregate({where:{...where,status:{in:["SOLVED","FAILED"]}},
+      _avg:{usedClues:true}}),
+    db().review.count({where:{quizId:quiz.id,locale:p.locale,kind:"QUIZ",rating:1,revisionId:revision.id}}),
+    db().review.count({where:{quizId:quiz.id,locale:p.locale,kind:"QUIZ",rating:-1,revisionId:revision.id}}),
+    db().review.groupBy({by:["rating"],where:{quizId:quiz.id,locale:p.locale,kind:"TRANSLATION",
+      revisionId:revision.id},_count:{_all:true}})
   ]);
-  return { quizId: quiz.id, version, isCurrentVersion: version === quiz.currentVersion,
-    started, completed: solved + failed, solved, failed,
-    successRate: solved + failed ? solved / (solved + failed) : null,
-    completionRate: started ? (solved + failed) / started : null,
-    averageCluesUsed: used._avg.usedClues,
-    correctByClueStage: stage.map(s => ({ stage: s.usedClues, correct: s._count._all })),
-    reviews: { positive, negative },
-    note: "Success rate is solved / finished; in-progress and abandoned plays are excluded." };
+  return {quizId:quiz.id,locale:p.locale,version,revisionId:revision.id,
+    isCurrentVersion:version===loc.currentVersion,isPublishedVersion:version===loc.publishedVersion,
+    started,completed:solved+failed,solved,failed,
+    completionRate:started?(solved+failed)/started:null,
+    successRate:solved+failed?solved/(solved+failed):null,
+    averageCluesUsed:used._avg.usedClues,
+    correctByClueStage:stage.map(s=>({stage:s.usedClues,correct:s._count._all})),
+    reviews:{positive,negative},
+    translationReviews:{positive:translation.find(r=>r.rating===1)?._count._all??0,
+      negative:translation.find(r=>r.rating===-1)?._count._all??0},
+    note:"Each play is pinned to a language and immutable revision; unfinished plays are excluded from success rate."};
 }
 export async function me(p: Record<string, any>, actor: Actor | null) {
   const user = requireActor(actor);

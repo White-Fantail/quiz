@@ -52,49 +52,73 @@ export async function myQuizzes(p: Record<string, any>, actor: Actor | null) {
 /** Do not expose player identities or free-text abuse reports to quiz authors.
  * Counts and review comments are only available after owner authentication.
  */
-export async function myQuizInsights(p: Record<string, any>, actor: Actor | null) {
-  const owner = requireActor(actor);
-  const quiz = await db().quiz.findFirst({ where: { id: p.quizId, authorId: owner.id }, select: { id: true, currentVersion: true } });
-  if (!quiz) fail(404, "not_found", "Quiz not found");
-  const where = { quizId: quiz.id };
-  const now=Date.now(),lastWeek=new Date(now-7*86400000),previousWeek=new Date(now-14*86400000);
-  const [states, clues, average, ratings, reviewCount, feedback, reasons, recent, prior] = await Promise.all([
-    db().playSession.groupBy({ by: ["status"], where, _count: { _all: true } }),
-    db().playSession.groupBy({ by: ["usedClues"], where: { ...where, status: "SOLVED" },
-      _count: { _all: true }, orderBy: { usedClues: "asc" } }),
-    db().playSession.aggregate({ where: { ...where, status: { in: ["SOLVED", "FAILED"] } },
-      _avg: { usedClues: true } }),
-    db().review.groupBy({ by: ["rating"], where, _count: { _all: true } }),
-    db().review.count({ where }),
-    db().review.findMany({ where, select: { id: true, rating: true, comment: true, createdAt: true,
-      author: { select: { displayName: true } } }, orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-      skip: p.offset, take: p.limit }),
-    db().report.groupBy({ by: ["reason"], where, _count: { _all: true } }),
-    db().review.groupBy({by:["rating"],where:{...where,updatedAt:{gte:lastWeek}},_count:{_all:true}}),
-    db().review.groupBy({by:["rating"],where:{...where,updatedAt:{gte:previousWeek,lt:lastWeek}},_count:{_all:true}})
+export async function myQuizInsights(p:Record<string,any>,actor:Actor|null) {
+  const owner=requireActor(actor);
+  const quiz=await db().quiz.findFirst({
+    where:{id:p.quizId,authorId:owner.id},select:{id:true,currentVersion:true}});
+  if(!quiz)fail(404,"not_found","Quiz not found");
+  const selectedLocale=p.locale as "en"|"ko"|"und"|"all";
+  const where={quizId:quiz.id,...(selectedLocale==="all"?{}:{locale:selectedLocale})};
+  const reviewWhere={...where,kind:"QUIZ"};
+  const now=Date.now(),lastWeek=new Date(now-7*86400000),
+    previousWeek=new Date(now-14*86400000);
+  const [states,clues,average,ratings,reviewCount,feedback,reasons,recent,prior,
+    translationQuality,languages,uniqueReviewers]=await Promise.all([
+    db().playSession.groupBy({by:["status"],where,_count:{_all:true}}),
+    db().playSession.groupBy({by:["usedClues"],where:{...where,status:"SOLVED"},
+      _count:{_all:true},orderBy:{usedClues:"asc"}}),
+    db().playSession.aggregate({where:{...where,status:{in:["SOLVED","FAILED"]}},
+      _avg:{usedClues:true}}),
+    db().review.groupBy({by:["rating"],where:reviewWhere,_count:{_all:true}}),
+    db().review.count({where:reviewWhere}),
+    db().review.findMany({where:reviewWhere,select:{
+      id:true,rating:true,comment:true,locale:true,revisionId:true,createdAt:true,
+      author:{select:{displayName:true}}},
+      orderBy:[{createdAt:"desc"},{id:"desc"}],skip:p.offset,take:p.limit}),
+    db().report.groupBy({by:["reason"],where,_count:{_all:true}}),
+    db().review.groupBy({by:["rating"],where:{...reviewWhere,updatedAt:{gte:lastWeek}},
+      _count:{_all:true}}),
+    db().review.groupBy({by:["rating"],where:{...reviewWhere,updatedAt:{gte:previousWeek,lt:lastWeek}},
+      _count:{_all:true}}),
+    db().review.groupBy({by:["rating"],where:{...where,kind:"TRANSLATION"},_count:{_all:true}}),
+    db().playSession.groupBy({by:["locale","status"],where:{quizId:quiz.id},_count:{_all:true}}),
+    db().review.groupBy({by:["authorId"],where:reviewWhere})
   ]);
-  const statusCount = (status: string) => states.find(s => s.status === status)?._count._all ?? 0;
-  const started = states.reduce((sum, s) => sum + s._count._all, 0);
-  const solved = statusCount("SOLVED");
-  const failed = statusCount("FAILED");
-  const completed = solved + failed;
-  return {
-    quizId: quiz.id, currentVersion: quiz.currentVersion, scope: "ALL_REVISIONS",
-    started, completed, solved, failed, inProgressOrAbandoned: started - completed,
-    completionRate: started ? completed / started : null,
-    successRate: completed ? solved / completed : null,
-    averageCluesUsed: average._avg.usedClues,
-    correctByClueStage: clues.map(c => ({ stage: c.usedClues, correct: c._count._all })),
-    reviews: {
-      positive: ratings.find(r => r.rating === 1)?._count._all ?? 0,
-      negative: ratings.find(r => r.rating === -1)?._count._all ?? 0,
-      total: reviewCount, items: feedback, offset: p.offset, limit: p.limit,
-      trend:{last7Days:{positive:recent.find(r=>r.rating===1)?._count._all??0,negative:recent.find(r=>r.rating===-1)?._count._all??0},
-        previous7Days:{positive:prior.find(r=>r.rating===1)?._count._all??0,negative:prior.find(r=>r.rating===-1)?._count._all??0}},
-      hasMore: p.offset + feedback.length < reviewCount
+  const statusCount=(s:string)=>states.find(x=>x.status===s)?._count._all??0;
+  const started=states.reduce((sum,x)=>sum+x._count._all,0),
+    solved=statusCount("SOLVED"),failed=statusCount("FAILED"),completed=solved+failed;
+  const languageSummary=["en","ko","und"].map(locale=>{
+    const rows=languages.filter(row=>row.locale===locale);
+    const count=(status:string)=>rows.find(x=>x.status===status)?._count._all??0;
+    const started=rows.reduce((sum,x)=>sum+x._count._all,0),solved=count("SOLVED"),failed=count("FAILED");
+    return {locale,started,completed:solved+failed,solved,failed,
+      successRate:solved+failed?solved/(solved+failed):null};
+  });
+  return {quizId:quiz.id,currentVersion:quiz.currentVersion,locale:selectedLocale,
+    scope:selectedLocale==="all"?"ALL_LANGUAGES_AND_REVISIONS":"LOCALE_ALL_REVISIONS",
+    languages:languageSummary,
+    started,completed,solved,failed,inProgressOrAbandoned:started-completed,
+    completionRate:started?completed/started:null,
+    successRate:completed?solved/completed:null,
+    averageCluesUsed:average._avg.usedClues,
+    correctByClueStage:clues.map(c=>({stage:c.usedClues,correct:c._count._all})),
+    reviews:{
+      positive:ratings.find(x=>x.rating===1)?._count._all??0,
+      negative:ratings.find(x=>x.rating===-1)?._count._all??0,
+      total:reviewCount,uniqueReviewers:uniqueReviewers.length,items:feedback,
+      offset:p.offset,limit:p.limit,hasMore:p.offset+feedback.length<reviewCount,
+      trend:{
+        last7Days:{positive:recent.find(x=>x.rating===1)?._count._all??0,
+          negative:recent.find(x=>x.rating===-1)?._count._all??0},
+        previous7Days:{positive:prior.find(x=>x.rating===1)?._count._all??0,
+          negative:prior.find(x=>x.rating===-1)?._count._all??0}
+      }
     },
-    reports: { total: reasons.reduce((sum, r) => sum + r._count._all, 0),
-      byReason: reasons.map(r => ({ reason: r.reason, count: r._count._all })) },
-    note: "All question versions are combined. Success rate counts solved / finished, excluding unfinished sessions; reports are aggregated without user details."
-  };
+    translationQuality:{
+      positive:translationQuality.find(x=>x.rating===1)?._count._all??0,
+      negative:translationQuality.find(x=>x.rating===-1)?._count._all??0
+    },
+    reports:{total:reasons.reduce((sum,x)=>sum+x._count._all,0),
+      byReason:reasons.map(r=>({reason:r.reason,count:r._count._all}))},
+    note:"Language and revision are sourced from pinned play sessions. Legacy records are und; user IDs and free-text reports are not exposed."};
 }
