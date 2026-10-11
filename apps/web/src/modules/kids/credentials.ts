@@ -34,3 +34,17 @@ export function readCookie(header: string | null, name = KIDS_COOKIE): string | 
 export function hasKidCookie(header: string | null): boolean {
   return (header ?? "").split(";").some(s => s.trim().startsWith(KIDS_COOKIE + "="));
 }
+
+/** 96-bit random pairing code; displayed once with groups, stored only as a SHA-256 digest. */
+export function createPairCode(): string {
+  const raw = randomBytes(12).toString("hex").toUpperCase();
+  return raw.match(/.{1,6}/g)!.join("-");
+}
+export function normalizePairCode(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const compact = value.replace(/[\s-]/g, "").toUpperCase();
+  return /^[0-9A-F]{24}$/.test(compact) ? compact : null;
+}
+export function pairCodeHash(value: string): string {
+  return tokenHash("quizdip-native-pair-v1:" + value);
+}
