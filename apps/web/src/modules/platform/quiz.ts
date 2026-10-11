@@ -99,3 +99,29 @@ export async function quizPublish(p: Record<string, any>, actor: Actor | null) {
   });
   return { id: old.id, publication: "PUBLISHED", kidsEligibility: "PENDING_REVIEW" };
 }
+
+/** Trusted moderator action. Creators cannot change safety or Kids eligibility. */
+export async function quizReview(p: Record<string,any>,actor:Actor|null) {
+  const admin=requireActor(actor);
+  if(admin.role!=="ADMIN") fail(403,"admin_required","Only trusted staff can review a quiz");
+  const quiz=await db().quiz.findUnique({where:{id:p.id}});
+  if(!quiz) fail(404,"not_found","Quiz was not found");
+  if(p.kidsEligible && p.verdict!=="APPROVED")
+    fail(422,"invalid_safety","Kids eligibility requires an APPROVED safety verdict");
+  if(p.verdict==="APPROVED" || p.kidsEligible) {
+    const revision=await db().quizRevision.findUnique({where:{
+      quizId_version:{quizId:quiz.id,version:quiz.currentVersion}
+    }});
+    if(!revision) fail(409,"invalid_revision","Quiz revision missing");
+    await validateMediaReferences(quiz.authorId,revision.promptMediaIds as string[],revision.clues as any[],true);
+  }
+  const updated=await db().$transaction(async tx=>{
+    const row=await tx.quiz.update({where:{id:quiz.id},
+      data:{safetyStatus:p.verdict,kidsEligible:p.verdict==="APPROVED"&&p.kidsEligible}});
+    await tx.auditLog.create({data:{actorId:admin.id,action:"quiz.review",objectId:quiz.id,
+      detail:{verdict:p.verdict,kidsEligible:p.kidsEligible,reason:p.reason,version:row.currentVersion}}});
+    return row;
+  });
+  return {id:updated.id,safetyStatus:updated.safetyStatus,kidsEligible:updated.kidsEligible,
+    version:updated.currentVersion};
+}

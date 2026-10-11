@@ -1,6 +1,6 @@
 import { parseOperation, operations, type Operation } from "./contracts";
 import { fail, requireActor, type Actor } from "./auth";
-import { quizList, quizGet, quizCreate, quizUpdate, quizPublish } from "./quiz";
+import { quizList, quizGet, quizCreate, quizUpdate, quizPublish, quizReview } from "./quiz";
 import { playStart, playClue, playGuess } from "./play";
 import { weeklyCurrent,weeklySubmit,weeklyPublish,weeklyProposals,weeklySuspend,weeklyStandings,
   runStart,runCurrent,runFinish,runHistory } from "./runs";
@@ -28,6 +28,7 @@ export async function execute(name: Operation, raw: unknown, actor: Actor | null
     case "quiz_update": return quizUpdate(p, actor);
     case "clues_replace": return quizUpdate({ id: p.id, expectedVersion: p.expectedVersion, clues: p.clues }, actor);
     case "quiz_publish": return quizPublish(p, actor);
+    case "quiz_review": return quizReview(p, actor);
     case "pack_list": return packList(p, actor);
     case "pack_create": return packCreate(p, actor);
     case "pack_update": return packUpdate(p, actor);
