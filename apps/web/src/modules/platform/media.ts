@@ -141,7 +141,7 @@ async function mediaUsage(id: string, ownerId: string) {
     inPrompt: boolean; cluePositions: number[];
   }>>`
     SELECT r."quizId" AS "quizId", r."title", r."version",
-      (q."currentVersion" = r."version") AS "isCurrent", q."publication",
+      (l."status" = 'PUBLISHED' AND l."publishedVersion" = r."version") AS "isCurrent", q."publication",
       (r."promptMediaIds" @> ${JSON.stringify([id])}::jsonb) AS "inPrompt",
       ARRAY(
         SELECT ord::integer
@@ -149,6 +149,7 @@ async function mediaUsage(id: string, ownerId: string) {
         WHERE element.clue ->> 'mediaId' = ${id}
       ) AS "cluePositions"
     FROM "QuizRevision" r JOIN "Quiz" q ON q."id" = r."quizId"
+    JOIN "QuizLocalization" l ON l."id"=r."localizationId"
     WHERE q."authorId" = ${ownerId}
       AND (r."promptMediaIds" @> ${JSON.stringify([id])}::jsonb
         OR r."clues" @> ${JSON.stringify([{ mediaId: id }])}::jsonb)

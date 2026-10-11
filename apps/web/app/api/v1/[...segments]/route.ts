@@ -38,6 +38,8 @@ function route(method: string, segments: string[]): Match | null {
     if (method === "GET") return { op: "pack_list", args: {} };
     if (method === "POST") return { op: "pack_create", args: {} };
   }
+  if (a === "packs" && b && c === "languages" && !d && method === "GET") return { op: "pack_languages", args:{id:b} };
+  if (a === "packs" && b && c === "languages" && d && !e && method === "PUT") return { op: "pack_translation_upsert", args:{id:b,locale:d} };
   if (a === "packs" && b && c === "language" && !d && method === "POST") return { op: "pack_language_set", args: { id: b } };
   if (a === "packs" && b && !c && method === "PATCH") return { op: "pack_update", args: { id: b } };
   if (a === "weekly") {

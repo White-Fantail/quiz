@@ -133,6 +133,48 @@ export async function packLanguageSet(p: Record<string, any>, actor: Actor | nul
     return {id:old.id,locale:p.locale,alreadySet:false};
   });
 }
+/** Localized pack titles and descriptions without falling back to another language. */
+export async function packLanguages(p:Record<string,any>,actor:Actor|null) {
+  const user=requireActor(actor);
+  const pack=await db().quizPack.findFirst({where:{id:p.id,authorId:user.id},
+    include:{items:true,localizations:{orderBy:{locale:"asc"}}}});
+  if(!pack)fail(404,"not_found","Owned pack not found");
+  const ids=pack.items.map(i=>i.quizId);
+  const coverage=await Promise.all((["en","ko"] as const).map(async locale=>({
+    locale,complete:ids.length>0 && await db().quiz.count({
+      where:{id:{in:ids},...playableQuizWhere(locale)}
+    })===ids.length
+  })));
+  return {id:pack.id,sourceLocale:pack.sourceLocale,publication:pack.publication,
+    languages:pack.localizations.map(l=>({locale:l.locale,status:l.status,title:l.title,description:l.description})),
+    coverage};
+}
+export async function packTranslationUpsert(p:Record<string,any>,actor:Actor|null) {
+  const user=requireActor(actor);
+  const pack=await db().quizPack.findFirst({where:{id:p.id,authorId:user.id},
+    include:{items:true}});
+  if(!pack)fail(404,"not_found","Owned pack not found");
+  if(pack.sourceLocale==="und" || pack.sourceLocale===p.locale)
+    fail(409,"invalid_translation_language","Classify the original pack and select another language");
+  if(p.status==="PUBLISHED"){
+    if(!p.confirm)fail(400,"confirmation_required","Confirm translated pack publication");
+    if(pack.publication!=="PUBLISHED")fail(409,"pack_not_published","Publish the original pack first");
+    const ids=pack.items.map(item=>item.quizId);
+    if(!ids.length || await db().quiz.count({where:{id:{in:ids},...playableQuizWhere(p.locale)}})!==ids.length)
+      fail(409,"incomplete_pack_locale","Every pack question must be published in that language");
+  }
+  const result=await db().$transaction(async tx=>{
+    const saved=await tx.quizPackLocalization.upsert({
+      where:{packId_locale:{packId:pack.id,locale:p.locale}},
+      create:{packId:pack.id,locale:p.locale,title:p.title,description:p.description,status:p.status},
+      update:{title:p.title,description:p.description,status:p.status}
+    });
+    await tx.auditLog.create({data:{actorId:user.id,action:"pack.translation.save",objectId:pack.id,
+      detail:{locale:p.locale,status:p.status}}});
+    return saved;
+  });
+  return {id:pack.id,locale:result.locale,status:result.status,title:result.title,description:result.description};
+}
 export async function packUpdate(p: Record<string, any>, actor: Actor | null) {
   const user = requireActor(actor);
   const old = await db().quizPack.findFirst({ where: { id: p.id, authorId: user.id }, include: { items: true } });

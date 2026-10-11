@@ -66,6 +66,8 @@ export const operations = {
     id: uuid, verdict: z.enum(["APPROVED","RESTRICTED","PENDING"]), kidsEligible: z.boolean().default(false),
     reason: z.string().trim().min(5).max(1000), confirm: z.literal(true)
   }) },
+  pack_languages: { public:false, description:"List owned pack localization and complete-language coverage", schema:z.object({id:uuid}) },
+  pack_translation_upsert: { public:false, description:"Save or publish localized pack metadata after checking full question coverage", schema:z.object({id:uuid,locale:localeCode,title:z.string().trim().min(1).max(180),description:z.string().max(2000).default(""),status:z.enum(["DRAFT","PUBLISHED","HIDDEN"]).default("DRAFT"),confirm:z.boolean().default(false)}) },
   pack_language_set: { public: false, description: "Confirm original language of an unclassified legacy pack", schema: z.object({ id: uuid, locale: localeCode, confirm: z.literal(true) }) },
   pack_list: { public: true, description: "List published packs or my packs", schema: z.object({ ...paging, mine: z.boolean().default(false), locale: optionalLocale }) },
   pack_create: { public: false, description: "Create a new ordered quiz pack", schema: z.object({ title: z.string().min(1).max(180), description: z.string().max(2000).default(""), quizIds: z.array(uuid).min(1).max(100), locale: z.enum(["en", "ko", "und"]).default("und") }) },
