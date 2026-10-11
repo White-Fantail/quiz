@@ -241,6 +241,8 @@ const en = {
   "native.time.used": "Today",
   "native.time.minutes": "minutes",
   "native.time.retry": "Check again",
+  "native.time.reminder": "Time for a little stretch and water break! 💧",
+  "native.time.dismiss": "Tap to keep exploring for now.",
 } as const;
 export type KidsMessageKey = keyof typeof en;
 const ko: Record<KidsMessageKey, string> = {
@@ -483,6 +485,8 @@ const ko: Record<KidsMessageKey, string> = {
   "native.time.used": "오늘 이용",
   "native.time.minutes": "분",
   "native.time.retry": "다시 확인하기",
+  "native.time.reminder": "몸을 쭉 펴고 물도 한 잔 마실까? 💧",
+  "native.time.dismiss": "눌러서 다시 탐험하기",
 };
 export const KIDS_MESSAGES: Record<Locale, Record<KidsMessageKey, string>> = { en, ko };
 export function kidsT(locale: Locale, key: KidsMessageKey): string { return KIDS_MESSAGES[locale][key]; }
