@@ -28,7 +28,7 @@ test("database migration preserves existing web sessions while adding isolated n
  assert.match(schema,/clientKind\s+String\s+@default\("WEB"\)/);
 });
 test("native code issuance needs browser-auth guardian and PIN, uses one-time expiry",()=>{
- const parent=file("app/api/kids/parent/route.ts"),service=file("src/modules/kids/service.ts");
+ const parent=file("app/api/account/kids/route.ts"),service=file("src/modules/kids/service.ts");
  assert.match(parent,/actorFor\(request\)/);
  assert.match(parent,/requireSameOrigin\(request\)/);
  assert.match(parent,/native_pair_issue/);
