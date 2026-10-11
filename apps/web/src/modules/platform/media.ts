@@ -46,7 +46,7 @@ export async function mediaUpload(p: Record<string, any>, actor: Actor | null) {
   const item = await db().mediaAsset.create({ data: {
     id, ownerId: user.id, kind: p.kind, mimeType: p.mimeType, sizeBytes: p.sizeBytes,
     sha256: p.sha256, originalName: p.filename, uploadKey, storageKey,
-    uploadExpiresAt: new Date(Date.now()+300000), ...safeMetadata(p),
+    uploadExpiresAt: new Date(Date.now()+1800000), ...safeMetadata(p),
   } });
   return { ...mediaSummary(item), upload: ticket, next: "PUT the binary with exactly the returned headers, then call media_complete" };
 }
@@ -134,11 +134,23 @@ export async function mediaUpdate(p: Record<string, any>, actor: Actor | null) {
   const old = await asset(p.id, actor);
   if (old.status === "DELETED") fail(409, "media_deleted", "Media was deleted");
   const changes = safeMetadata(p);
+  if (old.moderationStatus === "APPROVED" && (await publishedCurrentQuizzes(old.id)).length)
+    fail(409, "media_in_use", "Published quizzes use this asset; create and review a replacement first");
   if (!Object.keys(changes).length) fail(400, "nothing_to_update", "Specify metadata to change");
   const item = await db().mediaAsset.update({ where: { id: old.id }, data: {
     ...changes, moderationStatus: old.moderationStatus === "RESTRICTED" ? "RESTRICTED" : "PENDING",
   } });
   return mediaSummary(item);
+}
+async function publishedCurrentQuizzes(id: string): Promise<string[]> {
+  const rows = await db().$queryRaw<Array<{ id: string }>>`
+    SELECT q."id" FROM "Quiz" q
+    JOIN "QuizRevision" r ON r."quizId"=q."id" AND r."version"=q."currentVersion"
+    WHERE q."publication"='PUBLISHED'
+      AND (r."promptMediaIds" @> ${JSON.stringify([id])}::jsonb
+        OR r."clues" @> ${JSON.stringify([{ mediaId: id }])}::jsonb)
+  `;
+  return rows.map(r => r.id);
 }
 async function referencedByQuiz(id: string): Promise<boolean> {
   const rows = await db().$queryRaw<Array<{ id: string }>>`
@@ -207,12 +219,20 @@ export async function mediaReview(p: Record<string, any>, actor: Actor | null) {
   const item = await db().mediaAsset.findUnique({ where: { id: p.id } });
   if (!item || item.deletedAt || item.status !== "READY")
     fail(404, "media_not_found", "Ready media asset not found");
-  const updated = await db().mediaAsset.update({ where: { id: item.id }, data: { moderationStatus: p.verdict } });
-  await db().auditLog.create({ data: {
-    actorId: user.id, action: "media.review", objectId: item.id,
-    detail: { verdict: p.verdict, reason: p.reason },
-  } });
-  return { id: updated.id, moderationStatus: updated.moderationStatus };
+  const affected = p.verdict === "RESTRICTED" ? await publishedCurrentQuizzes(item.id) : [];
+  const updated = await db().$transaction(async tx => {
+    const changed = await tx.mediaAsset.update({ where: { id: item.id }, data: { moderationStatus: p.verdict } });
+    if (affected.length) await tx.quiz.updateMany({
+      where: { id: { in: affected } },
+      data: { safetyStatus: "RESTRICTED", kidsEligible: false },
+    });
+    await tx.auditLog.create({ data: {
+      actorId: user.id, action: "media.review", objectId: item.id,
+      detail: { verdict: p.verdict, reason: p.reason, restrictedQuizIds: affected },
+    } });
+    return changed;
+  });
+  return { id: updated.id, moderationStatus: updated.moderationStatus, restrictedQuizCount: affected.length };
 }
 export async function validateMediaReferences(
   ownerId: string, promptMediaIds: string[], clues: Array<Record<string, any>>,

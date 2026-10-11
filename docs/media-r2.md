@@ -30,7 +30,7 @@ Media is a **first-class asset** referenced by ID from both the quiz prompt and 
 
 ## How ChatGPT can create a multimedia quiz
 
-1. Use `clupio_media_upload` with `kind`, `mimeType`, `filename`, `sizeBytes` and a **hex SHA-256 of original file bytes**. Returns asset ID and time-limited signed R2 PUT URL, required Content-Type / checksum headers.
+1. Use `clupio_media_upload` with `kind`, `mimeType`, `filename`, `sizeBytes` and a **hex SHA-256 of original file bytes**. Returns asset ID and 5-minute signed R2 PUT URL (the reservation remains active for 30 minutes for slower MCP chunk transfers), required Content-Type / checksum headers.
 2. If the MCP client can send binary HTTP PUT, upload bytes **directly** to the returned URL, preserving all returned headers. The bucket requires configured CORS for direct browser uploads.
 3. If the MCP client cannot PUT binary, send consecutive **0-based** 512 KiB-or-smaller chunks via `clupio_media_chunk`: base64-encode the bytes, compute each chunk's SHA-256, call with ID, index, base64 and digest. Each call must use valid, canonical standard base64 (not base64url). At most 128 parts for 64 MiB total. The MCP host must actually grant its agent access to the bytes; a chat attachment or AI-generated image is not automatically exposed to any MCP tool.
 4. Call `clupio_media_complete` with `id` and `partCount` only for chunked uploads (no partCount for presigned PUT). Server reads R2, verifies original exact size, SHA-256 and actual MIME signature, then finalizes at a **different non-uploadable key**. Changing a staging object later cannot modify the finalized asset.
@@ -66,3 +66,5 @@ Image transformations support crops, Gaussian blur and resize (result WebP), wit
 - Per-account daily asset count is not distributed anonymous/IP-level abuse protection. Configure network rate limits and resource quotas before public launch.
 - R2 lifecycle handles temporary object clean-up, but robust orphaned FINAL object clean-up on DB failure and deletion retries still needs a background maintenance job.
 - The code has source-level CI; **live R2, live OAuth MCP, frontend media playback, automated moderation, and end-to-end upload validation remain unverified** until connected credentials/deployment and integration testing are performed.
+
+A media approval reset is blocked while the asset is used in a currently published quiz; create a new variant instead. Restricting an approved asset propagates RESTRICTED to all published quizzes whose **current revision** references that asset. An authorized admin must explicitly review subsequent replacements; publisher edits cannot bypass moderation holds.

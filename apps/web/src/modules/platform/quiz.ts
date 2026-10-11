@@ -61,7 +61,7 @@ export async function quizUpdate(p: Record<string, any>, actor: Actor | null) {
   const modified = ["title", "prompt", "mode", "answer", "clues", "promptMediaIds"].some(key => p[key] !== undefined);
   const nextClues = (p.clues ?? prior.clues) as any[];
   const nextPromptMediaIds = (p.promptMediaIds ?? prior.promptMediaIds) as string[];
-  await validateMediaReferences(user.id, nextPromptMediaIds, nextClues);
+  await validateMediaReferences(user.id, nextPromptMediaIds, nextClues, old.publication === "PUBLISHED");
   if (old.safetyStatus === "RESTRICTED")
     fail(403, "restricted_quiz", "Restricted quizzes require trusted moderation clearance");
   await db().$transaction(async tx => {
