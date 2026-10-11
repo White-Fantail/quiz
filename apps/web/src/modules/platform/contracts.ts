@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const uuid = z.string().uuid();
-export const userId = z.string().regex(/^[a-f0-9]{64}$/);
+export const userId = z.string().min(8).max(200).regex(/^[a-zA-Z0-9_-]+$/);
 export const answerSchema = z.object({ canonical: z.string().trim().min(1).max(200), aliases: z.array(z.string().trim().min(1).max(200)).max(20).default([]) });
 const media = z.object({ url: z.url().max(2000), alt: z.string().max(500).optional(), transcript: z.string().max(2000).optional(), attribution: z.string().max(500).optional() });
 export const clueSchema = z.discriminatedUnion("type", [
