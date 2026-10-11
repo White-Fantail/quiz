@@ -6,7 +6,10 @@ export class PlatformError extends Error {
   constructor(public readonly status: number, public readonly code: string, message: string) { super(message); }
 }
 export function fail(status: number, code: string, message: string): never { throw new PlatformError(status, code, message); }
-export type Actor = { id: string; role: string; displayName: string; leaderboardEligible: boolean; leaderboardOptIn: boolean };
+export type Actor = { id: string; role: string; displayName: string; leaderboardEligible: boolean; leaderboardOptIn: boolean;
+  /** Server-internal only; no browser/MCP identity resolver may populate this field. */
+  childScope?: {profileId:string;deviceId:string};
+};
 
 /**
  * Resolve *only* a Better Auth user identifier obtained from a validated
