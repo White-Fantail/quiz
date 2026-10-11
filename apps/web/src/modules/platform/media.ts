@@ -187,7 +187,7 @@ export async function mediaList(p: Record<string, any>, actor: Actor | null) {
     // An empty list must not accidentally turn the "used" filter into all results.
     where.id = p.usage === "used" ? { in: ids } : { notIn: ids };
   }
-  const orderBy = p.sort === "oldest" ? [{ createdAt: "asc" },{ id: "asc" }]
+  const orderBy: any[] = p.sort === "oldest" ? [{ createdAt: "asc" },{ id: "asc" }]
     : p.sort === "name" ? [{ originalName: "asc" },{ id: "asc" }]
     : p.sort === "size" ? [{ sizeBytes: "desc" },{ id: "asc" }]
     : [{ createdAt: "desc" },{ id: "desc" }];
