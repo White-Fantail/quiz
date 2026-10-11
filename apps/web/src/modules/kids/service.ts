@@ -1,12 +1,11 @@
 import { db } from "../platform/db";
 import { fail } from "../platform/auth";
-import { checkPin, hashPin, newDeviceToken, tokenHash, readCookie, MAX_DEVICE_AGE_SECONDS, createPairCode, normalizePairCode, pairCodeHash } from "./credentials";
+import { checkPin, hashPin, newDeviceToken, tokenHash, MAX_DEVICE_AGE_SECONDS, createPairCode, normalizePairCode, pairCodeHash } from "./credentials";
 import type { Locale } from "../../i18n/core";
 
 export type KidAgeBand = "EARLY" | "MIDDLE" | "OLDER";
 export type KidProfileInput = { nickname:string; ageBand: KidAgeBand; locale: Locale; sessionMinutes:number;
  dailyMinutes?:number;playSessionMinutes?:number;breakEveryMinutes?:number;timeZone?:string };
-export function kidTokenFromHeaders(headers: Headers): string | null { return readCookie(headers.get("cookie")); }
 
 export async function findKidDevice(token: string | null) {
   if (!token) return null;
@@ -14,16 +13,6 @@ export async function findKidDevice(token: string | null) {
     where:{tokenHash:tokenHash(token)},
     include:{profile:true}
   });
-}
-
-export async function currentKidDevice(headers: Headers) {
-  const device = await findKidDevice(kidTokenFromHeaders(headers));
-  if (!device || device.revokedAt || device.expiresAt.getTime() <= Date.now()) return null;
-  return device;
-}
-
-export function kidSessionDeadline(minutes: number, started = Date.now()): Date {
-  return new Date(started + (minutes ? minutes * 60000 : MAX_DEVICE_AGE_SECONDS * 1000));
 }
 
 /** Prevent offline guessing and PIN sharing between guardians. DB lockout survives restarts. */
@@ -147,30 +136,6 @@ export async function setGuardianPin(guardianId:string,pin:string,previous?:stri
   }
   return {pinConfigured:true};
 }
-export async function activateKidDevice(guardianId:string, profileId:string, pin:string,deviceName:string) {
-  await checkGuardianPin(guardianId,pin);
-  const profile=await db().kidProfile.findFirst({where:{id:profileId,guardianId}});
-  if (!profile) fail(404,"kid_profile_missing","Child profile not found");
-  if(await db().kidDeviceSession.count({where:{guardianId,revokedAt:null,expiresAt:{gt:new Date()}}})>=10)
-    fail(409,"kid_device_limit","At most ten active devices are supported");
-  const token=newDeviceToken();
-  await db().kidDeviceSession.create({data:{
-    guardianId,profileId,tokenHash:tokenHash(token),deviceName,
-    expiresAt:kidSessionDeadline(profile.sessionMinutes)
-  }});
-  return {token,locale:profile.locale};
-}
-export async function exitKidDevice(token:string,pin:string) {
-  const device=await findKidDevice(token);
-  // Permit PIN exit when the session time expires, but not if remotely revoked.
-  if (!device || device.revokedAt) fail(403,"kid_device_invalid","Device authorization is unavailable");
-  await checkGuardianPin(device.guardianId,pin);
-  await db().kidDeviceSession.updateMany({
-    where:{id:device.id,revokedAt:null},data:{revokedAt:new Date()}
-  });
-  return {unlocked:true};
-}
-
 /** Authorize one native device after a trusted signed-in guardian verifies their PIN. */
 export async function issueNativePairTicket(guardianId: string, profileId: string, pin: string) {
   await checkGuardianPin(guardianId, pin);
