@@ -7,6 +7,13 @@ The web UI, REST API and MCP tools reuse `execute()` and the same policy layer. 
 | Action | HTTP REST | MCP tool |
 | --- | --- | --- |
 | Capabilities and schemas | GET /api/v1/catalog | clupio_catalog |
+| Reserve R2 media upload / upload small base64 chunk / seal asset | POST /api/v1/media/upload, POST /api/v1/media/:id/chunk, POST /api/v1/media/:id/complete | clupio_media_upload / clupio_media_chunk / clupio_media_complete |
+| Import media by approved HTTPS hostname | POST /api/v1/media/import | clupio_media_import |
+| My media asset library | GET /api/v1/media, GET /api/v1/media/:id | clupio_media_list / clupio_media_get |
+| Metadata update / confirmed deletion | PATCH /api/v1/media/:id, DELETE /api/v1/media/:id | clupio_media_update / clupio_media_delete |
+| Image crop/blur/resize | POST /api/v1/media/:id/transform | clupio_media_transform |
+| ADMIN-only media moderation | POST /api/v1/media/:id/review | clupio_media_review |
+| Session-gated signed media URL | POST /api/v1/play/:id/media | clupio_play_media |
 | List public / own / Kids-eligible quizzes | GET /api/v1/quizzes | clupio_quiz_list |
 | Get question (answer only for owner) | GET /api/v1/quizzes/:id | clupio_quiz_get |
 | Create versioned question | POST /api/v1/quizzes | clupio_quiz_create |
@@ -32,7 +39,7 @@ Tool arguments are typed by Zod schemas in `apps/web/src/modules/platform/contra
 
 ## Content and score semantics
 
-Clues are ordered and stored per immutable `QuizRevision`. Each session is pinned to the revision it started on. An authenticated creator can read their answers and complete clue sequence, but public metadata never returns answers; game sessions reveal **one clue at a time** after presenting the random session token.
+Clues are ordered and stored per immutable `QuizRevision`. Image, audio and video clues use `mediaId`; optional prompt media use `promptMediaIds`. All asset storage is private Cloudflare R2 and documented in [media design and setup](media-r2.md). Each session is pinned to the revision it started on. An authenticated creator can read their answers and complete clue sequence, but public metadata never returns answers; game sessions reveal **one clue at a time** after presenting the random session token.
 
 User review rating is `+1` or `-1` and requires a completed play. A report is a separate workflow, not a dislike.
 

@@ -10,7 +10,7 @@ Clupio is a friendly quiz playground centered on progressive clues and the joy o
 - Business modules live in `apps/web/src/modules`; pure cross-cutting types/helpers in `packages/domain`; Prisma/PostgreSQL schema in `prisma`.
 - Admin pages **and admin APIs** must independently enforce server-side ADMIN authorization. Keep admin inaccessible until real authentication exists.
 - Real answers and privileged logic must stay server-side; the existing browser sample is a deliberate non-production demo.
-- API/MCP and web/MCP SSO are implemented in source. Do not assume deployed or functional until Google/Apple credentials, Better Auth + Prisma migrations, database, build and end-to-end OAuth/E2E are verified. Full AI classification, Kids review automation, and admin console are not yet delivered.
+- API/MCP and web/MCP SSO are implemented in source. Do not assume deployed or functional until Google/Apple credentials, Better Auth + Prisma migrations, database, build and end-to-end OAuth/E2E are verified. Full AI classification, Kids review automation, and admin console are not yet delivered. Cloudflare R2 upload/media code is not live until credentials and real bucket E2E have been verified.
 
 ## Web, social identity, and MCP OAuth (mandatory)
 - Use Better Auth's *stable user.id* as the identity for both web browser sessions and MCP OAuth tokens. Do not derive account IDs separately from provider emails or Google/Apple tokens.
@@ -19,6 +19,14 @@ Clupio is a friendly quiz playground centered on progressive clues and the joy o
 - MCP requires a resource-bound OAuth 2.1 token for `/api/mcp` validated by `requireMcpAuth`. The web uses Better Auth session cookies. No raw Google/Apple tokens, shared master API keys, or mock identities.
 - Keep `/consent`, OAuth discovery and the auth provider migrations tested whenever changing MCP scopes or tool permissions. Every new operation must maintain the REST/MCP feature-parity requirement below.
 - Deploy auth tables via Better Auth's migration tooling *and* domain tables via Prisma. Do not connect preview OAuth sessions or DB to production.
+
+## REQUIRED: media parity, ownership and moderation
+- All media, whether added by Studio, REST, MCP or AI, must be stored in **private Cloudflare R2** as a first-class `MediaAsset` with an immutable ID; clues and prompts reference `mediaId`/`promptMediaIds`, not arbitrary uncontrolled file URLs.
+- Provide both presigned binary uploads and a client-compatible MCP **chunked base64** fallback. Uploaded bytes must be verified server-side for size, SHA-256 and MIME signature before becoming READY. Never treat a staged/expired upload as a validated file.
+- On any new media feature or format, update together: Prisma + migration, validated contracts, owner/policy services, REST route, MCP tool, `docs/media-r2.md` and parity tests. Media derivatives must create new assets; never overwrite an existing READY object.
+- Never expose pending/restricted media to public players. Public playback requires approved asset and revealed-clue/session authorization; Kids requires separate quiz approval. An admin-reviewed asset must not silently become APPROVED after metadata edits or transformations.
+- Only allowlisted HTTPS import hosts; defend against SSRF / DNS rebinding / unbounded streaming; preserve attribution/rights metadata. Configure R2 as private, use short-lived signed URLs and expire transient uploads.
+- Media upload ticket/URL alone is not proof of success. Test against a real dev Cloudflare bucket, including hash mismatch, unsupported types, expired tickets, unapproved uploads, cross-account access and progressive reveals, before declaring deployed functionality.
 
 ## Product and safety
 1. Keep creator target intent, AI recommendations/difficulty and platform-controlled safety **independent**.
