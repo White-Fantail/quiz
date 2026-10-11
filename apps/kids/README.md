@@ -1,4 +1,4 @@
-# QuizDip Kids (Expo, Phases 1–3)
+# QuizDip Kids (Expo, Phases 1–4)
 
 Dedicated iPad/iPhone/Android experience for QuizDip Kids. **Native guardian-linked device scope is implemented in source but not yet production-verified.** The existing web Kids mode stays in service until the native app meets Phase 2–4 release gates.
 
@@ -15,7 +15,7 @@ npm run kids:dev
 
 Start an iOS Simulator, Android emulator, or Expo Go on a device from the Expo CLI. A parent signs in using the **external system browser** to QuizDip's existing Better Auth Google/Apple web login. In `/en/kids/parent` or `/ko/kids/parent`, the parent creates a profile and a six-digit PIN, chooses the profile, enters the PIN, and generates a high-entropy one-time pairing code. The code expires in five minutes. The Kids native app accepts that code and a device name, obtains a **child-only credential**, stores it in OS SecureStore, and validates it on startup and foreground before opening Kids screens. The parent may revoke the device in the same web parent panel. The app's Parent Gate needs the same guardian PIN to revoke the local device session and return to setup.
 
-This **browser-assisted onboarding is intentional**: the child never receives an adult Better Auth cookie, Google/Apple OAuth token, or MCP privilege. Full native guardian profile management is planned for Phase 4, at which point the legacy web Kids interface will be removed in Phase 5. Kids gameplay, server-graded clues and private treasures are implemented in Phase 3 source; authoritative daily time limits and the full native parent zone remain Phase 4.
+This **browser-assisted onboarding is intentional**: the child never receives an adult Better Auth cookie, Google/Apple OAuth token, or MCP privilege. Full native guardian profile management is planned for Phase 4, at which point the legacy web Kids interface will be removed in Phase 5. Phase 3 native game/clues/treasures and Phase 4 daily play limits, private activity insights and the PIN-protected in-app parent zone are implemented in source. Actual database migrations, real-device QA, an approved privacy policy and store distribution remain pending.
 
 **Until the Prisma migration is applied** (`20261012190000_kids_native_pairing`) native pairing will fail. Use separate dev/prod DBs; do not assume migrations ran just because code is committed.
 
@@ -54,3 +54,13 @@ Open **Explore** and tap an approved question to play one question, or open **Ch
 Reopening the app can resume an active game token from SecureStore. The backend binds it to the same child's profile and device, and ordinary general endpoints reject child-owned play sessions even if a play token is copied. Rewards are private and derived only from child sessions. Deleting a child profile through the authenticated parent UI deletes its saved gameplay in the same transaction.
 
 Apply `20261012200000_kids_native_play` **after** `20261012190000_kids_native_pairing`. Release tests must include public API token leakage attempts, cross-device/session IDs, profile deletion, safer translation revision changes during play, revoked media between clues, signed URL expiry, too few questions, concurrent answers, restart, offline mode and iPad/Android playback on real R2 media. A source commit or Expo export does not prove production readiness.
+
+## Phase 4 guardian settings and child time protection
+
+Open **Parents** on the native home or the time-up screen. The verified PIN grants a ten-minute management capability stored **only in app memory**, removed on background. Parents can add/edit/delete up to 8 child profiles, update age/EN–KO language, timezone/daily budget/continuous-play cap/break reminder; issue new device pairing codes by re-entering the PIN; revoke connected devices; inspect the last seven days' private activity; explicitly delete history; and change their PIN. Changing language or age invalidates that child's previous device credentials; PIN changes revoke all native devices. Forgotten PIN recovery still requires a fresh web guardian login.
+
+The app makes a server-authoritative heartbeat immediately and every 45 seconds while foregrounded. On no connectivity, expired credential, reached daily budget, or a required rest break, Kids discovery, game and treasure pages lock. Parent PIN access remains possible. Each UTC minute slot is counted **once per child profile across devices**, under the guardian-chosen IANA timezone's local date. `sessionMinutes` from old web mode remains independent of native `dailyMinutes`.
+
+DB migration: `20261012210000_kids_native_parent_time` (after the other three Kids migrations). For privacy a protected `/api/internal/kids-retention` route removes minute entries after 90 days; deploy a separate daily scheduler and `CRON_SECRET`. Full release QA and Phase 5 handover: [Phase 4 runbook](../../docs/kids-native-phase4-release.md).
+
+**Bootstrap dependency:** `/kids/parent` web onboarding is still necessary for first-time paired devices. Do not delete that page until a separate audited adult-account route or native OAuth flow replaces it. Child-facing web Kids mode remains until Phase 5.
