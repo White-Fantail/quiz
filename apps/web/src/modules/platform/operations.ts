@@ -1,4 +1,5 @@
 import { parseOperation, operations, type Operation } from "./contracts";
+import { localeGet, localeUpdate } from "./locale";
 import { topicList } from "./topics";
 import { fail, requireActor, type Actor } from "./auth";
 import { quizList, quizGet, quizCreate, quizUpdate, quizPublish, quizReview, quizReviewGet } from "./quiz";
@@ -48,6 +49,8 @@ export async function execute(name: Operation, raw: unknown, actor: Actor | null
     case "reports_mine": return reportsMine(p, actor);
     case "quiz_stats": return quizStats(p, actor);
     case "me": return me(p, actor);
+    case "locale_get": return localeGet(p, actor);
+    case "locale_update": return localeUpdate(p, actor);
     case "my_quizzes": return myQuizzes(p, actor);
     case "my_quiz_insights": return myQuizInsights(p, actor);
     case "my_stats": return myStats(p, actor);

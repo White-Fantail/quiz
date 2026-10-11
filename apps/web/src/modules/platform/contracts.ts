@@ -64,6 +64,8 @@ export const operations = {
   reports_mine: { public: false, description: "Track reports I submitted", schema: z.object(paging) },
   quiz_stats: { public: true, description: "Success rate, revision metrics, reviews and per-clue stages", schema: z.object({ quizId: uuid, version: z.number().int().positive().optional() }) },
   me: { public: false, description: "My verified account and settings", schema: z.object({}) },
+  locale_get: { public: false, description: "Read my UI and content language preferences", schema: z.object({}) },
+  locale_update: { public: false, description: "Set my UI and content language together", schema: z.object({ locale: z.enum(["en", "ko"]) }) },
   my_quizzes: { public: false, description: "Search, filter and paginate only my authored quizzes. Returns total count and lightweight feedback totals.", schema: z.object({
     ...paging, search: z.string().trim().max(120).default(""),
     publication: z.enum(["all","DRAFT","PUBLISHED","HIDDEN"]).default("all"),

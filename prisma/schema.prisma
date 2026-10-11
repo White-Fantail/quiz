@@ -15,6 +15,8 @@ model User {
   role                  String        @default("MEMBER")
   leaderboardEligible   Boolean       @default(false)
   leaderboardOptIn      Boolean       @default(false)
+  uiLocale              String        @default("en")
+  contentLocale         String        @default("en")
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @updatedAt
   quizzes               Quiz[]
@@ -35,6 +37,8 @@ model Quiz {
   authorId              String
   author                User          @relation(fields: [authorId], references: [id])
   currentVersion        Int           @default(1)
+  sourceLocale          String        @default("und")
+  localizations         QuizLocalization[]
   publication           String        @default("DRAFT")
   safetyStatus          String        @default("PENDING")
   kidsEligible          Boolean       @default(false)
@@ -61,6 +65,8 @@ model QuizRevision {
   quizId                String
   quiz                  Quiz          @relation(fields: [quizId], references: [id], onDelete: Cascade)
   version               Int
+  localizationId        String?
+  localization          QuizLocalization? @relation(fields: [localizationId], references: [id], onDelete: SetNull)
   title                 String
   prompt                String
   mode                  String
@@ -74,6 +80,23 @@ model QuizRevision {
   weeklyQuestions       WeeklyQuestion[]
   runQuestions          PlayRunQuestion[]
   @@unique([quizId, version])
+  @@unique([localizationId, version])
+}
+
+model QuizLocalization {
+  id               String   @id @default(uuid())
+  quizId           String
+  quiz             Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  locale           String
+  status           String   @default("DRAFT")
+  currentVersion   Int      @default(1)
+  sourceRevisionId String?
+  origin           String   @default("ORIGINAL")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  revisions        QuizRevision[]
+  @@unique([quizId, locale])
+  @@index([locale, status])
 }
 
 model Topic {
@@ -84,6 +107,20 @@ model Topic {
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
   quizLinks   QuizTopic[]
+  localizations TopicLocalization[]
+}
+
+model TopicLocalization {
+  id        String   @id @default(uuid())
+  topicId   String
+  topic     Topic    @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  locale    String
+  name      String
+  aliases   String[] @default([])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([topicId, locale])
+  @@index([locale, name])
 }
 
 model QuizTopic {
@@ -104,10 +141,26 @@ model QuizPack {
   author                User          @relation(fields: [authorId], references: [id])
   title                 String
   description           String        @default("")
+  sourceLocale          String        @default("und")
+  localizations         QuizPackLocalization[]
   publication           String        @default("DRAFT")
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @updatedAt
   items                 PackQuestion[]
+}
+
+model QuizPackLocalization {
+  id          String   @id @default(uuid())
+  packId      String
+  pack        QuizPack @relation(fields: [packId], references: [id], onDelete: Cascade)
+  locale      String
+  title       String
+  description String   @default("")
+  status      String   @default("DRAFT")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@unique([packId, locale])
+  @@index([locale, status])
 }
 
 model PackQuestion {

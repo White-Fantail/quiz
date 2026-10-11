@@ -86,3 +86,12 @@ Never treat an MCP tool listed in metadata or a passing typecheck as proof that 
 
 OAuth provider sign-in, linking and unlinking Google/Apple accounts, and interactive third-party consent are **deliberately web-only** user-presence operations at `/sign-in`, `/account` and `/consent`, rather than MCP tools. This prevents an AI agent from silently rebinding the owner's identity or authorizing a new external client. ChatGPT initiates the standard MCP OAuth protocol, which redirects the human to these screens; afterward it uses the verified `quizdip_me` tool to identify the same account. OAuth refresh/revocation are standard authorization-server endpoints, not business-domain MCP tools.
 
+
+## Language preferences (Phase 1)
+
+| REST | MCP | Meaning |
+| --- | --- | --- |
+| GET /api/v1/me/locale | quizdip_locale_get | Read signed-in UI/content locale and supported languages |
+| PATCH /api/v1/me/locale | quizdip_locale_update | Set both to en or ko atomically |
+
+Public UI routes are /en/... and /ko/... through Next.js proxy rewrites. REST, MCP, auth and OAuth discovery routes remain unprefixed. Phase 1 does not filter content languages, and existing legacy quizzes are stored with the unclassified `und` tag pending Phase 2 classification. Locale tools use the same authenticated service for REST and MCP.

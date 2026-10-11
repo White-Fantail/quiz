@@ -64,6 +64,8 @@ function route(method: string, segments: string[]): Match | null {
   }
   if (a === "play" && b && c === "media" && method === "POST") return { op: "play_media", args: { sessionId: b } };
   if (a === "me" && b === "ranking" && method === "PATCH") return { op: "ranking_optin", args: {} };
+  if (a === "me" && b === "locale" && !c && method === "GET") return { op: "locale_get", args: {} };
+  if (a === "me" && b === "locale" && !c && method === "PATCH") return { op: "locale_update", args: {} };
   if (a === "admin" && b === "verify-adult" && !c && method === "POST") return { op: "adult_verify", args: {} };
   if (a === "me" && !b && method === "GET") return { op: "me", args: {} };
   if (a === "me" && b === "quizzes" && c && d === "insights" && method === "GET") return { op: "my_quiz_insights", args: { quizId: c } };

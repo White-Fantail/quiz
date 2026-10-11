@@ -1,28 +1,34 @@
 import Link from "next/link";
+import { headers } from "next/headers";
+import { localizeHref, resolveLocale } from "../../src/i18n/core";
+import { t } from "../../src/i18n/messages";
 
-export default function HomePage() {
+export default async function HomePage() {
+  const locale = resolveLocale((await headers()).get("x-quizdip-locale"));
+  const msg = (key: Parameters<typeof t>[1]) => t(locale, key);
+  const url = (path: string) => localizeHref(path, locale);
   return (
     <div className="container">
       <section className="hero">
         <div className="eyebrow">A LITTLE QUIZ. A LOT OF FUN.</div>
-        <h1>단서를 따라,<br /><span className="purple">재미를 발견해.</span></h1>
-        <p className="lead">정답을 몰라도 괜찮아. 힌트를 하나씩 열어 보며 추리하는 즐거움.<br />퀴즈를 풀고, 만들고, 함께 나누는 곳 — QuizDip.</p>
+        <h1>{msg("home.title1")}<br /><span className="purple">{msg("home.title2")}</span></h1>
+        <p className="lead">{msg("home.lead1")}<br />{msg("home.lead2")}</p>
         <div className="actions">
-          <Link className="btn btn-primary" href="/play">랜덤 5문제 시작하기 →</Link>
-          <Link className="btn btn-outline" href="/studio">내 퀴즈 만들기</Link>
+          <Link className="btn btn-primary" href={url("/play")}>{msg("home.start")}</Link>
+          <Link className="btn btn-outline" href={url("/studio")}>{msg("home.create")}</Link>
         </div>
         <div className="hero-stickers" aria-hidden="true"><span>?</span><span>✦</span><span>!</span></div>
       </section>
-      <section className="section"><div className="note-strip"><b>이번 주의 공통 챌린지</b><Link href="/play">친구와 같은 5문제를 풀고 비교하기 →</Link></div>
-        <h2>오늘은 뭘 발견할까?</h2>
-        <p className="muted">QuizDip의 세 가지 시작점</p>
+      <section className="section"><div className="note-strip"><b>{msg("home.weekly")}</b><Link href={url("/play")}>{msg("home.weeklyLink")}</Link></div>
+        <h2>{msg("home.heading")}</h2>
+        <p className="muted">{msg("home.intro")}</p>
         <div className="cards">
-          <Link href="/discover" className="feature-card"><span className="symbol mint">✧</span><h3>Discover</h3><p>동물, 인물, 지리, 과학. 호기심 가는 주제를 찾아봐.</p><span className="card-link">둘러보기 →</span></Link>
-          <Link href="/play" className="feature-card"><span className="symbol yellow">?</span><h3>Play</h3><p>힌트를 하나씩 열어 정답을 알아내는 재미를 경험해 봐.</p><span className="card-link">시작하기 →</span></Link>
-          <Link href="/studio" className="feature-card"><span className="symbol coral">✎</span><h3>Studio</h3><p>나만의 퀴즈를 만들고 다른 사람과 나눠봐.</p><span className="card-link">제작 공간 →</span></Link>
+          <Link href={url("/discover")} className="feature-card"><span className="symbol mint">✧</span><h3>Discover</h3><p>{msg("home.discoverText")}</p><span className="card-link">{msg("home.discoverAction")}</span></Link>
+          <Link href={url("/play")} className="feature-card"><span className="symbol yellow">?</span><h3>Play</h3><p>{msg("home.playText")}</p><span className="card-link">{msg("home.playAction")}</span></Link>
+          <Link href={url("/studio")} className="feature-card"><span className="symbol coral">✎</span><h3>Studio</h3><p>{msg("home.studioText")}</p><span className="card-link">{msg("home.studioAction")}</span></Link>
         </div>
       </section>
-      <section className="note-strip"><b>Create it. Play it. Share it.</b><span>만들고, 풀고, 함께 즐겨.</span></section>
+      <section className="note-strip"><b>Create it. Play it. Share it.</b><span>{msg("home.tagline")}</span></section>
     </div>
   );
 }

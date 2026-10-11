@@ -92,3 +92,7 @@ Staff can inspect full quiz answers, clues and media via /admin/quiz-review befo
 ## QuizDip rebrand rollout
 
 The code and docs use the new brand; connecting `quizdip.com`, configuring production origins/SSO callbacks and replacing any third-party app name or DNS entries are separate deployment steps. MCP operations use the `quizdip_*` prefix. Existing signed session token formats remain unchanged for backward compatibility; local sample names do not rename deployed DB/bucket resources.
+
+## Multilingual foundation (Phase 1)
+
+The web now supports locale-prefixed pages (/en and /ko), UI language selection, a shared typed message catalog, and signed-in locale preferences through REST/MCP. Additive Prisma migration `20261012070000_multilingual_foundation` introduces version-ready localization records with honest `und` legacy classification. Content language filtering, translation workflows and full deep-page copy coverage remain Phase 2/3; do not mistake an English interface for an English-only quiz catalog until then. See [multilingual plan](docs/i18n-foundation.md).

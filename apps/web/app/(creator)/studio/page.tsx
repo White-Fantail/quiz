@@ -1,24 +1,29 @@
 import Link from "next/link";
 import { headers } from "next/headers";
 import { auth } from "../../../src/lib/auth";
+import { resolveLocale, localizeHref } from "../../../src/i18n/core";
+import { t } from "../../../src/i18n/messages";
 import StudioWorkspace from "./studio-workspace";
 
 export const dynamic = "force-dynamic";
 
 export default async function StudioPage() {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const requestHeaders = await headers();
+  const session = await auth.api.getSession({ headers: requestHeaders });
+  const locale = resolveLocale(requestHeaders.get("x-quizdip-locale"));
+  const msg = (key: Parameters<typeof t>[1]) => t(locale, key);
   return <main className="container inner-page studio-home">
     <span className="eyebrow">QUIZDIP STUDIO</span>
-    <h1>내 퀴즈 스튜디오</h1>
-    <p className="lead">직접 만든 문제를 검색하고 관리하며, 플레이 결과와 피드백으로 더 재미있게 다듬어 보세요.</p>
+    <h1>{msg("studio.title")}</h1>
+    <p className="lead">{msg("studio.lead")}</p>
     <div className="actions studio-home-actions">
-      <Link href="/studio/weekly" className="btn btn-outline">주간 출제자 도전하기</Link>
-      <Link href="/studio/media" className="btn btn-outline">미디어 보관함</Link>
+      <Link href={localizeHref("/studio/weekly", locale)} className="btn btn-outline">{msg("studio.weekly")}</Link>
+      <Link href={localizeHref("/studio/media", locale)} className="btn btn-outline">{msg("studio.media")}</Link>
     </div>
     {!session ? <section className="placeholder-panel">
-      <h2>로그인하고 내 문제를 관리하세요</h2>
-      <p>QuizDip 계정으로 등록한 퀴즈, 결과, 피드백은 작성자 본인에게만 관리 권한이 있어요.</p>
-      <Link href="/sign-in?callbackURL=%2Fstudio" className="btn btn-primary">Google·Apple 로그인</Link>
+      <h2>{msg("studio.signInTitle")}</h2>
+      <p>{msg("studio.signInBody")}</p>
+      <Link href={localizeHref("/sign-in?callbackURL=%2Fstudio", locale)} className="btn btn-primary">{msg("studio.signIn")}</Link>
     </section> : <StudioWorkspace/>}
   </main>;
 }
