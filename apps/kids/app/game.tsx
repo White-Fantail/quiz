@@ -188,11 +188,11 @@ export default function KidGameScreen(){
      <Text style={styles.progressText}>{t("native.play.hint")} {question.clueIndex} / {question.clueCount}</Text>
    </View>
    {(Array.isArray(question.promptMediaIds)?question.promptMediaIds:[]).map(id=>
-      <SafeKidMedia key={"prompt:"+id} token={token} mediaId={id}
+      <SafeKidMedia key={"prompt:"+id} token={token!} mediaId={id}
         sessionId={question.sessionId} sessionToken={question.sessionToken}/>)}
    {(question.clues??[]).map((clue,i)=><View key={clue.id??String(i)} style={{gap:8}}>
      <Text style={styles.hintLabel}>✨ {t("native.play.hint")} {i+1}</Text>
-     <KidClueView clue={clue} token={token} sessionId={question.sessionId}
+     <KidClueView clue={clue} token={token!} sessionId={question.sessionId}
        sessionToken={question.sessionToken}/>
    </View>)}
    {result?<View style={[styles.feedback,result.correct?styles.success:styles.tryAgain]}>
