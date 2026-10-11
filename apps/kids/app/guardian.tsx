@@ -86,7 +86,7 @@ export default function GuardianDashboardScreen(){
  const selectedProfile=data?.profiles.find(p=>p.id===selected);
  const insight=data?.insights.find(x=>x.profileId===selected);
  const devices=(data?.devices??[]).filter(d=>d.profileId===selected);
- const setField=<K extends keyof Editable>(key:K,value:Editable[K])=>setDraft(v=>({...v,[key]:value}));
+ const setField=<K extends keyof Editable,>(key:K,value:Editable[K])=>setDraft(v=>({...v,[key]:value}));
  const limitOptions=(values:readonly number[]):Choice<number>[]=>values.map(v=>({value:v,label:v===0?t("native.parent.unlimited"):v+"m"}));
  return <Screen title={t("native.parent.title")} subtitle={t("native.parent.subtitle")}>
    <Banner emoji="👨‍👩‍👧" title={t("native.parent.title")} detail={t("native.parent.private")} tint={theme.colors.mint}/>
