@@ -33,6 +33,8 @@ model User {
   kidDeviceSessions     KidDeviceSession[]
   kidGuardianPin        KidGuardianPin?
   kidPairTickets        KidPairTicket[]
+  kidPlayRuns           KidPlayRun[]
+  kidSinglePlays        KidPlaySingle[]
   @@unique([issuer, subject])
 }
 
@@ -201,6 +203,7 @@ model PlaySession {
   startedAt             DateTime      @default(now())
   expiresAt             DateTime
   finishedAt            DateTime?
+  kidSingle   KidPlaySingle?
   @@unique([runId, roundIndex])
   @@index([quizId, revisionId, status])
   @@index([userId, status, score])
@@ -358,6 +361,7 @@ model PlayRun {
   completedAt DateTime?
   questions   PlayRunQuestion[]
   sessions    PlaySession[]
+  kidOwnership KidPlayRun?
   @@index([userId, startedAt])
   @@index([weeklyId, status, score])
 }
@@ -386,6 +390,8 @@ model KidProfile {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   devices         KidDeviceSession[]
+  playRuns        KidPlayRun[]
+  singlePlays     KidPlaySingle[]
   pairTickets     KidPairTicket[]
   @@index([guardianId, updatedAt])
 }
@@ -427,4 +433,27 @@ model KidPairTicket {
   expiresAt  DateTime
   consumedAt DateTime?
   @@index([guardianId, expiresAt, consumedAt])
+}
+
+/** Private, nonpublic child ownership of existing server-graded play runs. */
+model KidPlayRun {
+  runId     String  @id
+  run       PlayRun @relation(fields:[runId],references:[id],onDelete:Cascade)
+  profileId String
+  profile   KidProfile @relation(fields:[profileId],references:[id],onDelete:Cascade)
+  deviceId  String
+  createdAt DateTime @default(now())
+  @@index([profileId,createdAt])
+  @@index([profileId,deviceId])
+}
+
+/** Standalone Discover quiz sessions are also linked to the child, never an adult User. */
+model KidPlaySingle {
+  sessionId String @id
+  session   PlaySession @relation(fields:[sessionId],references:[id],onDelete:Cascade)
+  profileId String
+  profile   KidProfile @relation(fields:[profileId],references:[id],onDelete:Cascade)
+  deviceId  String
+  createdAt DateTime @default(now())
+  @@index([profileId,createdAt])
 }
