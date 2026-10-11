@@ -26,15 +26,15 @@ apps/
     app/
       (platform)/        Home, Play, Discover and Kids (public URL paths unchanged)
       (creator)/studio/  Creator Studio UI
-      admin/             Admin entry point (404 until authorization exists)
+      admin/             Protected admin routes and moderation consoles
       api/
         v1/              REST API route handlers
         mcp/             Authenticated stateless MCP endpoint and tool registry
     src/
       modules/           Shared business services for quiz, game, user,
                          moderation, media, analytics and AI
-      components/        Future reusable UI
-      lib/               Future server infrastructure
+      components/        Reusable UI
+      lib/               Shared server infrastructure
 packages/
   domain/                Shared pure types and rules for multimodal quizzes
 prisma/                  PostgreSQL schema and migrations
@@ -48,9 +48,9 @@ REST and MCP adapters use the same **application service/policy layer** and pers
 
 | Path | Behavior |
 | --- | --- |
-| `/`, `/discover`, `/play` | Public landing/discovery and a browser-only demo quiz |
-| `/studio`, `/kids` | Planning placeholders (not functional editors/review tools) |
-| `/admin` | Deliberately returns 404 until authentication and admin authorization exist |
+| `/`, `/discover`, `/play` | Public discovery and game experience; live play requires configured backend services |
+| `/studio` | Creator entry, media library and weekly proposal UI; full general-purpose editor remains a separate feature |\n| `/kids` | Child-facing mode; content must independently pass the trusted Kids safety gate |
+| `/admin/*` | Restricted admin, weekly scheduling and safety review; requires server-side ADMIN checks |
 | `/api/health` | Health check |
 | `/api/v1/*` | Versioned REST: quizzes, packs, play sessions, reviews, reports, personal metrics and leaderboard |
 | `/api/mcp` | Authenticated stateless Streamable HTTP MCP, mirroring API operations |
