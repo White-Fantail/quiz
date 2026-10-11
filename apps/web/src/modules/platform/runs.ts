@@ -4,6 +4,8 @@ import { ratingsForQuizzes, ratingsForQuiz, myRatingForQuiz, ratingAccess } from
 import { fail, requireActor, type Actor } from "./auth";
 import { utcWeekStart, WEEK_MS } from "./weekly-clock";
 import { selectUnseen } from "./unseen-questions";
+import { playableQuizWhere } from "./content-locale";
+import type { Locale } from "../../i18n/core";
 
 export type Lane = "GENERAL" | "KIDS";
 export type RunMode = "WEEKLY" | "RANDOM_FIVE" | "INFINITE";
@@ -75,20 +77,36 @@ async function pinnedMediaApproved(revisions: Array<{clues: unknown;promptMediaI
   }});
   return approved===ids.size;
 }
-async function editionAvailable(item: any): Promise<boolean> {
+/** Approved per-language snapshots are immutable for the duration of the weekly edition. */
+async function weeklySnapshots(item: any, locale: Locale) {
+  const rows=await db().weeklyQuestionLocalization.findMany({
+    where:{challengeId:item.id,locale},
+    orderBy:{position:"asc"},
+    include:{revision:{include:{localization:true}}}
+  });
+  if(rows.length!==5 || item.questions.length!==5) return [];
+  if(rows.some((row,i)=>row.position!==item.questions[i].position ||
+      row.revision.quizId!==item.questions[i].quizId ||
+      row.revision.localization?.locale!==locale ||
+      row.revision.localization.status!=="PUBLISHED")) return [];
+  return rows;
+}
+async function editionAvailable(item: any, locale: Locale): Promise<boolean> {
+  const snapshots = await weeklySnapshots(item,locale);
   return item.questions.length===5 &&
     item.questions.every((q:any) => q.quiz.publication==="PUBLISHED" &&
       q.quiz.safetyStatus!=="RESTRICTED" &&
       (item.lane!=="KIDS" || (q.quiz.safetyStatus==="APPROVED" && q.quiz.kidsEligible))) &&
-    await pinnedMediaApproved(item.questions.map((q:any)=>q.revision));
+    snapshots.length===5 &&
+    await pinnedMediaApproved(snapshots.map(q=>q.revision));
 }
 export async function weeklyCurrent(p:Record<string,any>) {
   const edition=await currentEdition(p.lane);
   const start=utcWeekStart();
   if (!edition) return {available:false,lane:p.lane,weekStart:start,weekEnd:new Date(start.getTime()+weekMs),
     message:"이번 주의 다섯 문제는 아직 공개되지 않았어요."};
-  const available=await editionAvailable(edition);
-  return {available,...publicWeekly(edition),
+  const available=await editionAvailable(edition,p.locale);
+  return {available,locale:p.locale,...publicWeekly(edition),
     message:available?undefined:"안전성 검토를 위해 이번 주 챌린지가 일시 중단되었어요."};
 }
 export async function weeklySubmit(p:Record<string,any>,actor:Actor|null) {
@@ -129,8 +147,26 @@ export async function weeklyPublish(p:Record<string,any>,actor:Actor|null) {
     fail(409,"weekly_question_unavailable","All five snapshots must remain authored, published and safe for the lane");
   if(!await pinnedMediaApproved(item.questions.map(q=>q.revision)))
     fail(409,"media_review_pending","All featured media must remain approved");
+  const snapshots: Array<{challengeId:string;position:number;locale:string;revisionId:string}> = [];
+  for (const locale of ["en","ko"] as const) {
+    const locs=await db().quizLocalization.findMany({
+      where:{quizId:{in:item.questions.map(q=>q.quizId)},locale,status:"PUBLISHED"},
+      include:{revisions:{orderBy:{version:"desc"},take:1,select:{id:true,version:true}}}
+    });
+    if(locs.length!==5 || locs.some(l=>l.revisions[0]?.version!==l.currentVersion)) continue;
+    const byQuiz=new Map(locs.map(l=>[l.quizId,l.revisions[0].id]));
+    const localizedRevisions=await db().quizRevision.findMany({where:{id:{in:[...byQuiz.values()]}}});
+    if(!await pinnedMediaApproved(localizedRevisions)) continue;
+    for(const q of item.questions) snapshots.push({
+      challengeId:item.id,position:q.position,locale,revisionId:byQuiz.get(q.quizId)!
+    });
+  }
+  if(!snapshots.length)
+    fail(409,"weekly_no_locales","All five questions require a verified published language version");
+
   try {
     await db().$transaction(async tx=>{
+      await tx.weeklyQuestionLocalization.createMany({data:snapshots});
       const updated=await tx.weeklyChallenge.updateMany({
         where:{id:item.id,status:"SUBMITTED"},
         data:{status:"SCHEDULED",publishedAt:new Date(),verifiedHost:p.verifiedHost,
@@ -163,32 +199,40 @@ async function userExcludedQuestions(userId:string):Promise<string[]> {
   ]);
   return [...new Set([...sessions,...allocated].map(row=>row.quizId))];
 }
-async function randomChoices(lane:Lane,count:number,avoid:string[]=[],allowEmpty=false) {
+async function randomChoices(lane:Lane,locale:Locale,count:number,avoid:string[]=[],allowEmpty=false) {
   const reserved=await db().weeklyQuestion.findMany({
     where:{challenge:{status:"SCHEDULED",weekEnd:{gt:new Date()}}},
     select:{quizId:true}
   });
   const blocked=new Set(reserved.map(row=>row.quizId));
-  const pool=await db().quiz.findMany({where:eligibleQuizWhere(lane),
-    select:{id:true,currentVersion:true,revisions:{orderBy:{version:"desc"},take:1,select:{id:true}}}});
-  const eligible=pool.filter(q=>q.revisions[0]?.id&&!blocked.has(q.id));
+  const pool=await db().quiz.findMany({where:playableQuizWhere(locale,lane),
+    select:{id:true,localizations:{where:{locale,status:"PUBLISHED"},select:{
+      id:true,currentVersion:true,
+      revisions:{orderBy:{version:"desc"},take:1,select:{id:true,version:true}}
+    }}}});
+  const eligible=pool.filter(q=>{
+    const loc=q.localizations[0],latest=loc?.revisions[0];
+    return latest?.id && latest.version===loc.currentVersion && !blocked.has(q.id);
+  });
   const choice=shuffle(selectUnseen(eligible,avoid)).slice(0,count);
   if(choice.length<count) {
     if(allowEmpty) return [];
     fail(409,"not_enough_questions",count===5
-      ? "아직 풀지 않은 문제 다섯 개가 모이지 않았어요. 새 퀴즈가 공개되면 다시 즐겨 주세요."
-      : "아직 풀지 않은 문제가 없어요. 새 퀴즈가 공개되면 다시 즐겨 주세요.");
+      ? "Not enough new quizzes in the selected language to start five questions."
+      : "No unseen quizzes remain in the selected language.");
   }
-  return choice.map(q=>({quizId:q.id,revisionId:q.revisions[0].id}));
+  return choice.map(q=>({quizId:q.id,revisionId:q.localizations[0].revisions[0].id}));
 }
 export async function runStart(p:Record<string,any>,actor:Actor|null) {
-  const mode=p.mode as RunMode, lane=p.lane as Lane;
+  const mode=p.mode as RunMode, lane=p.lane as Lane, locale=p.locale as Locale;
   const edition=mode==="WEEKLY"?await currentEdition(lane):null;
-  if(mode==="WEEKLY" && (!edition || !await editionAvailable(edition)))
+  if(mode==="WEEKLY" && (!edition || !await editionAvailable(edition,locale)))
     fail(409,"weekly_unavailable","이번 주의 공식 챌린지가 아직 공개되지 않았어요");
   if(edition && actor) {
     const existing=await db().playRun.findFirst({where:{weeklyId:edition.id,userId:actor.id,mode:"WEEKLY"}});
-    if(existing) return {runId:existing.id,runToken:authToken(existing.id,actor.id),mode,lane,
+    if(existing && existing.locale!==locale)
+      fail(409,"weekly_locale_locked","Weekly participation is locked to the language first selected");
+    if(existing) return {runId:existing.id,runToken:authToken(existing.id,actor.id),mode,lane,locale,
       status:existing.status,score:existing.score,completed:existing.currentIndex,total:5,
       weekly:publicWeekly(edition),official:existing.officialEligible,resumed:true};
   }
@@ -196,8 +240,10 @@ export async function runStart(p:Record<string,any>,actor:Actor|null) {
     ...(actor?await userExcludedQuestions(actor.id):[]),...(p.avoidQuizIds||[])
   ];
   const questions=mode==="WEEKLY"
-    ? edition!.questions.map(q=>({quizId:q.quizId,revisionId:q.revisionId}))
-    : await randomChoices(lane,mode==="RANDOM_FIVE"?5:1,avoid);
+    ? (await weeklySnapshots(edition!,locale)).map(q=>({
+      quizId:q.revision.quizId,revisionId:q.revisionId
+    }))
+    : await randomChoices(lane,locale,mode==="RANDOM_FIVE"?5:1,avoid);
   const preseen=mode==="WEEKLY"&&actor ? await db().playSession.findFirst({
     where:{userId:actor.id,quizId:{in:questions.map(q=>q.quizId)}},select:{id:true}
   }):null;
@@ -207,11 +253,11 @@ export async function runStart(p:Record<string,any>,actor:Actor|null) {
   const expiresAt=edition?edition.weekEnd:new Date(Date.now()+(mode==="INFINITE"?7:2)*86400000);
   try {
     const run=await db().playRun.create({data:{
-      id,mode,lane,userId:actor?.id,weeklyId:edition?.id,officialEligible,
+      id,mode,lane,locale,userId:actor?.id,weeklyId:edition?.id,officialEligible,
       tokenHash:hash(runToken),expiresAt,
       questions:{create:questions.map((q,index)=>({...q,position:index}))}
     }});
-    return {runId:run.id,runToken,mode,lane,status:"ACTIVE",completed:0,score:0,
+    return {runId:run.id,runToken,mode,lane,locale,status:"ACTIVE",completed:0,score:0,
       total:mode==="INFINITE"?null:5,weekly:edition?publicWeekly(edition):null,
       official:officialEligible};
   } catch(error:any) {
@@ -221,7 +267,7 @@ export async function runStart(p:Record<string,any>,actor:Actor|null) {
   }
 }
 function runSummary(run:any) {
-  return {runId:run.id,mode:run.mode,lane:run.lane,status:run.status,
+  return {runId:run.id,mode:run.mode,lane:run.lane,locale:run.locale,status:run.status,
     completed:run.currentIndex,total:run.mode==="INFINITE"?null:5,
     score:run.score,solved:run.solved,failed:run.failed,
     official:run.mode==="WEEKLY"&&run.officialEligible&&!!run.userId&&run.weekly?.hostId!==run.userId,
@@ -229,6 +275,7 @@ function runSummary(run:any) {
 }
 export async function runCurrent(p:Record<string,any>,actor:Actor|null) {
   const run=await checkedRun(p.runId,p.runToken,actor);
+  if (p.locale && run.locale!==p.locale) fail(409,"locale_mismatch","Run language cannot be changed mid-game");
   if(run.status==="FINISHED") return runSummary(run);
   if(run.mode==="WEEKLY") {
     if(!run.weekly || run.weekly.status!=="SCHEDULED" ||
@@ -239,7 +286,7 @@ export async function runCurrent(p:Record<string,any>,actor:Actor|null) {
     const old=await db().playRunQuestion.findMany({where:{runId:run.id},select:{quizId:true}});
     const exclude=[...old.map(o=>o.quizId),...(run.userId?await userExcludedQuestions(run.userId):[]),
       ...(p.avoidQuizIds||[])];
-    const chosen=(await randomChoices(run.lane as Lane,1,exclude,true))[0];
+    const chosen=(await randomChoices(run.lane as Lane,run.locale as Locale,1,exclude,true))[0];
     if(!chosen) {
       await db().playRun.updateMany({where:{id:run.id,status:"ACTIVE",currentIndex:run.currentIndex},
         data:{status:"FINISHED",completedAt:new Date()}});
@@ -259,8 +306,9 @@ export async function runCurrent(p:Record<string,any>,actor:Actor|null) {
   if(!quiz || quiz.publication!=="PUBLISHED" || quiz.safetyStatus==="RESTRICTED" ||
     (run.lane==="KIDS" && !(quiz.safetyStatus==="APPROVED"&&quiz.kidsEligible)))
     fail(409,"question_suspended","This question is temporarily unavailable for safety review");
-  const revision=await db().quizRevision.findUnique({where:{id:round.revisionId}});
-  if(!revision || !(revision.clues as unknown[]).length)
+  const revision=await db().quizRevision.findUnique({where:{id:round.revisionId},include:{localization:true}});
+  if(!revision || revision.localization?.locale!==run.locale ||
+    revision.localization.status!=="PUBLISHED" || !(revision.clues as unknown[]).length)
     fail(409,"invalid_question","The pinned question version is unavailable");
   if(!await pinnedMediaApproved([revision]))
     fail(409,"question_suspended","This pinned question contains unapproved or restricted media");
@@ -269,7 +317,7 @@ export async function runCurrent(p:Record<string,any>,actor:Actor|null) {
   if(!session) {
     try {
       session=await db().playSession.create({data:{
-        quizId:round.quizId,revisionId:round.revisionId,userId:run.userId,
+        quizId:round.quizId,revisionId:round.revisionId,locale:run.locale,userId:run.userId,
         runId:run.id,roundIndex:run.currentIndex,tokenHash:hash(token),
         usedClues:1,expiresAt:run.expiresAt
       }});
@@ -283,7 +331,7 @@ export async function runCurrent(p:Record<string,any>,actor:Actor|null) {
   const [ratings,myRating]=await Promise.all([ratingsForQuiz(quiz.id),myRatingForQuiz(quiz.id,actor)]);
   return {...runSummary(run),sessionId:session.id,sessionToken:token,
     ratings,myRating,ratingAccess:ratingAccess(actor,quiz.authorId,session.userId),
-    round:run.currentIndex+1,quizId:round.quizId,quizVersion:revision.version,
+    round:run.currentIndex+1,quizId:round.quizId,locale:run.locale,quizVersion:revision.version,
     title:revision.title,prompt:revision.prompt,promptMediaIds:revision.promptMediaIds,
     clueIndex:session.usedClues,clueCount:clues.length,
     clues:clues.slice(0,session.usedClues),sessionStatus:session.status,
@@ -318,7 +366,7 @@ export async function runFeedback(p:Record<string,any>,actor:Actor|null) {
     }):Promise.resolve([])
   ]);
   const saved=new Map(previous.map(r=>[r.quizId,r.rating]));
-  return {runId:run.id,items:sessions.map(s=>({
+  return {runId:run.id,locale:run.locale,items:sessions.map(s=>({
     quizId:s.quizId,title:s.revision.title,round:(s.roundIndex??0)+1,
     ratings:ratings.get(s.quizId),myRating:saved.get(s.quizId)??null,
     ratingAccess:ratingAccess(actor,s.quiz.authorId,s.userId)
@@ -371,7 +419,7 @@ export async function weeklyStandings(p:Record<string,any>) {
            pr."solved" AS "solved", (COUNT(*) OVER ())::INTEGER AS "total"
     FROM "PlayRun" pr
     JOIN "User" u ON u."id"=pr."userId"
-    WHERE pr."weeklyId"=${edition.id} AND pr."mode"='WEEKLY' AND pr."status"='FINISHED'
+    WHERE pr."weeklyId"=${edition.id} AND pr."locale"=${p.locale} AND pr."mode"='WEEKLY' AND pr."status"='FINISHED'
       AND pr."officialEligible"=TRUE AND pr."officialEligible"=TRUE AND u."leaderboardEligible"=TRUE AND u."leaderboardOptIn"=TRUE
       AND pr."userId" <> ${edition.hostId}
     ORDER BY pr."score" DESC, pr."completedAt" ASC
@@ -382,13 +430,13 @@ export async function weeklyStandings(p:Record<string,any>) {
     const fallback=await db().$queryRaw<Array<{total:number}>>`
       SELECT COUNT(*)::INTEGER AS "total" FROM "PlayRun" pr
       JOIN "User" u ON u."id"=pr."userId"
-      WHERE pr."weeklyId"=${edition.id} AND pr."mode"='WEEKLY' AND pr."status"='FINISHED'
+      WHERE pr."weeklyId"=${edition.id} AND pr."locale"=${p.locale} AND pr."mode"='WEEKLY' AND pr."status"='FINISHED'
         AND u."leaderboardEligible"=TRUE AND u."leaderboardOptIn"=TRUE
         AND pr."userId" <> ${edition.hostId}
     `;
     total=fallback[0]?.total??0;
   }
-  return {challengeId:edition.id,
+  return {challengeId:edition.id,locale:p.locale,
     items:rows.map(row=>({rank:row.rank,displayName:row.displayName,score:row.score,solved:row.solved})),
     total,rankingBasis:"first official attempt; verified opt-in adult accounts only; score ties share rank"};
 }
