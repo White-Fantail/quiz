@@ -7,6 +7,15 @@ The web UI, REST API and MCP tools reuse `execute()` and the same policy layer. 
 | Action | HTTP REST | MCP tool |
 | --- | --- | --- |
 | Capabilities and schemas | GET /api/v1/catalog | clupio_catalog |
+| Featured weekly edition and host | GET /api/v1/weekly/current | clupio_weekly_current |
+| Creator's five-question weekly submission | POST /api/v1/weekly/submit | clupio_weekly_submit |
+| ADMIN proposal queue and approved schedule | GET /api/v1/weekly/proposals, POST /api/v1/weekly/:id/publish | clupio_weekly_proposals / clupio_weekly_publish |
+| ADMIN suspend an edition | POST /api/v1/weekly/:id/suspend | clupio_weekly_suspend |
+| Weekly official first-attempt leaderboard | GET /api/v1/weekly/:id/standings | clupio_weekly_standings |
+| Begin/resume weekly/five random/infinite | POST /api/v1/runs | clupio_run_start |
+| Current question in fixed run | POST /api/v1/runs/:id/current | clupio_run_current |
+| End infinite practice | POST /api/v1/runs/:id/finish | clupio_run_finish |
+| User's run history | GET /api/v1/runs | clupio_run_history |
 | Reserve R2 media upload / upload small base64 chunk / seal asset | POST /api/v1/media/upload, POST /api/v1/media/:id/chunk, POST /api/v1/media/:id/complete | clupio_media_upload / clupio_media_chunk / clupio_media_complete |
 | Import media by approved HTTPS hostname | POST /api/v1/media/import | clupio_media_import |
 | My media asset library | GET /api/v1/media, GET /api/v1/media/:id | clupio_media_list / clupio_media_get |
@@ -51,7 +60,7 @@ General publication doesn't mean Kids approval: pending/unverified content is ex
 
 ## Operational requirements
 
-The repository contains the API and MCP implementation and an initial Prisma migration. It adds Better Auth Google/Apple sign-in, account linking, MCP OAuth authorization and consent flows in source, but does not provision live OAuth secrets, PostgreSQL, object storage, AI classifiers or a moderation backoffice.
+The repository contains the API and MCP implementation and Prisma migrations for core, media and weekly play. It adds Better Auth Google/Apple sign-in, account linking, MCP OAuth authorization and consent flows in source, but does not provision live OAuth secrets, PostgreSQL, object storage, AI classifiers or a moderation backoffice.
 
 Before remote access:
 1. Follow [Google/Apple SSO and MCP OAuth setup](auth-sso-mcp.md). Configure and migrate development PostgreSQL before production.

@@ -28,6 +28,14 @@ Clupio is a friendly quiz playground centered on progressive clues and the joy o
 - Only allowlisted HTTPS import hosts; defend against SSRF / DNS rebinding / unbounded streaming; preserve attribution/rights metadata. Configure R2 as private, use short-lived signed URLs and expire transient uploads.
 - Media upload ticket/URL alone is not proof of success. Test against a real dev Cloudflare bucket, including hash mismatch, unsupported types, expired tickets, unapproved uploads, cross-account access and progressive reveals, before declaring deployed functionality.
 
+## REQUIRED: Weekly flagship & practice modes
+- The **main Play experience** is a featured author's **globally identical five-question weekly edition**; fixed order, immutable question/revision IDs, UTC Monday week boundary. Random five and infinite play are practice modes. Keep the editorial weekly spotlight prominent in the homepage, `/play`, Studio and MCP.
+- A real signed-in creator proposes five **personally authored** published quizzes. ADMIN alone selects/schedules an edition and verifies celebrity/identity claims. Never invent or automatically declare a creator's celebrity status. Multiple proposals can exist; only one scheduled edition per UTC week/lane.
+- GENERAL and KIDS have **independent** editions, pool eligibility, and UI. Kids must pass affirmative platform safety; no public child rankings. Official General weekly scores are once per verified user/edition and public rankings require separately verified opt-in adult status.
+- Never substitute unapproved questions or change order in the middle of the live weekly challenge. A pin is (quiz ID, revision ID). If a challenge question is restricted, suspend access rather than replace it. Same client-rejected guesses and server-scored clues across every mode.
+- Changes to weekly schedule, submissions, host identity, admin moderation, run lifecycle, rankings and UI must update **both REST and MCP, shared services, Prisma/migration and tests** together; see `docs/play-modes.md`.
+- Preserve exact first-attempt uniqueness, atomic run scoring, replay safety, session token expiry and protection against guessing unrevealed clues. Do not trust browser-side result calculations. Never claim a week is populated before an editor actually schedules an eligible proposal.
+
 ## Product and safety
 1. Keep creator target intent, AI recommendations/difficulty and platform-controlled safety **independent**.
 2. Creators cannot set or override platform safety.

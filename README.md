@@ -80,3 +80,7 @@ Google and Apple sign-in are at `/sign-in`. Link additional providers from `/acc
 ## Cloudflare R2 media library
 
 The authenticated Studio media library at `/studio/media` uploads image, audio and video directly to a private R2 bucket. Web REST and 36 MCP operations use the same asset IDs and authorization rules. The full API table, required environment variables, R2 CORS and lifecycle configuration, upload fallback for MCP clients, checksums, moderation gates, and end-to-end checklist are in [the Cloudflare R2 media guide](docs/media-r2.md). This code does not provision an R2 bucket or activate public uploads automatically.
+
+## Weekly spotlight and practice play
+
+The main `/play` experience is the **featured creator's same five questions for everyone** in a Monday-to-Monday UTC edition, with separate GENERAL and KIDS audiences. Creators submit five owned quizzes through `/studio/weekly` or REST/MCP; an authorized moderator schedules one per week/lane through `/admin/weekly`. Players choose the weekly, random-five or infinite mode, use server-side progressive clues, and receive question and run scores. The weekly public ranking is opt-in, adult-verified GENERAL only. See [weekly play design, tools and deployment](docs/play-modes.md). Configure `PLAY_RUN_SECRET` and apply the weekly Prisma migration before using these endpoints.
