@@ -25,7 +25,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body>
         <header className="site-header">
           <div className="container header-inner">
-            <Link href="/" className="wordmark" aria-label="QuizDip 홈">clupio<span className="wordmark-dot">.</span></Link>
+            <Link href="/" className="wordmark" aria-label="QuizDip 홈">QuizDip<span className="wordmark-dot">.</span></Link>
             <nav aria-label="주요 메뉴" className="nav">
               {navLinks.map(({ href, label }) => (
                 <Link key={href} href={href}>{label}</Link>
