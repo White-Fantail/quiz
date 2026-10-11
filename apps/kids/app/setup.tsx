@@ -13,7 +13,7 @@ export default function SetupScreen(){
  const [code,setCode]=useState(""),[deviceName,setDeviceName]=useState("My iPad");
  const [error,setError]=useState(""),[busy,setBusy]=useState(false);
  if(session.status==="active")return <Redirect href="/" />;
- const parentUrl=publicApi?.origin+"/"+locale+"/account/kids";
+ const parentUrl=publicApi?publicApi.origin+"/"+locale+"/account/kids":null;
  const redeem=async()=>{
    if(busy)return;
    setError("");setBusy(true);
