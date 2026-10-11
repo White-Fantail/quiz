@@ -27,8 +27,8 @@ test("private insights paginates reviews and never accepts a user-supplied owner
   assert.equal(operations.my_quiz_insights.public,false);
   assert.equal("authorId" in parseOperation("my_quiz_insights",{quizId:id,authorId:"spoofed"}),false);
   const src=readFileSync(new URL("../src/modules/platform/studio.ts",import.meta.url),"utf8");
-  assert.match(src,/authorId: owner\.id/);
-  assert.match(src,/select: \{ id: true, rating: true, comment: true, createdAt: true/);
+  assert.match(src,/authorId:\s*owner\.id/);
+  assert.match(src,/id:true,rating:true,comment:true,locale:true,revisionId:true,createdAt:true/);
   assert.match(src,/db\(\)\.report\.groupBy/);
   assert.doesNotMatch(src,/reporterId: true|reporter: \{/);
 });
