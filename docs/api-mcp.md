@@ -126,3 +126,17 @@ All actions require creator authentication; media identifiers and clue structure
 | GET /quizzes/:id/stats?locale=ko&version=1 | quizdip_quiz_stats | Per-language revision statistics |
 | GET /me/quizzes/:id/insights?locale=ko | quizdip_my_quiz_insights | Owner-only localized stats; `locale=all` combined |
 | GET /weekly/:id/insights?locale=all | quizdip_weekly_insights | Host/admin-only anonymized weekly summary |
+
+## Native Kids protected pairing (Phase 2)
+
+The parent action `POST /api/kids/parent` `{action:"native_pair_issue",profileId,pin}` requires an existing same-origin Better Auth browser session, ownership of the child profile and the six-digit guardian PIN. It issues a short-lived one-use random code without returning a device credential to the browser. Its code hash is stored in `KidPairTicket` and redeemed atomically.
+
+The separate `/api/kids/native` endpoint supports:
+- `POST {action:"pair",code,deviceName}` → scoped native bearer device credential, returned once;
+- `GET ?view=session` (Bearer) → profile's pinned locale and expiry;
+- `GET ?view=catalog` (Bearer) → `quiz_list` shared operation with forced `kids:true` and guardian-selected locale, never a client-supplied audience;
+- `POST {action:"unlock",pin}` (Bearer) → verify guardian PIN and revoke credential.
+
+These endpoints are **deliberate REST/MCP parity exceptions**: creating/exchanging a device bearer capability, confirming/ending a child-only device session and verifying guardian PIN must not be exposed to external MCP agents. There is no safe read-only tool that reveals a child bearer, pairing code or PIN. Already-existing quiz listing and Kids moderation continue to use common REST/MCP `execute` operations with server authorization. Native bearer tokens **never** authenticate general web REST, Studio, Admin or MCP.
+
+Migration: `20261012190000_kids_native_pairing`, preserving old `clientKind=WEB` sessions. A mobile app is not production-ready until migrated Postgres, actual Better Auth login, guardian PIN lockout, cross-device revocation, real iPad/Android, token expiry, restore/reinstall and locale/content approvals pass E2E. This feature does not expose child progress or new gameplay operations (Phase 3).
