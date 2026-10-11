@@ -10,6 +10,16 @@ test("new quiz publications have a rolling 24-hour limit of 100", () => {
   assert.match(publish, /if \(recent >= 100\) fail\(429, "rate_limit", "Daily publication limit reached"\)/);
 });
 
+test("ADMIN bypasses only the publication quota; other users still have 100/day", () => {
+  const publish = quizService.slice(quizService.indexOf("export async function quizPublish"), quizService.indexOf("/** Explicitly classify a legacy original"));
+  assert.match(publish, /if \(old\.publication !== "PUBLISHED" && user\.role !== "ADMIN"\)/);
+  assert.match(publish, /if \(recent >= 100\) fail\(429, "rate_limit", "Daily publication limit reached"\)/);
+  assert.match(publish, /if \(p\.confirm !== true\) fail\(400, "confirmation_required"/);
+  assert.match(publish, /if \(old\.safetyStatus === "RESTRICTED"\) fail\(403, "restricted_quiz"/);
+  assert.match(publish, /await validateMediaReferences\(user\.id, currentRevision\.promptMediaIds/);
+  assert.match(publish, /await tx\.auditLog\.create\(\{ data: \{ actorId: user\.id, action: "quiz\.publish"/);
+});
+
 test("quiz creation has no per-user daily count or rate-limit guard", () => {
   const create = quizService.slice(quizService.indexOf("export async function quizCreate"), quizService.indexOf("export async function quizUpdate"));
   assert.doesNotMatch(create, /db\(\)\.quiz\.count/);
