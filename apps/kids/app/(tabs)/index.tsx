@@ -51,7 +51,7 @@ export default function KidsHome(){
    <Text style={styles.smallTitle}>{t("native.connectTitle")}</Text>
    <Text style={styles.note}>{health==="ready"?t("native.connected"):
       health==="missing"?t("native.notConfigured"):
-      health==="error"?t("native.unavailable"):t("common.loading")}</Text>
+      health==="error"?t("native.unavailable"):t("kids.explore.loading")}</Text>
    {health==="error"?<Pressable accessibilityRole="button" onPress={()=>setRetry(v=>v+1)}>
      <Text style={styles.retry}>{t("native.retry")} ↻</Text>
    </Pressable>:null}
