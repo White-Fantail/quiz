@@ -57,7 +57,14 @@ export const operations = {
     kind: mediaKinds, mimeType: mediaFormats, filename: z.string().min(1).max(200), sizeBytes: z.number().int().positive(),
     sha256: z.string().regex(/^[a-f0-9]{64}$/), ...mediaMetadata
   }) },
-  media_complete: { public: false, description: "Verify uploaded bytes and finalize immutable media asset", schema: z.object({ id: mediaId }) },
+  media_chunk: { public: false, description: "Upload a 512 KiB base64 chunk through MCP when direct binary PUT is unavailable", schema: z.object({
+    id: mediaId, index: z.number().int().min(0).max(127),
+    dataBase64: z.string().min(4).max(720000).regex(/^[A-Za-z0-9+/]+={0,2}$/),
+    sha256: z.string().regex(/^[a-f0-9]{64}$/)
+  }) },
+  media_complete: { public: false, description: "Verify uploaded bytes or sequential MCP chunks and finalize immutable media", schema: z.object({
+    id: mediaId, partCount: z.number().int().min(1).max(128).optional()
+  }) },
   media_import: { public: false, description: "Import HTTPS media from a server-approved host into private storage", schema: z.object({
     url: z.url().max(2000), kind: mediaKinds, filename: z.string().min(1).max(200), ...mediaMetadata
   }) },

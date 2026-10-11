@@ -3,7 +3,7 @@ import sharp from "sharp";
 import { db } from "./db";
 import { fail, requireActor, type Actor } from "./auth";
 import {
-  LIMITS, MIME_KIND, uploadTicket, previewUrl, putObject,
+  LIMITS, MIME_KIND, CHUNK_SIZE, partKey, readChunks, uploadTicket, previewUrl, putObject,
   copyVerified, deleteObject, readObject, checkSize, sniff, importExternal,
 } from "./storage";
 
@@ -50,6 +50,20 @@ export async function mediaUpload(p: Record<string, any>, actor: Actor | null) {
   } });
   return { ...mediaSummary(item), upload: ticket, next: "PUT the binary with exactly the returned headers, then call media_complete" };
 }
+export async function mediaChunk(p: Record<string, any>, actor: Actor | null) {
+  const item = await asset(p.id, actor);
+  if (item.status !== "UPLOADING" || !item.uploadKey ||
+    !item.uploadExpiresAt || item.uploadExpiresAt.getTime() < Date.now())
+    fail(409, "invalid_upload_state", "Upload reservation is no longer active");
+  const bytes = Buffer.from(p.dataBase64, "base64");
+  if (!bytes.length || bytes.length > CHUNK_SIZE ||
+    bytes.toString("base64") !== p.dataBase64)
+    fail(400, "invalid_chunk", "Chunk is not canonical base64 or is too large");
+  const actualHash = createHash("sha256").update(bytes).digest("hex");
+  if (p.sha256 !== actualHash) fail(422, "checksum_mismatch", "Chunk hash does not match");
+  await putObject(partKey(item.uploadKey, p.index), bytes, "application/octet-stream");
+  return { id: item.id, index: p.index, uploadedBytes: bytes.length, next: "Send the next chunk, then call media_complete with partCount" };
+}
 export async function mediaComplete(p: Record<string, any>, actor: Actor | null) {
   const item = await asset(p.id, actor);
   if (item.status === "READY") return mediaSummary(item);
@@ -57,18 +71,22 @@ export async function mediaComplete(p: Record<string, any>, actor: Actor | null)
     fail(409, "invalid_upload_state", "Asset is not waiting for upload");
   if (!item.uploadExpiresAt || item.uploadExpiresAt.getTime() < Date.now())
     fail(410, "upload_expired", "Media upload reservation expired");
-  const bytes = await readObject(item.uploadKey, LIMITS[item.kind]);
+  const bytes = p.partCount
+    ? await readChunks(item.uploadKey, p.partCount, LIMITS[item.kind])
+    : await readObject(item.uploadKey, LIMITS[item.kind]);
   if (bytes.length !== item.sizeBytes) fail(422, "size_mismatch", "Uploaded size is different from reservation");
   const hash = createHash("sha256").update(bytes).digest("hex");
   if (hash !== item.sha256) fail(422, "checksum_mismatch", "Uploaded checksum is different from reservation");
   await sniff(bytes, item.kind, item.mimeType);
   // Copy the verified snapshot to an immutable key: the PUT ticket cannot overwrite it.
-  await copyVerified(item.uploadKey, item.storageKey, item.mimeType);
+  if (p.partCount) await putObject(item.storageKey, bytes, item.mimeType);
+  else await copyVerified(item.uploadKey, item.storageKey, item.mimeType);
   const updated = await db().mediaAsset.updateMany({
     where: { id: item.id, ownerId: item.ownerId, status: "UPLOADING" },
     data: { status: "READY", uploadKey: null, uploadExpiresAt: null },
   });
-  await deleteObject(item.uploadKey).catch(() => undefined);
+  if (!p.partCount) await deleteObject(item.uploadKey).catch(() => undefined);
+  // Chunk objects are temporary; configure Cloudflare R2 to expire uploads/ after one day.
   if (updated.count === 0) {
     const latest = await asset(item.id, actor);
     if (latest.status !== "READY") fail(409, "upload_conflict", "Upload completion state changed");

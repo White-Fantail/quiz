@@ -95,6 +95,23 @@ export async function readObject(key: string, max: number): Promise<Buffer> {
   }
   return Buffer.concat(chunks, length);
 }
+export const CHUNK_SIZE = 512 * 1024;
+export function partKey(uploadKey: string, index: number) {
+  return uploadKey + "/parts/" + String(index).padStart(3, "0");
+}
+export async function readChunks(uploadKey: string, count: number, max: number): Promise<Buffer> {
+  const pieces: Buffer[] = [];
+  let total = 0;
+  for (let i = 0; i < count; i++) {
+    const bytes = await readObject(partKey(uploadKey, i), CHUNK_SIZE);
+    if (!bytes.length || bytes.length > CHUNK_SIZE)
+      fail(422, "invalid_chunk", "Media chunk is empty or too large");
+    total += bytes.length;
+    if (total > max) fail(413, "media_too_large", "Combined media exceeds allowed size");
+    pieces.push(bytes);
+  }
+  return Buffer.concat(pieces, total);
+}
 export function checkSize(kind: string, size: number) {
   if (!LIMITS[kind] || !Number.isSafeInteger(size) || size <= 0 || size > LIMITS[kind])
     fail(413, "media_too_large", "File exceeds the per-type size limit");

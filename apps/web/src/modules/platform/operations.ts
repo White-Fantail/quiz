@@ -5,7 +5,7 @@ import { playStart, playClue, playGuess } from "./play";
 import { reviewsList, reviewUpsert, reportCreate, reportsMine, packCreate, packList, packUpdate } from "./social";
 import { quizStats, myStats, me, leaderboard } from "./analytics";
 import { userGet, creatorReviewsList, creatorReviewUpsert } from "./creators";
-import { mediaUpload, mediaComplete, mediaImport, mediaList, mediaGet, mediaUpdate,
+import { mediaUpload, mediaChunk, mediaComplete, mediaImport, mediaList, mediaGet, mediaUpdate,
   mediaDelete, mediaTransform, mediaReview, signedPlayMedia } from "./media";
 
 export async function execute(name: Operation, raw: unknown, actor: Actor | null): Promise<unknown> {
@@ -43,6 +43,7 @@ export async function execute(name: Operation, raw: unknown, actor: Actor | null
     case "creator_reviews_list": return creatorReviewsList(p);
     case "creator_review_upsert": return creatorReviewUpsert(p, actor);
     case "media_upload": return mediaUpload(p, actor);
+    case "media_chunk": return mediaChunk(p, actor);
     case "media_complete": return mediaComplete(p, actor);
     case "media_import": return mediaImport(p, actor);
     case "media_list": return mediaList(p, actor);

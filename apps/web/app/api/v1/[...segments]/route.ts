@@ -37,6 +37,7 @@ function route(method: string, segments: string[]): Match | null {
     if (b && !c && method === "GET") return { op: "media_get", args: { id: b } };
     if (b && !c && method === "PATCH") return { op: "media_update", args: { id: b } };
     if (b && !c && method === "DELETE") return { op: "media_delete", args: { id: b } };
+    if (b && c === "chunk" && method === "POST") return { op: "media_chunk", args: { id: b } };
     if (b && c === "complete" && method === "POST") return { op: "media_complete", args: { id: b } };
     if (b && c === "transform" && method === "POST") return { op: "media_transform", args: { id: b } };
     if (b && c === "review" && method === "POST") return { op: "media_review", args: { id: b } };
