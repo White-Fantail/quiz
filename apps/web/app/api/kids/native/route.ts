@@ -38,6 +38,18 @@ export async function GET(request:Request) {
     ...(data.answerType?{answerType:data.answerType}:{}),
     ...(data.topic?{topic:data.topic}:{})
   },null);
+  // Age is a *recommendation* separate from trusted Kids safety approval.
+  // Reorder only within the already safely paginated server results.
+  const age=kid.profile.ageBand==="EARLY"?6:kid.profile.ageBand==="MIDDLE"?9:12;
+  const fit=(item:any)=>{
+    const range=item?.recommendedAudience?.ageRange;
+    if(!range)return 1;
+    if(typeof range.minimum==="number" && age<range.minimum)return 2;
+    if(typeof range.maximum==="number" && age>range.maximum)return 2;
+    return 0;
+  };
+  const items=(result as any)?.items;
+  if(Array.isArray(items)) return response({...result,items:[...items].sort((a,b)=>fit(a)-fit(b))});
   return response(result);
  }catch(error){return errorResponse(error);}
 }
