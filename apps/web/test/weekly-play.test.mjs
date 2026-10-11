@@ -75,7 +75,7 @@ test("kids weekly eligibility excludes pending and restricted questions and neve
   const source=load("src/modules/platform/runs.ts");
   assert.match(source,/safetyStatus: "APPROVED", kidsEligible: true/);
   assert.match(source,/edition\.lane!=="GENERAL"/);
-  assert.match(source,/scoreRanks/);
+  assert.match(source,/RANK\(\) OVER/);
 });
 
 test("web play is wired to server-authoritative gameplay and media playback",()=>{
@@ -95,8 +95,8 @@ test("adult public ranking requires both opt-in consent and trusted verification
   const schema=load("../../prisma/schema.prisma");
   assert.match(source,/leaderboardOptIn: true/);
   assert.match(source,/admin\.role!=="ADMIN"/);
-  assert.match(run,/leaderboardOptIn:true/);
-  assert.match(run,/row\.userId!==edition\.hostId/);
+  assert.match(run,/u\."leaderboardOptIn"=TRUE/);
+  assert.match(run,/pr\."userId" <>/);
   assert.match(schema,/leaderboardOptIn\s+Boolean\s+@default\(false\)/);
   assert.throws(()=>parseOperation("ranking_optin",{enabled:true}));
   assert.equal(parseOperation("ranking_optin",{enabled:true,confirm:true}).enabled,true);
