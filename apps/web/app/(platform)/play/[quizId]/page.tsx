@@ -1,13 +1,16 @@
 "use client";
 
 import Link from "next/link";
+import { RatingBadge, RatingButtons, RatingSignIn, type RatingAccess } from "../../../../src/components/quiz-ratings";
+import type { RatingSummary } from "../../../../src/modules/quiz/rating-metadata";
 import { useParams } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 
 type Clue = { type: "text" | "image" | "audio" | "video" | "map"; text?: string;
   mediaId?: string; map?: {latitude:number;longitude:number;zoom?:number} };
 type Session = { sessionId: string; sessionToken: string; title: string;
-  prompt: string; promptMediaIds: string[]; clue: Clue; clueIndex: number; clueCount: number };
+  prompt: string; promptMediaIds: string[]; clue: Clue; clueIndex: number; clueCount: number;
+  ratings:RatingSummary;myRating:number|null;ratingAccess:RatingAccess };
 type Media = { mediaId:string; url:string; kind:string };
 
 async function api(path: string, body: unknown): Promise<any> {
@@ -116,6 +119,7 @@ export default function SingleQuizPage() {
       <div className="play-top">
         <span className="small-tag">단계별 단서</span>
         <span className="clue-count">단서 {session.clueIndex} / {session.clueCount}</span>
+        <RatingBadge ratings={session.ratings}/>
       </div>
       <h1>{session.title}</h1>
       <h2>{session.prompt}</h2>
@@ -151,6 +155,12 @@ export default function SingleQuizPage() {
       {feedback && <div className={"feedback" + (status === "SOLVED" ? " success" : "")} role="status">
         {feedback}
         {status !== "ACTIVE" && <p>정답: <strong>{answer}</strong> · {score}점</p>}
+      </div>}
+      {status !== "ACTIVE" && <div className="single-rating-review">
+        <h3>이 문제는 어땠나요?</h3>
+        <RatingButtons quizId={quizId} initialRating={session.myRating} access={session.ratingAccess}
+          onSaved={(ratings,value)=>setSession(old=>old?{...old,ratings,myRating:value}:old)}/>
+        {session.ratingAccess==="SIGN_IN"&&<RatingSignIn destination={"/play/"+quizId}/>}
       </div>}
       {status !== "ACTIVE" && <div className="actions">
         <Link className="btn btn-primary" href="/discover">다른 퀴즈 발견하기 →</Link>

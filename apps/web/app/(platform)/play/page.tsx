@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { RatingBadge, RatingButtons, RatingSignIn, type RatingAccess } from "../../../src/components/quiz-ratings";
+import type { RatingSummary } from "../../../src/modules/quiz/rating-metadata";
 import { useCallback, useEffect, useState } from "react";
 
 type Lane = "GENERAL" | "KIDS";
@@ -14,8 +16,9 @@ type RunInfo = {runId:string;runToken:string;mode:Mode;lane:Lane;weekly?:Edition
   solved?:number;failed?:number;exhausted?:boolean;message?:string};
 type Round = RunInfo & {sessionId:string;sessionToken:string;round:number;quizId:string;title:string;
   prompt:string;promptMediaIds:string[];clues:Clue[];clueIndex:number;clueCount:number;
-  sessionStatus:string;canGuess?:boolean};
+  sessionStatus:string;canGuess?:boolean;ratings?:RatingSummary;myRating?:number|null;ratingAccess?:RatingAccess};
 type Ranking = {rank:number;displayName:string;score:number;solved:number};
+type FeedbackItem = {quizId:string;round:number;title:string;ratings:RatingSummary;myRating:number|null;ratingAccess:RatingAccess};
 type MediaPreview = {url:string;kind:string;mimeType:string;mediaId:string};
 
 async function api(path:string, method:"GET"|"POST"="GET",body?:unknown):Promise<any> {
@@ -77,6 +80,9 @@ export default function PlayPage() {
   const [rankingAvailable,setRankingAvailable]=useState(false);
   const [myHistory,setMyHistory]=useState<RunInfo[]>([]);
   const [mode,setMode]=useState<Mode>("RANDOM_FIVE");
+  const [questionsToRate,setQuestionsToRate]=useState<FeedbackItem[]>([]);
+  const [ratingBusy,setRatingBusy]=useState(false);
+  const [ratingError,setRatingError]=useState("");
 
   useEffect(()=>{
     // Deep links from Kids and campaigns must preserve the audience selection.
@@ -101,6 +107,17 @@ export default function PlayPage() {
     return ()=>{alive=false;};
   },[lane,edition?.available,edition?.id,round?.sessionStatus,run?.status]);
 
+  useEffect(()=>{
+    if(!run||run.status!=="FINISHED"||round)return;
+    let alive=true;
+    setRatingBusy(true);setRatingError("");
+    void api("/runs/"+run.runId+"/feedback","POST",{runToken:run.runToken})
+      .then(data=>{if(alive)setQuestionsToRate(data.items??[]);})
+      .catch(e=>{if(alive)setRatingError(e instanceof Error?e.message:"평가할 문제를 불러오지 못했어요.");})
+      .finally(()=>{if(alive)setRatingBusy(false);});
+    return ()=>{alive=false;};
+  },[run?.runId,run?.status,round]);
+
   const showRound=useCallback(async (r:RunInfo) => {
     const data=await api("/runs/"+r.runId+"/current","POST",{runToken:r.runToken,avoidQuizIds:rememberedQuizzes()});
     if(data.status==="FINISHED" && !data.sessionId){
@@ -122,7 +139,7 @@ export default function PlayPage() {
   },[]);
 
   async function start(nextMode:Mode) {
-    setBusy(true);setError("");setFeedback("");
+    setBusy(true);setError("");setFeedback("");setQuestionsToRate([]);setRatingError("");
     try{
       const value=await api("/runs","POST",{mode:nextMode,lane,avoidQuizIds:rememberedQuizzes()});
       setMode(nextMode);setRun(value);
@@ -251,6 +268,7 @@ export default function PlayPage() {
       {round?<>
         <div className="round-progress"><span>문제 {round.round}{run.total?" / "+run.total:""} </span>
           <span>단서 {round.clueIndex} / {round.clueCount}</span></div>
+        <RatingBadge ratings={round.ratings}/>
         <h2>{round.prompt}</h2>
         {!!round.promptMediaIds?.length&&<div className="clue-media-list">
           {round.promptMediaIds.map(id=><div key={id}>{media[id]?<MediaPart item={media[id]}/>:<p className="muted">미디어를 불러올 수 없어요.</p>}</div>)}
@@ -293,6 +311,20 @@ export default function PlayPage() {
           {run.mode==="WEEKLY"&&<p>모두에게 같은 다섯 문제였어요. 이번 주의 다른 도전자들과 결과를 비교해 보세요.</p>}
           {run.mode==="WEEKLY"&&!run.official&&<p>비로그인 또는 이전에 본 문제가 있는 기록은 공식 순위에 포함되지 않아요.</p>}
           {run.exhausted&&<p>{run.message||"새로운 문제를 모두 풀었어요. 새 퀴즈가 등록되면 다시 즐겨 주세요."}</p>}
+          <div className="run-rating-review">
+            <h3>방금 풀었던 문제는 어땠나요?</h3>
+            <p className="muted">흐름을 끊지 않도록 게임이 끝난 뒤 모았어요. 평가는 선택 사항이에요.</p>
+            {ratingBusy&&<p role="status">평가할 문제를 불러오는 중…</p>}
+            {ratingError&&<p className="feedback" role="alert">{ratingError}</p>}
+            {!ratingBusy&&!ratingError&&questionsToRate.length===0&&<p className="muted">평가할 완료 문제가 없어요.</p>}
+            {questionsToRate.map(q=><div className="run-rating-row" key={q.quizId}>
+              <div className="run-rating-question"><strong>{q.round}. {q.title}</strong>
+                <RatingBadge ratings={q.ratings}/></div>
+              <RatingButtons quizId={q.quizId} initialRating={q.myRating} access={q.ratingAccess}
+                onSaved={(ratings,value)=>setQuestionsToRate(old=>old.map(row=>row.quizId===q.quizId?{...row,ratings,myRating:value}:row))}/>
+            </div>)}
+            {questionsToRate.some(q=>q.ratingAccess==="SIGN_IN")&&<RatingSignIn destination="/play"/>}
+          </div>
           {run.mode==="RANDOM_FIVE"&&<button type="button" className="btn btn-primary"
             disabled={busy} onClick={()=>void start("RANDOM_FIVE")}>새로운 5문제 더 풀기 →</button>}
         </div>
