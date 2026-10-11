@@ -120,7 +120,7 @@ export async function weeklySubmit(p:Record<string,any>,actor:Actor|null) {
   if (existing>=3) fail(429,"proposal_limit","At most three submissions per creator and week");
   const quizzes=await db().quiz.findMany({
     where:{id:{in:p.quizIds},authorId:user.id,...eligibleQuizWhere(p.lane)},
-    include:{revisions:{where:{version:{gte:1}},orderBy:{version:"desc"},take:1}}
+    include:{revisions:{where:{localization:{origin:{in:["ORIGINAL","LEGACY"]}}},orderBy:{version:"desc"},take:1}}
   });
   if (quizzes.length!==5) fail(422,"invalid_weekly_questions","All five questions must be your own published and lane-eligible quizzes");
   const snapshot=new Map(quizzes.map(q=>[q.id,{revisionId:q.revisions[0]?.id,version:q.currentVersion}]));

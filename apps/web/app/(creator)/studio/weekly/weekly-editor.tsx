@@ -2,6 +2,8 @@
 import { useEffect,useState } from "react";
 type Quiz={id:string;title:string;publication:string;safetyStatus:string;kidsEligible:boolean;version:number};
 type Lane="GENERAL"|"KIDS";
+type WeeklyMetrics={locale:string;started:number;finished:number;roundsCompleted:number;successRate:number|null;averageCompletedRunScore:number|null};
+type WeeklyInsights={weekStart:string;status:string;languages:WeeklyMetrics[]};
 function upcomingMonday(){
   const now=new Date(),day=(now.getUTCDay()+6)%7;
   const utc=new Date(Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),now.getUTCDate()));
@@ -18,6 +20,7 @@ export default function WeeklyEditor(){
   const [busy,setBusy]=useState(false);
   const [message,setMessage]=useState("");
   const [error,setError]=useState("");
+  const [weeklyInsights,setWeeklyInsights]=useState<WeeklyInsights|null>(null);
   useEffect(()=>{
     void fetch("/api/v1/quizzes?mine=true&limit=100",{credentials:"same-origin",cache:"no-store"})
       .then(r=>r.json().then(x=>({ok:r.ok,x})))
@@ -25,6 +28,26 @@ export default function WeeklyEditor(){
       .catch(e=>setError(e.message));
   },[]);
   useEffect(()=>{setSelected([])},[lane]);
+  useEffect(()=>{
+    let active=true;setWeeklyInsights(null);
+    async function load(){
+      try{
+        const options={credentials:"same-origin" as const,cache:"no-store" as const};
+        const [meRes,weekRes]=await Promise.all([
+          fetch("/api/v1/me",options),fetch("/api/v1/weekly/current?locale=en&lane="+lane,options)
+        ]);
+        if(!active || !meRes.ok || !weekRes.ok)return;
+        const me=(await meRes.json()).data,current=(await weekRes.json()).data;
+        if(!active || !current?.id || current.host?.id!==me?.id)return;
+        const result=await fetch("/api/v1/weekly/"+encodeURIComponent(current.id)+"/insights?locale=all",options);
+        if(!result.ok)return;
+        const metrics=(await result.json()).data as WeeklyInsights;
+        if(active)setWeeklyInsights(metrics);
+      }catch{ /* Only the scheduled weekly host sees private aggregate insights. */ }
+    }
+    void load();
+    return()=>{active=false;};
+  },[lane]);
   const eligible=all.filter(q=>q.publication==="PUBLISHED"&&q.safetyStatus!=="RESTRICTED"&&
     (lane==="GENERAL"||(q.safetyStatus==="APPROVED"&&q.kidsEligible)));
   function toggle(id:string){
@@ -45,6 +68,18 @@ export default function WeeklyEditor(){
   }
   return <form className="placeholder-panel creator-weekly" onSubmit={e=>void submit(e)}>
     <h2>주간 다섯 문제 제출</h2>
+    {weeklyInsights&&<section className="placeholder-panel creator-weekly-insights">
+      <h3>내 주간 챌린지 · 언어별 진행 현황</h3>
+      <p className="muted">개별 참가자 정보 없이 집계한 결과입니다.</p>
+      <div className="studio-metric-grid">
+        {weeklyInsights.languages.map(item=><div key={item.locale}>
+          <small>{item.locale==="en"?"English":item.locale==="ko"?"한국어":"미분류"}</small>
+          <strong>{item.finished}회 완료</strong>
+          <span>시작 {item.started}회 · 정답률 {item.successRate===null?"—":Math.round(item.successRate*100)+"%"}</span>
+          <small>평균 완료 점수: {item.averageCompletedRunScore===null?"—":Math.round(item.averageCompletedRunScore)}</small>
+        </div>)}
+      </div>
+    </section>}
     <div className="media-editor">
       <label>대상 모드
         <select value={lane} onChange={e=>setLane(e.target.value as Lane)}>
