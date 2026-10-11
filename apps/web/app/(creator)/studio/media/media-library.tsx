@@ -69,7 +69,7 @@ function MediaThumbnail({ item }: { item: Media }) {
     if (item.status !== "READY" || item.kind !== "image") return;
     let cancelled = false;
     const load = () => {
-      void api("/media/"+item.id).then((details: MediaDetails) => {
+      void api("/media/"+item.id+"?purpose=thumbnail").then((details: MediaDetails) => {
         if (!cancelled) {
           if (details.thumbnailUrl || details.previewUrl) setSrc(details.thumbnailUrl || details.previewUrl || "");
           else setFailed(true);
