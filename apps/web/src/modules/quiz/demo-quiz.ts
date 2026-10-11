@@ -1,4 +1,4 @@
-import type { QuizQuestion } from "@clupio/domain";
+import type { QuizQuestion } from "@quizdip/domain";
 
 /** Sample content only: this is not a published, moderated catalog item. */
 export const demoQuiz: QuizQuestion = {
