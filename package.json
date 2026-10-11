@@ -17,7 +17,7 @@
     "build": "node scripts/build.mjs",
     "start": "npm run start --workspace @quizdip/web",
     "typecheck": "npm run db:generate && npm run typecheck --workspace @quizdip/domain && npm run typecheck --workspace @quizdip/i18n && npm run typecheck --workspace @quizdip/api-client && npm run typecheck --workspace @quizdip/web && npm run kids:typecheck",
-    "test": "node --experimental-strip-types --test packages/domain/test/*.test.mjs packages/i18n/test/*.test.mjs packages/api-client/test/*.test.mjs apps/web/test/*.test.mjs",
+    "test": "node --experimental-strip-types --test packages/domain/test/*.test.mjs packages/i18n/test/*.test.mjs packages/api-client/test/*.test.mjs apps/web/test/*.test.mjs apps/kids/test/*.test.mjs",
     "kids:dev": "npm run start --workspace @quizdip/kids",
     "kids:typecheck": "npm run typecheck --workspace @quizdip/kids",
     "kids:bundle:ios": "npm run bundle:ios --workspace @quizdip/kids",
