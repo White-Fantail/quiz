@@ -1,8 +1,8 @@
 import { randomBytes, createHash, scryptSync, timingSafeEqual } from "node:crypto";
 
 /** Tokens are random capabilities, persisted only by hash; PINs are salted and memory-hard. */
-import { KIDS_COOKIE } from "./constants";
-export { KIDS_COOKIE, MAX_DEVICE_AGE_SECONDS } from "./constants";
+import { KIDS_COOKIE } from "./constants.ts";
+export { KIDS_COOKIE, MAX_DEVICE_AGE_SECONDS } from "./constants.ts";
 
 export function validPin(pin: unknown): pin is string {
   return typeof pin === "string" && /^[0-9]{6}$/.test(pin);
