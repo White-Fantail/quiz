@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback,useEffect,useState,type FormEvent } from "react";
-import { useTranslation } from "../../../src/i18n/provider";
+import { useLocale,useTranslation } from "../../../src/i18n/provider";
 
 type Profile = {id:string;nickname:string;ageBand:"EARLY"|"MIDDLE"|"OLDER";locale:"en"|"ko";sessionMinutes:number};
 type Device = {id:string;profileId:string;deviceName:string;createdAt:string;expiresAt:string};
@@ -20,7 +20,7 @@ async function parentRequest(method:"GET"|"POST"="GET",action?:object):Promise<a
 }
 /** Bootstrap is an ADULT account setting, never a child game or browser kid session. */
 export default function KidsFamilySettings(){
- const t=useTranslation();
+ const t=useTranslation(),locale=useLocale();
  const [overview,setOverview]=useState<Overview|null>(null);
  const [error,setError]=useState(""),[notice,setNotice]=useState("");
  const [busy,setBusy]=useState(false),[loading,setLoading]=useState(true);
@@ -62,12 +62,9 @@ export default function KidsFamilySettings(){
      <select value={draft.locale} onChange={e=>input("locale",e.target.value)}>
        <option value="en">English</option><option value="ko">한국어</option>
      </select></label>
-   <label>{t("kids.guardian.sessionLength")}
-     <select value={draft.sessionMinutes} onChange={e=>input("sessionMinutes",e.target.value)}>
-       <option value={0}>{t("kids.guardian.unlimited")}</option>
-       {[15,30,60,120].map(v=><option key={v} value={v}>{v} {t("kids.guardian.minutes")}</option>)}
-     </select>
-   </label>
+   <p className="muted">{locale==="ko"?
+     "새 자녀의 기본 이용 시간은 하루 30분, 연속 30분이에요. 이후 Kids 앱의 보호자 공간에서 바꿀 수 있어요.":
+     "New child profiles start with a 30-minute daily and continuous play allowance. Adjust these limits later in the app's Parents area."}</p>
  </div>;
  if(loading)return <p role="status">{t("common.loading")}</p>;
  if(!overview)return <p role="alert" className="feedback">{error||t("kids.guardian.loadError")}</p>;
