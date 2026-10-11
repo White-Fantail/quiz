@@ -1,6 +1,24 @@
 # QuizDip Kids — 독립 모바일 앱 전환 개발 계획
 
-> 상태: Phase 1–3 소스 구현 / 실제 빌드·배포·실기기 E2E 미검증. 기준 브랜치: `dev` (2026-10-12 확인). 이 문서는 **모바일 기능 개발 4단계 + 기존 웹 Kids 제거 1단계**를 정의한다. 현재 웹 구현 완료 상태와 목표 구현 상태를 혼동하지 않는다.
+> 상태: Phase 1–4 소스 구현 / DB 마이그레이션·실제 빌드·실기기 E2E 미검증. 기준 브랜치: `dev` (2026-10-12 확인). 이 문서는 **모바일 기능 개발 4단계 + 기존 웹 Kids 제거 1단계**를 정의한다. 현재 웹 구현 완료 상태와 목표 구현 상태를 혼동하지 않는다.
+
+## Phase 4 implementation record (2026-10-12)
+
+**Implemented in `dev` source, not yet runtime certified:**
+
+- An in-app guardian zone opened by a verified 6-digit PIN: device-bound **ten-minute** `KidParentAccess` with hashed token, revoked when leaving the app UI; never a Better Auth adult REST/MCP identity. Parent can add/edit/remove children, change language/age/limits/time zone, view linked devices, remotely revoke, issue one-time new-device codes (requires fresh PIN), change PIN, and explicitly delete private history and usage.
+- Parent-only 7-day activity dashboard: plays, solved, success percentage, minutes by day, most played nonspoiler topics. The underlying anonymous Kids data never appears on public accounts or rankings.
+- Daily budget and continuous-session caps stored **separately from legacy `sessionMinutes`**. `KidUsageMinute(profileId,utcMinute)` is unique, transactional and shared across child devices; time and date are determined by server and guardian-chosen IANA time zone. 45-second app foreground pulses, fail-closed on offline/unverified foreground, reminder break intervals, enforced ten-minute rest after the session cap; catalog, play/media and treasure routes enforce recent pulse and daily/session limits.
+- Privacy: no clickable external browser from an unpaired child's setup screen; unused Android microphone, precise/coarse location and advertising ID permissions blocked; PIN/device bearer never transmitted to adult REST/MCP. Guardian-confirmed profile or private history deletion; 90-day minute-slot expiry maintenance endpoint requiring CRON_SECRET and separate scheduler setup; one-day old expired parent/pair tokens pruned.
+- Prisma migration `20261012210000_kids_native_parent_time`, TypeScript API clients, native parent/time UI, EN/KO labels, API-client tests, policy regressions, IANA DST tests, and detailed [Phase 4 release runbook](kids-native-phase4-release.md).
+
+**Important incompleteness:**
+
+- Tests, web/native typecheck, builds, actual DB migrations, EAS/TestFlight, Android internal testing, signed R2 media, Google/Apple login, permission and network audits have **not been executed and certified** from this environment. Current Vercel build-rate-limit status is not build validation. See the release runbook's explicit unchecked acceptance matrix.
+- First-time guardian login / native-device bootstrap **still relies on the authenticated web `/kids/parent`**. Before Phase 5 removes the old Kids web UI, relocate bootstrap to an adult-account settings route or implement audited native system-browser OAuth; otherwise unpaired devices would be stranded.
+- The cleanup route is **not scheduled** by committing it: set a CRON_SECRET and deploy an authenticated daily scheduler. Validate published privacy policy/backup retention and Apple Kids Category / Google Play Families review separately.
+- Rich native geographic map view, fully audited age-personalized discovery, accessibility/real-media test evidence and store reviewer approval remain independent release gates.
+- Keep original Kids web UI and old cookie auth until Phase 5 with a proven rollback and guardian onboarding replacement.
 
 ## Phase 3 implementation record (2026-10-12)
 
