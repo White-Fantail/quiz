@@ -2,6 +2,7 @@ import { createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from
 import { db } from "./db";
 import { fail, requireActor, type Actor } from "./auth";
 import { utcWeekStart, WEEK_MS } from "./weekly-clock";
+import { selectUnseen } from "./unseen-questions";
 
 export type Lane = "GENERAL" | "KIDS";
 export type RunMode = "WEEKLY" | "RANDOM_FIVE" | "INFINITE";
@@ -154,21 +155,29 @@ function shuffle<T>(items:T[]):T[] {
   }
   return out;
 }
-async function randomChoices(lane: Lane,count:number,avoid:string[]=[]) {
-  // Keep pool bounded; random five requires five distinct questions in a run.
+async function userExcludedQuestions(userId:string):Promise<string[]> {
+  const [sessions,allocated]=await Promise.all([
+    db().playSession.findMany({where:{userId},select:{quizId:true}}),
+    db().playRunQuestion.findMany({where:{run:{userId}},select:{quizId:true}})
+  ]);
+  return [...new Set([...sessions,...allocated].map(row=>row.quizId))];
+}
+async function randomChoices(lane:Lane,count:number,avoid:string[]=[],allowEmpty=false) {
   const reserved=await db().weeklyQuestion.findMany({
     where:{challenge:{status:"SCHEDULED",weekEnd:{gt:new Date()}}},
     select:{quizId:true}
   });
-  const reservedIds=reserved.map(row=>row.quizId);
-  const pool=await db().quiz.findMany({where:{...eligibleQuizWhere(lane),id:{notIn:reservedIds}},
-    orderBy:{updatedAt:"desc"},take:2000,select:{id:true,currentVersion:true,
-      revisions:{orderBy:{version:"desc"},take:1,select:{id:true}}}});
-  const eligible=pool.filter(q=>q.revisions[0]?.id);
-  const candidates=eligible.filter(q=>!avoid.includes(q.id));
-  const choice=shuffle(candidates.length>=count?candidates:eligible).slice(0,count);
-  if(choice.length<count) fail(409,"not_enough_questions",
-    count===5 ? "랜덤 5문제를 시작하려면 공개 문제가 다섯 개 필요해요." : "이 모드를 시작하려면 공개 문제가 하나 이상 필요해요.");
+  const blocked=new Set(reserved.map(row=>row.quizId));
+  const pool=await db().quiz.findMany({where:eligibleQuizWhere(lane),
+    select:{id:true,currentVersion:true,revisions:{orderBy:{version:"desc"},take:1,select:{id:true}}}});
+  const eligible=pool.filter(q=>q.revisions[0]?.id&&!blocked.has(q.id));
+  const choice=shuffle(selectUnseen(eligible,avoid)).slice(0,count);
+  if(choice.length<count) {
+    if(allowEmpty) return [];
+    fail(409,"not_enough_questions",count===5
+      ? "아직 풀지 않은 문제 다섯 개가 모이지 않았어요. 새 퀴즈가 공개되면 다시 즐겨 주세요."
+      : "아직 풀지 않은 문제가 없어요. 새 퀴즈가 공개되면 다시 즐겨 주세요.");
+  }
   return choice.map(q=>({quizId:q.id,revisionId:q.revisions[0].id}));
 }
 export async function runStart(p:Record<string,any>,actor:Actor|null) {
@@ -180,23 +189,30 @@ export async function runStart(p:Record<string,any>,actor:Actor|null) {
     const existing=await db().playRun.findFirst({where:{weeklyId:edition.id,userId:actor.id,mode:"WEEKLY"}});
     if(existing) return {runId:existing.id,runToken:authToken(existing.id,actor.id),mode,lane,
       status:existing.status,score:existing.score,completed:existing.currentIndex,total:5,
-      weekly:publicWeekly(edition),resumed:true};
+      weekly:publicWeekly(edition),official:existing.officialEligible,resumed:true};
   }
+  const avoid=mode==="WEEKLY"?[]:[
+    ...(actor?await userExcludedQuestions(actor.id):[]),...(p.avoidQuizIds||[])
+  ];
   const questions=mode==="WEEKLY"
     ? edition!.questions.map(q=>({quizId:q.quizId,revisionId:q.revisionId}))
-    : await randomChoices(lane,mode==="RANDOM_FIVE"?5:1);
+    : await randomChoices(lane,mode==="RANDOM_FIVE"?5:1,avoid);
+  const preseen=mode==="WEEKLY"&&actor ? await db().playSession.findFirst({
+    where:{userId:actor.id,quizId:{in:questions.map(q=>q.quizId)}},select:{id:true}
+  }):null;
+  const officialEligible=mode==="WEEKLY"&&!!actor&&edition?.hostId!==actor.id&&!preseen;
   const id=randomUUID();
   const runToken=actor?authToken(id,actor.id):randomBytes(32).toString("base64url");
   const expiresAt=edition?edition.weekEnd:new Date(Date.now()+(mode==="INFINITE"?7:2)*86400000);
   try {
     const run=await db().playRun.create({data:{
-      id,mode,lane,userId:actor?.id,weeklyId:edition?.id,
+      id,mode,lane,userId:actor?.id,weeklyId:edition?.id,officialEligible,
       tokenHash:hash(runToken),expiresAt,
       questions:{create:questions.map((q,index)=>({...q,position:index}))}
     }});
     return {runId:run.id,runToken,mode,lane,status:"ACTIVE",completed:0,score:0,
       total:mode==="INFINITE"?null:5,weekly:edition?publicWeekly(edition):null,
-      official:mode==="WEEKLY"&&!!actor&&edition?.hostId!==actor.id};
+      official:officialEligible};
   } catch(error:any) {
     if(error?.code==="P2002" && mode==="WEEKLY" && actor)
       return runStart(p,actor);
@@ -207,7 +223,7 @@ function runSummary(run:any) {
   return {runId:run.id,mode:run.mode,lane:run.lane,status:run.status,
     completed:run.currentIndex,total:run.mode==="INFINITE"?null:5,
     score:run.score,solved:run.solved,failed:run.failed,
-    official:run.mode==="WEEKLY"&&!!run.userId&&run.weekly?.hostId!==run.userId,
+    official:run.mode==="WEEKLY"&&run.officialEligible&&!!run.userId&&run.weekly?.hostId!==run.userId,
     completedAt:run.completedAt};
 }
 export async function runCurrent(p:Record<string,any>,actor:Actor|null) {
@@ -219,9 +235,17 @@ export async function runCurrent(p:Record<string,any>,actor:Actor|null) {
   }
   let round=await db().playRunQuestion.findUnique({where:{runId_position:{runId:run.id,position:run.currentIndex}}});
   if(!round && run.mode==="INFINITE") {
-    const old=await db().playRunQuestion.findMany({where:{runId:run.id},orderBy:{position:"desc"},
-      take:30,select:{quizId:true}});
-    const chosen=(await randomChoices(run.lane as Lane,1,old.map(o=>o.quizId)))[0];
+    const old=await db().playRunQuestion.findMany({where:{runId:run.id},select:{quizId:true}});
+    const exclude=[...old.map(o=>o.quizId),...(run.userId?await userExcludedQuestions(run.userId):[]),
+      ...(p.avoidQuizIds||[])];
+    const chosen=(await randomChoices(run.lane as Lane,1,exclude,true))[0];
+    if(!chosen) {
+      await db().playRun.updateMany({where:{id:run.id,status:"ACTIVE",currentIndex:run.currentIndex},
+        data:{status:"FINISHED",completedAt:new Date()}});
+      const done=await db().playRun.findUniqueOrThrow({where:{id:run.id},include:{weekly:true}});
+      return {...runSummary(done),exhausted:done.status==="FINISHED",
+        message:"아직 풀지 않은 문제를 모두 발견했어요. 새로운 퀴즈가 공개되면 다시 즐겨 주세요."};
+    }
     try {
       round=await db().playRunQuestion.create({data:{runId:run.id,position:run.currentIndex,...chosen}});
     } catch(error:any) {
@@ -319,7 +343,7 @@ export async function weeklyStandings(p:Record<string,any>) {
     FROM "PlayRun" pr
     JOIN "User" u ON u."id"=pr."userId"
     WHERE pr."weeklyId"=${edition.id} AND pr."mode"='WEEKLY' AND pr."status"='FINISHED'
-      AND u."leaderboardEligible"=TRUE AND u."leaderboardOptIn"=TRUE
+      AND pr."officialEligible"=TRUE AND pr."officialEligible"=TRUE AND u."leaderboardEligible"=TRUE AND u."leaderboardOptIn"=TRUE
       AND pr."userId" <> ${edition.hostId}
     ORDER BY pr."score" DESC, pr."completedAt" ASC
     LIMIT ${p.limit} OFFSET ${p.offset}

@@ -125,10 +125,11 @@ export const operations = {
     challengeId: uuid, ...paging
   }) },
   run_start: { public: true, description: "Begin/resume weekly, five random, or infinite play in General/Kids lane", schema: z.object({
-    mode: z.enum(["WEEKLY","RANDOM_FIVE","INFINITE"]), lane: z.enum(["GENERAL","KIDS"]).default("GENERAL")
+    mode: z.enum(["WEEKLY","RANDOM_FIVE","INFINITE"]), lane: z.enum(["GENERAL","KIDS"]).default("GENERAL"),
+    avoidQuizIds: z.array(uuid).max(1000).default([])
   }) },
   run_current: { public: true, description: "Get or resume the current server-side question of a run without revealing later clues", schema: z.object({
-    runId: uuid, runToken: z.string().min(32).max(200)
+    runId: uuid, runToken: z.string().min(32).max(200), avoidQuizIds: z.array(uuid).max(1000).default([])
   }) },
   run_finish: { public: true, description: "Stop an infinite or practice run and view its scores", schema: z.object({
     runId: uuid, runToken: z.string().min(32).max(200), confirm: z.literal(true)

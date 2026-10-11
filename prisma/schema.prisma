@@ -262,6 +262,7 @@ model PlayRun {
   user        User?     @relation(fields: [userId], references: [id])
   weeklyId    String?
   weekly      WeeklyChallenge? @relation(fields: [weeklyId], references: [id])
+  officialEligible Boolean @default(false)
   tokenHash   String
   currentIndex Int      @default(0)
   score       Int       @default(0)
