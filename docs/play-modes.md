@@ -79,4 +79,4 @@ Kids is **not** a creator-selected age label. An independent platform moderator 
 
 This is a trusted human review workflow; AI classifiers, child-account eligibility and production abuse protection remain future release gates.
 
-The names above use the preferred QuizDip MCP prefix (`quizdip_*`). Existing Clupio-prefixed MCP tools remain supported as deprecated aliases; the run-token namespace does not change during rebranding so in-progress play continues to work.
+The names above use the QuizDip MCP prefix (`quizdip_*`). The run-token namespace remains unchanged so in-progress play continues to work.

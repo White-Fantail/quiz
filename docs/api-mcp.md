@@ -80,6 +80,3 @@ Never treat an MCP tool listed in metadata or a passing typecheck as proof that 
 
 OAuth provider sign-in, linking and unlinking Google/Apple accounts, and interactive third-party consent are **deliberately web-only** user-presence operations at `/sign-in`, `/account` and `/consent`, rather than MCP tools. This prevents an AI agent from silently rebinding the owner's identity or authorizing a new external client. ChatGPT initiates the standard MCP OAuth protocol, which redirects the human to these screens; afterward it uses the verified `quizdip_me` tool to identify the same account. OAuth refresh/revocation are standard authorization-server endpoints, not business-domain MCP tools.
 
-### QuizDip MCP tool migration
-
-Clients should discover and use `quizdip_*` tool names. Every existing `clupio_*` name is also registered temporarily as a deprecated alias and calls the same operation, authorization and validation logic. The endpoint remains `/api/mcp`; consented identities and stored records are unchanged.

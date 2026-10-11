@@ -37,6 +37,6 @@ The existing color system remains until a separate visual design review. The for
 
 The former **Clupio** name is retired from customer-facing copy, browser metadata, social sign-in labels and primary MCP display names. The GitHub repository is now `White-Fantail/quizdip`; URL routes, user IDs, persisted records, scores, authorization, safety policy and external integration endpoints are not changed by rebranding.
 
-Use `quizdip_*` for new MCP client integrations. The previous `clupio_*` tool names are temporarily supported as **deprecated aliases** to preserve existing clients. Internal `@clupio/*` package names, old database defaults, token-signing namespaces and existing storage bucket identifiers must not be renamed without an explicit compatibility and migration plan.
+Use `quizdip_*` for MCP client integrations. Internal `@clupio/*` package names, old database defaults, token-signing namespaces and existing storage bucket identifiers must not be renamed without an explicit compatibility and migration plan.
 
 QuizDip does not claim children-safe automation, AI classification, app-store registration, DNS activation or trademark registration unless actually verified. Content publication and Kids eligibility remain separate security decisions. The platform principles and child safety protections in `docs/product-principles.md` still govern every interface.

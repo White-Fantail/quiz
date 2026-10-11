@@ -13,12 +13,9 @@ function createServer(actor: Actor) {
   const server = new McpServer({ name: "quizdip", version: "0.3.0" });
   for (const name of Object.keys(operations) as Operation[]) {
     const spec = operations[name];
-    // Preserve old MCP tool names for already-connected clients; prefer QuizDip for new connections.
-    for (const prefix of ["quizdip", "clupio"] as const) {
-      const legacy = prefix === "clupio";
-      server.registerTool(prefix + "_" + name, {
-      title: "QuizDip " + name.replaceAll("_", " ") + (legacy ? " (legacy alias)" : ""),
-      description: legacy ? `[Deprecated alias: use quizdip_${name}] ${spec.description}` : spec.description,
+    server.registerTool("quizdip_" + name, {
+      title: "QuizDip " + name.replaceAll("_", " "),
+      description: spec.description,
       inputSchema: spec.schema as any,
     }, async (args: any) => {
       try {
@@ -30,8 +27,7 @@ function createServer(actor: Actor) {
         if (!(error instanceof PlatformError || error instanceof ZodError)) console.error("MCP operation failed", error);
         return { isError: true, content: [{ type: "text" as const, text: message }] };
       }
-      });
-    }
+    });
   }
   return server;
 }

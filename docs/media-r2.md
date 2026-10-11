@@ -75,4 +75,4 @@ A media approval reset is blocked while the asset is used in a currently publish
 
 ### QuizDip naming transition
 
-For new installations, use a QuizDip-named R2 bucket. Existing deployments may continue to use a previously provisioned Clupio-named bucket through `R2_BUCKET`; do not rename or delete a live bucket as part of a brand-only update. The MCP tool names shown above are the preferred new `quizdip_*` names; `clupio_*` aliases remain for old clients.
+For new installations, use a QuizDip-named R2 bucket. Existing deployments may continue to use a previously provisioned Clupio-named bucket through `R2_BUCKET`; do not rename or delete a live bucket as part of a brand-only update. The MCP tool names shown above use the `quizdip_*` prefix.

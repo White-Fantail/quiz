@@ -67,7 +67,7 @@ Creator intent, AI recommended audience/difficulty and platform-managed safety a
 - **`main`** is the stable baseline, advanced only on explicit request.
 - Use **fast-forward-only** merges (`git merge --ff-only`); no merge commits, squash merges or force pushes.
 
-See [AGENTS.md](AGENTS.md), [architecture](docs/architecture.md), [brand](docs/brand.md) and [roadmap](docs/roadmap.md). The official brand and GitHub repository are **QuizDip** / `White-Fantail/quizdip`; legacy internal `@clupio/*` workspace identifiers and `clupio_*` MCP aliases are retained temporarily for compatibility.
+See [AGENTS.md](AGENTS.md), [architecture](docs/architecture.md), [brand](docs/brand.md) and [roadmap](docs/roadmap.md). The official brand and GitHub repository are **QuizDip** / `White-Fantail/quizdip`; internal `@clupio/*` workspace identifiers remain unchanged for package compatibility.
 
 ## API and MCP setup
 
@@ -91,4 +91,4 @@ Staff can inspect full quiz answers, clues and media via /admin/quiz-review befo
 
 ## QuizDip rebrand rollout
 
-The code and docs use the new brand; connecting `quizdip.com`, configuring production origins/SSO callbacks and replacing any third-party app name or DNS entries are separate deployment steps. New MCP operations use `quizdip_*`; existing `clupio_*` names still work as deprecated aliases. No data migrations or token format changes are needed solely for this branding update.
+The code and docs use the new brand; connecting `quizdip.com`, configuring production origins/SSO callbacks and replacing any third-party app name or DNS entries are separate deployment steps. MCP operations use the `quizdip_*` prefix. No data migrations or token format changes are needed solely for this branding update.

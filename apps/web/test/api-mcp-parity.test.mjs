@@ -12,6 +12,8 @@ test("every REST action is exposed as an MCP operation via the shared registry",
     assert.match(restSource, new RegExp('op: "' + name + '"'), name + " not routed in REST");
   }
   assert.match(mcpSource, /Object\.keys\(operations\)/);
+  assert.match(mcpSource, /server\.registerTool\("quizdip_" \+ name/);
+  assert.doesNotMatch(mcpSource, /clupio_|Deprecated alias|legacy alias/i);
   assert.match(mcpSource, /execute\(name, args, actor\)/);
 });
 

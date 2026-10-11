@@ -68,6 +68,6 @@ MCP is a full QuizDip product interface, **not just an authoring connector**. Ev
 ## QuizDip transition safeguards
 
 - QuizDip is the only new customer-facing brand. The repository is `White-Fantail/quizdip`.
-- New MCP clients use `quizdip_*`; maintain the old `clupio_*` aliases until a separately reviewed breaking-change release.
+- MCP tools use only the canonical `quizdip_*` names; do not register retired-name aliases.
 - Internal npm workspace scopes (`@clupio/*`), persisted database names, existing R2 buckets and HMAC token namespaces are legacy technical identifiers, NOT copy shown to users. Do not change these without migration tests.
 - Branding changes must not loosen publication, permissions, content safety or Kids requirements.

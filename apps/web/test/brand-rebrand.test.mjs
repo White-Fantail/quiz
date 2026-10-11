@@ -25,11 +25,11 @@ test("QuizDip is the customer-facing brand across the web app and auth", () => {
   assert.match(source("src/lib/auth.ts"), /appName: "QuizDip"/);
 });
 
-test("MCP advertises QuizDip tools while keeping deprecated Clupio aliases", () => {
+test("MCP exposes only canonical QuizDip tools", () => {
   const mcp = source("app/api/mcp/route.ts");
   assert.match(mcp, /new McpServer\(\{ name: "quizdip"/);
-  assert.match(mcp, /\["quizdip", "clupio"\] as const/);
-  assert.match(mcp, /server\.registerTool\(prefix \+ "_" \+ name/);
+  assert.match(mcp, /server\.registerTool\("quizdip_" \+ name/);
+  assert.doesNotMatch(mcp, /clupio_|Deprecated alias|legacy alias/i);
   assert.match(mcp, /await execute\(name, args, actor\)/);
 });
 
