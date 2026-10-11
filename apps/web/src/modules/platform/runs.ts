@@ -146,7 +146,7 @@ async function randomChoices(lane: Lane,count:number,avoid:string[]=[]) {
   const candidates=eligible.filter(q=>!avoid.includes(q.id));
   const choice=shuffle(candidates.length>=count?candidates:eligible).slice(0,count);
   if(choice.length<count) fail(409,"not_enough_questions",
-    "등록된 공개 문제가 부족해요. 이 모드를 시작하려면 최소 다섯 문제가 필요해요.");
+    count===5 ? "랜덤 5문제를 시작하려면 공개 문제가 다섯 개 필요해요." : "이 모드를 시작하려면 공개 문제가 하나 이상 필요해요.");
   return choice.map(q=>({quizId:q.id,revisionId:q.revisions[0].id}));
 }
 export async function runStart(p:Record<string,any>,actor:Actor|null) {

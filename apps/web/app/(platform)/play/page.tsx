@@ -67,6 +67,11 @@ export default function PlayPage() {
   const [mode,setMode]=useState<Mode>("WEEKLY");
 
   useEffect(()=>{
+    // Deep links from Kids and campaigns must preserve the audience selection.
+    if(new URLSearchParams(window.location.search).get("lane")==="KIDS") setLane("KIDS");
+  },[]);
+
+  useEffect(()=>{
     let alive=true;
     setEdition(null);setRun(null);setRound(null);setError("");setFeedback("");setMedia({});
     void api("/weekly/current?lane="+lane).then((v:Edition)=>{if(alive)setEdition(v)})
