@@ -1,10 +1,10 @@
 # QuizDip Kids — Phase 4 release and privacy runbook
 
-Status (2026-10-12): **source implemented on `dev`; not deployed, built or certified on real devices.** No store submission / Kids-category compliance sign-off has occurred. The live web Kids experience remains in place until a separate Phase 5 cutover.
+Status (2026-10-12): **source implemented on `dev`; not deployed, built or certified on real devices.** No store submission / Kids-category compliance sign-off has occurred. Phase 5 source cutover on dev removes the web Kids game; live deployment/DB rollout and device E2E are separately unverified (see docs/kids-native-phase5-cutover.md).
 
 ## Architecture and authorization
 
-- Dedicated Expo app `apps/kids`. Child is paired once using a high-entropy one-time code issued by a guardian who authenticated to QuizDip web with Better Auth and verified their six-digit PIN. First pairing still requires that temporary web guardian-bootstrap page; full web Kids removal must first relocate onboarding into adult account settings **or** implement independently audited system-browser guardian OAuth/PKCE. Never remove `/kids/parent` while it's the only path to pairing first devices.
+- Dedicated Expo app `apps/kids`. Child is paired once using a high-entropy one-time code issued by a guardian who authenticated to QuizDip web with Better Auth and verified their six-digit PIN. The original browser guardian bootstrap is now an **adult-account setting** at `/account/kids` (no web Kids game), with the verified web Better Auth and PIN. The Expo setup URL matches this path.
 - `KidParentAccess` grants 10 minutes of **server-scoped guardian settings** to a verified native child device plus parent PIN. Native stores guardian elevation **only in React memory** (not SecureStore). When backgrounded, it is erased, and a new PIN is required. It never becomes an adult Better Auth cookie or grants Studio/Admin/MCP operations.
 - Guardian activity is logged via `AuditLog` with action name and guardian ID only — no PINs, pairing codes, child nicknames or bearer credentials.
 - Parent screen supports adding/editing/deleting a child profile, PIN changes, native pairing, device revocation, child-only progress deletion, 7-day private plays/accuracy/topics/usage summary, EN/KO language, age band, family time zone, daily minutes, continuous-play cap and soft break reminder. PIN reset after forgetting it still requires fresh authenticated guardian web login. **Changing age or locale revokes child devices; changing limits takes effect server-side without re-pairing.**
@@ -73,8 +73,8 @@ The existing CI config executes tests, web build and both native JS exports. Exp
 
 ## Cutover / Phase 5 prerequisites
 
-- Web Kids frontend and its web-cookie child lock remain untouched until this full matrix passes and all first-time parent pairing works without the deleted web Kids frontend. Do **not** delete child APIs, moderation, language policies, profile tables, media approval or `KIDS` weekly lane.
-- Phase 5 must replace bootstrap URL `/kids/parent` in `apps/kids/app/setup.tsx` with an audited adult-account portal or verified native parent OAuth flow, then remove old Kids routes, cookie/proxy guards, old styles and tests without changing app sessions.
+- Phase 5 source removes the web Kids gameplay UI but keeps a PIN-only legacy locked-browser exit until verified device migration and production rollout. Do **not** delete child APIs, moderation, language policies, profile tables, media approval or `KIDS` weekly lane.
+- Phase 5 source replaced bootstrap URL with `/account/kids`, removed old web Kids pages/styles/browser activation, and retained only the PIN-safe transitional cookie gate; see the Phase 5 runbook for migration, legacy browser recovery and eventual gate deprecation.
 - Rollback approach: revert native distribution to previous approved build, temporarily disable native pairing and child play endpoint at edge if necessary, retain DB schema/ledger rows (do not destructively roll back production migrations), and keep ordinary web QuizDip live.
 
 Policy references (verify again at submission):
