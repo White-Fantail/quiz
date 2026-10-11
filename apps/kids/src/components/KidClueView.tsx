@@ -17,7 +17,7 @@ function AudioPlayer({url}:{url:string}){
 function VideoPlayer({url}:{url:string}){
   const player=useVideoPlayer(url);
   return <VideoView player={player} nativeControls contentFit="contain" style={styles.video}
-    allowsFullscreen={false} allowsPictureInPicture={false}/>;
+    fullscreenOptions={{enable:false}} allowsPictureInPicture={false}/>;
 }
 export function SafeKidMedia({token,sessionId,sessionToken,mediaId}:{
   token:string;sessionId:string;sessionToken:string;mediaId:string
