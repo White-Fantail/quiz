@@ -90,7 +90,7 @@ export function parseQuery(query: URLSearchParams): Record<string, unknown> {
   const values: Record<string, unknown> = {};
   for (const [key, value] of query) {
     if (["limit", "offset", "version"].includes(key)) values[key] = Number(value);
-    else if (["mine", "kids"].includes(key)) values[key] = value === "true";
+    else if (["mine", "kids", "includeContent"].includes(key)) values[key] = value === "true";
     else values[key] = value;
   }
   return values;

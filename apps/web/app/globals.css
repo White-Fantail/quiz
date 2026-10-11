@@ -369,3 +369,13 @@ a.feature-card:hover { border-color:#B4AEF7; transform:translateY(-3px); }
 .language-selector { display:flex; gap:6px; align-items:center; white-space:nowrap; font-size:.85rem; color:var(--muted); font-weight:700; }
 .language-selector select { border:1px solid var(--border); border-radius:12px; padding:7px 10px; background:white; color:var(--ink); }
 @media(max-width:780px) { .header-inner { gap:10px; } .language-selector { margin-bottom:4px; } }
+
+/* Localized revision editor */
+.translation-manager {display:grid;gap:15px;min-width:0}
+.translation-locale-summary {display:flex;gap:9px;flex-wrap:wrap}
+.translation-select {display:flex;gap:12px;align-items:center}
+.translation-select select {min-width:170px}
+.translation-clue {display:grid;gap:6px;margin:12px 0}
+.translation-clue textarea {width:100%}
+.translation-check {display:flex;gap:10px;align-items:flex-start}
+.translation-check input {margin-top:4px}

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import TranslationManager from "./translation-manager";
 
 type Topic = { name:string; isSpoiler?:boolean };
 type AgeRange = { minimum?:number; maximum?:number };
@@ -25,7 +26,7 @@ type FormValues = {
   creatorMin:string;creatorMax:string;creatorNote:string;
   suggestedMin:string;suggestedMax:string;difficulty:string;
 };
-type Tab = "metadata"|"results"|"feedback";
+type Tab = "metadata"|"results"|"feedback"|"languages";
 const REVIEW_PAGE_SIZE=10;
 const answerTypes=["person","animal","place","thing","event","concept","other"];
 const publicationNames:Record<string,string>={DRAFT:"초안",PUBLISHED:"공개",HIDDEN:"숨김"};
@@ -195,8 +196,11 @@ export default function StudioQuizDetail({quizId}:{quizId:string}){
         onClick={()=>setTab("results")}>풀이 결과</button>
       <button type="button" className={tab==="feedback"?"active":""} aria-current={tab==="feedback"?"page":undefined}
         onClick={()=>setTab("feedback")}>사용자 피드백 {insights?"("+formatNumber(insights.reviews.total)+")":""}</button>
+      <button type="button" className={tab==="languages"?"active":""} aria-current={tab==="languages"?"page":undefined}
+        onClick={()=>setTab("languages")}>언어 버전 / Languages</button>
     </nav>
 
+    {tab==="languages"&&<TranslationManager quizId={quizId}/>}
     {tab==="metadata"&&<form className="studio-meta-form" onSubmit={e=>void save(e)}>
       <section className="placeholder-panel">
         <h2>기본 정보</h2>
