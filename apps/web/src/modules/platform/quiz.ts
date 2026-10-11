@@ -67,7 +67,7 @@ export async function quizUpdate(p: Record<string, any>, actor: Actor | null) {
     if (changed.count !== 1) fail(409, "version_conflict", "Quiz changed while editing");
     await tx.quizRevision.create({ data: { quizId: old.id, version: p.expectedVersion + 1,
       title: p.title ?? prior.title, prompt: p.prompt ?? prior.prompt, mode: p.mode ?? prior.mode,
-      answer: (p.answer ?? prior.answer) as any, clues: p.clues ? normalizeClues(p.clues) : prior.clues } });
+      answer: (p.answer ?? prior.answer) as any, clues: (p.clues ? normalizeClues(p.clues) : prior.clues) as any } });
     await tx.auditLog.create({ data: { actorId: user.id, action: modified ? "quiz.edit" : "quiz.settings", objectId: old.id } });
   });
   return quizGet(old.id, actor);
