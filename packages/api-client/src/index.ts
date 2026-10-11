@@ -85,6 +85,24 @@ export type KidTreasures = {solved:number;completed:number;
   discoveries:{quizId:string;title:string;score:number;at:string}[];
   badges:{id:string;required:number;label:string;emoji:string}[]};
 
+
+export type KidTimeState = {
+ localDay:string;usedMinutes:number;remainingMinutes:number|null;
+ sessionMinutesUsed:number;blockedUntil:string|null;limitReached:boolean;
+ serverNow:string;limits:{dailyMinutes:number;playSessionMinutes:number;breakEveryMinutes:number;timeZone:string};
+};
+export type GuardianChildProfile = {
+ id:string;nickname:string;ageBand:"EARLY"|"MIDDLE"|"OLDER";locale:Locale;sessionMinutes:number;
+ dailyMinutes:number;playSessionMinutes:number;breakEveryMinutes:number;timeZone:string;
+};
+export type GuardianDevice = {id:string;profileId:string;deviceName:string;createdAt:string;expiresAt:string};
+export type GuardianInsights = {profileId:string;solvedLast7Days:number;playedLast7Days:number;
+ successRate:number;minutesLast7Days:number;usageByDay:{day:string;minutes:number}[];
+ topTopics:{topic:string;count:number}[]};
+export type GuardianDashboard = {pinConfigured:boolean;profiles:GuardianChildProfile[];
+ devices:GuardianDevice[];insights:GuardianInsights[];serverNow:string;availableTimeZones:string[]};
+export type ParentElevation = {parentToken:string;expiresAt:string};
+
 /** Native child capability is deliberately separate from adult Browser/Auth/MCP clients. */
 export type NativeKidProfile = {nickname:string;ageBand:"EARLY"|"MIDDLE"|"OLDER";locale:Locale};
 export type NativeKidSession = {active:true;profile:NativeKidProfile;expiresAt:string};
@@ -196,8 +214,60 @@ export class QuizDipKidsDeviceApi {
       throw new ApiError("invalid_response");
     return result.data as KidTreasures;
   }
+
+  async time(token:string,heartbeat=false):Promise<KidTimeState> {
+    let response:Response;
+    try{response=await this.transport(this.origin+"/api/kids/native/time",{
+      method:heartbeat?"POST":"GET",credentials:"omit",cache:"no-store",redirect:"error",
+      headers:{"Accept":"application/json",Authorization:"Bearer "+token,
+        ...(heartbeat?{"Content-Type":"application/json"}:{})},
+      ...(heartbeat?{body:JSON.stringify({action:"heartbeat"})}:{})
+    });}catch{throw new ApiError("network_unavailable");}
+    const body=await response.json().catch(()=>null);
+    if(!response.ok)throw new ApiError(typeof body?.error==="string"?body.error:"http_error",response.status);
+    if(typeof body?.data?.usedMinutes!=="number" || !body.data.limits)
+      throw new ApiError("invalid_time_response");
+    return body.data as KidTimeState;
+  }
   async unlock(token:string,pin:string):Promise<void> {
     const result=await this.request("POST","",token,{action:"unlock",pin});
     if(result?.unlocked!==true)throw new ApiError("invalid_unlock_response");
+  }
+}
+
+/** Parent privilege is short-lived and memory-only. No Better Auth cookie is sent to the app. */
+export class QuizDipKidsParentApi {
+  readonly origin:string;
+  private readonly transport:typeof fetch;
+  constructor(origin:string,transport:typeof fetch=fetch,allowHttpLoopback=false){
+    this.origin=normalizeApiOrigin(origin,allowHttpLoopback);
+    this.transport=transport;
+  }
+  private async request<T>(token:string,parentToken:string|null,action?:Record<string,unknown>):Promise<T>{
+    let response:Response;
+    try{response=await this.transport(this.origin+"/api/kids/native/parent",{
+      method:action?"POST":"GET",credentials:"omit",cache:"no-store",redirect:"error",
+      headers:{"Accept":"application/json",Authorization:"Bearer "+token,
+        ...(parentToken?{"X-Kids-Parent":"Bearer "+parentToken}:{}),
+        ...(action?{"Content-Type":"application/json"}:{})},
+      ...(action?{body:JSON.stringify(action)}:{})
+    });}catch{throw new ApiError("network_unavailable");}
+    const body=await response.json().catch(()=>null);
+    if(!response.ok)throw new ApiError(typeof body?.error==="string"?body.error:"http_error",response.status);
+    if(body?.data===undefined)throw new ApiError("invalid_response");
+    return body.data as T;
+  }
+  async authorize(deviceToken:string,pin:string):Promise<ParentElevation>{
+    const value=await this.request<ParentElevation>(deviceToken,null,{action:"authorize",pin});
+    if(!/^[A-Za-z0-9_-]{40,90}$/.test(value?.parentToken??"")||
+       !Number.isFinite(Date.parse(value.expiresAt)))throw new ApiError("invalid_parent_response");
+    return value;
+  }
+  async dashboard(deviceToken:string,parentToken:string):Promise<GuardianDashboard>{
+    return this.request(deviceToken,parentToken);
+  }
+  async action<T=unknown>(deviceToken:string,parentToken:string,action:Record<string,unknown>):Promise<T>{
+    if(action.action==="authorize")throw new ApiError("invalid_parent_action");
+    return this.request<T>(deviceToken,parentToken,action);
   }
 }
