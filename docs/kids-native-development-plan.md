@@ -1,6 +1,14 @@
 # QuizDip Kids — 독립 모바일 앱 전환 개발 계획
 
-> 상태: Phase 1–4 소스 구현 / DB 마이그레이션·실제 빌드·실기기 E2E 미검증. 기준 브랜치: `dev` (2026-10-12 확인). 이 문서는 **모바일 기능 개발 4단계 + 기존 웹 Kids 제거 1단계**를 정의한다. 현재 웹 구현 완료 상태와 목표 구현 상태를 혼동하지 않는다.
+> 상태: Phase 1–5 소스 구현(dev) / 실제 DB·실기기 검증 대기. 기준 브랜치: `dev` (2026-10-12 확인). 이 문서는 **모바일 기능 개발 4단계 + 기존 웹 Kids 제거 1단계**를 정의한다. 현재 웹 구현 완료 상태와 목표 구현 상태를 혼동하지 않는다.
+
+## Phase 5 implementation record (2026-10-12)
+
+**Source-only cutover on `dev` — do not claim a production Kids release.** Removed legacy web Kids gameplay shell, tabs, pages, CSS, parent/exit views, browser cookie device activation endpoint and old browser-mode tests. The adult's first-time onboarding and pairing has moved to authenticated `/account/kids` and `/api/account/kids`; Expo uses that URL. Standard QuizDip Play/Discover/Studio/Account and the native `/api/kids/native/**` remain.
+
+**Legacy locked browsers:** stale `quizdip-kid-session` users are redirected to a PIN-only `/account/kids/legacy-unlock`, never automatically unlocked into an adult browser that may still hold a valid guardian login. The old WEB device hash identifies the PIN owner even after `20261012230000_retire_web_kids_sessions` revokes WEB device tokens. NATIVE tokens and shared safety/locale/game/media tables are preserved.
+
+**Release gate:** run CI tests/typecheck/Next.js/Expo exports, backup and apply migrations in staging and production, validate guardian setup, old browser PIN exit, language and media safety, real iPad/Android app and privacy/store approval. Source migration is NOT a live DB migration. See `docs/kids-native-phase5-cutover.md` for the explicit checklist. `main` remains untouched pending separate request.
 
 ## Phase 4 implementation record (2026-10-12)
 
