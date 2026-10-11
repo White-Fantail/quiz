@@ -1,0 +1,16 @@
+{
+  "name": "@quizdip/api-client",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@quizdip/domain": "*",
+    "@quizdip/i18n": "*"
+  },
+  "scripts": {
+    "typecheck": "tsc --project tsconfig.json"
+  }
+}
