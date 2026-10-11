@@ -5,6 +5,7 @@ CREATE TABLE "WeeklyChallenge" (
   "title" TEXT NOT NULL, "description" TEXT NOT NULL DEFAULT '',
   "status" TEXT NOT NULL DEFAULT 'SUBMITTED', "verifiedHost" BOOLEAN NOT NULL DEFAULT false,
   "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "publishedAt" TIMESTAMP(3),
+  "hostDisplayName" TEXT,
   CONSTRAINT "WeeklyChallenge_hostId_fkey" FOREIGN KEY ("hostId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT "WeeklyChallenge_lane_check" CHECK ("lane" IN ('GENERAL','KIDS')),
   CONSTRAINT "WeeklyChallenge_status_check" CHECK ("status" IN ('SUBMITTED','SCHEDULED','SUSPENDED')),

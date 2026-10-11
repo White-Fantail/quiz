@@ -46,29 +46,48 @@ export async function checkedRun(id: string, token: string, actor: Actor|null) {
 function publicWeekly(item: any) {
   return { id:item.id, lane:item.lane, title:item.title, description:item.description,
     startsAt:item.weekStart, endsAt:item.weekEnd,
-    host: { id:item.host.id, name:item.host.displayName, verified:item.verifiedHost },
+    host: { id:item.host.id, name:item.hostDisplayName || item.host.displayName, verified:item.verifiedHost },
     questionCount: 5, ...(item.status !== "SCHEDULED" ? {status:item.status} : {}) };
 }
 async function currentEdition(lane: Lane) {
   const now=new Date();
   return db().weeklyChallenge.findFirst({
     where:{lane,status:"SCHEDULED",weekStart:{lte:now},weekEnd:{gt:now}},
-    include:{host:{select:{id:true,displayName:true}},questions:{orderBy:{position:"asc"},include:{quiz:true}}},
+    include:{host:{select:{id:true,displayName:true}},questions:{orderBy:{position:"asc"},include:{quiz:true,revision:true}}},
   });
 }
-function editionAvailable(item: any): boolean {
+async function pinnedMediaApproved(revisions: Array<{clues: unknown;promptMediaIds:unknown}>): Promise<boolean> {
+  const ids=new Set<string>();
+  for (const revision of revisions) {
+    for (const id of Array.isArray(revision.promptMediaIds)?revision.promptMediaIds:[]) {
+      if(typeof id==="string") ids.add(id);
+    }
+    for (const clue of Array.isArray(revision.clues)?revision.clues:[]) {
+      if(clue && typeof clue==="object" && "mediaId" in clue && typeof clue.mediaId==="string")
+        ids.add(clue.mediaId);
+    }
+  }
+  if(!ids.size) return true;
+  const approved=await db().mediaAsset.count({where:{
+    id:{in:[...ids]},status:"READY",moderationStatus:"APPROVED",deletedAt:null
+  }});
+  return approved===ids.size;
+}
+async function editionAvailable(item: any): Promise<boolean> {
   return item.questions.length===5 &&
     item.questions.every((q:any) => q.quiz.publication==="PUBLISHED" &&
       q.quiz.safetyStatus!=="RESTRICTED" &&
-      (item.lane!=="KIDS" || (q.quiz.safetyStatus==="APPROVED" && q.quiz.kidsEligible)));
+      (item.lane!=="KIDS" || (q.quiz.safetyStatus==="APPROVED" && q.quiz.kidsEligible))) &&
+    await pinnedMediaApproved(item.questions.map((q:any)=>q.revision));
 }
 export async function weeklyCurrent(p:Record<string,any>) {
   const edition=await currentEdition(p.lane);
   const start=utcWeekStart();
   if (!edition) return {available:false,lane:p.lane,weekStart:start,weekEnd:new Date(start.getTime()+weekMs),
     message:"이번 주의 다섯 문제는 아직 공개되지 않았어요."};
-  return {available:editionAvailable(edition),...publicWeekly(edition),
-    message:editionAvailable(edition)?undefined:"안전성 검토를 위해 이번 주 챌린지가 일시 중단되었어요."};
+  const available=await editionAvailable(edition);
+  return {available,...publicWeekly(edition),
+    message:available?undefined:"안전성 검토를 위해 이번 주 챌린지가 일시 중단되었어요."};
 }
 export async function weeklySubmit(p:Record<string,any>,actor:Actor|null) {
   const user=requireActor(actor);
@@ -97,7 +116,7 @@ export async function weeklyPublish(p:Record<string,any>,actor:Actor|null) {
   const user=requireActor(actor);
   if(user.role!=="ADMIN") fail(403,"admin_required","Weekly scheduling requires trusted admin authority");
   const item=await db().weeklyChallenge.findUnique({
-    where:{id:p.challengeId},include:{questions:{orderBy:{position:"asc"},include:{quiz:true,revision:true}}},
+    where:{id:p.challengeId},include:{host:{select:{displayName:true}},questions:{orderBy:{position:"asc"},include:{quiz:true,revision:true}}},
   });
   if(!item || item.status!=="SUBMITTED") fail(404,"proposal_not_found","Unscheduled proposal not found");
   if(new Date()>=item.weekStart) fail(409,"week_started","Cannot schedule a week already started");
@@ -106,11 +125,14 @@ export async function weeklyPublish(p:Record<string,any>,actor:Actor|null) {
     q.quiz.currentVersion!==q.revision.version || q.quiz.safetyStatus==="RESTRICTED" ||
     (item.lane==="KIDS" && !(q.quiz.safetyStatus==="APPROVED" && q.quiz.kidsEligible))))
     fail(409,"weekly_question_unavailable","All five snapshots must remain authored, published and safe for the lane");
+  if(!await pinnedMediaApproved(item.questions.map(q=>q.revision)))
+    fail(409,"media_review_pending","All featured media must remain approved");
   try {
     await db().$transaction(async tx=>{
       const updated=await tx.weeklyChallenge.updateMany({
         where:{id:item.id,status:"SUBMITTED"},
-        data:{status:"SCHEDULED",publishedAt:new Date(),verifiedHost:p.verifiedHost},
+        data:{status:"SCHEDULED",publishedAt:new Date(),verifiedHost:p.verifiedHost,
+          hostDisplayName:item.host.displayName},
       });
       if(updated.count!==1) fail(409,"already_scheduled","This proposal has already changed");
       await tx.auditLog.create({data:{actorId:user.id,action:"weekly.publish",objectId:item.id,
@@ -152,7 +174,7 @@ async function randomChoices(lane: Lane,count:number,avoid:string[]=[]) {
 export async function runStart(p:Record<string,any>,actor:Actor|null) {
   const mode=p.mode as RunMode, lane=p.lane as Lane;
   const edition=mode==="WEEKLY"?await currentEdition(lane):null;
-  if(mode==="WEEKLY" && (!edition || !editionAvailable(edition)))
+  if(mode==="WEEKLY" && (!edition || !await editionAvailable(edition)))
     fail(409,"weekly_unavailable","이번 주의 공식 챌린지가 아직 공개되지 않았어요");
   if(edition && actor) {
     const existing=await db().playRun.findFirst({where:{weeklyId:edition.id,userId:actor.id,mode:"WEEKLY"}});
@@ -215,6 +237,8 @@ export async function runCurrent(p:Record<string,any>,actor:Actor|null) {
   const revision=await db().quizRevision.findUnique({where:{id:round.revisionId}});
   if(!revision || !(revision.clues as unknown[]).length)
     fail(409,"invalid_question","The pinned question version is unavailable");
+  if(!await pinnedMediaApproved([revision]))
+    fail(409,"question_suspended","This pinned question contains unapproved or restricted media");
   const token=sessionToken(p.runToken,run.id,run.currentIndex);
   let session=await db().playSession.findUnique({where:{runId_roundIndex:{runId:run.id,roundIndex:run.currentIndex}}});
   if(!session) {
