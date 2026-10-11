@@ -24,6 +24,9 @@ The web UI, REST API and MCP tools reuse `execute()` and the same policy layer. 
 | Version-scoped success analytics | GET /api/v1/quizzes/:id/stats | clupio_quiz_stats |
 | My profile / questions / statistics | GET /api/v1/me, /me/quizzes, /me/stats | clupio_me / clupio_my_quizzes / clupio_my_stats |
 | Verified adult rankings | GET /api/v1/leaderboard | clupio_leaderboard |
+| Creator's public profile/reputation | GET /api/v1/users/:id | clupio_user_get |
+| Creator's reviews | GET /api/v1/users/:id/reviews | clupio_creator_reviews_list |
+| Review a creator after playing their question | POST /api/v1/users/:id/reviews | clupio_creator_review_upsert |
 
 Tool arguments are typed by Zod schemas in `apps/web/src/modules/platform/contracts.ts`, and validation also runs for REST. REST uses JSON response envelopes `{ data: ... }`; mutations accept a JSON object body. MCP uses Streamable HTTP at `/api/mcp` (SDK v2, stateless).
 
