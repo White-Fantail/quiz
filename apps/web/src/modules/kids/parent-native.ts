@@ -3,7 +3,7 @@ import { db } from "../platform/db";
 import { fail } from "../platform/auth";
 import { checkGuardianPin,guardianOverview } from "./service";
 import type { nativeKidFromHeaders } from "./service";
-import { localDay,TIMEZONES } from "./time";
+import { TIMEZONES } from "./time";
 type Kid=Awaited<ReturnType<typeof nativeKidFromHeaders>>;
 const PARENT_LIFETIME_MS=10*60_000;
 
