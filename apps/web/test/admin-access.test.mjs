@@ -26,7 +26,7 @@ test("admin subpages and moderation operations continue to enforce ADMIN", () =>
   const review = source("app/admin/quiz-review/page.tsx");
   const weekly = source("app/admin/weekly/page.tsx");
   const quiz = source("src/modules/platform/quiz.ts");
-  assert.match(review, /actor\.role !== "ADMIN"/);
-  assert.match(weekly, /actor\.role !== "ADMIN"/);
-  assert.match(quiz, /admin\.role !== "ADMIN"/);
+  assert.match(review, /actor\.role\s*!==\s*"ADMIN"/);
+  assert.match(weekly, /actor\.role\s*!==\s*"ADMIN"/);
+  assert.match(quiz, /admin\.role\s*!==\s*"ADMIN"/);
 });
