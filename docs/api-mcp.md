@@ -95,3 +95,10 @@ OAuth provider sign-in, linking and unlinking Google/Apple accounts, and interac
 | PATCH /api/v1/me/locale | quizdip_locale_update | Set both to en or ko atomically |
 
 Public UI routes are /en/... and /ko/... through Next.js proxy rewrites. REST, MCP, auth and OAuth discovery routes remain unprefixed. Phase 1 does not filter content languages, and existing legacy quizzes are stored with the unclassified `und` tag pending Phase 2 classification. Locale tools use the same authenticated service for REST and MCP.
+
+## Phase 2 content language routing
+- `GET /quizzes?locale=en|ko`, `GET /quizzes/:id?locale=...`, `GET /topics?locale=...`, `GET /packs?locale=...` require matching published language content. Without `locale`, public read defaults to English for older clients (never substitutes `und`).
+- `POST /play {quizId,locale}`; `POST /runs {mode,lane,locale}`; `POST /runs/:id/current {runToken,locale?}` are server-validated and pinned. Front-end uses its URL locale; remote MCP agents must pass the desired content locale explicitly.
+- `GET /weekly/current?locale=...` and `GET /weekly/:id/standings?locale=...` apply language-specific snapshot and ranking rules.
+- `POST /quizzes/:id/language {locale,confirm:true}` is `quizdip_quiz_language_set`, and `POST /packs/:id/language` is `quizdip_pack_language_set`. These confirm a creator's legacy unclassified ORIGINAL, not translations.
+- New question/pack creation accepts `locale: "en"|"ko"|"und"`. Omission remains `und` to avoid false English labeling. Multi-language translation authoring and independent version publishing are Phase 3.

@@ -96,3 +96,6 @@ The code and docs use the new brand; connecting `quizdip.com`, configuring produ
 ## Multilingual foundation (Phase 1)
 
 The web now supports locale-prefixed pages (/en and /ko), UI language selection, a shared typed message catalog, and signed-in locale preferences through REST/MCP. Additive Prisma migration `20261012070000_multilingual_foundation` introduces version-ready localization records with honest `und` legacy classification. Content language filtering, translation workflows and full deep-page copy coverage remain Phase 2/3; do not mistake an English interface for an English-only quiz catalog until then. See [multilingual plan](docs/i18n-foundation.md).
+
+## Strict language filtering (Phase 2)
+Public quiz catalog, topic lookup, packs, single-play, random-five, infinite runs and weekly snapshots are now language-scoped on the server for `en` and `ko`. Existing `und` quizzes are intentionally hidden from public language catalogs until their author verifies their true original language via Studio or API/MCP. Supplying a wrong locale does not translate or fallback the content. Apply migration `20261012080000_language_eligible_play` in dev before using this release. See [implementation details](docs/i18n-foundation.md). Remaining UI copy and translation creation are follow-up work.
