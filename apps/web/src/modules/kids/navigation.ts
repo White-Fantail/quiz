@@ -1,4 +1,4 @@
-import { localizeHref, type Locale } from "../../i18n/core";
+import { localizeHref, type Locale } from "../../i18n/core.ts";
 
 /** The child-facing shell only navigates between its own routes. */
 export const KIDS_TABS = [
