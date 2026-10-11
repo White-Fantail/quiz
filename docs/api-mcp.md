@@ -129,7 +129,7 @@ All actions require creator authentication; media identifiers and clue structure
 
 ## Native Kids protected pairing (Phase 2)
 
-The parent action `POST /api/kids/parent` `{action:"native_pair_issue",profileId,pin}` requires an existing same-origin Better Auth browser session, ownership of the child profile and the six-digit guardian PIN. It issues a short-lived one-use random code without returning a device credential to the browser. Its code hash is stored in `KidPairTicket` and redeemed atomically.
+The parent action `POST /api/account/kids` `{action:"native_pair_issue",profileId,pin}` requires an existing same-origin Better Auth browser session, ownership of the child profile and the six-digit guardian PIN. It issues a short-lived one-use random code without returning a device credential to the browser. Its code hash is stored in `KidPairTicket` and redeemed atomically.
 
 The separate `/api/kids/native` endpoint supports:
 - `POST {action:"pair",code,deviceName}` → scoped native bearer device credential, returned once;
@@ -162,3 +162,9 @@ Retention: `GET /api/internal/kids-retention` accepts only a 32+ character `CRON
 Native `POST /api/kids/native/play` `{action:"report",quizId,reason:"UNSAFE"|"INCORRECT"|"BROKEN_MEDIA"}` requires a valid child device and a previously played quiz owned by the same profile. The rate of duplicate reports is bounded by a unique profile/quiz/reason constraint; no child comment field is collected. This action is intentionally permitted even during an exhausted play-time budget so a safety flag is not suppressed. The existing ADMIN-only shared `quiz_review_get` operation adds `childSafetySignals` as reason/count aggregates **without** profile or device identifiers, retaining REST/MCP parity for moderation. Guardian management writes action-only `AuditLog` events without child nicknames or PIN inputs.
 
 Migration `20261012220000_kids_safety_reports` is required after the Phase 4 parent/time migration.
+
+## Phase 5 — web Kids retirement (dev source)
+
+A signed-in guardian manages first native pairing in the **adult account** `/account/kids` using `GET/POST /api/account/kids` with same-origin checks. The old web Kids React/Next routes, navigation, CSS, `/api/kids/device` and `/api/kids/parent` are removed. Retired `/kids/**` paths 307 to adult setup, not browser gameplay. Expo's pairing URL uses `/account/kids`.
+
+Existing browser `quizdip-kid-session` cookies remain fail-closed until verified guardian PIN via `POST /api/account/kids/legacy-unlock`. This limited recovery route never returns a child game or adult login; only a validated WEB device token hash and correct guardian PIN allow cookie expiration. This is intentional child-privacy REST/MCP parity exception. Migration `20261012230000_retire_web_kids_sessions` revokes WEB-only rows while retaining their hashes so PIN release works after revocation, and leaves NATIVE rows intact. See `docs/kids-native-phase5-cutover.md` for rollout, E2E and backup gates.
