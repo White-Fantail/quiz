@@ -35,6 +35,9 @@ function route(method: string, segments: string[]): Match | null {
   if (a === "me" && b === "stats" && method === "GET") return { op: "my_stats", args: {} };
   if (a === "reports" && b === "mine" && method === "GET") return { op: "reports_mine", args: {} };
   if (a === "leaderboard" && !b && method === "GET") return { op: "leaderboard", args: {} };
+  if (a === "users" && b && !c && method === "GET") return { op: "user_get", args: { userId: b } };
+  if (a === "users" && b && c === "reviews" && method === "GET") return { op: "creator_reviews_list", args: { userId: b } };
+  if (a === "users" && b && c === "reviews" && method === "POST") return { op: "creator_review_upsert", args: { userId: b } };
   return null;
 }
 export function parseQuery(query: URLSearchParams): Record<string, unknown> {
