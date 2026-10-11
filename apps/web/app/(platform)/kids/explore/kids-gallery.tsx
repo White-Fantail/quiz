@@ -14,10 +14,11 @@ const filters = [
 ] as const;
 type Type = (typeof filters)[number]["value"];
 
-export default function KidsGallery({ initialType }: { initialType: Type }) {
+export default function KidsGallery({ initialType, initialTopic }: { initialType: Type; initialTopic: string }) {
   const locale = useLocale();
   const t = useTranslation();
   const [type, setType] = useState<Type>(initialType);
+  const [topic, setTopic] = useState(initialTopic);
   const [page, setPage] = useState(0);
   const [items, setItems] = useState<DiscoverQuiz[]>([]);
   const [hasMore, setHasMore] = useState(false);
@@ -29,7 +30,7 @@ export default function KidsGallery({ initialType }: { initialType: Type }) {
     const controller = new AbortController();
     setLoading(true);
     setError(false);
-    const query = discoverQuery({ answerType: type, kids: true, locale, offset: page * PAGE_SIZE, limit: PAGE_SIZE + 1 });
+    const query = discoverQuery({ answerType: type, topic, kids: true, locale, offset: page * PAGE_SIZE, limit: PAGE_SIZE + 1 });
     void fetch("/api/v1/quizzes?" + query, { cache: "no-store", signal: controller.signal })
       .then(async response => {
         if (!response.ok) throw new Error("Kids catalog unavailable");
@@ -48,15 +49,19 @@ export default function KidsGallery({ initialType }: { initialType: Type }) {
       })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
-  }, [type, page, retry, locale]);
+  }, [type, topic, page, retry, locale]);
 
   return (
     <>
+      {topic && <p className="kids-notice">
+        🦕 {t("kids.explore.dinosaur")}{" "}
+        <button type="button" onClick={() => { setTopic(""); setPage(0); }}>{t("kids.explore.clearTopic")}</button>
+      </p>}
       <div className="kids-filterbar" role="group" aria-label={t("kids.explore.filters")}>
         {filters.map(filter => (
           <button type="button" className={"kids-filter" + (type === filter.value ? " active" : "")}
             key={filter.value} aria-pressed={type === filter.value}
-            onClick={() => { setType(filter.value); setPage(0); }}>
+            onClick={() => { setType(filter.value); setTopic(""); setPage(0); }}>
             <span aria-hidden="true">{filter.icon}</span> {t(filter.label)}
           </button>
         ))}

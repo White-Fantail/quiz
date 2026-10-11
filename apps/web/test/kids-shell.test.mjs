@@ -53,7 +53,7 @@ test("Kids pages stay in their own localized shell without leaking general-app n
 test("Kids discovery requests strict published language and trusted Kids approval", () => {
   const gallery = read("app/(platform)/kids/explore/kids-gallery.tsx");
   const quizService = read("src/modules/platform/quiz.ts");
-  assert.match(gallery, /discoverQuery\(\{ answerType: type, kids: true, locale,/);
+  assert.match(gallery, /discoverQuery\(\{ answerType: type, topic, kids: true, locale,/);
   assert.match(gallery, /quiz\.kidsEligible === true/);
   assert.doesNotMatch(gallery, /href=.*\/play/);
   assert.match(quizService, /playableQuizWhere\(locale, p\.kids \? "KIDS" : "GENERAL"\)/);

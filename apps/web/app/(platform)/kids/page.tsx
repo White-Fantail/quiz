@@ -5,10 +5,10 @@ import { t } from "../../../src/i18n/messages";
 import { kidsHref } from "../../../src/modules/kids/navigation";
 
 const journeys = [
-  { emoji: "🦕", title: "kids.topic.dinosaurs", description: "kids.topic.dinosaursDesc", type: "animal", theme: "lavender" },
-  { emoji: "🦁", title: "kids.topic.animals", description: "kids.topic.animalsDesc", type: "animal", theme: "peach" },
-  { emoji: "🌍", title: "kids.topic.world", description: "kids.topic.worldDesc", type: "place", theme: "mint" },
-  { emoji: "🚀", title: "kids.topic.science", description: "kids.topic.scienceDesc", type: "concept", theme: "sky" },
+  { emoji: "🦕", title: "kids.topic.dinosaurs", description: "kids.topic.dinosaursDesc", type: "animal", topic: "dinosaur", theme: "lavender" },
+  { emoji: "🦁", title: "kids.topic.animals", description: "kids.topic.animalsDesc", type: "animal", topic: "", theme: "peach" },
+  { emoji: "🌍", title: "kids.topic.world", description: "kids.topic.worldDesc", type: "place", topic: "", theme: "mint" },
+  { emoji: "🚀", title: "kids.topic.science", description: "kids.topic.scienceDesc", type: "concept", topic: "", theme: "sky" },
 ] as const;
 
 export default async function KidsPage() {
@@ -32,7 +32,7 @@ export default async function KidsPage() {
         <div className="kids-journeys">
           {journeys.map(journey => (
             <Link className={`kids-journey kids-${journey.theme}`} key={journey.title}
-              href={kidsHref("/kids/explore", locale) + "?type=" + journey.type}>
+              href={kidsHref("/kids/explore", locale) + "?type=" + journey.type + (journey.topic ? "&topic=" + journey.topic : "")}>
               <span className="kids-journey-emoji" aria-hidden="true">{journey.emoji}</span>
               <span className="kids-journey-title">{t(locale, journey.title)}</span>
               <span className="kids-journey-description">{t(locale, journey.description)}</span>
