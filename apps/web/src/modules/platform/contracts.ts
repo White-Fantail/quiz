@@ -109,7 +109,11 @@ export const operations = {
   run_finish: { public: true, description: "Stop an infinite or practice run and view its scores", schema: z.object({
     runId: uuid, runToken: z.string().min(32).max(200), confirm: z.literal(true)
   }) },
-  run_history: { public: false, description: "My latest scores and completed challenges", schema: z.object(paging) }
+  run_history: { public: false, description: "My latest scores and completed challenges", schema: z.object(paging) },
+  ranking_optin: { public: false, description: "Set my own public ranking consent, independent of staff adult verification", schema: z.object({ enabled: z.boolean(), confirm: z.literal(true) }) },
+  adult_verify: { public: false, description: "ADMIN ONLY: independently verify or revoke an adult ranking eligibility status", schema: z.object({
+    userId, verified: z.boolean(), reason: z.string().trim().min(8).max(1000), confirm: z.literal(true)
+  }) }
 } as const;
 export type Operation = keyof typeof operations;
 export function parseOperation(name: Operation, payload: unknown): Record<string, any> {

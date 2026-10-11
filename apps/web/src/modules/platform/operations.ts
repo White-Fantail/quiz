@@ -5,7 +5,7 @@ import { playStart, playClue, playGuess } from "./play";
 import { weeklyCurrent,weeklySubmit,weeklyPublish,weeklyProposals,weeklySuspend,weeklyStandings,
   runStart,runCurrent,runFinish,runHistory } from "./runs";
 import { reviewsList, reviewUpsert, reportCreate, reportsMine, packCreate, packList, packUpdate } from "./social";
-import { quizStats, myStats, me, leaderboard } from "./analytics";
+import { quizStats, myStats, me, leaderboard, rankingOptin, adultVerify } from "./analytics";
 import { userGet, creatorReviewsList, creatorReviewUpsert } from "./creators";
 import { mediaUpload, mediaChunk, mediaComplete, mediaImport, mediaList, mediaGet, mediaUpdate,
   mediaDelete, mediaTransform, mediaReview, signedPlayMedia } from "./media";
@@ -67,6 +67,8 @@ export async function execute(name: Operation, raw: unknown, actor: Actor | null
     case "run_current": return runCurrent(p,actor);
     case "run_finish": return runFinish(p,actor);
     case "run_history": return runHistory(p,actor);
+    case "ranking_optin": return rankingOptin(p,actor);
+    case "adult_verify": return adultVerify(p,actor);
     default: return fail(404, "operation_not_found", "Unknown operation");
   }
 }

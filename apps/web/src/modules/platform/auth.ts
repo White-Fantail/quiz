@@ -5,7 +5,7 @@ export class PlatformError extends Error {
   constructor(public readonly status: number, public readonly code: string, message: string) { super(message); }
 }
 export function fail(status: number, code: string, message: string): never { throw new PlatformError(status, code, message); }
-export type Actor = { id: string; role: string; displayName: string; leaderboardEligible: boolean };
+export type Actor = { id: string; role: string; displayName: string; leaderboardEligible: boolean; leaderboardOptIn: boolean };
 
 /**
  * Resolve *only* a Better Auth user identifier obtained from a validated
@@ -27,7 +27,7 @@ export async function actorByIdentity(id: string): Promise<Actor> {
       displayName: (identity.rows[0].name || "Clupio Player").slice(0, 60),
     },
     update: {},
-    select: { id: true, role: true, displayName: true, leaderboardEligible: true },
+    select: { id: true, role: true, displayName: true, leaderboardEligible: true, leaderboardOptIn: true },
   });
 }
 

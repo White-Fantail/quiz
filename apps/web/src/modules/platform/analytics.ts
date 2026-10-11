@@ -29,7 +29,7 @@ export async function quizStats(p: Record<string, any>, actor: Actor | null) {
 }
 export async function me(p: Record<string, any>, actor: Actor | null) {
   const user = requireActor(actor);
-  return { id: user.id, displayName: user.displayName, leaderboardEligible: user.leaderboardEligible,
+  return { id: user.id, displayName: user.displayName, leaderboardEligible: user.leaderboardEligible, leaderboardOptIn: user.leaderboardOptIn,
     note: "Leaderboard requires separately verified adult eligibility; default is opt-out." };
 }
 export async function leaderboard(p: Record<string, any>) {
@@ -42,7 +42,7 @@ export async function leaderboard(p: Record<string, any>) {
   const ids = [...new Set(best.map(b => b.userId).filter((id): id is string => id !== null))];
   if (!ids.length) return { items: [], total: 0 };
   const users = await db().user.findMany({
-    where: { id: { in: ids }, leaderboardEligible: true },
+    where: { id: { in: ids }, leaderboardEligible: true, leaderboardOptIn: true },
     select: { id: true, displayName: true }
   });
   const eligible = new Map(users.map(u => [u.id, u]));
@@ -68,11 +68,34 @@ export async function myStats(p: Record<string, any>, actor: Actor | null) {
     db().playSession.count({ where: { userId: user.id, status: "SOLVED" } }),
     db().playSession.count({ where: { userId: user.id, status: "FAILED" } }),
     db().playSession.groupBy({ by: ["quizId"], where: { userId: user.id, status: "SOLVED" }, _max: { score: true } }),
-    user.leaderboardEligible ? leaderboard({ limit: 100000, offset: 0 }) : Promise.resolve(null)
+    user.leaderboardEligible && user.leaderboardOptIn ? leaderboard({ limit: 100000, offset: 0 }) : Promise.resolve(null)
   ]);
   const totalBestScore = best.reduce((sum, row) => sum + (row._max.score ?? 0), 0);
   return { started, finished: solved + failed, solved, failed, successRate: solved + failed ? solved / (solved + failed) : null,
     distinctSolved: best.length, totalBestScore,
     rank: standings ? standings.items.find(item => item.userId === user.id)?.rank ?? null : null,
     leaderboardEligible: user.leaderboardEligible };
+}
+
+/** User consent controls public ranking visibility, not adult verification. */
+export async function rankingOptin(p: Record<string,any>, actor: Actor|null) {
+  const user=requireActor(actor);
+  await db().user.update({where:{id:user.id},data:{leaderboardOptIn:p.enabled}});
+  await db().auditLog.create({data:{actorId:user.id,action:"ranking.consent",objectId:user.id,
+    detail:{enabled:p.enabled}}});
+  return {leaderboardOptIn:p.enabled,leaderboardEligible:user.leaderboardEligible,
+    visibleInPublicRankings:p.enabled&&user.leaderboardEligible};
+}
+/** Trusted staff verification only. Users can never self-attest adult eligibility. */
+export async function adultVerify(p: Record<string,any>,actor: Actor|null) {
+  const admin=requireActor(actor);
+  if(admin.role!=="ADMIN") fail(403,"admin_required","Trusted adult verification requires admin authority");
+  const subject=await db().user.findUnique({where:{id:p.userId}});
+  if(!subject) fail(404,"not_found","Account not found");
+  await db().$transaction(async tx=>{
+    await tx.user.update({where:{id:subject.id},data:{leaderboardEligible:p.verified}});
+    await tx.auditLog.create({data:{actorId:admin.id,action:"ranking.adult_verification",objectId:subject.id,
+      detail:{verified:p.verified,reason:p.reason}}});
+  });
+  return {userId:subject.id,adultVerified:p.verified,rankingOptIn:subject.leaderboardOptIn};
 }

@@ -174,7 +174,7 @@ export async function runStart(p:Record<string,any>,actor:Actor|null) {
     }});
     return {runId:run.id,runToken,mode,lane,status:"ACTIVE",completed:0,score:0,
       total:mode==="INFINITE"?null:5,weekly:edition?publicWeekly(edition):null,
-      official:mode==="WEEKLY"&&!!actor};
+      official:mode==="WEEKLY"&&!!actor&&edition?.hostId!==actor.id};
   } catch(error:any) {
     if(error?.code==="P2002" && mode==="WEEKLY" && actor)
       return runStart(p,actor);
@@ -185,7 +185,7 @@ function runSummary(run:any) {
   return {runId:run.id,mode:run.mode,lane:run.lane,status:run.status,
     completed:run.currentIndex,total:run.mode==="INFINITE"?null:5,
     score:run.score,solved:run.solved,failed:run.failed,
-    official:run.mode==="WEEKLY"&&!!run.userId,
+    official:run.mode==="WEEKLY"&&!!run.userId&&run.weekly?.hostId!==run.userId,
     completedAt:run.completedAt};
 }
 export async function runCurrent(p:Record<string,any>,actor:Actor|null) {
@@ -290,10 +290,10 @@ export async function weeklyStandings(p:Record<string,any>) {
     orderBy:[{score:"desc"},{completedAt:"asc"}],take:10000
   });
   const ids=completed.map(c=>c.userId).filter((v):v is string=>!!v);
-  const users=await db().user.findMany({where:{id:{in:ids},leaderboardEligible:true},
+  const users=await db().user.findMany({where:{id:{in:ids},leaderboardEligible:true,leaderboardOptIn:true},
     select:{id:true,displayName:true}});
   const names=new Map(users.map(u=>[u.id,u.displayName]));
-  const valid=completed.filter(row=>row.userId && names.has(row.userId));
+  const valid=completed.filter(row=>row.userId && row.userId!==edition.hostId && names.has(row.userId));
   const ranked=scoreRanks(valid.map(row=>({
     displayName:names.get(row.userId!)!,score:row.score,solved:row.solved,
   })));
