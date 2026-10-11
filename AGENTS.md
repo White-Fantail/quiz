@@ -20,6 +20,11 @@ The project's three 2026-10-11 source materials (product proposal, brand guideli
 ## Product and branding
 QuizDip is a friendly quiz playground centered on progressive clues and the joy of discovery. External name: **QuizDip (퀴즈딥)**; repository name: `quizdip`. Follow [docs/brand.md](docs/brand.md).
 
+## QuizDip Kids native app (Phase 1)
+- Native app: `apps/kids` (Expo/React Native) with server-only `apps/web` unchanged. Shared pure `@quizdip/domain`, `@quizdip/i18n`, `@quizdip/api-client` may be used by both; native must NEVER import Prisma, web server modules, credentials or answer keys.
+- Native Kids Phase 1 provides only preview UI, backend health and read-only server-approved catalog; do not claim child profile/device activation, actual gameplay, rewards or daily limits work until Phases 2–4.
+- Existing web Kids routes and its cookie guard remain until Phase 5 cutover. Follow `docs/kids-native-development-plan.md`; never remove shared Kids moderation, `KIDS` lane, API or child-profile data when retiring the web UI.
+
 ## Architecture
 - Implement a **single Next.js modular monolith** on Vercel: public Play/Discover, creator Studio, restricted Admin, REST API and Remote MCP share one deployment.
 - Web page, Server Action, REST route and MCP tool adapters must call the **same service/policy layer**. Do not duplicate publishing/safety rules or call internal HTTP endpoints unnecessarily from server code.
