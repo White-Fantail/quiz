@@ -52,7 +52,7 @@ export async function playClue(p: Record<string, any>, actor: Actor | null) {
     clueCount: clues.length, remaining: clues.length - (session.usedClues + 1) };
 }
 export async function playGuess(p: Record<string, any>, actor: Actor | null) {
-  const session = await getSession(p, actor);
+  const session = await getPlaySession(p, actor);
   if (session.status !== "ACTIVE") fail(409, "finished", "Game has already ended");
   if (session.wrongGuesses >= session.usedClues) fail(429, "reveal_next_clue", "Reveal another clue before trying again");
   const clues = session.revision.clues as unknown[];
