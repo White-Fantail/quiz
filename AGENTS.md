@@ -22,7 +22,7 @@ QuizDip is a friendly quiz playground centered on progressive clues and the joy 
 
 ## QuizDip Kids native app (Phase 1)
 - Native app: `apps/kids` (Expo/React Native) with server-only `apps/web` unchanged. Shared pure `@quizdip/domain`, `@quizdip/i18n`, `@quizdip/api-client` may be used by both; native must NEVER import Prisma, web server modules, credentials or answer keys.
-- Native Kids Phase 1 provides only preview UI, backend health and read-only server-approved catalog; do not claim child profile/device activation, actual gameplay, rewards or daily limits work until Phases 2–4.
+- Native Kids Phase 1 was a preview shell. Phase 2 adds **source-level** one-time parent PIN pairing and mobile child-session authorization; never claim full deployment or live device success until database migration and real-device tests pass. Gameplay, rewards and daily limits remain Phase 3/4.
 - Existing web Kids routes and its cookie guard remain until Phase 5 cutover. Follow `docs/kids-native-development-plan.md`; never remove shared Kids moderation, `KIDS` lane, API or child-profile data when retiring the web UI.
 
 ## Native Kids Phase 2 guardrails
