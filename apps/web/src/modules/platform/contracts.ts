@@ -39,7 +39,7 @@ const paging = { limit: z.number().int().min(1).max(100).default(20), offset: z.
 const session = { sessionId: uuid, sessionToken: z.string().min(32).max(200) };
 export const operations = {
   catalog: { public: true, description: "Supported game modes, clue formats and rules", schema: z.object({}) },
-  topic_list: { public: true, description: "Search established topics for discovery and authoring. New topic names are accepted on quiz creation.", schema: z.object({ ...paging, q: topicName.optional() }) },
+  topic_list: { public: true, description: "Search established topics for discovery and authoring. New topic names are accepted on quiz creation.", schema: z.object({ ...paging, q: topicName.optional(), kids: z.boolean().default(false) }) },
   quiz_list: { public: true, description: "Find quizzes by game mode, answer kind and topic", schema: z.object({ ...paging, mine: z.boolean().default(false), kids: z.boolean().default(false), mode: gameModeSchema.optional(), answerType: answerTypeSchema.optional(), topic: topicName.optional() }) },
   quiz_get: { public: true, description: "Get published quiz metadata or my full editable quiz", schema: z.object({ id: uuid }) },
   quiz_create: { public: false, description: "Create ordered clues; infer answerType, relevant topics, age recommendation and difficulty. Platform safety is never creator input.", schema: quizFields },

@@ -21,7 +21,7 @@ export function topicSummaries(links: Array<{isSpoiler:boolean;topic:{id:string;
 export async function topicList(p: Record<string,any>) {
   const q=p.q?normalizeTopicName(p.q):undefined;
   const where:Prisma.TopicWhereInput={
-    quizLinks:{some:{isSpoiler:false,quiz:{publication:"PUBLISHED",safetyStatus:{not:"RESTRICTED"}}}},
+    quizLinks:{some:{isSpoiler:false,quiz:p.kids ? {publication:"PUBLISHED",safetyStatus:"APPROVED",kidsEligible:true} : {publication:"PUBLISHED",safetyStatus:{not:"RESTRICTED"}}}},
     ...(q?{OR:[{key:{contains:normalizeTopicKey(q)}},{aliases:{has:q}}]}:{})
   };
   const topics=await db().topic.findMany({where,orderBy:{name:"asc"},skip:p.offset,take:p.limit});
