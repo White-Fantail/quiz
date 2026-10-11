@@ -47,6 +47,7 @@ export default function KidGameScreen(){
  const [summary,setSummary]=useState<KidRunResult|null>(null);
  const [result,setResult]=useState<KidGuessResult|null>(null);
  const [guess,setGuess]=useState("");
+ const [dismissedBreak,setDismissedBreak]=useState(-1);
  const [pending,setPending]=useState(false);
  const [loading,setLoading]=useState(true);
  const [error,setError]=useState("");
@@ -164,7 +165,14 @@ export default function KidGameScreen(){
  const ended=result?.status==="SOLVED"||result?.status==="FAILED"||
    question.sessionStatus==="SOLVED"||question.sessionStatus==="FAILED";
  const age=kid.session.profile.ageBand;
+ const reminderEvery=time.time?.limits.breakEveryMinutes??0;
+ const reminderNumber=reminderEvery>0?Math.floor((time.time?.sessionMinutesUsed??0)/reminderEvery):0;
  return <Screen title={question.title} subtitle={question.prompt}>
+   {reminderNumber>0 && reminderNumber!==dismissedBreak?<Pressable accessibilityRole="button"
+     style={styles.restNotice} onPress={()=>setDismissedBreak(reminderNumber)}>
+     <Text style={styles.restText}>🍎 {t("native.time.reminder")}</Text>
+     <Text style={styles.note}>{t("native.time.dismiss")}</Text>
+   </Pressable>:null}
    <View style={styles.progress}>
      <Text style={styles.progressText}>{question.round?
        t("native.play.question")+" "+question.round+" / "+(question.total??5):t("native.play.single")}</Text>
@@ -214,6 +222,8 @@ export default function KidGameScreen(){
  </Screen>;
 }
 const styles=StyleSheet.create({
+ restNotice:{backgroundColor:theme.colors.peach,borderRadius:17,padding:17,gap:6},
+ restText:{color:theme.colors.ink,fontSize:17,fontWeight:"800"},
  progress:{flexDirection:"row",justifyContent:"space-between",backgroundColor:theme.colors.lilac,padding:16,borderRadius:16,gap:10},
  progressText:{fontSize:15,fontWeight:"800",color:theme.colors.ink},
  hintLabel:{color:theme.colors.accent,fontWeight:"800",fontSize:15,paddingStart:5},
