@@ -87,3 +87,37 @@
   .kids-tab-emoji { font-size:1.38rem; }
 }
 @media(prefers-reduced-motion:reduce) { .kids-journey { transition:none; } }
+
+/* Phase 2: guardian-only onboarding controls and a distraction-free exit. */
+.kids-parent-link { min-height:46px; display:inline-flex; align-items:center; border:2px solid #e7defa;
+ border-radius:15px; padding:10px 15px; font-weight:850; color:var(--kids-purple)!important; }
+.kids-guardian { max-width:920px; margin-inline:auto; }
+.kids-guardian-dashboard { display:grid; gap:22px; }
+.kids-guardian-card { background:white; border:2px solid #ede7f8; border-radius:26px;
+ padding:clamp(20px,4vw,30px); }
+.kids-guardian-card h2 { margin:0 0 10px; }
+.kids-guardian-card h3 { margin:24px 0 10px; }
+.kids-guardian-card form { display:grid; gap:15px; margin-top:16px; }
+.kids-guardian-card label, .kids-exit-form label { display:grid; gap:7px; font-weight:800; }
+.kids-guardian-card input,.kids-guardian-card select,.kids-exit-form input {
+ border:2px solid #d5cde7; border-radius:14px; padding:11px 13px; font:inherit;
+ background:white; color:var(--kids-ink); width:100%; min-height:48px;
+}
+.kids-guardian-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
+.kids-guardian-button { border:0; color:white; background:var(--kids-purple); border-radius:14px;
+ cursor:pointer; min-height:48px; padding:12px 22px; font-weight:850; font-size:1rem; width:fit-content; }
+.kids-guardian-button:disabled { opacity:.45; cursor:default; }
+.kids-guardian-child { border-top:1px solid #eae4f7; margin:12px 0; padding:14px 0; }
+.kids-guardian-row { display:flex; gap:14px; justify-content:space-between; align-items:center;
+ flex-wrap:wrap; padding:10px 0; border-bottom:1px solid #ece8f2; }
+.kids-guardian-row button,.kids-guardian-actions button:not(.kids-guardian-button),.kids-pin-recovery button {
+ cursor:pointer; background:white; border:1px solid #d5cde7; border-radius:12px; padding:10px 13px;
+ color:var(--kids-ink); font:inherit; font-weight:750; }
+.kids-guardian-actions { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+.kids-pin-recovery { margin-top:22px; }
+.kids-pin-recovery summary { cursor:pointer; font-weight:800; }
+.kids-exit { text-align:center; max-width:540px; margin:30px auto; border-radius:28px;
+ background:#efebff; padding:clamp(30px,5vw,55px); }
+.kids-exit-form { display:grid; gap:16px; margin:22px auto 0; max-width:340px; text-align:left; }
+.kids-exit-form .kids-guardian-button { width:100%; }
+@media(max-width:650px){ .kids-guardian-fields { grid-template-columns:1fr; } }
