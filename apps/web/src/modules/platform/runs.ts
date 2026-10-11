@@ -1,7 +1,7 @@
 import { createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { db } from "./db";
 import { fail, requireActor, type Actor } from "./auth";
-import { utcWeekStart, WEEK_MS, scoreRanks } from "./weekly-clock";
+import { utcWeekStart, WEEK_MS } from "./weekly-clock";
 
 export type Lane = "GENERAL" | "KIDS";
 export type RunMode = "WEEKLY" | "RANDOM_FIVE" | "INFINITE";
@@ -308,19 +308,34 @@ export async function weeklyStandings(p:Record<string,any>) {
   const edition=await db().weeklyChallenge.findUnique({where:{id:p.challengeId}});
   if(!edition || edition.status!=="SCHEDULED" || edition.lane!=="GENERAL")
     fail(404,"not_found","Public standings not available");
-  const completed=await db().playRun.findMany({
-    where:{weeklyId:edition.id,mode:"WEEKLY",status:"FINISHED",userId:{not:null}},
-    select:{userId:true,score:true,solved:true,completedAt:true},
-    orderBy:[{score:"desc"},{completedAt:"asc"}],take:10000
-  });
-  const ids=completed.map(c=>c.userId).filter((v):v is string=>!!v);
-  const users=await db().user.findMany({where:{id:{in:ids},leaderboardEligible:true,leaderboardOptIn:true},
-    select:{id:true,displayName:true}});
-  const names=new Map(users.map(u=>[u.id,u.displayName]));
-  const valid=completed.filter(row=>row.userId && row.userId!==edition.hostId && names.has(row.userId));
-  const ranked=scoreRanks(valid.map(row=>({
-    displayName:names.get(row.userId!)!,score:row.score,solved:row.solved,
-  })));
-  return {challengeId:edition.id,items:ranked.slice(p.offset,p.offset+p.limit),
-    total:ranked.length,rankingBasis:"first official attempt; verified opt-in adult accounts only; score ties share rank"};
+  // Push privacy and rank calculations into PostgreSQL; no 10k-user in-memory cap.
+  // The score is the only rank criterion, so tied scores always share placement.
+  const rows=await db().$queryRaw<Array<{
+    rank:number;displayName:string;score:number;solved:number;total:number
+  }>>`
+    SELECT (RANK() OVER (ORDER BY pr."score" DESC))::INTEGER AS "rank",
+           u."displayName" AS "displayName", pr."score" AS "score",
+           pr."solved" AS "solved", (COUNT(*) OVER ())::INTEGER AS "total"
+    FROM "PlayRun" pr
+    JOIN "User" u ON u."id"=pr."userId"
+    WHERE pr."weeklyId"=${edition.id} AND pr."mode"='WEEKLY' AND pr."status"='FINISHED'
+      AND u."leaderboardEligible"=TRUE AND u."leaderboardOptIn"=TRUE
+      AND pr."userId" <> ${edition.hostId}
+    ORDER BY pr."score" DESC, pr."completedAt" ASC
+    LIMIT ${p.limit} OFFSET ${p.offset}
+  `;
+  let total=rows[0]?.total ?? 0;
+  if(!rows.length && p.offset>0) {
+    const fallback=await db().$queryRaw<Array<{total:number}>>`
+      SELECT COUNT(*)::INTEGER AS "total" FROM "PlayRun" pr
+      JOIN "User" u ON u."id"=pr."userId"
+      WHERE pr."weeklyId"=${edition.id} AND pr."mode"='WEEKLY' AND pr."status"='FINISHED'
+        AND u."leaderboardEligible"=TRUE AND u."leaderboardOptIn"=TRUE
+        AND pr."userId" <> ${edition.hostId}
+    `;
+    total=fallback[0]?.total??0;
+  }
+  return {challengeId:edition.id,
+    items:rows.map(row=>({rank:row.rank,displayName:row.displayName,score:row.score,solved:row.solved})),
+    total,rankingBasis:"first official attempt; verified opt-in adult accounts only; score ties share rank"};
 }
