@@ -215,6 +215,9 @@ export class QuizDipKidsDeviceApi {
     return result.data as KidTreasures;
   }
 
+  async report(token:string,quizId:string,reason:"UNSAFE"|"INCORRECT"|"BROKEN_MEDIA"):Promise<{reported:true}> {
+    return this.playRequest(token,{action:"report",quizId,reason});
+  }
   async time(token:string,heartbeat=false):Promise<KidTimeState> {
     let response:Response;
     try{response=await this.transport(this.origin+"/api/kids/native/time",{
