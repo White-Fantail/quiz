@@ -21,7 +21,7 @@ test("catalog always requests server-approved kids-only locale and filters unsaf
  assert.deepEqual(page.items.map(x=>x.id),["1"]);
  assert.match(request.url,/kids=true/);assert.match(request.url,/locale=ko/);
  assert.equal(request.options.credentials,"omit");
- assert.throws(()=>api.kidsCatalog("fr"), /invalid_locale/);
+ await assert.rejects(api.kidsCatalog("fr"), /invalid_locale/);
 });
 test("unconfigured result cannot be mistaken for an approved catalog",async()=>{
  const api=new QuizDipPublicApi("https://quizdip.example",async()=>new Response(JSON.stringify({data:{items:null}}),{status:200}));
