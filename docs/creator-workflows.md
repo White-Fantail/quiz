@@ -24,6 +24,10 @@ Studio, REST and MCP must use identical domain checks for ownership, publishing,
 
 See [product principles](product-principles.md), [content policy](content-policy.md), [API/MCP](api-mcp.md) and [auth](auth-sso-mcp.md).
 
+## Quiz creation and publication quotas
+
+Quiz creation has no per-account daily quota. A non-admin creator may publish up to **100 new questions in any rolling 24-hour period**; users whose trusted server-side role is exactly `ADMIN` are exempt from this publication count. The exception applies only to the count, not confirmation, quiz ownership, media validation, restricted-content blocks, moderation/independent Kids approval, or publication audit logs. Studio, REST, and MCP all share the same server-side enforcement.
+
 ## Existing Studio management UI
 
 The authenticated `/studio` lists only the signed-in creator's questions, with server-side 20-item pagination, title/question search (including past revisions), publication and moderation filters. `/studio/quizzes/:quizId` provides a versioned metadata editor and private owner-only aggregate play results plus 10-item paginated reviews. Analytics cover all revisions; rates exclude unfinished sessions. Report reasons are aggregated, not raw report texts or reporter identities. The UI reuses REST `my_quizzes`, `my_quiz_insights`, `quiz_get`, `quiz_update`, and confirmed `quiz_publish`; the corresponding tools are auto-registered through the same MCP operations registry. Publication and Kids approval stay separate; metadata edits create a new immutable revision and reset moderation/Kids eligibility. Full answer/clue visual editing remains a future Studio task (already supported through REST/MCP).
