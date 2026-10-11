@@ -1,5 +1,6 @@
 import { db } from "./db";
 import { ratingsForQuiz } from "./ratings";
+import { currentPlayableRevision } from "./content-locale";
 import { fail, requireActor, type Actor } from "./auth";
 import { playableQuizWhere } from "./content-locale";
 
@@ -9,52 +10,65 @@ async function getPublicQuiz(quizId: string) {
     fail(404, "not_found", "Published quiz not found");
   return q;
 }
-export async function reviewsList(p: Record<string, any>) {
+export async function reviewsList(p:Record<string,any>) {
   await getPublicQuiz(p.quizId);
-  const available = await db().quizLocalization.count({where:{quizId:p.quizId,locale:p.locale,status:"PUBLISHED"}});
-  if (!available) fail(404,"locale_unavailable","Quiz not available in this language");
-  const [items, count] = await Promise.all([
-    db().review.findMany({ where: { quizId: p.quizId }, select: {
-      id: true, rating: true, comment: true, createdAt: true,
-      author: { select: { displayName: true } }
-    }, orderBy: { createdAt: "desc" }, skip: p.offset, take: p.limit }),
-    db().review.count({ where: { quizId: p.quizId } })
+  const loc=await db().quizLocalization.findUnique({where:{quizId_locale:{quizId:p.quizId,locale:p.locale}}});
+  if(loc?.status!=="PUBLISHED" || loc.publishedVersion==null)
+    fail(404,"locale_unavailable","Quiz unavailable in chosen language");
+  if(p.kind==="TRANSLATION" && loc.origin!=="TRANSLATION")
+    fail(400,"not_translated","Translation reviews require translated content");
+  const where={quizId:p.quizId,locale:p.locale,kind:p.kind};
+  const [items,count]=await Promise.all([
+    db().review.findMany({where,select:{id:true,rating:true,comment:true,createdAt:true,locale:true,kind:true,
+      author:{select:{displayName:true}}},orderBy:{createdAt:"desc"},skip:p.offset,take:p.limit}),
+    db().review.count({where})
   ]);
-  return { items, count };
+  return {items,count,locale:p.locale,kind:p.kind};
 }
-export async function reviewUpsert(p: Record<string, any>, actor: Actor | null) {
-  const user = requireActor(actor);
-  const quiz = await getPublicQuiz(p.quizId);
-  if (quiz.authorId === user.id) fail(403, "self_review", "Creators cannot review their own quiz");
-  const completed = await db().playSession.count({
-    where: { quizId: p.quizId, userId: user.id, status: { in: ["SOLVED", "FAILED"] } }
+export async function reviewUpsert(p:Record<string,any>,actor:Actor|null) {
+  const user=requireActor(actor);
+  const quiz=await getPublicQuiz(p.quizId);
+  if(quiz.authorId===user.id)fail(403,"self_review","Cannot review own quiz");
+  const loc=await db().quizLocalization.findUnique({where:{quizId_locale:{quizId:quiz.id,locale:p.locale}}});
+  if(loc?.status!=="PUBLISHED" || loc.publishedVersion==null)
+    fail(404,"locale_unavailable","Quiz unavailable in this language");
+  if(p.kind==="TRANSLATION" && loc.origin!=="TRANSLATION")
+    fail(400,"not_translated","Translation feedback requires a translated version");
+  const completed=await db().playSession.findFirst({
+    where:{quizId:quiz.id,userId:user.id,locale:p.locale,status:{in:["SOLVED","FAILED"]},
+      revision:{localizationId:loc.id}},
+    select:{revisionId:true},orderBy:{finishedAt:"desc"}
   });
-  if (!completed) fail(403, "play_required", "Finish this quiz before reviewing");
-  const review = await db().review.upsert({
-    where: { quizId_authorId: { quizId: p.quizId, authorId: user.id } },
-    create: { quizId: p.quizId, authorId: user.id, rating: p.rating, comment: p.comment },
-    update: { rating: p.rating, comment: p.comment }
+  if(!completed)fail(403,"play_required","Finish this language version before reviewing");
+  const review=await db().review.upsert({
+    where:{quizId_authorId_locale_kind:{quizId:quiz.id,authorId:user.id,locale:p.locale,kind:p.kind}},
+    create:{quizId:quiz.id,authorId:user.id,locale:p.locale,kind:p.kind,
+      revisionId:completed.revisionId,rating:p.rating,comment:p.comment},
+    update:{revisionId:completed.revisionId,rating:p.rating,comment:p.comment}
   });
-  return { id: review.id, rating: review.rating, comment: review.comment, updatedAt: review.updatedAt,
-    ratings:await ratingsForQuiz(p.quizId) };
+  return {id:review.id,locale:p.locale,kind:p.kind,rating:review.rating,comment:review.comment,
+    updatedAt:review.updatedAt,ratings:await ratingsForQuiz(quiz.id,p.locale,p.kind)};
 }
-/** Clear an existing reaction without permitting other users to alter it. */
 export async function reviewRemove(p:Record<string,any>,actor:Actor|null) {
   const user=requireActor(actor);
-  const deleted=await db().review.deleteMany({where:{quizId:p.quizId,authorId:user.id}});
-  return {removed:deleted.count>0,rating:null,ratings:await ratingsForQuiz(p.quizId)};
+  const deleted=await db().review.deleteMany({where:{quizId:p.quizId,authorId:user.id,
+    locale:p.locale,kind:p.kind}});
+  return {removed:deleted.count>0,locale:p.locale,kind:p.kind,rating:null,
+    ratings:await ratingsForQuiz(p.quizId,p.locale,p.kind)};
 }
-export async function reportCreate(p: Record<string, any>, actor: Actor | null) {
-  const user = requireActor(actor);
+export async function reportCreate(p:Record<string,any>,actor:Actor|null) {
+  const user=requireActor(actor);
   await getPublicQuiz(p.quizId);
-  const recent = await db().report.count({
-    where: { reporterId: user.id, createdAt: { gte: new Date(Date.now() - 86400000) } }
-  });
-  if (recent >= 10) fail(429, "rate_limit", "Daily report limit reached");
-  const report = await db().report.create({
-    data: { quizId: p.quizId, reporterId: user.id, reason: p.reason, detail: p.detail }
-  });
-  return { id: report.id, status: report.status, createdAt: report.createdAt };
+  const {revision}=await currentPlayableRevision(p.quizId,p.locale);
+  const recent=await db().report.count({where:{
+    reporterId:user.id,createdAt:{gte:new Date(Date.now()-86400000)}
+  }});
+  if(recent>=10)fail(429,"rate_limit","Daily report limit reached");
+  const report=await db().report.create({data:{
+    quizId:p.quizId,reporterId:user.id,locale:p.locale,revisionId:revision.id,
+    reason:p.reason,detail:p.detail
+  }});
+  return {id:report.id,locale:p.locale,status:report.status,createdAt:report.createdAt};
 }
 export async function reportsMine(p: Record<string, any>, actor: Actor | null) {
   const user = requireActor(actor);
