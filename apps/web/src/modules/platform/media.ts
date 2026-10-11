@@ -1,0 +1,234 @@
+import { createHash, randomUUID } from "node:crypto";
+import sharp from "sharp";
+import { db } from "./db";
+import { fail, requireActor, type Actor } from "./auth";
+import {
+  LIMITS, MIME_KIND, uploadTicket, previewUrl, putObject,
+  copyVerified, deleteObject, readObject, checkSize, sniff, importExternal,
+} from "./storage";
+
+function safeMetadata(p: Record<string, any>) {
+  return {
+    ...(p.alt !== undefined ? { alt: p.alt } : {}),
+    ...(p.transcript !== undefined ? { transcript: p.transcript } : {}),
+    ...(p.attribution !== undefined ? { attribution: p.attribution } : {}),
+    ...(p.license !== undefined ? { license: p.license } : {}),
+  };
+}
+async function asset(id: string, actor: Actor | null) {
+  const user = requireActor(actor);
+  const row = await db().mediaAsset.findFirst({ where: { id, ownerId: user.id, deletedAt: null } });
+  if (!row) fail(404, "media_not_found", "Media asset not found");
+  return row;
+}
+export function mediaSummary(item: any) {
+  return { id: item.id, kind: item.kind, mimeType: item.mimeType, sizeBytes: item.sizeBytes,
+    originalName: item.originalName, status: item.status, moderationStatus: item.moderationStatus,
+    alt: item.alt, transcript: item.transcript, attribution: item.attribution, license: item.license,
+    sourceUrl: item.sourceUrl, parentId: item.parentId, createdAt: item.createdAt, updatedAt: item.updatedAt };
+}
+async function dailyLimit(ownerId: string) {
+  const count = await db().mediaAsset.count({
+    where: { ownerId, createdAt: { gte: new Date(Date.now() - 86400000) } },
+  });
+  if (count >= 150) fail(429, "media_quota", "Daily media upload limit reached");
+}
+export async function mediaUpload(p: Record<string, any>, actor: Actor | null) {
+  const user = requireActor(actor);
+  if (MIME_KIND[p.mimeType] !== p.kind)
+    fail(400, "type_mismatch", "Declared MIME type is not valid for media kind");
+  checkSize(p.kind, p.sizeBytes);
+  await dailyLimit(user.id);
+  const id = randomUUID();
+  const uploadKey = `uploads/${user.id}/${id}/${randomUUID()}`;
+  const storageKey = `assets/${id}/original`;
+  const ticket = await uploadTicket(uploadKey, p.mimeType, p.sha256);
+  const item = await db().mediaAsset.create({ data: {
+    id, ownerId: user.id, kind: p.kind, mimeType: p.mimeType, sizeBytes: p.sizeBytes,
+    sha256: p.sha256, originalName: p.filename, uploadKey, storageKey,
+    uploadExpiresAt: new Date(Date.now()+300000), ...safeMetadata(p),
+  } });
+  return { ...mediaSummary(item), upload: ticket, next: "PUT the binary with exactly the returned headers, then call media_complete" };
+}
+export async function mediaComplete(p: Record<string, any>, actor: Actor | null) {
+  const item = await asset(p.id, actor);
+  if (item.status === "READY") return mediaSummary(item);
+  if (item.status !== "UPLOADING" || !item.uploadKey)
+    fail(409, "invalid_upload_state", "Asset is not waiting for upload");
+  if (!item.uploadExpiresAt || item.uploadExpiresAt.getTime() < Date.now())
+    fail(410, "upload_expired", "Media upload reservation expired");
+  const bytes = await readObject(item.uploadKey, LIMITS[item.kind]);
+  if (bytes.length !== item.sizeBytes) fail(422, "size_mismatch", "Uploaded size is different from reservation");
+  const hash = createHash("sha256").update(bytes).digest("hex");
+  if (hash !== item.sha256) fail(422, "checksum_mismatch", "Uploaded checksum is different from reservation");
+  await sniff(bytes, item.kind, item.mimeType);
+  // Copy the verified snapshot to an immutable key: the PUT ticket cannot overwrite it.
+  await copyVerified(item.uploadKey, item.storageKey, item.mimeType);
+  const updated = await db().mediaAsset.updateMany({
+    where: { id: item.id, ownerId: item.ownerId, status: "UPLOADING" },
+    data: { status: "READY", uploadKey: null, uploadExpiresAt: null },
+  });
+  await deleteObject(item.uploadKey).catch(() => undefined);
+  if (updated.count === 0) {
+    const latest = await asset(item.id, actor);
+    if (latest.status !== "READY") fail(409, "upload_conflict", "Upload completion state changed");
+    return mediaSummary(latest);
+  }
+  return mediaSummary(await asset(item.id, actor));
+}
+export async function mediaImport(p: Record<string, any>, actor: Actor | null) {
+  const user = requireActor(actor);
+  await dailyLimit(user.id);
+  // Import is disabled unless MEDIA_IMPORT_HOSTS explicitly permits the hostname.
+  const fetched = await importExternal(p.url, LIMITS[p.kind]);
+  checkSize(p.kind, fetched.bytes.length);
+  const mimeType = await sniff(fetched.bytes, p.kind);
+  const id = randomUUID();
+  const storageKey = `assets/${id}/original`;
+  await putObject(storageKey, fetched.bytes, mimeType);
+  try {
+    const item = await db().mediaAsset.create({ data: {
+      id, ownerId: user.id, kind: p.kind, mimeType,
+      originalName: p.filename, sizeBytes: fetched.bytes.length,
+      sha256: createHash("sha256").update(fetched.bytes).digest("hex"),
+      status: "READY", storageKey, sourceUrl: p.url,
+      ...safeMetadata(p),
+    } });
+    return mediaSummary(item);
+  } catch (error) {
+    await deleteObject(storageKey).catch(() => undefined);
+    throw error;
+  }
+}
+export async function mediaList(p: Record<string, any>, actor: Actor | null) {
+  const user = requireActor(actor);
+  const rows = await db().mediaAsset.findMany({
+    where: { ownerId: user.id, deletedAt: null }, orderBy: { createdAt: "desc" }, skip: p.offset, take: p.limit,
+  });
+  return { items: rows.map(mediaSummary), offset: p.offset, limit: p.limit };
+}
+export async function mediaGet(p: Record<string, any>, actor: Actor | null) {
+  const item = await asset(p.id, actor);
+  return { ...mediaSummary(item), ...(item.status === "READY"
+    ? { previewUrl: await previewUrl(item.storageKey, item.mimeType), previewExpiresInSeconds: 60 } : {}) };
+}
+export async function mediaUpdate(p: Record<string, any>, actor: Actor | null) {
+  const old = await asset(p.id, actor);
+  if (old.status === "DELETED") fail(409, "media_deleted", "Media was deleted");
+  const changes = safeMetadata(p);
+  if (!Object.keys(changes).length) fail(400, "nothing_to_update", "Specify metadata to change");
+  const item = await db().mediaAsset.update({ where: { id: old.id }, data: {
+    ...changes, moderationStatus: old.moderationStatus === "RESTRICTED" ? "RESTRICTED" : "PENDING",
+  } });
+  return mediaSummary(item);
+}
+async function referencedByQuiz(id: string): Promise<boolean> {
+  const rows = await db().$queryRaw<Array<{ id: string }>>`
+    SELECT "id" FROM "QuizRevision"
+    WHERE "promptMediaIds" @> ${JSON.stringify([id])}::jsonb
+       OR "clues" @> ${JSON.stringify([{ mediaId: id }])}::jsonb
+    LIMIT 1
+  `;
+  return rows.length > 0;
+}
+export async function mediaDelete(p: Record<string, any>, actor: Actor | null) {
+  const old = await asset(p.id, actor);
+  if (p.confirm !== true) fail(400, "confirmation_required", "Confirm deletion");
+  if (await referencedByQuiz(old.id)) fail(409, "media_in_use", "Media is referenced by a quiz revision");
+  if (await db().mediaAsset.count({ where: { parentId: old.id, deletedAt: null } }))
+    fail(409, "media_in_use", "Delete derived assets first");
+  const marked = await db().mediaAsset.update({
+    where: { id: old.id }, data: { status: "DELETED", deletedAt: new Date() },
+  });
+  // Deletion is idempotent. Storage lifecycle cleanup should retry on provider errors.
+  try {
+    await deleteObject(old.storageKey);
+    if (old.uploadKey) await deleteObject(old.uploadKey);
+  } catch (error) {
+    console.error("Media object cleanup failed", error);
+  }
+  return { id: marked.id, deleted: true };
+}
+export async function mediaTransform(p: Record<string, any>, actor: Actor | null) {
+  const user = requireActor(actor);
+  const origin = await asset(p.id, actor);
+  if (origin.status !== "READY" || origin.kind !== "image" || origin.moderationStatus === "RESTRICTED")
+    fail(409, "not_transformable", "Ready unrestricted images only");
+  await dailyLimit(user.id);
+  const bytes = await readObject(origin.storageKey, LIMITS.image);
+  const photo = sharp(bytes, { limitInputPixels: 30000000, failOn: "error" });
+  const dimensions = await photo.metadata();
+  if (!dimensions.width || !dimensions.height) fail(415, "invalid_image", "Image dimensions are unavailable");
+  if (p.crop && (p.crop.left+p.crop.width > dimensions.width || p.crop.top+p.crop.height > dimensions.height))
+    fail(400, "invalid_crop", "Crop is outside image bounds");
+  let result = sharp(bytes, { limitInputPixels: 30000000, failOn: "error" }).rotate();
+  if (p.crop) result = result.extract(p.crop);
+  if (p.resizeWidth) result = result.resize({ width: p.resizeWidth, withoutEnlargement: true });
+  if (p.blur) result = result.blur(p.blur);
+  const transformed = await result.webp({ quality: 82 }).toBuffer();
+  checkSize("image", transformed.length);
+  const id = randomUUID(); const storageKey = `assets/${id}/original`;
+  await putObject(storageKey, transformed, "image/webp");
+  try {
+    const item = await db().mediaAsset.create({ data: {
+      id, ownerId: user.id, kind: "image", mimeType: "image/webp",
+      originalName: "clue-image.webp", sizeBytes: transformed.length,
+      sha256: createHash("sha256").update(transformed).digest("hex"),
+      storageKey, status: "READY", parentId: origin.id,
+      alt: origin.alt, attribution: origin.attribution, license: origin.license,
+    } });
+    return mediaSummary(item);
+  } catch (error) {
+    await deleteObject(storageKey).catch(() => undefined);
+    throw error;
+  }
+}
+export async function mediaReview(p: Record<string, any>, actor: Actor | null) {
+  const user = requireActor(actor);
+  if (user.role !== "ADMIN") fail(403, "admin_required", "Trusted admin permission required");
+  const item = await db().mediaAsset.findUnique({ where: { id: p.id } });
+  if (!item || item.deletedAt || item.status !== "READY")
+    fail(404, "media_not_found", "Ready media asset not found");
+  const updated = await db().mediaAsset.update({ where: { id: item.id }, data: { moderationStatus: p.verdict } });
+  await db().auditLog.create({ data: {
+    actorId: user.id, action: "media.review", objectId: item.id,
+    detail: { verdict: p.verdict, reason: p.reason },
+  } });
+  return { id: updated.id, moderationStatus: updated.moderationStatus };
+}
+export async function validateMediaReferences(
+  ownerId: string, promptMediaIds: string[], clues: Array<Record<string, any>>,
+  requireApproved = false,
+) {
+  const expected = new Map<string,string>();
+  for (const id of promptMediaIds) expected.set(id, "image");
+  for (const clue of clues) if (clue.mediaId) expected.set(clue.mediaId, clue.type);
+  if (!expected.size) return;
+  const media = await db().mediaAsset.findMany({ where: {
+    id: { in: [...expected.keys()] }, ownerId, status: "READY", deletedAt: null,
+  } });
+  if (media.length !== expected.size)
+    fail(422, "invalid_media", "A media reference is not ready or not owned by this author");
+  for (const item of media) {
+    if (item.kind !== expected.get(item.id))
+      fail(422, "invalid_media_type", "Referenced asset type does not match clue type");
+    if (item.moderationStatus === "RESTRICTED")
+      fail(403, "media_restricted", "A media asset is restricted by moderation");
+    if (requireApproved && item.moderationStatus !== "APPROVED")
+      fail(409, "media_review_pending", "Media must be reviewed before public exposure");
+  }
+}
+
+export async function signedPlayMedia(p: Record<string, any>, actor: Actor | null) {
+  const { getPlaySession } = await import("./play");
+  const session = await getPlaySession(p, actor);
+  const promptMediaIds = session.revision.promptMediaIds as string[];
+  const visibleClues = (session.revision.clues as Array<Record<string, any>>).slice(0, session.usedClues);
+  if (!promptMediaIds.includes(p.mediaId) && !visibleClues.some(c => c.mediaId === p.mediaId))
+    fail(403, "clue_not_revealed", "This media is not an already revealed clue");
+  const media = await db().mediaAsset.findUnique({ where: { id: p.mediaId } });
+  if (!media || media.status !== "READY" || media.deletedAt || media.moderationStatus !== "APPROVED")
+    fail(404, "media_unavailable", "Media is not approved for playback");
+  return { mediaId: media.id, url: await previewUrl(media.storageKey, media.mimeType), expiresInSeconds: 60,
+    kind: media.kind, mimeType: media.mimeType };
+}
