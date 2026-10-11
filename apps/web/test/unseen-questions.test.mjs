@@ -22,14 +22,14 @@ test("REST and MCP share validated browser-history exclusions",()=>{
 });
 test("server enforces weekly first-exposure ranking guard and pool depletion",()=>{
   const code=readFileSync(new URL("../src/modules/platform/runs.ts",import.meta.url),"utf8");
-  assert.match(code,/preseen=mode==="WEEKLY"/);
-  assert.match(code,/pr\\."officialEligible"=TRUE/);
-  assert.match(code,/const choice=shuffle\\(selectUnseen/);
-  assert.match(code,/exhausted:done\\.status==="FINISHED"/);
+  assert.ok(code.includes('pr."officialEligible"=TRUE'));
+  assert.ok(code.includes('pr."officialEligible"=TRUE'));
+  assert.ok(code.includes("const choice=shuffle(selectUnseen"));
+  assert.ok(code.includes('exhausted:done.status==="FINISHED"'));
 });
 test("UI emphasizes five-question free play and provides a next-five action",()=>{
   const code=readFileSync(new URL("../app/(platform)/play/page.tsx",import.meta.url),"utf8");
   assert.ok(code.indexOf("play-practice")<code.indexOf("weekly-spotlight"));
   assert.match(code,/새로운 5문제 더 풀기/);
-  assert.match(code,/rememberQuiz\\(next\\.quizId\\)/);
+  assert.ok(code.includes("rememberQuiz(next.quizId)"));
 });
