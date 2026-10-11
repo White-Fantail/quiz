@@ -275,3 +275,14 @@ export async function signedPlayMedia(p: Record<string, any>, actor: Actor | nul
   return { mediaId: media.id, url: await previewUrl(media.storageKey, media.mimeType), expiresInSeconds: 60,
     kind: media.kind, mimeType: media.mimeType };
 }
+
+/** Private reviewer access, distinct from owner-only edit/delete. */
+export async function mediaReviewGet(p:Record<string,any>,actor:Actor|null) {
+  const user=requireActor(actor);
+  if(user.role!=="ADMIN") fail(403,"admin_required","Only trusted moderators can view submitted media");
+  const item=await db().mediaAsset.findUnique({where:{id:p.id}});
+  if(!item || item.deletedAt || item.status!=="READY")
+    fail(404,"media_not_found","Media is unavailable");
+  return {...mediaSummary(item),previewUrl:await previewUrl(item.storageKey,item.mimeType),
+    previewExpiresInSeconds:60};
+}

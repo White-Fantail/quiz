@@ -82,6 +82,7 @@ export const operations = {
       width: z.number().int().positive(), height: z.number().int().positive() }).optional(),
     blur: z.number().min(0.3).max(20).optional(), resizeWidth: z.number().int().min(64).max(2048).optional()
   }).refine(p => !!(p.crop || p.blur || p.resizeWidth), { message: "Choose at least one image transform" }) },
+  media_review_get: { public: false, description: "ADMIN ONLY: inspect private media and credits before moderation", schema: z.object({id:mediaId}) },
   media_review: { public: false, description: "ADMIN ONLY: explicitly approve or restrict validated media", schema: z.object({
     id: mediaId, verdict: z.enum(["APPROVED", "RESTRICTED"]), confirm: z.literal(true), reason: z.string().min(5).max(1000)
   }) },
