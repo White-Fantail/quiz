@@ -59,17 +59,19 @@ export default function GuardianDashboardScreen(){
      playSessionMinutes:existing.playSessionMinutes,breakEveryMinutes:existing.breakEveryMinutes,
      timeZone:existing.timeZone}:{...defaults});
  };
- const perform=async(action:Record<string,unknown>,label:string,reset=false)=>{
-   if(!token||!parentApi||busy)return;
+ const perform=async(action:Record<string,unknown>,label:string,reset=false):Promise<boolean>=>{
+   if(!token||!parentApi||busy)return false;
    setBusy(true);setError("");setNotice("");
    try{
      await parentApi.action(token,parent.verifiedToken(),action);
      setNotice(label);
      if(reset){setSelected("new");setDraft({...defaults});}
      await load();
+     return true;
    }catch(e){
-     if(e instanceof ApiError&&e.code==="parent_session_expired"){parent.clear();return;}
+     if(e instanceof ApiError&&e.code==="parent_session_expired"){parent.clear();return false;}
      setError(e instanceof ApiError?e.code:t("native.parent.error"));
+     return false;
    }finally{setBusy(false);}
  };
  const confirm=(title:string,action:Record<string,unknown>,reset=false)=>{
@@ -183,8 +185,9 @@ export default function GuardianDashboardScreen(){
          onChangeText={setNewPin} placeholder={t("native.parent.newPin")} style={styles.input}/>
        <Pressable accessibilityRole="button" disabled={busy||previousPin.length!==6||newPin.length!==6}
          style={styles.secondary} onPress={()=>void (async()=>{
-           await perform({action:"pin_change",previous:previousPin,pin:newPin},t("native.parent.saved"));
-           setPreviousPin("");setNewPin("");parent.clear();router.replace("/setup");void kid.reload();
+           const done=await perform({action:"pin_change",previous:previousPin,pin:newPin},t("native.parent.saved"));
+           setPreviousPin("");setNewPin("");
+           if(done){parent.clear();router.replace("/setup");void kid.reload();}
          })()}>
          <Text style={styles.secondaryText}>{t("native.parent.pinChange")}</Text>
        </Pressable>
