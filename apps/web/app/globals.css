@@ -95,3 +95,42 @@ a.feature-card:hover { border-color:#B4AEF7; transform:translateY(-3px); }
 .media-identity { font-size:.7rem; overflow-wrap:anywhere; }
 .media-preview { width:100%; max-height:250px; object-fit:contain; background:#eee; border-radius:12px; }
 .media-grid audio { max-width:100%; }
+
+/* Play modes: the weekly five-question spotlight is the primary experience. */
+.play-experience { max-width:960px; }
+.play-intro h1 { max-width:850px; }
+.lane-picker { display:flex; gap:8px; background:#EEEAFE; border-radius:18px; padding:7px; margin:28px 0; width:fit-content; }
+.lane-choice { background:transparent; border:0; padding:11px 25px; color:#504D75; font-weight:800; border-radius:13px; }
+.lane-choice.active { background:#fff; color:var(--purple); box-shadow:0 2px 8px #1b0e4e16; }
+.weekly-spotlight { position:relative; isolation:isolate; overflow:hidden; background:#EDE9FF; border:1px solid #D6D0FA; border-radius:29px; padding:clamp(26px,5vw,55px); margin:30px 0; }
+.weekly-spotlight h2 { font-size:clamp(2rem,5vw,3.3rem); max-width:580px; margin:18px 0; }
+.weekly-spotlight p { max-width:640px; line-height:1.8; }
+.weekly-star { position:absolute; z-index:-1; top:-120px; right:3%; font-size:18rem; line-height:1; opacity:.13; color:var(--purple); }
+.weekly-host { font-size:1.2rem; }
+.host-verified { display:inline-block; margin-left:8px; font-size:.72rem; background:white; color:#4a3899; padding:3px 9px; border-radius:999px; vertical-align:middle; }
+.weekly-dates { color:#574D98; font-weight:750; }
+.weekly-footnote { font-size:.82rem; color:#5E5686; }
+.weekly-spotlight .btn { margin:12px 0 0; }
+.play-practice { margin-top:42px; }
+.play-practice .cards { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.play-practice .feature-card p { min-height:65px; }
+.play-practice .btn { margin-top:12px; }
+.play-live { margin:25px 0; }
+.round-progress { display:flex; justify-content:space-between; flex-wrap:wrap; color:#595291; font-weight:750; margin:30px 0 12px; }
+.round-finish { padding:36px 10px; text-align:center; }
+.round-finish h2 { font-size:2.5rem; }
+.round-finish-symbol { font-size:4rem; color:var(--purple); }
+.round-media { max-height:360px; max-width:100%; width:auto; border-radius:16px; object-fit:contain; }
+.round-audio { max-width:100%; }
+.clue-media-list { display:flex; flex-wrap:wrap; gap:15px; margin:22px 0; }
+.clue-list li p { margin:0 0 9px; }
+.map-clue { display:grid; gap:7px; }
+.map-clue a { color:var(--purple); font-weight:800; }
+.weekly-ranking { margin-top:42px; background:white; border:1px solid var(--border); padding:30px; border-radius:24px; }
+.ranking-list { list-style:none; display:grid; padding:0; gap:8px; }
+.ranking-list li { display:flex; justify-content:space-between; align-items:center; gap:16px; background:#F7F5FF; border-radius:13px; padding:11px 16px; }
+.ranking-list li span:nth-child(2) { flex:1; }
+.ranking-place { font-weight:850; color:var(--purple); min-width:36px; }
+.recent-results { background:white; border:1px solid var(--border); border-radius:16px; padding:12px 22px; }
+.recent-results p { margin:9px 0; }
+@media(max-width:780px) { .play-practice .cards { grid-template-columns:1fr; } .weekly-spotlight { padding:27px; } .lane-picker { width:100%; } .lane-choice { flex:1; padding:11px 6px; } }
