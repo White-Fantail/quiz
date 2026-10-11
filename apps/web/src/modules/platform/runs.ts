@@ -1,16 +1,11 @@
 import { createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { db } from "./db";
 import { fail, requireActor, type Actor } from "./auth";
+import { utcWeekStart, WEEK_MS, scoreRanks } from "./weekly-clock";
 
 export type Lane = "GENERAL" | "KIDS";
 export type RunMode = "WEEKLY" | "RANDOM_FIVE" | "INFINITE";
-const weekMs = 7 * 86400000;
-export function utcWeekStart(now = new Date()): Date {
-  const day = now.getUTCDay();
-  const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-  start.setUTCDate(start.getUTCDate() - ((day + 6) % 7));
-  return start;
-}
+const weekMs = WEEK_MS;
 export function validateWeek(start: string, now = new Date()): {start: Date; end: Date} {
   const date = new Date(start + "T00:00:00.000Z");
   if (Number.isNaN(date.getTime()) || date.toISOString().slice(0,10) !== start ||
@@ -299,11 +294,9 @@ export async function weeklyStandings(p:Record<string,any>) {
     select:{id:true,displayName:true}});
   const names=new Map(users.map(u=>[u.id,u.displayName]));
   const valid=completed.filter(row=>row.userId && names.has(row.userId));
-  let lastScore:number|null=null,lastRank=0;
-  const ranked=valid.map((row,index)=>{
-    if(lastScore!==row.score){lastScore=row.score;lastRank=index+1;}
-    return {rank:lastRank,displayName:names.get(row.userId!)!,score:row.score,solved:row.solved};
-  });
+  const ranked=scoreRanks(valid.map(row=>({
+    displayName:names.get(row.userId!)!,score:row.score,solved:row.solved,
+  })));
   return {challengeId:edition.id,items:ranked.slice(p.offset,p.offset+p.limit),
     total:ranked.length,rankingBasis:"first official attempt; verified opt-in adult accounts only; score ties share rank"};
 }
