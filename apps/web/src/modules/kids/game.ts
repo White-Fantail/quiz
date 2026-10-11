@@ -68,7 +68,7 @@ async function answerChoices(kid:Kid,sessionId:string,sessionToken:string){
     where:{answerType:active.revision.answerType,
       localization:{is:{locale:kid.profile.locale,status:"PUBLISHED",
         origin:{in:approvedOrigins},quiz:{is:playableQuizWhere(kid.profile.locale,"KIDS")}}}},
-    include:{localization:true},take:120
+    include:{localization:true},orderBy:{id:"asc"},take:120
   });
   const distinct=new Set<string>([correct.toLocaleLowerCase()]);
   const decoys:string[]=[];
@@ -77,7 +77,7 @@ async function answerChoices(kid:Kid,sessionId:string,sessionToken:string){
     const text=String((revision.answer as any)?.canonical??"").trim();
     if(text && !distinct.has(text.toLocaleLowerCase())){distinct.add(text.toLocaleLowerCase());decoys.push(text);}
   }
-  if(decoys.length<3)return [];
+  if(decoys.length<(kid.profile.ageBand==="EARLY"?1:2))return [];
   const sorted=(values:string[])=>values.sort((a,b)=>{
     const order=(x:string)=>createHash("sha256").update(sessionId+":"+x).digest("hex");
     return order(a).localeCompare(order(b));
