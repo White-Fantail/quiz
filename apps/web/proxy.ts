@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { KIDS_COOKIE } from "./src/modules/kids/credentials";
 import { isKidsPath } from "./src/modules/kids/navigation";
 import { DEFAULT_LOCALE, LOCALE_COOKIE, isLocale, localeFromAcceptLanguage, localeFromPath, stripLocale } from "./src/i18n/core";
 
@@ -13,11 +14,18 @@ export function proxy(request: NextRequest) {
   const url = request.nextUrl.clone();
   const pathname = url.pathname;
   if (bypass(pathname)) return NextResponse.next();
+  // A child device cannot navigate into general/studio/admin routes with the browser.
+  // The database-backed REST/auth handlers enforce the actual authorization boundary.
+  const locked = request.cookies.has(KIDS_COOKIE);
   const locale = localeFromPath(pathname);
   if (locale) {
     const headers = new Headers(request.headers);
     headers.set("x-quizdip-locale", locale);
     const resolvedPath = stripLocale(pathname);
+    if (locked && !isKidsPath(resolvedPath)) {
+      url.pathname = "/" + locale + "/kids";
+      return NextResponse.redirect(url);
+    }
     // Route-derived presentation shell: never honor a client-supplied shell header.
     headers.set("x-quizdip-shell", isKidsPath(resolvedPath) ? "kids" : "general");
     headers.set("x-quizdip-path", resolvedPath);
@@ -32,7 +40,8 @@ export function proxy(request: NextRequest) {
   // Reject unsupported two-letter locale paths rather than silently serving different-language content.
   const selected = request.cookies.get(LOCALE_COOKIE)?.value;
   const fallback = isLocale(selected) ? selected : localeFromAcceptLanguage(request.headers.get("accept-language"));
-  url.pathname = "/" + (fallback || DEFAULT_LOCALE) + (pathname === "/" ? "" : pathname);
+  url.pathname = "/" + (fallback || DEFAULT_LOCALE) + (locked && !isKidsPath(pathname)
+    ? "/kids" : pathname === "/" ? "" : pathname);
   return NextResponse.redirect(url);
 }
 export const config = { matcher: "/:path*" };

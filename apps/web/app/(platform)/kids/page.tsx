@@ -40,7 +40,7 @@ export default async function KidsPage() {
             </Link>
           ))}
         </div>
-        <p className="kids-parent-hint">{t(locale, "kids.setupLater")}</p>
+        <p className="kids-parent-hint">{t(locale, "kids.guardian.controlled")}</p>
       </section>
     </>
   );

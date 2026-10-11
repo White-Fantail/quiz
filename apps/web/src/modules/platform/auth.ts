@@ -1,3 +1,4 @@
+import { hasKidCookie } from "../kids/credentials";
 import { auth, authPool, siteOrigin } from "../../lib/auth";
 import { db } from "./db";
 
@@ -33,6 +34,8 @@ export async function actorByIdentity(id: string): Promise<Actor> {
 
 /** REST uses the verified same-site login cookie; OAuth Bearer tokens are for MCP only. */
 export async function actorFor(request: Request): Promise<Actor | null> {
+  if (hasKidCookie(request.headers.get("cookie")))
+    fail(403,"kid_mode_active","Unlock Kids before accessing the adult account");
   // Never silently interpret a failed bearer as an authenticated browser session.
   if (request.headers.has("authorization")) {
     fail(401, "unsupported_credentials", "Use an authenticated web session for REST or OAuth for MCP");
