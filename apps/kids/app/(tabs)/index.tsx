@@ -4,7 +4,7 @@ import { useRouter } from "expo-router";
 import { Screen, Banner } from "../../src/components/Screen";
 import { AdventureTile } from "../../src/components/AdventureTile";
 import { useKidsLocale } from "../../src/state/locale";
-import { publicApi } from "../../src/services/api";
+import { useKidsSession } from "../../src/state/session";
 import { theme } from "../../src/theme";
 
 const journeys=[
@@ -16,29 +16,16 @@ const journeys=[
 
 export default function KidsHome(){
  const router=useRouter(),{width}=useWindowDimensions();
- const {locale,chooseLocale,t}=useKidsLocale();
- const [health,setHealth]=useState<"missing"|"loading"|"ready"|"error">("loading");
- const [retry,setRetry]=useState(0);
- useEffect(()=>{
-  const controller=new AbortController();
-  if(!publicApi){setHealth("missing");return ()=>controller.abort();}
-  setHealth("loading");
-  void publicApi.health(controller.signal).then(()=>{if(!controller.signal.aborted)setHealth("ready");})
-   .catch(()=>{if(!controller.signal.aborted)setHealth("error");});
-  return ()=>controller.abort();
- },[retry]);
+ const {t}=useKidsLocale();
+ const kid=useKidsSession();
  return <Screen title={t("kids.welcome")} subtitle={t("kids.subtitle")}>
   <Banner emoji="✨" title="QuizDip Kids" detail={t("native.choose")}/>
   <View style={styles.locale}>
-   <Text style={styles.smallTitle}>{t("native.language")}</Text>
-   <View style={styles.choiceRow}>
-    {(["en","ko"] as const).map(option=><Pressable key={option}
-     accessibilityRole="button" accessibilityState={{selected:locale===option}}
-     onPress={()=>chooseLocale(option)} style={[styles.choice,locale===option&&styles.choiceActive]}>
-     <Text style={[styles.choiceText,locale===option&&styles.choiceTextActive]}>{option==="en"?"English":"한국어"}</Text>
-    </Pressable>)}
-   </View>
-   <Text style={styles.note}>{t("native.languageNote")}</Text>
+   <Text style={styles.smallTitle}>{t("native.session.profile")}: {kid.status==="active"?kid.session.profile.nickname:""}</Text>
+   <Text style={styles.note}>{t("native.session.pinned")}</Text>
+   <Pressable accessibilityRole="button" onPress={()=>router.push("/parent")}>
+     <Text style={styles.retry}>🔒 {t("native.guardian.open")}</Text>
+   </Pressable>
   </View>
   <Text style={styles.heading}>{t("kids.chooseTopic")}</Text>
   <View style={[styles.grid,{gap:width>=720?16:12}]}>
@@ -47,16 +34,6 @@ export default function KidsHome(){
       tint={item.tint} onPress={()=>router.push({pathname:"/explore",params:{answerType:item.type,topic:item.topic}})}/>
     </View>)}
   </View>
-  <View style={styles.status}>
-   <Text style={styles.smallTitle}>{t("native.connectTitle")}</Text>
-   <Text style={styles.note}>{health==="ready"?t("native.connected"):
-      health==="missing"?t("native.notConfigured"):
-      health==="error"?t("native.unavailable"):t("kids.explore.loading")}</Text>
-   {health==="error"?<Pressable accessibilityRole="button" onPress={()=>setRetry(v=>v+1)}>
-     <Text style={styles.retry}>{t("native.retry")} ↻</Text>
-   </Pressable>:null}
-  </View>
-  <Text style={styles.note}>{t("native.setupRequired")}</Text>
  </Screen>;
 }
 const styles=StyleSheet.create({
