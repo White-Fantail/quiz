@@ -14,7 +14,7 @@ type RunInfo = {runId:string;runToken:string;mode:Mode;lane:Lane;weekly?:Edition
   solved?:number;failed?:number};
 type Round = RunInfo & {sessionId:string;sessionToken:string;round:number;quizId:string;title:string;
   prompt:string;promptMediaIds:string[];clues:Clue[];clueIndex:number;clueCount:number;
-  sessionStatus:string};
+  sessionStatus:string;canGuess?:boolean};
 type Ranking = {rank:number;displayName:string;score:number;solved:number};
 type MediaPreview = {url:string;kind:string;mimeType:string;mediaId:string};
 
@@ -92,7 +92,7 @@ export default function PlayPage() {
     }
     const next=data as Round;
     setRun({...r,...data});setRound(next);setGuess("");setFeedback("");setAnswer("");setRoundScore(0);
-    setMustReveal(next.sessionStatus!=="ACTIVE");
+    setMustReveal(!next.canGuess);
     setMedia({});
     const ids=[...(next.promptMediaIds||[]),...next.clues.map(c=>c.mediaId).filter((x):x is string=>!!x)];
     await Promise.all([...new Set(ids)].map(async mediaId=>{

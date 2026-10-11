@@ -22,7 +22,8 @@ export async function quizList(p: Record<string, any>, actor: Actor | null) {
   const items = await Promise.all(rows.map(async quiz => {
     const r = await revision(quiz.id, quiz.currentVersion);
     return { id: quiz.id, title: r.title, prompt: r.prompt, mode: r.mode, clueCount: (r.clues as any[]).length,
-      version: quiz.currentVersion, publication: quiz.publication, categories: quiz.categories, safetyStatus: quiz.safetyStatus };
+      version: quiz.currentVersion, publication: quiz.publication, categories: quiz.categories, safetyStatus: quiz.safetyStatus,
+      kidsEligible: quiz.kidsEligible && quiz.safetyStatus === "APPROVED" };
   }));
   return { items, offset: p.offset, limit: p.limit };
 }

@@ -139,7 +139,12 @@ function shuffle<T>(items:T[]):T[] {
 }
 async function randomChoices(lane: Lane,count:number,avoid:string[]=[]) {
   // Keep pool bounded; random five requires five distinct questions in a run.
-  const pool=await db().quiz.findMany({where:eligibleQuizWhere(lane),
+  const reserved=await db().weeklyQuestion.findMany({
+    where:{challenge:{status:"SCHEDULED",weekEnd:{gt:new Date()}}},
+    select:{quizId:true}
+  });
+  const reservedIds=reserved.map(row=>row.quizId);
+  const pool=await db().quiz.findMany({where:{...eligibleQuizWhere(lane),id:{notIn:reservedIds}},
     orderBy:{updatedAt:"desc"},take:2000,select:{id:true,currentVersion:true,
       revisions:{orderBy:{version:"desc"},take:1,select:{id:true}}}});
   const eligible=pool.filter(q=>q.revisions[0]?.id);
@@ -236,6 +241,7 @@ export async function runCurrent(p:Record<string,any>,actor:Actor|null) {
     title:revision.title,prompt:revision.prompt,promptMediaIds:revision.promptMediaIds,
     clueIndex:session.usedClues,clueCount:clues.length,
     clues:clues.slice(0,session.usedClues),sessionStatus:session.status,
+    canGuess:session.status==="ACTIVE"&&session.wrongGuesses<session.usedClues,
     ...(session.status!=="ACTIVE"?{scoreThisQuestion:session.score}:{}),
   };
 }

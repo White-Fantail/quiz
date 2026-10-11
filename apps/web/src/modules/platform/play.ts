@@ -31,6 +31,10 @@ export async function getPlaySession(p: Record<string, any>, actor: Actor | null
   return session;
 }
 export async function playStart(p: Record<string, any>, actor: Actor | null) {
+  const featured=await db().weeklyQuestion.findFirst({where:{
+    quizId:p.quizId,challenge:{status:"SCHEDULED",weekEnd:{gt:new Date()}}
+  }});
+  if(featured) fail(409,"weekly_reserved","Featured weekly questions are reserved for the shared five-round challenge");
   const quiz = await db().quiz.findUnique({ where: { id: p.quizId } });
   if (!quiz || quiz.publication !== "PUBLISHED" || quiz.safetyStatus === "RESTRICTED")
     fail(404, "not_found", "Quiz unavailable");
