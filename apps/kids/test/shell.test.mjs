@@ -14,14 +14,18 @@ test("Kids is a real native Expo app, not a webview shell",()=>{
 });
 test("native discovery is read-only, locale-scoped and server-safe",()=>{
  const src=source("app/(tabs)/explore.tsx"),api=source("src/services/api.ts");
- assert.match(src,/api\.kidsCatalog\(locale/);
+ assert.match(src,/api\.catalog\(token/);
  assert.match(source("../../packages/api-client/src/index.ts"),/kidsEligible===true/);
  assert.doesNotMatch(src,/play_guess|play_start|answer\.canonical/);
  assert.match(api,/EXPO_PUBLIC_QUIZDIP_API_URL/);
  assert.doesNotMatch(api,/DATABASE_URL|BETTER_AUTH_SECRET/);
 });
-test("Phase 1 keeps parent-protected features as future work",()=>{
+test("Phase 2 only opens child routes with a validated native credential",()=>{
  const home=source("app/(tabs)/index.tsx");
- assert.match(home,/native\.setupRequired/);
- assert.match(home,/native\.languageNote/);
+ const gate=source("app/(tabs)/_layout.tsx");
+ const setup=source("app/setup.tsx");
+ assert.match(home,/router.push\("\/parent"\)/);
+ assert.match(home,/native\.session\.profile/);
+ assert.match(gate,/status!=="active"/);
+ assert.match(setup,/session\.pair\(/);
 });
