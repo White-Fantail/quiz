@@ -99,3 +99,7 @@ The web now supports locale-prefixed pages (/en and /ko), UI language selection,
 
 ## Strict language filtering (Phase 2)
 Public quiz catalog, topic lookup, packs, single-play, random-five, infinite runs and weekly snapshots are now language-scoped on the server for `en` and `ko`. Existing `und` quizzes are intentionally hidden from public language catalogs until their author verifies their true original language via Studio or API/MCP. Supplying a wrong locale does not translate or fallback the content. Apply migration `20261012080000_language_eligible_play` in dev before using this release. See [implementation details](docs/i18n-foundation.md). Remaining UI copy and translation creation are follow-up work.
+
+## Phase 3 translation Studio
+
+Open Studio → My Quiz → Language Versions to draft, AI-suggest (optional), review and publish English/Korean translations without overwriting the original language. Production requires migration `20261012100000_translation_versions`.

@@ -48,3 +48,12 @@ Apply `npm run db:migrate` in a correctly configured staging database before ser
 5. Verify the same weekly set is pinned before play, missing language edition returns unavailable, and standings filter language without exposing unverified user identities.
 6. Test pack language partial coverage; only all-published complete packs appear. Verify GET /api/v1/catalog, MCP OAuth and auth callbacks retain their unprefixed URLs.
 7. Production E2E is not claimed by source implementation; dedicated DB-backed tests and localized media review are required before production enablement.
+
+## Phase 3: managed translation revisions
+- Original question locale auto-detects conservatively from prompt/clues unless creator provides a locale. Mixed/unclassifiable text stays `und`.
+- Existing global (quizId, version) uniqueness is replaced by (localizationId, version). Public reads select `publishedVersion`, while `currentVersion` can advance independently as a draft. Immutable revision IDs and player history are preserved.
+- Studio language tab supports manually translating answer, clues and prompt; optional AI translation proposal; draft saving; explicit review/publish; hiding. The AI result never writes to the DB automatically.
+- AI suggestions require `OPENAI_API_KEY` and optionally `QUIZDIP_TRANSLATION_MODEL` (default `gpt-4.1-mini`). Without a key, manual translations remain fully available.
+- Source revision ID and optimistic version are checked before save/publish. Clue count, type, media ownership and map coordinates cannot be changed through translation. Audio/video reuse across languages is blocked at publish. Publishing resets overall safety review to PENDING and Kids eligibility to false.
+- Old public translated revision remains visible until explicitly replaced/hidden. Original change marks translation stale and blocks publishing until revised.
+- Migration `20261012100000_translation_versions` MUST be applied before serving this version. CI is not an independent staging DB/provider E2E test.

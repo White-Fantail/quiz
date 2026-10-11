@@ -102,3 +102,15 @@ Public UI routes are /en/... and /ko/... through Next.js proxy rewrites. REST, M
 - `GET /weekly/current?locale=...` and `GET /weekly/:id/standings?locale=...` apply language-specific snapshot and ranking rules.
 - `POST /quizzes/:id/language {locale,confirm:true}` is `quizdip_quiz_language_set`, and `POST /packs/:id/language` is `quizdip_pack_language_set`. These confirm a creator's legacy unclassified ORIGINAL, not translations.
 - New question/pack creation accepts `locale: "en"|"ko"|"und"`. Omission remains `und` to avoid false English labeling. Multi-language translation authoring and independent version publishing are Phase 3.
+
+## Phase 3 owned translation endpoints
+| REST | MCP | Description |
+| --- | --- | --- |
+| GET /quizzes/:id/languages?includeContent=true | quizdip_quiz_languages | List versions, optionally editable content |
+| GET /quizzes/:id/languages/:locale | quizdip_quiz_translation_get | Read owned editable locale |
+| POST /quizzes/:id/languages/:locale/generate | quizdip_quiz_translation_generate | AI suggestion only (requires OPENAI_API_KEY) |
+| PUT /quizzes/:id/languages/:locale | quizdip_quiz_translation_save | Save draft: `sourceRevisionId`, `expectedVersion`, `fields` |
+| POST /quizzes/:id/languages/:locale/publish | quizdip_quiz_translation_publish | Publish with `expectedVersion`, `reviewed:true`, `confirm:true` |
+| POST /quizzes/:id/languages/:locale/hide | quizdip_quiz_translation_hide | Hide with `confirm:true` |
+
+All actions require creator authentication; media identifiers and clue structure must match the source.

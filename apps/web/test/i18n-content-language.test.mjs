@@ -18,7 +18,7 @@ test("catalog and gameplay validate supported locale and refuse unsupported valu
   assert.equal(parseOperation("run_current",{runId:id,runToken:"x".repeat(40)}).locale,undefined);
   assert.throws(()=>parseOperation("run_current",{runId:id,runToken:"x".repeat(40),locale:"und"}));
   assert.equal(parseOperation("quiz_create",{title:"A",prompt:"B",answer:{canonical:"C",aliases:[]},
-    clues:[{type:"text",text:"D"}]}).locale,"und");
+    clues:[{type:"text",text:"D"}]}).locale,undefined);
   assert.equal(parseOperation("pack_create",{title:"A",quizIds:[id]}).locale,"und");
 });
 test("original language classification requires creator confirmation and is never a safety edit",()=>{
