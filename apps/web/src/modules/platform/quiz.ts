@@ -227,7 +227,12 @@ export async function quizReviewGet(p:Record<string,any>,actor:Actor|null) {
   if(!item) fail(404,"not_found","Quiz not found");
   const current=await db().quizRevision.findFirst({where:{quizId:item.id,version:item.currentVersion,localization:{origin:{in:["ORIGINAL","LEGACY"]}}}});
   if(!current) fail(409,"invalid_revision","Quiz revision unavailable");
-  return {id:item.id,authorId:item.authorId,version:item.currentVersion,
+  // Moderator-only aggregate, deliberately never return private child identities.
+  const childReportCounts=await db().kidSafetyReport.groupBy({
+    by:["reason"],where:{quizId:item.id},_count:{_all:true}
+  });
+  return {childSafetySignals:childReportCounts.map(row=>({reason:row.reason,count:row._count._all})),
+    id:item.id,authorId:item.authorId,version:item.currentVersion,
     title:current.title,prompt:current.prompt,mode:current.mode,answerType:current.answerType,
     topics:topicSummaries(item.topicLinks,true),answer:current.answer,
     clues:current.clues,promptMediaIds:current.promptMediaIds,creatorIntent:item.creatorIntent,
