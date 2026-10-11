@@ -45,7 +45,9 @@ export async function playStart(p: Record<string, any>, actor: Actor | null) {
     fail(404, "not_found", "Quiz unavailable");
   if (p.kids && !(quiz.safetyStatus === "APPROVED" && quiz.kidsEligible))
     fail(403, "not_for_kids", "Quiz has not passed Kids eligibility checks");
-  const { revision } = await currentPlayableRevision(quiz.id, p.locale);
+  const { revision, translation } = await currentPlayableRevision(quiz.id, p.locale);
+  if(p.kids && !["ORIGINAL","LEGACY"].includes(translation.origin))
+    fail(403,"locale_safety_review_pending","Translated content requires separate child-safety approval");
   const clues = revision.clues as Record<string, unknown>[];
   if (!clues.length) fail(409, "invalid_quiz", "Quiz has no clues");
   const token = randomBytes(32).toString("base64url");

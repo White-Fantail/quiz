@@ -50,6 +50,10 @@ test("localized version pointers, immutable session IDs, and translation review 
   assert.match(svc,/kind:\{in:\["audio","video"\]\}/);
   assert.match(svc,/created:false,published:false/);
   assert.match(svc,/safetyStatus:"PENDING",kidsEligible:false/);
+  const eligibility=read("src/modules/platform/content-locale.ts");
+  const play=read("src/modules/platform/play.ts");
+  assert.match(eligibility,/lane==="KIDS"\?\{origin:/);
+  assert.match(play,/locale_safety_review_pending/);
   assert.match(studio,/TranslationManager/);
   assert.match(ui,/reviewed:true,confirm:true/);
 });

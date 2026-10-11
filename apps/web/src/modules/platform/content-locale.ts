@@ -11,7 +11,8 @@ export function playableQuizWhere(locale: Locale, lane: "GENERAL" | "KIDS" = "GE
     publication: "PUBLISHED",
     ...(lane === "KIDS" ? { safetyStatus: "APPROVED", kidsEligible: true }
       : { safetyStatus: { not: "RESTRICTED" } }),
-    localizations: publishedLocalization(locale)
+    localizations: {some:{locale,status:"PUBLISHED",
+      ...(lane==="KIDS"?{origin:{in:["ORIGINAL","LEGACY"]}}:{})}}
   };
 }
 export async function currentPlayableRevision(quizId: string, locale: Locale) {

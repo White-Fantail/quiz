@@ -88,7 +88,8 @@ async function weeklySnapshots(item: any, locale: Locale) {
   if(rows.some((row,i)=>row.position!==item.questions[i].position ||
       row.revision.quizId!==item.questions[i].quizId ||
       row.revision.localization?.locale!==locale ||
-      row.revision.localization.status!=="PUBLISHED")) return [];
+      row.revision.localization.status!=="PUBLISHED" ||
+      (item.lane==="KIDS" && !["ORIGINAL","LEGACY"].includes(row.revision.localization.origin)))) return [];
   return rows;
 }
 async function editionAvailable(item: any, locale: Locale): Promise<boolean> {
