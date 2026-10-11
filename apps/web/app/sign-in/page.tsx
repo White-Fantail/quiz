@@ -1,3 +1,6 @@
+import { headers } from "next/headers";
+import { resolveLocale } from "../../src/i18n/core";
+import { t } from "../../src/i18n/messages";
 import { availableProviders } from "../../src/lib/auth-providers";
 import SignInActions from "./sign-in-actions";
 
@@ -5,6 +8,7 @@ export const dynamic = "force-dynamic";
 export default async function SignInPage({ searchParams }: {
   searchParams: Promise<{ callbackURL?: string; redirect?: string }>;
 }) {
+  const locale = resolveLocale((await headers()).get("x-quizdip-locale"));
   const params = await searchParams;
   const requested = params.callbackURL || params.redirect || "/account";
   // Only same-site paths may be used after sign-in.
@@ -12,11 +16,11 @@ export default async function SignInPage({ searchParams }: {
   return (
     <main className="container inner-page compact">
       <span className="small-tag">QuizDip Account</span>
-      <h1>QuizDip에 로그인</h1>
-      <p className="muted">Google 계정으로 로그인하면 웹사이트와 ChatGPT MCP에서 같은 QuizDip 계정을 이용할 수 있어요. Apple 로그인은 설정 완료 후 사용할 수 있어요.</p>
+      <h1>{t(locale, "signIn.title")}</h1>
+      <p className="muted">{t(locale, "signIn.lead")}</p>
       <div className="placeholder-panel">
         <SignInActions google={availableProviders.google} apple={availableProviders.apple} returnTo={returnTo} />
-        <p className="muted">처음 로그인하면 QuizDip 계정이 만들어져요. 서로 다른 로그인 수단을 연결할 때는 먼저 로그인한 뒤 <b>내 계정</b>에서 명시적으로 연결해 주세요.</p>
+        <p className="muted">{t(locale, "signIn.note")}</p>
       </div>
     </main>
   );

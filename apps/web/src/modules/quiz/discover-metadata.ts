@@ -40,17 +40,21 @@ export function discoverQuery(filters: {
   if (filters.kids) params.set("kids", "true");
   return params.toString();
 }
-export function audienceAgeLabel(audience: Audience): string | null {
+export function audienceAgeLabel(audience: Audience, locale: "en" | "ko" = "ko"): string | null {
   const min = audience?.ageRange?.minimum;
   const max = audience?.ageRange?.maximum;
   if (min === undefined && max === undefined) return null;
+  if (locale === "en") {
+    if (min !== undefined && max !== undefined) return min === max ? "Age " + min : "Ages " + min + "–" + max;
+    return min !== undefined ? "Ages " + min + "+" : "Up to age " + max;
+  }
   if (min !== undefined && max !== undefined) return min === max ? min + "세 추천" : min + "–" + max + "세 추천";
   return min !== undefined ? min + "세 이상 추천" : max + "세 이하 추천";
 }
-export function difficultyLabel(audience: Audience): string | null {
-  const labels = { easy: "쉬움", medium: "보통", hard: "어려움" };
+export function difficultyLabel(audience: Audience, locale: "en" | "ko" = "ko"): string | null {
+  const labels = locale === "en" ? { easy: "Easy", medium: "Medium", hard: "Hard" } : { easy: "쉬움", medium: "보통", hard: "어려움" };
   return audience?.difficulty ? labels[audience.difficulty] : null;
 }
-export function modeLabel(mode: string): string {
-  return mode === "progressive-clues" ? "단계별 단서" : "퀴즈";
+export function modeLabel(mode: string, locale: "en" | "ko" = "ko"): string {
+  return locale === "en" ? (mode === "progressive-clues" ? "Progressive clues" : "Quiz") : (mode === "progressive-clues" ? "단계별 단서" : "퀴즈");
 }

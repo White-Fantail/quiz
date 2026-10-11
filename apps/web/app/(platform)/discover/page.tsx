@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { useLocale, useTranslation } from "../../../src/i18n/provider";
+import { localizeHref } from "../../../src/i18n/core";
 import { RatingBadge } from "../../../src/components/quiz-ratings";
 import { useEffect, useState } from "react";
 import {
@@ -19,6 +21,9 @@ async function getData(path: string): Promise<any> {
 }
 
 export default function DiscoverPage() {
+  const locale = useLocale();
+  const t = useTranslation();
+  const typeLabelsEn: Record<string, string> = { animal:"Animal", person:"Person", place:"Place", thing:"Thing", event:"Event", concept:"Concept", other:"Other" };
   const [answerType, setAnswerType] = useState("");
   const [topic, setTopic] = useState("");
   const [kids, setKids] = useState(false);
@@ -68,23 +73,23 @@ export default function DiscoverPage() {
   return (
     <main className="container inner-page discover-page">
       <span className="eyebrow">QUIZDIP DISCOVER</span>
-      <h1>새로운 퀴즈를 발견해 봐</h1>
-      <p className="lead">좋아하는 주제와 정답 유형을 고르고, 단서를 따라 정답을 찾아봐.</p>
+      <h1>{t("discover.heading")}</h1>
+      <p className="lead">{t("discover.lead")}</p>
 
-      <section className="discover-filters" aria-label="퀴즈 탐색 필터">
+      <section className="discover-filters" aria-label={t("discover.filters")}>
         <label>
-          <span>정답 유형</span>
+          <span>{t("discover.answerType")}</span>
           <select value={answerType} onChange={e => changeType(e.target.value)}>
-            <option value="">전체 유형</option>
+            <option value="">{t("discover.allTypes")}</option>
             {ANSWER_TYPES.map(type =>
-              <option value={type.value} key={type.value}>{type.label}</option>
+              <option value={type.value} key={type.value}>{locale === "en" ? typeLabelsEn[type.value] : type.label}</option>
             )}
           </select>
         </label>
         <label>
-          <span>주제</span>
+          <span>{t("discover.topic")}</span>
           <select value={topic} onChange={e => changeTopic(e.target.value)}>
-            <option value="">전체 주제</option>
+            <option value="">{t("discover.allTopics")}</option>
             {topic && !topics.some(item => item.name === topic) &&
               <option value={topic}>{topic}</option>}
             {topics.map(item => <option value={item.name} key={item.id}>{item.name}</option>)}
@@ -92,41 +97,41 @@ export default function DiscoverPage() {
         </label>
         <label className="discover-kids-option">
           <input type="checkbox" checked={kids} onChange={e => changeKids(e.target.checked)} />
-          <span>어린이용으로 승인된 퀴즈만</span>
+          <span>{t("discover.kidsOnly")}</span>
         </label>
         {activeFilters &&
           <button className="text-button" type="button" onClick={() => {
             setAnswerType(""); setTopic(""); setKids(false); setPage(0);
-          }}>필터 초기화</button>}
+          }}>{t("discover.clearFilters")}</button>}
       </section>
 
       <div className="discover-results-head">
-        <h2>퀴즈 둘러보기</h2>
-        <span className="muted">{loading ? "불러오는 중…" : quizzes.length ? "새로운 도전을 골라봐!" : "표시할 퀴즈가 없어요"}</span>
+        <h2>{t("discover.browse")}</h2>
+        <span className="muted">{loading ? t("discover.loading") : quizzes.length ? t("discover.ready") : t("discover.none")}</span>
       </div>
       {error && <div className="feedback" role="alert">
-        {error} <button type="button" className="text-button" onClick={() => setRetry(v => v + 1)}>다시 시도</button>
+        {error} <button type="button" className="text-button" onClick={() => setRetry(v => v + 1)}>{t("discover.retry")}</button>
       </div>}
       {!loading && !error && !quizzes.length &&
         <div className="discover-empty">
-          <h3>조건에 맞는 퀴즈를 찾지 못했어요.</h3>
+          <h3>{t("discover.empty")}</h3>
           <p className="muted">{kids
-            ? "어린이 모드에는 별도 안전성 승인을 받은 퀴즈만 나타나요."
-            : "아직 공개된 퀴즈가 없거나 선택한 조건과 일치하지 않아요."}</p>
+            ? t("discover.emptyKids")
+            : t("discover.emptyGeneral")}</p>
           {activeFilters && <button className="btn btn-outline" onClick={() => {
             setAnswerType(""); setTopic(""); setKids(false); setPage(0);
-          }}>모든 퀴즈 보기</button>}
+          }}>{t("discover.viewAll")}</button>}
         </div>}
-      {loading && <p className="muted" role="status">퀴즈를 찾고 있어요…</p>}
+      {loading && <p className="muted" role="status">{t("discover.searching")}</p>}
       {!loading && !error && !!quizzes.length && <div className="discover-grid">
         {quizzes.map(quiz => {
           const kind = ANSWER_TYPES.find(type => type.value === quiz.answerType);
-          const age = audienceAgeLabel(quiz.recommendedAudience);
-          const difficulty = difficultyLabel(quiz.recommendedAudience);
+          const age = audienceAgeLabel(quiz.recommendedAudience, locale);
+          const difficulty = difficultyLabel(quiz.recommendedAudience, locale);
           return <article key={quiz.id} className="feature-card discover-card">
             <div className="discover-card-top">
               <span className="symbol mint" aria-hidden="true">{kind?.icon ?? "✨"}</span>
-              <span className="small-tag">{kind?.label ?? "퀴즈"}</span>
+              <span className="small-tag">{locale === "en" ? (typeLabelsEn[quiz.answerType] || "Quiz") : (kind?.label ?? "퀴즈")}</span>
             </div>
             <h3>{quiz.title}</h3>
             <p>{quiz.prompt}</p>
@@ -140,26 +145,26 @@ export default function DiscoverPage() {
             </div>
             <RatingBadge ratings={quiz.ratings}/>
             <div className="discover-card-meta">
-              <span>{modeLabel(quiz.mode)}</span>
-              <span>단서 {quiz.clueCount}개</span>
+              <span>{modeLabel(quiz.mode, locale)}</span>
+              <span>{t("discover.clues")}: {quiz.clueCount}</span>
               {age && <span>{age}</span>}
-              {difficulty && <span>난이도 {difficulty}</span>}
-              {quiz.kidsEligible && <span>어린이 승인</span>}
+              {difficulty && <span>{t("discover.difficulty")}: {difficulty}</span>}
+              {quiz.kidsEligible && <span>{t("discover.approved")}</span>}
             </div>
-            <Link href={"/play/" + quiz.id + (kids ? "?kids=true" : "")}
-              className="btn btn-primary discover-play-link">이 퀴즈 풀기 →</Link>
+            <Link href={localizeHref("/play/" + quiz.id + (kids ? "?kids=true" : ""), locale)}
+              className="btn btn-primary discover-play-link">{t("discover.play")}</Link>
           </article>;
         })}
       </div>}
       {!loading && !error && (page > 0 || hasMore) &&
-        <nav className="discover-pagination" aria-label="퀴즈 목록 페이지">
+        <nav className="discover-pagination" aria-label={t("discover.pagination")}>
           <button type="button" className="btn btn-outline" disabled={page === 0}
-            onClick={() => setPage(v => Math.max(0, v - 1))}>이전</button>
-          <span>{page + 1} 페이지</span>
+            onClick={() => setPage(v => Math.max(0, v - 1))}>{t("discover.previous")}</button>
+          <span>{page + 1} {t("discover.page")}</span>
           <button type="button" className="btn btn-outline" disabled={!hasMore}
-            onClick={() => setPage(v => v + 1)}>다음</button>
+            onClick={() => setPage(v => v + 1)}>{t("discover.next")}</button>
         </nav>}
-      <p className="muted discover-explainer">추천 연령과 난이도는 퀴즈 제작 과정에서 제안된 정보예요. 어린이 노출 가능 여부는 별도의 안전성 검증으로 결정돼요.</p>
+      <p className="muted discover-explainer">{t("discover.explainer")}</p>
     </main>
   );
 }

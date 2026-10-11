@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { resolveLocale, localizeHref } from "../../src/i18n/core";
+import { t } from "../../src/i18n/messages";
 import { headers } from "next/headers";
 import { availableProviders } from "../../src/lib/auth-providers";
 import SignInActions from "../sign-in/sign-in-actions";
@@ -20,23 +22,25 @@ async function resolveSession() {
 
 export default async function AccountPage() {
   const { session, unavailable } = await resolveSession();
+  const locale = resolveLocale((await headers()).get("x-quizdip-locale"));
+  const msg = (key: Parameters<typeof t>[1]) => t(locale, key);
   if (unavailable) {
     return <main className="container inner-page compact">
-      <h1>내 계정</h1>
-      <p role="alert" className="feedback">계정 정보를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.</p>
-      <p className="muted">문제가 계속되면 서비스 관리자에게 알려 주세요. 로그인 상태나 계정 정보는 변경되지 않았어요.</p>
-      <a className="btn btn-outline" href="/account">다시 시도하기</a>
+      <h1>{msg("account.title")}</h1>
+      <p role="alert" className="feedback">{msg("account.unavailable")}</p>
+      <p className="muted">{msg("account.unavailableHelp")}</p>
+      <a className="btn btn-outline" href={localizeHref("/account", locale)}>{msg("account.retry")}</a>
     </main>;
   }
   if (!session) {
     return <main className="container inner-page compact">
-      <h1>내 계정</h1>
-      <p>Google 계정으로 로그인하면 내 퀴즈와 플레이 기록, MCP 연결을 한곳에서 관리할 수 있어요.</p>
+      <h1>{msg("account.title")}</h1>
+      <p>{msg("account.guest")}</p>
       <div className="placeholder-panel">
         <SignInActions google={availableProviders.google} apple={availableProviders.apple} returnTo="/account" />
       </div>
-      <p className="muted">계정에 로그인한 뒤 다른 로그인 수단을 연결할 수 있어요.</p>
-      <Link className="text-button" href="/">홈으로 돌아가기</Link>
+      <p className="muted">{msg("account.afterSignIn")}</p>
+      <Link className="text-button" href={localizeHref("/", locale)}>{msg("account.home")}</Link>
     </main>;
   }
 
@@ -51,16 +55,16 @@ export default async function AccountPage() {
 
   return <main className="container inner-page compact">
     <span className="small-tag">My QuizDip</span>
-    <h1>내 계정</h1>
-    <p>안녕하세요, <b>{session.user.name}</b>!</p>
-    <p className="muted">웹사이트와 MCP는 동일한 QuizDip 사용자 ID를 사용해요. 추가 로그인 수단은 직접 연결할 수 있어요.</p>
+    <h1>{msg("account.title")}</h1>
+    <p>{msg("account.greeting")} <b>{session.user.name}</b>!</p>
+    <p className="muted">{msg("account.identity")}</p>
     {isAdmin && <div className="actions">
-      <Link href="/admin" className="btn btn-primary">관리자 대시보드</Link>
+      <Link href={localizeHref("/admin", locale)} className="btn btn-primary">{msg("account.admin")}</Link>
     </div>}
     <div className="placeholder-panel">
-      <h2>연결된 로그인 수단</h2>
+      <h2>{msg("account.providers")}</h2>
       <AccountActions google={availableProviders.google} apple={availableProviders.apple} />
     </div>
-    <p className="muted">보안을 위해 같은 이메일이라는 이유만으로 다른 로그인 계정을 자동 병합하지 않아요. 이 화면에서 직접 연결해야 해요.</p>
+    <p className="muted">{msg("account.security")}</p>
   </main>;
 }
