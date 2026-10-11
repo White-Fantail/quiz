@@ -2,6 +2,13 @@
 
 > 상태: 설계안 / 구현 미착수. 기준 브랜치: `dev` (2026-10-12 확인). 이 문서는 **모바일 기능 개발 4단계 + 기존 웹 Kids 제거 1단계**를 정의한다. 현재 웹 구현 완료 상태와 목표 구현 상태를 혼동하지 않는다.
 
+## Phase 1 implementation record (2026-10-12)
+
+- **Implemented in `dev` source:** `apps/kids` Expo SDK 57 React Native app, English/Korean four-tab shell, native iPad/Android responsive layout, read-only server-approved discovery preview, configurable dev API health check, common `@quizdip/i18n` Kids catalog and `@quizdip/api-client` contracts, npm scripts and CI jobs.
+- **Not yet independently verified:** actual `npm install`, full TypeScript/build/Expo exports in a runner with dependencies, iPad/Android simulator, EAS TestFlight device builds and production OAuth. Source and CI additions are not proof of runtime success.
+- **Deferred:** guardian native credentials and profile-pinned locale (Phase 2), playable quizzes and private rewards (Phase 3), time policies and parent analytics (Phase 4), full legacy web Kids UI removal (Phase 5). The old browser Kids routes remain active.
+- **Release rule:** treat Phase 1 as a source-implementation milestone until automated validation and device smoke tests pass. Do not enable native child-session play prematurely.
+
 ## 0. 결정 및 범위
 
 - 제품: 일반 웹 `QuizDip`과 iOS/iPadOS·Android 전용 앱 `QuizDip Kids`는 **각각 별도 인터페이스**를 가진다. 앱은 WebView 포장이 아니라 React Native + Expo/Expo Router로 구현한다.
