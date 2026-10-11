@@ -9,14 +9,6 @@ import "./globals.css";
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = resolveLocale((await headers()).get("x-quizdip-locale"));
-  const kids = (await headers()).get("x-quizdip-shell") === "kids";
-  if (kids) {
-    const title = locale === "ko" ? "QuizDip Kids — 호기심 가득한 퀴즈 놀이터" : "QuizDip Kids — Explore and discover";
-    const description = t(locale, "kids.meta");
-    return { title, applicationName: "QuizDip Kids", description,
-      openGraph: { title, description, siteName: "QuizDip Kids", type: "website" },
-      twitter: { card: "summary", title, description } };
-  }
   const description = t(locale, "meta.description");
   const title = locale === "ko" ? "QuizDip — 단서를 따라, 재미를 발견해" : "QuizDip — Follow the clues. Find the fun.";
   return {
@@ -32,19 +24,18 @@ const navLinks = [
   { href: "/discover", key: "nav.discover" },
   { href: "/play", key: "nav.play" },
   { href: "/studio", key: "nav.studio" },
-  { href: "/kids", key: "nav.kids" },
   { href: "/account", key: "nav.account" },
 ] as const;
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const requestHeaders = await headers();
   const locale = resolveLocale(requestHeaders.get("x-quizdip-locale"));
-  const kidsShell = requestHeaders.get("x-quizdip-shell") === "kids";
+  const lockedLegacyBrowser = requestHeaders.get("x-quizdip-legacy-lock") === "locked";
   return (
     <html lang={locale}>
       <body>
         <LocaleProvider locale={locale}>
-          {kidsShell ? children : <>
+          {lockedLegacyBrowser ? <main>{children}</main> : <>
           <header className="site-header">
             <div className="container header-inner">
               <Link href={localizeHref("/", locale)} className="wordmark" aria-label={t(locale, "nav.home")}>QuizDip<span className="wordmark-dot">.</span></Link>
