@@ -22,3 +22,5 @@ jobs:
       - run: npm run test
       - run: npm run typecheck
       - run: npm run build
+      - run: npm run kids:bundle:ios
+      - run: npm run kids:bundle:android
