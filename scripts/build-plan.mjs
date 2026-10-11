@@ -21,7 +21,7 @@ export function createBuildPlan(env) {
 
   steps.push(
     { label: "Generate Prisma client", command: "npm", args: ["run", "db:generate"] },
-    { label: "Build Next.js", command: "npm", args: ["run", "build", "--workspace", "@clupio/web"] },
+    { label: "Build Next.js", command: "npm", args: ["run", "build:next", "--workspace", "@clupio/web"] },
   );
   return steps;
 }
