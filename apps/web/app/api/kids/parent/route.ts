@@ -1,7 +1,7 @@
 import { z, ZodError } from "zod";
 import { actorFor, requireActor, requireSameOrigin, PlatformError, fail } from "../../../../src/modules/platform/auth";
 import { auth } from "../../../../src/lib/auth";
-import { guardianOverview, addKidProfile, updateKidProfile, deleteKidProfile, revokeKidDevice, setGuardianPin } from "../../../../src/modules/kids/service";
+import { guardianOverview, addKidProfile, updateKidProfile, deleteKidProfile, revokeKidDevice, setGuardianPin, issueNativePairTicket } from "../../../../src/modules/kids/service";
 import { hasKidCookie } from "../../../../src/modules/kids/credentials";
 
 export const runtime="nodejs";
@@ -20,7 +20,8 @@ const action=z.discriminatedUnion("action",[
   z.object({action:z.literal("profile_add"),...profile.shape}),
   z.object({action:z.literal("profile_update"),id:uuid,...profile.shape}),
   z.object({action:z.literal("profile_delete"),id:uuid}),
-  z.object({action:z.literal("device_revoke"),id:uuid})
+  z.object({action:z.literal("device_revoke"),id:uuid}),
+  z.object({action:z.literal("native_pair_issue"),profileId:uuid,pin})
 ]);
 async function handle(request:Request) {
   try {
@@ -50,6 +51,7 @@ async function handle(request:Request) {
       case "profile_update":result=await updateKidProfile(actor.id,p.id,p);break;
       case "profile_delete":result=await deleteKidProfile(actor.id,p.id);break;
       case "device_revoke":result=await revokeKidDevice(actor.id,p.id);break;
+      case "native_pair_issue":result=await issueNativePairTicket(actor.id,p.profileId,p.pin);break;
     }
     return Response.json({data:result},{headers:{"Cache-Control":"no-store"}});
   }catch(e) {
