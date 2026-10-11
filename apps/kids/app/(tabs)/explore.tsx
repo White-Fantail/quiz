@@ -4,7 +4,8 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import type { AnswerType } from "@quizdip/domain";
 import type { KidsCatalogItem } from "@quizdip/api-client";
 import { Screen } from "../../src/components/Screen";
-import { publicApi } from "../../src/services/api";
+import { kidsApi } from "../../src/services/api";
+import { useKidsSession } from "../../src/state/session";
 import { useKidsLocale } from "../../src/state/locale";
 import { theme } from "../../src/theme";
 
@@ -24,6 +25,8 @@ function category(value: unknown): Category {
 export default function ExploreScreen(){
  const {answerType:routeType,topic:routeTopic}=useLocalSearchParams<{answerType?:string;topic?:string}>();
  const {locale,t}=useKidsLocale();
+ const kid=useKidsSession();
+ const token=kid.status==="active"?kid.token:null;
  const [answerType,setAnswerType]=useState<Category>(()=>category(routeType));
  const [topic,setTopic]=useState(routeTopic==="dinosaur"?"dinosaur":"");
  const [page,setPage]=useState(0),[retry,setRetry]=useState(0);
@@ -35,13 +38,13 @@ export default function ExploreScreen(){
  },[routeType,routeTopic]);
  useEffect(()=>{
   const controller=new AbortController();
-  if(!publicApi){setState("missing");setItems([]);setHasMore(false);return ()=>controller.abort();}
-  const api=publicApi;
+  if(!kidsApi||!token){setState("missing");setItems([]);setHasMore(false);return ()=>controller.abort();}
+  const api=kidsApi;
   setState("loading");setItems([]);setHasMore(false);
-  void api.kidsCatalog(locale,{
+  void api.catalog(token,{
    ...(answerType?{answerType:answerType as AnswerType}:{}),
    ...(topic?{topic}:{}),offset:page*SIZE,limit:SIZE
-  },controller.signal).then(result=>{
+  },locale).then(result=>{
    if(controller.signal.aborted)return;
    setItems(result.items);setHasMore(result.hasMore);setState("ready");
   }).catch(()=>{
@@ -49,7 +52,7 @@ export default function ExploreScreen(){
    setState("error");setItems([]);setHasMore(false);
   });
   return ()=>controller.abort();
- },[locale,answerType,topic,page,retry]);
+ },[token,locale,answerType,topic,page,retry]);
  return <Screen title={t("kids.explore.title")} subtitle={t("kids.explore.lead")}>
   {topic?<Pressable accessibilityRole="button" onPress={()=>{setTopic("");setPage(0);}}>
    <Text style={styles.clear}>🦕 {t("kids.explore.dinosaur")} × {t("kids.explore.clearTopic")}</Text>
