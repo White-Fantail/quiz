@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { useLocale } from "../../../src/i18n/provider";
+import { localizeHref } from "../../../src/i18n/core";
 import { RatingBadge, RatingButtons, RatingSignIn, type RatingAccess } from "../../../src/components/quiz-ratings";
 import type { RatingSummary } from "../../../src/modules/quiz/rating-metadata";
 import { useCallback, useEffect, useState } from "react";
@@ -64,6 +66,7 @@ function MediaPart({item}:{item:MediaPreview}) {
 }
 
 export default function PlayPage() {
+  const locale = useLocale();
   const [lane,setLane]=useState<Lane>("GENERAL");
   const [edition,setEdition]=useState<Edition|null>(null);
   const [run,setRun]=useState<RunInfo|null>(null);
@@ -92,16 +95,16 @@ export default function PlayPage() {
   useEffect(()=>{
     let alive=true;
     setEdition(null);setRun(null);setRound(null);setError("");setFeedback("");setMedia({});
-    void api("/weekly/current?lane="+lane).then((v:Edition)=>{if(alive)setEdition(v)})
+    void api("/weekly/current?lane="+lane+"&locale="+locale).then((v:Edition)=>{if(alive)setEdition(v)})
       .catch(e=>{if(alive)setError(e instanceof Error?e.message:"이번 주 정보를 불러오지 못했어요.")});
     void api("/runs?limit=5").then(value=>{if(alive)setMyHistory(value.items||[])}).catch(()=>{});
     return ()=>{alive=false;};
-  },[lane]);
+  },[lane,locale]);
 
   useEffect(()=>{
     let alive=true;
     if(lane!=="GENERAL"||!edition?.available||!edition.id){setRanking([]);setRankingAvailable(false);return;}
-    void api("/weekly/"+edition.id+"/standings?limit=10").then(data=>{
+    void api("/weekly/"+edition.id+"/standings?limit=10&locale="+locale).then(data=>{
       if(alive){setRanking(data.items||[]);setRankingAvailable(true);}
     }).catch(()=>{if(alive){setRanking([]);setRankingAvailable(false);}});
     return ()=>{alive=false;};
@@ -119,7 +122,7 @@ export default function PlayPage() {
   },[run?.runId,run?.status,round]);
 
   const showRound=useCallback(async (r:RunInfo) => {
-    const data=await api("/runs/"+r.runId+"/current","POST",{runToken:r.runToken,avoidQuizIds:rememberedQuizzes()});
+    const data=await api("/runs/"+r.runId+"/current","POST",{runToken:r.runToken,avoidQuizIds:rememberedQuizzes(),locale});
     if(data.status==="FINISHED" && !data.sessionId){
       setRun({...r,...data});setRound(null);setFeedback("");setMedia({});
       return;
@@ -141,7 +144,7 @@ export default function PlayPage() {
   async function start(nextMode:Mode) {
     setBusy(true);setError("");setFeedback("");setQuestionsToRate([]);setRatingError("");
     try{
-      const value=await api("/runs","POST",{mode:nextMode,lane,avoidQuizIds:rememberedQuizzes()});
+      const value=await api("/runs","POST",{mode:nextMode,lane,avoidQuizIds:rememberedQuizzes(),locale});
       setMode(nextMode);setRun(value);
       await showRound(value);
     }catch(e){setError(e instanceof Error?e.message:"시작할 수 없어요.");}
@@ -241,7 +244,7 @@ export default function PlayPage() {
           <button className="btn btn-primary" disabled={busy} onClick={()=>void start("WEEKLY")}>
             {busy?"불러오는 중…":"이번 주 5문제 도전하기 →"}</button>
           <p className="weekly-footnote">첫 도전만 공식 기록으로 인정해요. 전에 이 문제를 본 사용자는 순위에 포함되지 않아요.</p>
-          <Link href="/sign-in?callbackURL=%2Fplay" className="text-button">공식 기록을 위해 로그인하기</Link>
+          <Link href={localizeHref("/sign-in?callbackURL=%2Fplay", locale)} className="text-button">공식 기록을 위해 로그인하기</Link>
         </>:<>
           <h2>{lane==="KIDS"?"이번 주 어린이 챌린지를 준비하고 있어요":"이번 주 출제자를 기다리고 있어요"}</h2>
           <p>{edition?.message||"주간 문제 정보를 확인하고 있어요."}</p>
@@ -323,7 +326,7 @@ export default function PlayPage() {
               <RatingButtons quizId={q.quizId} initialRating={q.myRating} access={q.ratingAccess}
                 onSaved={(ratings,value)=>setQuestionsToRate(old=>old.map(row=>row.quizId===q.quizId?{...row,ratings,myRating:value}:row))}/>
             </div>)}
-            {questionsToRate.some(q=>q.ratingAccess==="SIGN_IN")&&<RatingSignIn destination="/play"/>}
+            {questionsToRate.some(q=>q.ratingAccess==="SIGN_IN")&&<RatingSignIn destination={localizeHref("/play", locale)}/>}
           </div>
           {run.mode==="RANDOM_FIVE"&&<button type="button" className="btn btn-primary"
             disabled={busy} onClick={()=>void start("RANDOM_FIVE")}>새로운 5문제 더 풀기 →</button>}
@@ -350,6 +353,6 @@ export default function PlayPage() {
         <p className="muted">참여 자격이 확인되고 순위 공개에 동의한 성인만 표시돼요. 동점자는 공동 순위예요.</p>
       </section>}
     {lane==="KIDS"&&<p className="muted">어린이 모드는 플랫폼에서 안전성을 확인한 문제만 제공하고, 공개 개인 순위는 표시하지 않아요.</p>}
-    <div className="play-bottom"><Link href="/discover">다른 퀴즈 둘러보기 →</Link><Link href="/studio/weekly">출제자로 참여하기 →</Link></div>
+    <div className="play-bottom"><Link href={localizeHref("/discover", locale)}>다른 퀴즈 둘러보기 →</Link><Link href={localizeHref("/studio/weekly", locale)}>출제자로 참여하기 →</Link></div>
   </main>;
 }

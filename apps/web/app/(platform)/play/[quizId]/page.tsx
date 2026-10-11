@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { useLocale } from "../../../../src/i18n/provider";
+import { localizeHref } from "../../../../src/i18n/core";
 import { RatingBadge, RatingButtons, RatingSignIn, type RatingAccess } from "../../../../src/components/quiz-ratings";
 import type { RatingSummary } from "../../../../src/modules/quiz/rating-metadata";
 import { useParams } from "next/navigation";
@@ -29,6 +31,7 @@ async function api(path: string, body: unknown): Promise<any> {
   return payload.data;
 }
 export default function SingleQuizPage() {
+  const locale = useLocale();
   const { quizId } = useParams<{ quizId: string }>();
   const [session, setSession] = useState<Session | null>(null);
   const [clues, setClues] = useState<Clue[]>([]);
@@ -47,7 +50,7 @@ export default function SingleQuizPage() {
     setSession(null); setClues([]); setMedia({}); setBusy(true); setError("");
     setGuess(""); setFeedback(""); setMustReveal(false); setAnswer(""); setScore(0); setStatus("ACTIVE");
     const kids = new URLSearchParams(window.location.search).get("kids") === "true";
-    void api("/play", { quizId, kids }).then((next:Session) => {
+    void api("/play", { quizId, kids, locale }).then((next:Session) => {
       if (!active) return;
       setSession(next);
       setClues([next.clue]);
@@ -62,7 +65,7 @@ export default function SingleQuizPage() {
     }).catch(e => { if (active) setError(e instanceof Error ? e.message : "퀴즈를 시작하지 못했어요."); })
       .finally(() => { if (active) setBusy(false); });
     return () => { active = false; };
-  }, [quizId]);
+  }, [quizId,locale]);
 
   async function reveal() {
     if (!session) return;
@@ -113,7 +116,7 @@ export default function SingleQuizPage() {
   }
   return <main className="container inner-page discover-solo">
     <span className="eyebrow">QUIZDIP · PLAY</span>
-    <Link className="card-link" href="/discover">← 다른 퀴즈 둘러보기</Link>
+    <Link className="card-link" href={localizeHref("/discover",locale)}>← 다른 퀴즈 둘러보기</Link>
     {busy && !session && <p className="muted" role="status">퀴즈를 준비하고 있어요…</p>}
     {session && <section className="play-panel" aria-live="polite">
       <div className="play-top">
@@ -160,11 +163,11 @@ export default function SingleQuizPage() {
         <h3>이 문제는 어땠나요?</h3>
         <RatingButtons quizId={quizId} initialRating={session.myRating} access={session.ratingAccess}
           onSaved={(ratings,value)=>setSession(old=>old?{...old,ratings,myRating:value}:old)}/>
-        {session.ratingAccess==="SIGN_IN"&&<RatingSignIn destination={"/play/"+quizId}/>}
+        {session.ratingAccess==="SIGN_IN"&&<RatingSignIn destination={localizeHref("/play/"+quizId,locale)}/>}
       </div>}
       {status !== "ACTIVE" && <div className="actions">
-        <Link className="btn btn-primary" href="/discover">다른 퀴즈 발견하기 →</Link>
-        <Link className="btn btn-outline" href="/play">랜덤 5문제 도전하기</Link>
+        <Link className="btn btn-primary" href={localizeHref("/discover",locale)}>다른 퀴즈 발견하기 →</Link>
+        <Link className="btn btn-outline" href={localizeHref("/play",locale)}>랜덤 5문제 도전하기</Link>
       </div>}
     </section>}
     {error && <p className="feedback" role="alert">{error}</p>}

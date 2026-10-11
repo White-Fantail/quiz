@@ -30,10 +30,11 @@ export function publicTopics(quiz: Pick<DiscoverQuiz, "topics">): TopicSummary[]
   return (quiz.topics ?? []).filter(topic => topic.isSpoiler !== true);
 }
 export function discoverQuery(filters: {
-  answerType?: string; topic?: string; kids: boolean; offset: number; limit: number;
+  answerType?: string; topic?: string; locale?: "en" | "ko"; kids: boolean; offset: number; limit: number;
 }): string {
   const params = new URLSearchParams();
   params.set("limit", String(filters.limit));
+  if (filters.locale) params.set("locale", filters.locale);
   params.set("offset", String(filters.offset));
   if (filters.answerType) params.set("answerType", filters.answerType);
   if (filters.topic) params.set("topic", filters.topic);

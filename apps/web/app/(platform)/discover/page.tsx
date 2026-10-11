@@ -38,19 +38,19 @@ export default function DiscoverPage() {
   useEffect(() => {
     let active = true;
     setTopics([]);
-    void getData("/topics?limit=100" + (kids ? "&kids=true" : "")).then(data => {
+    void getData("/topics?limit=100" + "&locale=" + locale + (kids ? "&kids=true" : "")).then(data => {
       if (active) setTopics(data.items ?? []);
     }).catch(() => {
       // Quiz listings still work if the optional topic suggestions fail.
     });
     return () => { active = false; };
-  }, [kids]);
+  }, [kids,locale]);
 
   useEffect(() => {
     let active = true;
     setLoading(true);
     setError("");
-    const query = discoverQuery({ answerType, topic, kids, offset: page * PAGE_SIZE, limit: PAGE_SIZE + 1 });
+    const query = discoverQuery({ answerType, topic, kids, locale, offset: page * PAGE_SIZE, limit: PAGE_SIZE + 1 });
     void getData("/quizzes?" + query).then(data => {
       if (!active) return;
       const all = (data.items ?? []) as DiscoverQuiz[];
@@ -63,7 +63,7 @@ export default function DiscoverPage() {
       setError(e instanceof Error ? e.message : "퀴즈를 불러오지 못했어요.");
     }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [answerType, topic, kids, page, retry]);
+  }, [answerType, topic, kids, page, retry, locale]);
 
   function changeType(value: string) { setAnswerType(value); setPage(0); }
   function changeTopic(value: string) { setTopic(value); setPage(0); }
@@ -92,7 +92,7 @@ export default function DiscoverPage() {
             <option value="">{t("discover.allTopics")}</option>
             {topic && !topics.some(item => item.name === topic) &&
               <option value={topic}>{topic}</option>}
-            {topics.map(item => <option value={item.name} key={item.id}>{item.name}</option>)}
+            {topics.map(item => <option value={item.key} key={item.id}>{item.name}</option>)}
           </select>
         </label>
         <label className="discover-kids-option">
@@ -138,7 +138,7 @@ export default function DiscoverPage() {
             <div className="discover-tags">
               {publicTopics(quiz).slice(0, 5).map(item =>
                 <button type="button" key={item.id ?? item.key ?? item.name}
-                  className="discover-topic" onClick={() => changeTopic(item.name)}>
+                  className="discover-topic" onClick={() => changeTopic(item.key ?? item.name)}>
                   # {item.name}
                 </button>
               )}
