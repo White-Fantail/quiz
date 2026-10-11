@@ -36,13 +36,18 @@ export async function checkGuardianPin(guardianId: string, pin: string) {
     await db().kidGuardianPin.update({where:{guardianId},data:{attempts:0,lockedUntil:null}});
   }
   if (!checkPin(pin,record.hash)) {
-    const attempts = (afterCooldown ? 0 : record.attempts) + 1;
-    // Atomic increment avoids losing concurrent guesses; lockout is checked on every request.
-    await db().kidGuardianPin.update({
-      where:{guardianId},
-      data:{attempts:{increment:1}, ...(attempts >= 5 ? {lockedUntil:new Date(Date.now()+5*60000)} : {})}
+    // Read the atomic increment's returned count; a stale pre-increment snapshot
+    // would let multiple parallel wrong PINs escape the five-try lockout.
+    const updated = await db().kidGuardianPin.update({
+      where:{guardianId},data:{attempts:{increment:1}}
     });
-    fail(403,"kid_pin_invalid","Incorrect guardian PIN");
+    if(updated.attempts >= 5) {
+      await db().kidGuardianPin.update({where:{guardianId},
+        data:{lockedUntil:new Date(Date.now()+5*60000)}});
+    }
+    fail(updated.attempts >= 5 ? 429 : 403,
+      updated.attempts >= 5 ? "kid_pin_locked" : "kid_pin_invalid",
+      updated.attempts >= 5 ? "Too many attempts; try again later" : "Incorrect guardian PIN");
   }
   await db().kidGuardianPin.update({where:{guardianId},data:{attempts:0,lockedUntil:null}});
 }
