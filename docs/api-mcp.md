@@ -54,3 +54,7 @@ Before remote access:
 5. Before public traffic, enable distributed OAuth and game rate limiting, moderation/abuse automation, adult eligibility checks and verified media storage.
 
 Never treat an MCP tool listed in metadata or a passing typecheck as proof that it is live with an authenticated DB.
+
+## Authentication interface exception
+
+OAuth provider sign-in, linking and unlinking Google/Apple accounts, and interactive third-party consent are **deliberately web-only** user-presence operations at `/sign-in`, `/account` and `/consent`, rather than MCP tools. This prevents an AI agent from silently rebinding the owner's identity or authorizing a new external client. ChatGPT initiates the standard MCP OAuth protocol, which redirects the human to these screens; afterward it uses the verified `clupio_me` tool to identify the same account. OAuth refresh/revocation are standard authorization-server endpoints, not business-domain MCP tools.
