@@ -94,8 +94,13 @@ export default function KidGameScreen(){
   if(pending)return;
   setPending(true);setError("");
   try{await task();}
-  catch(e){setError(e instanceof ApiError && ["kid_content_withdrawn","kid_media_withdrawn","question_suspended"].includes(e.code)
-     ?t("native.play.withdrawn"):t("native.play.error"));}
+  catch(e){
+    const withdrawn=e instanceof ApiError &&
+      ["kid_content_withdrawn","kid_media_withdrawn","question_suspended"].includes(e.code);
+    if(withdrawn){await save(null);setQuestion(null);setSummary(null);setReference(null);}
+    if(e instanceof ApiError && [401,403].includes(e.status??0))void kid.reload();
+    setError(withdrawn?t("native.play.withdrawn"):t("native.play.error"));
+  }
   finally{setPending(false);}
  };
  const clue=()=>void guarded(async()=>{
