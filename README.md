@@ -5,7 +5,7 @@
 
 Clupio is a playful, open quiz platform where people follow clues, discover answers, and create and share their own quizzes.
 
-> **Status:** Foundation scaffold. The browser-based demo quiz works, but authentication, persistence, public publishing, AI categorization, Kids review, the administrator backoffice and Remote MCP **are not yet implemented**.
+> **Status:** REST API, authenticated Remote MCP adapters, PostgreSQL/Prisma models, migration and shared quiz/play/community services are implemented on `dev`. **Not production-ready:** no live database or OIDC provider has been provisioned or authenticated end-to-end; AI categorization, Kids safety automation, upload storage, and an operational admin console remain future work.
 
 ## Get started
 
@@ -16,7 +16,7 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:3000. Validation commands: `npm run test`, `npm run typecheck`, `npm run build`.
+Open http://localhost:3000. To exercise API/MCP, first configure `.env` from `.env.example`, provision PostgreSQL and an OIDC provider, run `npm run db:migrate`. Validation: `npm run test`, `npm run typecheck`, `npm run build`.
 
 ## Architecture: one Next.js app, separate responsibilities
 
@@ -29,7 +29,7 @@ apps/
       admin/             Admin entry point (404 until authorization exists)
       api/
         v1/              REST API route handlers
-        mcp/             Reserved endpoint; returns HTTP 501, no tools enabled
+        mcp/             Authenticated stateless MCP endpoint and tool registry
     src/
       modules/           Shared business services for quiz, game, user,
                          moderation, media, analytics and AI
@@ -37,12 +37,12 @@ apps/
       lib/               Future server infrastructure
 packages/
   domain/                Shared pure types and rules for multimodal quizzes
-prisma/                  Future PostgreSQL schema and migrations
+prisma/                  PostgreSQL schema and migrations
 docs/                    Architecture, brand, product principles and roadmap
 .github/workflows/       CI for dev and main
 ```
 
-All UI, REST endpoints and future MCP tools will share one **application service/policy layer** and one persistence layer. They are separated in code, not deployed as separate API, admin or MCP servers.
+REST and MCP adapters use the same **application service/policy layer** and persistence layer. They are separated in code, not deployed as separate API, admin or MCP servers.
 
 ## Current routes
 
@@ -52,8 +52,8 @@ All UI, REST endpoints and future MCP tools will share one **application service
 | `/studio`, `/kids` | Planning placeholders (not functional editors/review tools) |
 | `/admin` | Deliberately returns 404 until authentication and admin authorization exist |
 | `/api/health` | Health check |
-| `/api/v1/quizzes` | Demo quiz **metadata only**; no answers or clue contents |
-| `/api/mcp` | HTTP 501 Not Implemented; no MCP functionality |
+| `/api/v1/*` | Versioned REST: quizzes, packs, play sessions, reviews, reports, personal metrics and leaderboard |
+| `/api/mcp` | Authenticated stateless Streamable HTTP MCP, mirroring API operations |
 
 ## Product rules
 
@@ -68,3 +68,7 @@ Creator intent, AI recommended audience/difficulty and platform-managed safety a
 - Use **fast-forward-only** merges (`git merge --ff-only`); no merge commits, squash merges or force pushes.
 
 See [AGENTS.md](AGENTS.md), [architecture](docs/architecture.md), [brand](docs/brand.md) and [roadmap](docs/roadmap.md).
+
+## API and MCP setup
+
+Read [API–MCP documentation](docs/api-mcp.md) for the parity matrix, security model, configuration and launch gates. All future functional additions require corresponding MCP support; see [AGENTS.md](AGENTS.md). The demo browser UI remains separate from the new persistent platform backend.
