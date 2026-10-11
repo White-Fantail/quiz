@@ -6,7 +6,7 @@ import { fail, type Actor } from "./auth";
 function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
 }
-async function getSession(p: Record<string, any>, actor: Actor | null) {
+export async function getPlaySession(p: Record<string, any>, actor: Actor | null) {
   const session = await db().playSession.findUnique({
     where: { id: p.sessionId },
     include: { revision: true }
@@ -36,10 +36,10 @@ export async function playStart(p: Record<string, any>, actor: Actor | null) {
     usedClues: 1, expiresAt: new Date(Date.now() + 3600000)
   } });
   return { sessionId: session.id, sessionToken: token, title: revision.title, prompt: revision.prompt,
-    mode: revision.mode, quizVersion: revision.version, clue: clues[0], clueIndex: 1, clueCount: clues.length };
+    mode: revision.mode, quizVersion: revision.version, promptMediaIds: revision.promptMediaIds, clue: clues[0], clueIndex: 1, clueCount: clues.length };
 }
 export async function playClue(p: Record<string, any>, actor: Actor | null) {
-  const session = await getSession(p, actor);
+  const session = await getPlaySession(p, actor);
   if (session.status !== "ACTIVE") fail(409, "finished", "Game has already ended");
   const clues = session.revision.clues as Record<string, unknown>[];
   if (session.usedClues >= clues.length) fail(409, "no_more_clues", "No more clues available");

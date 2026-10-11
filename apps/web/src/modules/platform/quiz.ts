@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { db } from "./db";
 import { fail, requireActor, type Actor } from "./auth";
+import { validateMediaReferences } from "./media";
 
 const defaultCategories: Record<string, string> = {
   "guess-animal": "animals", "guess-person": "people", "guess-place": "geography", "guess-thing": "general"
@@ -32,7 +33,7 @@ export async function quizGet(id: string, actor: Actor | null) {
   if (!owned && (quiz.publication !== "PUBLISHED" || quiz.safetyStatus === "RESTRICTED"))
     fail(404, "not_found", "Quiz not found");
   const r = await revision(id, quiz.currentVersion);
-  return { id, title: r.title, prompt: r.prompt, mode: r.mode, clueCount: (r.clues as any[]).length,
+  return { id, title: r.title, prompt: r.prompt, mode: r.mode, clueCount: (r.clues as any[]).length, promptMediaIds: (owned ? r.promptMediaIds : undefined),
     version: quiz.currentVersion, publication: quiz.publication, categories: quiz.categories,
     creatorIntent: owned ? quiz.creatorIntent : undefined,
     recommendedAudience: quiz.recommendedAudience, safetyStatus: quiz.safetyStatus,
@@ -43,10 +44,11 @@ export async function quizCreate(p: Record<string, any>, actor: Actor | null) {
   const user = requireActor(actor);
   const count = await db().quiz.count({ where: { authorId: user.id, createdAt: { gte: new Date(Date.now() - 86400000) } } });
   if (count >= 100) fail(429, "rate_limit", "Daily creation limit reached");
+  await validateMediaReferences(user.id, p.promptMediaIds ?? [], p.clues);
   const quiz = await db().quiz.create({
     data: { authorId: user.id, categories: p.categories?.length ? p.categories : [defaultCategories[p.mode]],
       ...(p.creatorIntent ? { creatorIntent: p.creatorIntent } : {}),
-      revisions: { create: { version: 1, title: p.title, prompt: p.prompt, mode: p.mode, answer: p.answer, clues: normalizeClues(p.clues) } } }
+      revisions: { create: { version: 1, title: p.title, prompt: p.prompt, mode: p.mode, answer: p.answer, clues: normalizeClues(p.clues), promptMediaIds: p.promptMediaIds ?? [] } } }
   });
   return quizGet(quiz.id, actor);
 }
@@ -56,7 +58,12 @@ export async function quizUpdate(p: Record<string, any>, actor: Actor | null) {
   if (!old || old.authorId !== user.id) fail(404, "not_found", "Quiz not found");
   if (p.expectedVersion !== old.currentVersion) fail(409, "version_conflict", "Refresh quiz and try again");
   const prior = await revision(old.id, old.currentVersion);
-  const modified = ["title", "prompt", "mode", "answer", "clues"].some(key => p[key] !== undefined);
+  const modified = ["title", "prompt", "mode", "answer", "clues", "promptMediaIds"].some(key => p[key] !== undefined);
+  const nextClues = (p.clues ?? prior.clues) as any[];
+  const nextPromptMediaIds = (p.promptMediaIds ?? prior.promptMediaIds) as string[];
+  await validateMediaReferences(user.id, nextPromptMediaIds, nextClues);
+  if (old.safetyStatus === "RESTRICTED")
+    fail(403, "restricted_quiz", "Restricted quizzes require trusted moderation clearance");
   await db().$transaction(async tx => {
     const changed = await tx.quiz.updateMany({
       where: { id: old.id, authorId: user.id, currentVersion: p.expectedVersion },
@@ -67,7 +74,8 @@ export async function quizUpdate(p: Record<string, any>, actor: Actor | null) {
     if (changed.count !== 1) fail(409, "version_conflict", "Quiz changed while editing");
     await tx.quizRevision.create({ data: { quizId: old.id, version: p.expectedVersion + 1,
       title: p.title ?? prior.title, prompt: p.prompt ?? prior.prompt, mode: p.mode ?? prior.mode,
-      answer: (p.answer ?? prior.answer) as any, clues: (p.clues ? normalizeClues(p.clues) : prior.clues) as any } });
+      answer: (p.answer ?? prior.answer) as any, clues: (p.clues ? normalizeClues(p.clues) : prior.clues) as any,
+      promptMediaIds: nextPromptMediaIds as any } });
     await tx.auditLog.create({ data: { actorId: user.id, action: modified ? "quiz.edit" : "quiz.settings", objectId: old.id } });
   });
   return quizGet(old.id, actor);
@@ -77,6 +85,9 @@ export async function quizPublish(p: Record<string, any>, actor: Actor | null) {
   if (p.confirm !== true) fail(400, "confirmation_required", "User must confirm publishing");
   const old = await db().quiz.findFirst({ where: { id: p.id, authorId: user.id } });
   if (!old) fail(404, "not_found", "Quiz not found");
+  if (old.safetyStatus === "RESTRICTED") fail(403, "restricted_quiz", "Quiz is restricted");
+  const currentRevision = await revision(old.id, old.currentVersion);
+  await validateMediaReferences(user.id, currentRevision.promptMediaIds as string[], currentRevision.clues as any[], true);
   if (old.publication !== "PUBLISHED") {
     const recent = await db().auditLog.count({ where: { actorId: user.id, action: "quiz.publish", createdAt: { gte: new Date(Date.now() - 86400000) } } });
     if (recent >= 30) fail(429, "rate_limit", "Daily publication limit reached");

@@ -146,7 +146,7 @@ export async function importExternal(input: string, limit: number): Promise<{ by
   const chosen = addresses[0];
   return await new Promise((resolve,reject) => {
     const req = httpsRequest(url, {
-      method: "GET", timeout: 20000, maxRedirects: 0,
+      method: "GET", timeout: 20000,
       lookup: (_host, _opts, cb) => cb(null, chosen.address, chosen.family),
       headers: { "accept": "image/*, audio/*, video/*", "user-agent": "Clupio-MediaImport/1.0" },
     }, async res => {

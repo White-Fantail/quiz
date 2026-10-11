@@ -5,13 +5,16 @@ import { playStart, playClue, playGuess } from "./play";
 import { reviewsList, reviewUpsert, reportCreate, reportsMine, packCreate, packList, packUpdate } from "./social";
 import { quizStats, myStats, me, leaderboard } from "./analytics";
 import { userGet, creatorReviewsList, creatorReviewUpsert } from "./creators";
+import { mediaUpload, mediaComplete, mediaImport, mediaList, mediaGet, mediaUpdate,
+  mediaDelete, mediaTransform, mediaReview, signedPlayMedia } from "./media";
 
 export async function execute(name: Operation, raw: unknown, actor: Actor | null): Promise<unknown> {
   const p = parseOperation(name, raw);
   if (!operations[name].public) requireActor(actor);
   switch (name) {
     case "catalog": return { modes: ["guess-animal", "guess-person", "guess-place", "guess-thing"],
-      clueTypes: ["text", "image", "audio", "video", "map"], minClues: 1, maxClues: 15,
+      clueTypes: ["text", "image", "audio", "video", "map"], mediaReference: "mediaId", promptMediaIds: true,
+      mediaLimitsBytes: { image: 12582912, audio: 26214400, video: 67108864 }, minClues: 1, maxClues: 15,
       userAdjustable: ["creatorIntent", "categories", "clues", "answer"],
       platformControlled: ["safetyStatus", "kidsEligible"],
       version: "v1", format: "progressive-clues" };
@@ -39,6 +42,16 @@ export async function execute(name: Operation, raw: unknown, actor: Actor | null
     case "user_get": return userGet(p);
     case "creator_reviews_list": return creatorReviewsList(p);
     case "creator_review_upsert": return creatorReviewUpsert(p, actor);
+    case "media_upload": return mediaUpload(p, actor);
+    case "media_complete": return mediaComplete(p, actor);
+    case "media_import": return mediaImport(p, actor);
+    case "media_list": return mediaList(p, actor);
+    case "media_get": return mediaGet(p, actor);
+    case "media_update": return mediaUpdate(p, actor);
+    case "media_delete": return mediaDelete(p, actor);
+    case "media_transform": return mediaTransform(p, actor);
+    case "media_review": return mediaReview(p, actor);
+    case "play_media": return signedPlayMedia(p, actor);
     default: return fail(404, "operation_not_found", "Unknown operation");
   }
 }

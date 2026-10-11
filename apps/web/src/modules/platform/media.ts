@@ -201,8 +201,13 @@ export async function validateMediaReferences(
   requireApproved = false,
 ) {
   const expected = new Map<string,string>();
-  for (const id of promptMediaIds) expected.set(id, "image");
-  for (const clue of clues) if (clue.mediaId) expected.set(clue.mediaId, clue.type);
+  for (const id of promptMediaIds) expected.set(id, "any");
+  for (const clue of clues) if (clue.mediaId) {
+    const existing = expected.get(clue.mediaId);
+    if (existing && existing !== "any" && existing !== clue.type)
+      fail(422, "media_type_conflict", "One asset cannot serve clues of incompatible types");
+    expected.set(clue.mediaId, clue.type);
+  }
   if (!expected.size) return;
   const media = await db().mediaAsset.findMany({ where: {
     id: { in: [...expected.keys()] }, ownerId, status: "READY", deletedAt: null,
@@ -210,7 +215,7 @@ export async function validateMediaReferences(
   if (media.length !== expected.size)
     fail(422, "invalid_media", "A media reference is not ready or not owned by this author");
   for (const item of media) {
-    if (item.kind !== expected.get(item.id))
+    if (expected.get(item.id) !== "any" && item.kind !== expected.get(item.id))
       fail(422, "invalid_media_type", "Referenced asset type does not match clue type");
     if (item.moderationStatus === "RESTRICTED")
       fail(403, "media_restricted", "A media asset is restricted by moderation");
