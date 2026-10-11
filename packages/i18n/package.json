@@ -1,0 +1,13 @@
+{
+  "name": "@quizdip/i18n",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/core.ts",
+    "./kids": "./src/kids.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --project tsconfig.json"
+  }
+}
