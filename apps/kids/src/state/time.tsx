@@ -24,10 +24,11 @@ export function KidsTimeProvider({children}:PropsWithChildren){
      const next=await kidsApi.time(token,true);
      setTime(next);setReason(null);setStatus("allowed");
    }catch(e){
+     if(e instanceof ApiError && [401,403].includes(e.status??0))void kid.reload();
      setStatus("blocked");
      setReason(e instanceof ApiError?e.code:"network_unavailable");
    }
- },[token,parent.access?.token]);
+ },[token,parent.access?.token,kid.reload]);
  useEffect(()=>{
    if(!token){setStatus("checking");setTime(null);return;}
    void refresh();
