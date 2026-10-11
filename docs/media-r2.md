@@ -76,3 +76,22 @@ A media approval reset is blocked while the asset is used in a currently publish
 ### QuizDip naming transition
 
 For new installations, use a QuizDip-named R2 bucket. Existing deployments may continue to use a previously provisioned Clupio-named bucket through `R2_BUCKET`; do not rename or delete a live bucket as part of a brand-only update. The MCP tool names shown above use the `quizdip_*` prefix.
+
+## Studio media library: P0/P1 browse experience
+
+Studio now displays **two independent statuses** per file:
+- **Upload**: `READY` (업로드 완료) vs `UPLOADING` (업로드 중, or 업로드 만료 when the reservation deadline has passed). The UI does not falsely claim a file is ready because a reservation exists.
+- **Moderation**: `PENDING` (안전 검토 대기), `APPROVED` (안전 검토 승인), `RESTRICTED` (사용 제한). READY is **not** an approval and does not enable public playback.
+
+File sizes auto-format in bytes, KB, MB or GB; small files are no longer presented as `0.00MB`.
+
+- Ready images render **automatically**, without an initial Preview button. An IntersectionObserver requests an owner-authorized thumbnail only when the card approaches the viewport. The server generates a **private** 320x240 WebP thumbnail on first request at `assets/<id>/thumbnail.webp`; subsequent requests reuse it. Only short-lived, 60-second signed R2 GET links are returned. If thumbnail generation fails, the owner can fall back to the original preview; there is no public bucket access. Thumbnail deletion is attempted when the original asset is deleted.
+- Audio and video cards display placeholders. Playback requires a deliberate click on **상세 · 미리보기**, followed by using the native player controls. Media never autoplays.
+- `GET /api/v1/media?limit=24&offset=0&search=...&kind=image&moderation=PENDING&status=READY&usage=used&sort=newest` supports validated **server-side** name/alt/attribution search, type, moderation, upload status, usage and sorting filters; it returns `{items,offset,limit,total,hasMore}`. `media_list` over OAuth MCP accepts the same filters. Use 24 records per Studio page and server-side paging, not a single fixed `limit=60` fetch.
+- The owner-only `GET /api/v1/media/:id` includes `usage.items` describing current/historical revisions, prompt usage and exact clue positions (capped to 50 plus `hasMore`). The view includes Copy Media ID / Copy Quiz ID actions for reuse in Studio or via the MCP. Referenced assets remain protected against deletion across **all** revisions.
+- `GET /api/v1/media/:id?purpose=thumbnail` is a deliberately lightweight owner-authenticated lookup. It does not query quiz usage or disclose the original upload.
+- Media filtering by usage considers **all revisions**, not only the currently published revision, matching the existing deletion rule. At substantially larger scale, consider a normalized media-to-revision relation/index rather than extracting the historical reference ID set on each usage-filtered request.
+
+Upload expiration is currently **a derived display state**, not a persisted lifecycle transition. Background cleaning of stale records, explicit retry UX, and fully integrated quiz-editor media picking remain future improvements; this change provides asset IDs and usage information in the existing API/MCP workflows.
+
+Regression coverage: `apps/web/test/media-library.test.mjs`, `apps/web/test/media-list-contract.test.mjs`. Run `npm test`, `npm run typecheck` and web build before merging to main.
