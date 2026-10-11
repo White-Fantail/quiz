@@ -33,36 +33,59 @@ export async function endParentAccess(kid:Kid,header:string|null){
  return {closed:true};
 }
 export async function parentDashboard(guardianId:string){
- const overview=await guardianOverview(guardianId);
- const now=new Date();
- const profiles=await Promise.all(overview.profiles.map(async profile=>{
-   const weekStart=new Date(now.getTime()-7*86400000);
-   const [usage,plays]=await Promise.all([
-     db().kidUsageMinute.findMany({where:{profileId:profile.id,createdAt:{gte:weekStart}},
-       select:{localDay:true}}),
-     db().playSession.findMany({where:{
-       startedAt:{gte:weekStart},OR:[
-         {run:{is:{kidOwnership:{is:{profileId:profile.id}}}}},
-         {kidSingle:{is:{profileId:profile.id}}}
-       ]
-     },take:300,orderBy:{startedAt:"desc"},select:{
-       status:true,quiz:{select:{topicLinks:{take:4,where:{isSpoiler:false},
-         select:{topic:{select:{key:true}}}}}}
-     }}})
-   ]);
-   const days=new Map<string,number>();
-   for(const minute of usage)days.set(minute.localDay,(days.get(minute.localDay)??0)+1);
-   const topics=new Map<string,number>();
-   for(const p of plays)for(const tag of p.quiz.topicLinks){
-     const k=tag.topic.key;topics.set(k,(topics.get(k)??0)+1);
-   }
-   const solved=plays.filter(p=>p.status==="SOLVED").length;
-   const played=plays.filter(p=>p.status==="SOLVED"||p.status==="FAILED").length;
-   return {profileId:profile.id,solvedLast7Days:solved,playedLast7Days:played,
-     successRate:played?Math.round(solved/played*100):0,
-     minutesLast7Days:usage.length,
-     usageByDay:[...days].sort(([a],[b])=>a.localeCompare(b)).map(([day,minutes])=>({day,minutes})),
-     topTopics:[...topics].sort((a,b)=>b[1]-a[1]).slice(0,5).map(([topic,count])=>({topic,count}))};
- }));
- return {...overview,insights:profiles,serverNow:now.toISOString(),availableTimeZones:TIMEZONES};
+  const overview = await guardianOverview(guardianId);
+  const now = new Date();
+  const weekStart = new Date(now.getTime()-7*86400000);
+  const profiles = await Promise.all(overview.profiles.map(async (profile)=>{
+    const [usage,plays] = await Promise.all([
+      db().kidUsageMinute.findMany({
+        where:{profileId:profile.id,createdAt:{gte:weekStart}},
+        select:{localDay:true}
+      }),
+      db().playSession.findMany({
+        where:{
+          startedAt:{gte:weekStart},
+          OR:[
+            {run:{is:{kidOwnership:{is:{profileId:profile.id}}}}},
+            {kidSingle:{is:{profileId:profile.id}}}
+          ]
+        },
+        take:300,
+        orderBy:{startedAt:"desc"},
+        select:{
+          status:true,
+          quiz:{
+            select:{
+              topicLinks:{
+                take:4,
+                where:{isSpoiler:false},
+                select:{topic:{select:{key:true}}}
+              }
+            }
+          }
+        }
+      })
+    ]);
+    const days = new Map<string,number>();
+    for (const minute of usage) days.set(minute.localDay,(days.get(minute.localDay)??0)+1);
+    const topics = new Map<string,number>();
+    for (const play of plays) {
+      for (const tag of play.quiz.topicLinks) {
+        const key=tag.topic.key;
+        topics.set(key,(topics.get(key)??0)+1);
+      }
+    }
+    const solved=plays.filter(p=>p.status==="SOLVED").length;
+    const played=plays.filter(p=>p.status==="SOLVED"||p.status==="FAILED").length;
+    return {
+      profileId:profile.id,
+      solvedLast7Days:solved,
+      playedLast7Days:played,
+      successRate:played?Math.round(solved/played*100):0,
+      minutesLast7Days:usage.length,
+      usageByDay:[...days].sort(([a],[b])=>a.localeCompare(b)).map(([day,minutes])=>({day,minutes})),
+      topTopics:[...topics].sort((a,b)=>b[1]-a[1]).slice(0,5).map(([topic,count])=>({topic,count}))
+    };
+  }));
+  return {...overview,insights:profiles,serverNow:now.toISOString(),availableTimeZones:TIMEZONES};
 }
