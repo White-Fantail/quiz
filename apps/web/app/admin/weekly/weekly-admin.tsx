@@ -47,8 +47,8 @@ export default function WeeklyAdmin(){
     {notice&&<p role="status" className="feedback success">{notice}</p>}
     <section className="section"><h2>공식 진행 중</h2>
       {current.map((e,i)=><div className="connected-provider" key={i}>
-        <span>{i===0?"일반":"어린이"} · {e.available?e.title||"공식 챌린지":"편성 없음"}</span>
-        {e.available&&e.id&&<button className="text-button" disabled={busy} onClick={()=>void suspend(e.id!)}>중단</button>}
+        <span>{i===0?"일반":"어린이"} · {e.id?(e.title||"공식 챌린지")+(e.available?"":" · 안전성 재검토 중"):"편성 없음"}</span>
+        {e.id&&<button className="text-button" disabled={busy} onClick={()=>void suspend(e.id!)}>중단</button>}
       </div>)}
     </section>
     <section className="section"><h2>출제자 제안</h2>

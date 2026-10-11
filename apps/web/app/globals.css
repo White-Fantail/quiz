@@ -146,3 +146,12 @@ a.feature-card:hover { border-color:#B4AEF7; transform:translateY(-3px); }
 .ranking-consent-setting { border-top:1px solid var(--border);margin-top:12px;padding-top:12px; }
 .ranking-consent-setting h3 { margin:8px 0 12px; }
 .ranking-consent-setting input[type=checkbox] { width:20px;height:20px;accent-color:var(--purple); }
+
+.review-item { display:flex;width:100%;justify-content:space-between;gap:14px;align-items:center;text-align:left;
+  padding:15px;margin:9px 0;border:1px solid var(--border);border-radius:14px;background:#fff; }
+.review-item:hover { border-color:#B4AEF7; }
+.review-item span:first-child { display:grid;gap:4px; }
+.review-item small {color:var(--muted)}
+.review-media {display:grid;gap:9px;margin:15px 0;background:#fff;padding:14px;border-radius:13px;}
+.review-media .text-button {justify-self:start;}
+.review-console .round-media {max-width:100%;max-height:280px;}
