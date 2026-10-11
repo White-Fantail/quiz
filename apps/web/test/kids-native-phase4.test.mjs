@@ -85,3 +85,29 @@ test("children's app does not request microphone, advertising or location",()=>{
  const setup=file("../kids/app/setup.tsx");
  assert.doesNotMatch(setup,/Linking.openURL/);
 });
+
+test("child-safe reports are structured, owned, duplicate-limited and moderator-private",()=>{
+ const schema=file("../../prisma/schema.prisma"),sql=file("../../prisma/migrations/20261012220000_kids_safety_reports/migration.sql");
+ assert.match(schema,/model KidSafetyReport/);
+ assert.match(sql,/KidSafetyReport_profileId_quizId_reason_key/);
+ assert.match(sql,/ON DELETE CASCADE/);
+ const child=file("src/modules/kids/game.ts"),route=file("app/api/kids/native/play/route.ts");
+ assert.match(child,/kidSafetyReport.upsert/);
+ assert.match(child,/kid_report_forbidden/);
+ assert.match(route,/z.enum\(\["UNSAFE","INCORRECT","BROKEN_MEDIA"\]\)/);
+ assert.match(route,/if\(data.action!=="report"\)await requirePlayable\(kid\)/);
+ const admin=file("src/modules/platform/quiz.ts");
+ assert.match(admin,/admin.role!=="ADMIN"/);
+ assert.match(admin,/childSafetySignals/);
+ assert.match(admin,/kidSafetyReport.groupBy/);
+ const native=file("../kids/app/game.tsx");
+ assert.match(native,/kidsApi.report/);
+ assert.doesNotMatch(native,/TextInput[^]*reportNotice/);
+});
+test("parent activity audit never stores a child's nickname or security credential",()=>{
+ const parent=file("app/api/kids/native/parent/route.ts");
+ assert.match(parent,/auditLog.create/);
+ assert.match(parent,/actorId:guardianId/);
+ assert.match(parent,/objectId:guardianId/);
+ assert.doesNotMatch(parent,/detail:\{(?:[^}]*)(?:pin|nickname|parentToken|tokenHash)/);
+});
