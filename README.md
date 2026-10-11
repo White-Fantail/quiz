@@ -76,3 +76,7 @@ Read [API–MCP documentation](docs/api-mcp.md) for the parity matrix, security 
 ## Single sign-on across web and MCP
 
 Google and Apple sign-in are at `/sign-in`. Link additional providers from `/account`, and approve external MCP clients at `/consent`. All browser and ChatGPT identities use one Better Auth user ID. See [SSO and MCP OAuth setup](docs/auth-sso-mcp.md) for provider callback URLs, environment variables, database migrations, security and test requirements. No accounts are silently joined based on matching email addresses.
+
+## Cloudflare R2 media library
+
+The authenticated Studio media library at `/studio/media` uploads image, audio and video directly to a private R2 bucket. Web REST and 36 MCP operations use the same asset IDs and authorization rules. The full API table, required environment variables, R2 CORS and lifecycle configuration, upload fallback for MCP clients, checksums, moderation gates, and end-to-end checklist are in [the Cloudflare R2 media guide](docs/media-r2.md). This code does not provision an R2 bucket or activate public uploads automatically.

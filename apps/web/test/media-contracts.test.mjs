@@ -62,3 +62,14 @@ test("private storage, owned media, version-pinned reveal and admin review are s
   assert.match(quiz,/validateMediaReferences/);
   assert.match(quiz,/currentRevision/);
 });
+
+test("Studio media library uses the same REST endpoints as MCP without separate storage logic", () => {
+  const studio = load('app/(creator)/studio/media/media-library.tsx');
+  const page = load('app/(creator)/studio/media/page.tsx');
+  assert.match(studio, /crypto\.subtle\.digest\("SHA-256"/);
+  assert.match(studio, /api\("\/media\/upload"/);
+  assert.match(studio, /"\/complete"/);
+  assert.match(studio, /fetch\(ticket\.upload\.url/);
+  assert.match(studio, /"\/transform"/);
+  assert.match(page, /auth\.api\.getSession/);
+});

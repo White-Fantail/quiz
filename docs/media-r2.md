@@ -28,6 +28,10 @@ Media is a **first-class asset** referenced by ID from both the quiz prompt and 
 
 `clupio_quiz_create`, `clupio_quiz_update`, `clupio_clues_replace` and the corresponding REST calls use `promptMediaIds` or typed media clues (`{ "type": "image" | "audio" | "video", "mediaId": "UUID" }`); bare remote media URLs are **no longer accepted** by new quiz contracts. Existing historical revisions that stored remote URLs will need a separate migration before those games can serve safely through `play_media`.
 
+## Creator-facing Studio media library
+
+The authenticated Studio web media library is available at `/studio/media`. A creator can choose a supported image/audio/video file, calculate SHA-256 in the browser, reserve a signed R2 upload through REST, send the file directly to the private bucket, finalize it through REST, list and preview their own assets, create blurred image variants, and delete unreferenced assets. The web interface and MCP operate on **the same `MediaAsset.id` values**. Quiz authoring itself is still primarily REST/MCP; the Studio quiz editor is not yet fully wired to the domain API.
+
 ## How ChatGPT can create a multimedia quiz
 
 1. Use `clupio_media_upload` with `kind`, `mimeType`, `filename`, `sizeBytes` and a **hex SHA-256 of original file bytes**. Returns asset ID and 5-minute signed R2 PUT URL (the reservation remains active for 30 minutes for slower MCP chunk transfers), required Content-Type header.
@@ -65,6 +69,6 @@ Image transformations support crops, Gaussian blur and resize (result WebP), wit
 - Do not interpret an external URL from an AI as proof that the content can be legally reused. Attribution and explicit creator ownership/rights still matter.
 - Per-account daily asset count is not distributed anonymous/IP-level abuse protection. Configure network rate limits and resource quotas before public launch.
 - R2 lifecycle handles temporary object clean-up, but robust orphaned FINAL object clean-up on DB failure and deletion retries still needs a background maintenance job.
-- The code has source-level CI; **live R2, live OAuth MCP, frontend media playback, automated moderation, and end-to-end upload validation remain unverified** until connected credentials/deployment and integration testing are performed.
+- The code has source-level CI; **live R2, live OAuth MCP, game-screen media playback, automated moderation, and end-to-end upload validation remain unverified** until connected credentials/deployment and integration testing are performed.
 
 A media approval reset is blocked while the asset is used in a currently published quiz; create a new variant instead. Restricting an approved asset propagates RESTRICTED to all published quizzes whose **current revision** references that asset. An authorized admin must explicitly review subsequent replacements; publisher edits cannot bypass moderation holds.
