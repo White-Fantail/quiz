@@ -44,6 +44,7 @@ model Quiz {
   currentVersion        Int           @default(1)
   sourceLocale          String        @default("und")
   localizations         QuizLocalization[]
+  kidSafetyReports      KidSafetyReport[]
   publication           String        @default("DRAFT")
   safetyStatus          String        @default("PENDING")
   kidsEligible          Boolean       @default(false)
@@ -391,6 +392,7 @@ model KidProfile {
   breakEveryMinutes Int  @default(0) // reminder; does not bypass hard caps
   timeZone        String   @default("Pacific/Auckland")
   usageMinutes    KidUsageMinute[]
+  safetyReports   KidSafetyReport[]
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   devices         KidDeviceSession[]
@@ -492,4 +494,17 @@ model KidUsageMinute {
   @@unique([profileId,utcMinute])
   @@index([profileId,localDay])
   @@index([createdAt])
+}
+
+/** No free text or personal identifiers in a child's safety report. Moderators see counts only. */
+model KidSafetyReport {
+  id         String     @id @default(uuid())
+  profileId  String
+  profile    KidProfile @relation(fields:[profileId],references:[id],onDelete:Cascade)
+  quizId     String
+  quiz       Quiz       @relation(fields:[quizId],references:[id],onDelete:Cascade)
+  reason     String
+  createdAt  DateTime   @default(now())
+  @@unique([profileId,quizId,reason])
+  @@index([quizId,reason,createdAt])
 }
