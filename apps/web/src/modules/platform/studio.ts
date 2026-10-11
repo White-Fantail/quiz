@@ -30,7 +30,7 @@ export async function myQuizzes(p: Record<string, any>, actor: Actor | null) {
   ]);
   if (!quizzes.length) return { items: [], total, count: total, offset: p.offset, limit: p.limit, hasMore: false };
   const current = await db().quizRevision.findMany({
-    where: { OR: quizzes.map(q => ({ quizId: q.id, version: q.currentVersion })) },
+    where: { OR: quizzes.map(q => ({ quizId: q.id, version: q.currentVersion, localization: { origin: { in:["ORIGINAL","LEGACY"] } } })) },
     select: { quizId: true, title: true, prompt: true }
   });
   const revisions = new Map(current.map(r => [r.quizId, r]));

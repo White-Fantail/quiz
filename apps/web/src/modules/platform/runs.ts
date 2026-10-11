@@ -151,10 +151,10 @@ export async function weeklyPublish(p:Record<string,any>,actor:Actor|null) {
   for (const locale of ["en","ko"] as const) {
     const locs=await db().quizLocalization.findMany({
       where:{quizId:{in:item.questions.map(q=>q.quizId)},locale,status:"PUBLISHED"},
-      include:{revisions:{orderBy:{version:"desc"},take:1,select:{id:true,version:true}}}
+      include:{revisions:{select:{id:true,version:true}}}
     });
-    if(locs.length!==5 || locs.some(l=>l.revisions[0]?.version!==l.currentVersion)) continue;
-    const byQuiz=new Map(locs.map(l=>[l.quizId,l.revisions[0].id]));
+    if(locs.length!==5 || locs.some(l=>l.publishedVersion==null || !l.revisions.some(r=>r.version===l.publishedVersion))) continue;
+    const byQuiz=new Map(locs.map(l=>[l.quizId,l.revisions.find(r=>r.version===l.publishedVersion)!.id]));
     const localizedRevisions=await db().quizRevision.findMany({where:{id:{in:[...byQuiz.values()]}}});
     if(!await pinnedMediaApproved(localizedRevisions)) continue;
     for(const q of item.questions) snapshots.push({
@@ -207,12 +207,12 @@ async function randomChoices(lane:Lane,locale:Locale,count:number,avoid:string[]
   const blocked=new Set(reserved.map(row=>row.quizId));
   const pool=await db().quiz.findMany({where:playableQuizWhere(locale,lane),
     select:{id:true,localizations:{where:{locale,status:"PUBLISHED"},select:{
-      id:true,currentVersion:true,
-      revisions:{orderBy:{version:"desc"},take:1,select:{id:true,version:true}}
+      id:true,currentVersion:true,publishedVersion:true,
+      revisions:{select:{id:true,version:true}}
     }}}});
   const eligible=pool.filter(q=>{
-    const loc=q.localizations[0],latest=loc?.revisions[0];
-    return latest?.id && latest.version===loc.currentVersion && !blocked.has(q.id);
+    const loc=q.localizations[0];
+    return loc?.publishedVersion != null && loc.revisions.some(r=>r.version===loc.publishedVersion) && !blocked.has(q.id);
   });
   const choice=shuffle(selectUnseen(eligible,avoid)).slice(0,count);
   if(choice.length<count) {
@@ -221,7 +221,7 @@ async function randomChoices(lane:Lane,locale:Locale,count:number,avoid:string[]
       ? "Not enough new quizzes in the selected language to start five questions."
       : "No unseen quizzes remain in the selected language.");
   }
-  return choice.map(q=>({quizId:q.id,revisionId:q.localizations[0].revisions[0].id}));
+  return choice.map(q=>({quizId:q.id,revisionId:q.localizations[0].revisions.find(r=>r.version===q.localizations[0].publishedVersion)!.id}));
 }
 export async function runStart(p:Record<string,any>,actor:Actor|null) {
   const mode=p.mode as RunMode, lane=p.lane as Lane, locale=p.locale as Locale;

@@ -18,10 +18,10 @@ export async function currentPlayableRevision(quizId: string, locale: Locale) {
   const translation = await db().quizLocalization.findUnique({
     where: { quizId_locale: { quizId, locale } }
   });
-  if (!translation || translation.status !== "PUBLISHED")
+  if (!translation || translation.status !== "PUBLISHED" || translation.publishedVersion === null)
     fail(404, "locale_unavailable", "This quiz is not available in the selected language");
   const revision = await db().quizRevision.findFirst({
-    where: { quizId, localizationId: translation.id, version: translation.currentVersion }
+    where: { quizId, localizationId: translation.id, version: translation.publishedVersion }
   });
   if (!revision) fail(409, "localized_revision_missing", "Published language version is incomplete");
   return { translation, revision };

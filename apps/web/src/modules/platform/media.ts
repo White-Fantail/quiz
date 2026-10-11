@@ -240,7 +240,7 @@ export async function mediaUpdate(p: Record<string, any>, actor: Actor | null) {
 async function publishedCurrentQuizzes(id: string): Promise<string[]> {
   const rows = await db().$queryRaw<Array<{ id: string }>>`
     SELECT q."id" FROM "Quiz" q
-    JOIN "QuizRevision" r ON r."quizId"=q."id" AND r."version"=q."currentVersion"
+    JOIN "QuizRevision" r ON r."quizId"=q."id" AND r."version"=q."currentVersion" JOIN "QuizLocalization" l ON l."id"=r."localizationId" AND l."locale"=q."sourceLocale"
     WHERE q."publication"='PUBLISHED'
       AND (r."promptMediaIds" @> ${JSON.stringify([id])}::jsonb
         OR r."clues" @> ${JSON.stringify([{ mediaId: id }])}::jsonb)

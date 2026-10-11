@@ -7,7 +7,7 @@ export async function quizStats(p: Record<string, any>, actor: Actor | null) {
       (quiz.publication !== "PUBLISHED" || quiz.safetyStatus === "RESTRICTED")))
     fail(404, "not_found", "Quiz not found");
   const version = p.version ?? quiz.currentVersion;
-  const revision = await db().quizRevision.findUnique({ where: { quizId_version: { quizId: quiz.id, version } } });
+  const revision = await db().quizRevision.findFirst({ where: { quizId: quiz.id, version, localization: { origin: {in:["ORIGINAL","LEGACY"]} } } });
   if (!revision) fail(404, "not_found", "Quiz version not found");
   const where = { quizId: quiz.id, revisionId: revision.id };
   const [started, solved, failed, stage, used, positive, negative] = await Promise.all([

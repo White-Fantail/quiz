@@ -80,7 +80,7 @@ model QuizRevision {
   weeklyQuestions       WeeklyQuestion[]
   runQuestions          PlayRunQuestion[]
   weeklyLocalized       WeeklyQuestionLocalization[]
-  @@unique([quizId, version])
+  @@index([quizId, version])
   @@unique([localizationId, version])
 }
 
@@ -91,6 +91,7 @@ model QuizLocalization {
   locale           String
   status           String   @default("DRAFT")
   currentVersion   Int      @default(1)
+  publishedVersion Int?
   sourceRevisionId String?
   origin           String   @default("ORIGINAL")
   createdAt        DateTime @default(now())

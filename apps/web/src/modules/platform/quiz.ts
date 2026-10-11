@@ -10,7 +10,7 @@ function normalizeClues(clues: any[]) {
   return clues.map((clue, i) => ({ ...clue, id: randomUUID(), order: i + 1 }));
 }
 async function revision(quizId: string, version: number) {
-  const row = await db().quizRevision.findUnique({ where: { quizId_version: { quizId, version } } });
+  const row = await db().quizRevision.findFirst({ where: { quizId, version, localization: { origin: { in:["ORIGINAL","LEGACY"] } } } });
   if (!row) return fail(404, "not_found", "Quiz revision not found");
   return row;
 }
@@ -35,7 +35,7 @@ export async function quizList(p: Record<string, any>, actor: Actor | null) {
   const selected = await db().quizRevision.findMany({
     where: { OR: rows.map(q => {
       const l = q.localizations[0];
-      return { quizId: q.id, version: p.mine ? q.currentVersion : l?.currentVersion ?? -1,
+      return { quizId: q.id, version: p.mine ? q.currentVersion : l?.publishedVersion ?? -1,
         ...(p.mine ? {} : { localizationId: l?.id ?? "" }) };
     }) }
   });
@@ -88,7 +88,7 @@ export async function quizCreate(p: Record<string, any>, actor: Actor | null) {
       ...(p.recommendedAudience ? { recommendedAudience: p.recommendedAudience } : {}),
     } });
     await tx.quizLocalization.create({ data: {
-      id:localizationId,quizId:created.id,locale:p.locale,status:"DRAFT",currentVersion:1
+      id:localizationId,quizId:created.id,locale:p.locale,status:"DRAFT",currentVersion:1,origin:"ORIGINAL"
     } });
     await tx.quizRevision.create({data:{
       quizId:created.id,version:1,localizationId,
@@ -127,7 +127,7 @@ export async function quizUpdate(p: Record<string, any>, actor: Actor | null) {
     const localization = await tx.quizLocalization.findUnique({where:{quizId_locale:{quizId:old.id,locale:old.sourceLocale}}});
     if(!localization) fail(409,"localized_revision_missing","Quiz language version is missing");
     const bumped = await tx.quizLocalization.updateMany({where:{id:localization.id,currentVersion:p.expectedVersion},
-      data:{currentVersion:{increment:1}}});
+      data:{currentVersion:{increment:1},...(old.publication==="PUBLISHED"?{publishedVersion:p.expectedVersion+1}:{})}});
     if(bumped.count!==1) fail(409,"version_conflict","Localized version changed while editing");
     await tx.quizRevision.create({ data: { quizId: old.id, version: p.expectedVersion + 1, localizationId: localization.id,
       title: p.title ?? prior.title, prompt: p.prompt ?? prior.prompt, mode: p.mode ?? prior.mode,
@@ -157,7 +157,7 @@ export async function quizPublish(p: Record<string, any>, actor: Actor | null) {
   }
   await db().$transaction(async tx => {
     await tx.quiz.update({ where: { id: old.id }, data: { publication: "PUBLISHED", kidsEligible: false, safetyStatus: "PENDING" } });
-    await tx.quizLocalization.updateMany({where:{quizId:old.id,locale:old.sourceLocale},data:{status:"PUBLISHED"}});
+    await tx.quizLocalization.updateMany({where:{quizId:old.id,locale:old.sourceLocale},data:{status:"PUBLISHED",publishedVersion:old.currentVersion}});
     await tx.auditLog.create({ data: { actorId: user.id, action: "quiz.publish", objectId: old.id } });
   });
   return { id: old.id, publication: "PUBLISHED", kidsEligibility: "PENDING_REVIEW" };
@@ -202,9 +202,7 @@ export async function quizReview(p: Record<string,any>,actor:Actor|null) {
   if(p.kidsEligible && p.verdict!=="APPROVED")
     fail(422,"invalid_safety","Kids eligibility requires an APPROVED safety verdict");
   if(p.verdict==="APPROVED" || p.kidsEligible) {
-    const revision=await db().quizRevision.findUnique({where:{
-      quizId_version:{quizId:quiz.id,version:quiz.currentVersion}
-    }});
+    const revision=await db().quizRevision.findFirst({where:{quizId:quiz.id,version:quiz.currentVersion,localization:{origin:{in:["ORIGINAL","LEGACY"]}}}});
     if(!revision) fail(409,"invalid_revision","Quiz revision missing");
     await validateMediaReferences(quiz.authorId,revision.promptMediaIds as string[],revision.clues as any[],true);
   }
@@ -227,7 +225,7 @@ export async function quizReviewGet(p:Record<string,any>,actor:Actor|null) {
   if(admin.role!=="ADMIN") fail(403,"admin_required","Quiz review details require administrator authority");
   const item=await db().quiz.findUnique({where:{id:p.id},include:{topicLinks:{include:{topic:true},orderBy:{position:"asc"}}}});
   if(!item) fail(404,"not_found","Quiz not found");
-  const current=await db().quizRevision.findUnique({where:{quizId_version:{quizId:item.id,version:item.currentVersion}}});
+  const current=await db().quizRevision.findFirst({where:{quizId:item.id,version:item.currentVersion,localization:{origin:{in:["ORIGINAL","LEGACY"]}}}});
   if(!current) fail(409,"invalid_revision","Quiz revision unavailable");
   return {id:item.id,authorId:item.authorId,version:item.currentVersion,
     title:current.title,prompt:current.prompt,mode:current.mode,answerType:current.answerType,
