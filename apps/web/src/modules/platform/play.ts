@@ -63,7 +63,7 @@ export async function playGuess(p: Record<string, any>, actor: Actor | null) {
   const score = correct ? Math.round(scoreForClues(clues.length, session.usedClues)) : 0;
   const updated = await db().playSession.updateMany({
     where: { id: session.id, status: "ACTIVE", wrongGuesses: session.wrongGuesses, usedClues: session.usedClues },
-    data: { wrongGuesses: { increment: correct ? 0 : 1 },
+    data: { wrongGuesses: correct ? session.wrongGuesses : session.usedClues,
       ...(correct || failed ? { status: correct ? "SOLVED" : "FAILED", score, finishedAt: new Date() } : {}) }
   });
   if (updated.count !== 1) fail(409, "conflict", "Concurrent session action, retry");
