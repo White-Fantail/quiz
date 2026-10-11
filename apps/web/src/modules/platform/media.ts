@@ -201,6 +201,13 @@ export async function mediaList(p: Record<string, any>, actor: Actor | null) {
 export async function mediaGet(p: Record<string, any>, actor: Actor | null) {
   const item = await asset(p.id, actor);
   const user = requireActor(actor);
+  if (p.purpose === "thumbnail") {
+    if (item.kind !== "image" || item.status !== "READY") return { id: item.id };
+    return { id: item.id,
+      thumbnailUrl: (await thumbnailFor(item)) || (await previewUrl(item.storageKey, item.mimeType)),
+      previewExpiresInSeconds: 60,
+    };
+  }
   const [usage, thumbnailUrl] = await Promise.all([
     mediaUsage(item.id,user.id), thumbnailFor(item),
   ]);
