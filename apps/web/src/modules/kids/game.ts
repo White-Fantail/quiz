@@ -67,7 +67,7 @@ async function answerChoices(kid:Kid,sessionId:string,sessionToken:string){
   const revisions=await db().quizRevision.findMany({
     where:{answerType:active.revision.answerType,
       localization:{is:{locale:kid.profile.locale,status:"PUBLISHED",
-        origin:{in:approvedOrigins},quiz:{is:playableQuizWhere(kid.profile.locale,"KIDS")}}}},
+        origin:{in:approvedOrigins},quiz:{is:playableQuizWhere(kid.profile.locale as "en"|"ko","KIDS")}}}},
     include:{localization:true},orderBy:{id:"asc"},take:120
   });
   const distinct=new Set<string>([correct.toLocaleLowerCase()]);
@@ -107,7 +107,7 @@ export async function startKidRun(kid:Kid,mode:Mode,avoidQuizIds:string[]=[]){
   return {...run,official:false};
 }
 export async function startKidSingle(kid:Kid,quizId:string){
-  const locale=kid.profile.locale;
+  const locale=kid.profile.locale as "en"|"ko";
   const exists=await db().quiz.findFirst({where:{id:quizId,...playableQuizWhere(locale,"KIDS")}});
   if(!exists)fail(404,"kid_quiz_unavailable","Quiz is not approved for this child language");
   const started=await execute("play_start",{quizId,kids:true,locale},null) as any;
