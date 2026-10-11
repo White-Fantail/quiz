@@ -25,6 +25,13 @@ QuizDip is a friendly quiz playground centered on progressive clues and the joy 
 - Native Kids Phase 1 provides only preview UI, backend health and read-only server-approved catalog; do not claim child profile/device activation, actual gameplay, rewards or daily limits work until Phases 2–4.
 - Existing web Kids routes and its cookie guard remain until Phase 5 cutover. Follow `docs/kids-native-development-plan.md`; never remove shared Kids moderation, `KIDS` lane, API or child-profile data when retiring the web UI.
 
+## Native Kids Phase 2 guardrails
+- A parent uses a **real Better Auth web session and verified guardian PIN** to issue a short-lived random pairing code; redeeming it returns a child-scoped native token, never adult OAuth cookies or scopes.
+- `/api/kids/native` may serve native session/approved catalog and verified PIN exit only; browser `actorFor` and MCP are never authorized by this bearer. Profile language and safety flags are server enforced.
+- Apply `20261012190000_kids_native_pairing` to each DB before native pairing. Reinstall/revoke/lockout/rate-limit, iPad and Android smoke tests are mandatory release gates, not implied by unit tests.
+- Native pairing credential issue/consume is deliberately an MCP parity exception; document it and keep general REST/MCP gameplay parity.
+- The temporary web `/kids/parent` guardian setup is required until native guardian controls are built in Phase 4. No web Kids removal until Phase 5.
+
 ## Architecture
 - Implement a **single Next.js modular monolith** on Vercel: public Play/Discover, creator Studio, restricted Admin, REST API and Remote MCP share one deployment.
 - Web page, Server Action, REST route and MCP tool adapters must call the **same service/policy layer**. Do not duplicate publishing/safety rules or call internal HTTP endpoints unnecessarily from server code.
