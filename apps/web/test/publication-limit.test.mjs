@@ -10,7 +10,9 @@ test("new quiz publications have a rolling 24-hour limit of 100", () => {
   assert.match(publish, /if \(recent >= 100\) fail\(429, "rate_limit", "Daily publication limit reached"\)/);
 });
 
-test("creation quota remains at 100 per rolling 24 hours", () => {
+test("quiz creation has no per-user daily count or rate-limit guard", () => {
   const create = quizService.slice(quizService.indexOf("export async function quizCreate"), quizService.indexOf("export async function quizUpdate"));
-  assert.match(create, /if \(count >= 100\) fail\(429, "rate_limit", "Daily creation limit reached"\)/);
+  assert.doesNotMatch(create, /db\(\)\.quiz\.count/);
+  assert.doesNotMatch(create, /rate_limit|Daily creation limit reached/);
+  assert.match(create, /await validateMediaReferences\(user\.id, p\.promptMediaIds \?\? \[\], p\.clues\)/);
 });
