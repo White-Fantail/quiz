@@ -2,6 +2,14 @@
 
 > 상태: 설계안 / 구현 미착수. 기준 브랜치: `dev` (2026-10-12 확인). 이 문서는 **모바일 기능 개발 4단계 + 기존 웹 Kids 제거 1단계**를 정의한다. 현재 웹 구현 완료 상태와 목표 구현 상태를 혼동하지 않는다.
 
+## Phase 2 implementation record (2026-10-12)
+
+- **Implemented in `dev` source:** guardian PIN-authorized single-use 5-minute native pairing ticket, SHA-256-only code storage, atomic redeem, `WEB`/`NATIVE` device discriminator, mobile Bearer-only scoped session/catalog/PIN exit routes, OS SecureStore persistence, validation on resume, parent-locked EN/KO locale, and browser-assisted parent onboarding.
+- **Web-to-native transition:** existing `/kids/parent` is temporarily retained to reuse verified Google/Apple account login, PIN and existing guardian profile management. It issues a one-time native pairing code; app never receives adult login cookies. Replacing web guardian settings with fully native screens is Phase 4 before web Kids retirement.
+- **Required DB migration:** `20261012190000_kids_native_pairing`. Dev/staging must be backed up and migrated independently, then test real issuance/consume/revoke/restart and PIN lockout. No deployed migration or native device E2E is claimed merely by source commits.
+- **MCP parity exception:** native device token issue/redeem/unlock intentionally never exposed to external MCP clients, to prevent leaking or automating child-device bearer provisioning. This is a security-restricted exception; creator/public content operations retain existing REST/MCP parity.
+- **Deferred:** completed child gameplay, age-dependent lesson selection/progress/rewards (Phase 3), device-wide daily time budgets and full native guardian controls (Phase 4), complete web Kids retirement (Phase 5).
+
 ## Phase 1 implementation record (2026-10-12)
 
 - **Implemented in `dev` source:** `apps/kids` Expo SDK 57 React Native app, English/Korean four-tab shell, native iPad/Android responsive layout, read-only server-approved discovery preview, configurable dev API health check, common `@quizdip/i18n` Kids catalog and `@quizdip/api-client` contracts, npm scripts and CI jobs.
