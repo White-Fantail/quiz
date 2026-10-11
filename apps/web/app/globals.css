@@ -77,3 +77,8 @@ a.feature-card:hover { border-color:#B4AEF7; transform:translateY(-3px); }
  .guess-row .btn { width:100%; }
 }
 @media(prefers-reduced-motion:reduce) { *,*::before,*::after { scroll-behavior:auto!important; transition:none!important; } }
+
+.social-actions { display:grid; gap:15px; margin:18px 0; }
+.social-actions > .btn { width:100%; }
+.connected-provider { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px; border:1px solid var(--border); border-radius:14px; flex-wrap:wrap; }
+.connected-provider .btn { min-height:39px; padding:7px 14px; }

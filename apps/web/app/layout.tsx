@@ -12,6 +12,7 @@ const navLinks = [
   { href: "/play", label: "Play" },
   { href: "/studio", label: "Studio" },
   { href: "/kids", label: "Kids" },
+  { href: "/account", label: "내 계정" },
 ];
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
