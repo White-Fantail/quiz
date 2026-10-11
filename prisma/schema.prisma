@@ -53,6 +53,7 @@ model Quiz {
   packItems             PackQuestion[]
   weeklyQuestions       WeeklyQuestion[]
   runQuestions          PlayRunQuestion[]
+  weeklyLocalized       WeeklyQuestionLocalization[]
   sessions              PlaySession[]
   reviews               Review[]
   reports               Report[]
@@ -182,6 +183,7 @@ model PlaySession {
   userId                String?
   user                  User?         @relation(fields: [userId], references: [id])
   tokenHash             String
+  locale                String        @default("und")
   runId                 String?
   run                   PlayRun? @relation(fields: [runId], references: [id])
   roundIndex            Int?
@@ -290,6 +292,7 @@ model WeeklyChallenge {
   createdAt   DateTime  @default(now())
   publishedAt DateTime?
   questions   WeeklyQuestion[]
+  localizedQuestions WeeklyQuestionLocalization[]
   runs        PlayRun[]
   @@index([lane, weekStart])
   @@index([status, weekStart, weekEnd])
@@ -307,10 +310,22 @@ model WeeklyQuestion {
   @@unique([challengeId, quizId])
 }
 
+model WeeklyQuestionLocalization {
+  challengeId String
+  position    Int
+  locale      String
+  revisionId  String
+  challenge   WeeklyChallenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  revision    QuizRevision @relation(fields: [revisionId], references: [id])
+  @@id([challengeId, position, locale])
+  @@index([revisionId])
+}
+
 model PlayRun {
   id          String    @id @default(uuid())
   mode        String
   lane        String
+  locale      String    @default("und")
   userId      String?
   user        User?     @relation(fields: [userId], references: [id])
   weeklyId    String?

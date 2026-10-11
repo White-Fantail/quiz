@@ -19,6 +19,7 @@ function route(method: string, segments: string[]): Match | null {
     if (b && c === "suspend" && method === "POST") return { op: "weekly_suspend", args: { challengeId:b } };
     if (b && c === "review" && method === "GET") return { op: "quiz_review_get", args: { id:b } };
     if (b && c === "review" && method === "POST") return { op: "quiz_review", args: { id:b } };
+    if (b && c === "language" && !d && method === "POST") return { op: "quiz_language_set", args: { id: b } };
     if (b && c === "publish" && method === "POST") return { op: "quiz_publish", args: { id: b } };
     if (b && c === "clues" && method === "PUT") return { op: "clues_replace", args: { id: b } };
     if (b && c === "stats" && method === "GET") return { op: "quiz_stats", args: { quizId: b } };

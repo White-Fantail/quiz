@@ -2,7 +2,7 @@ import { parseOperation, operations, type Operation } from "./contracts";
 import { localeGet, localeUpdate } from "./locale";
 import { topicList } from "./topics";
 import { fail, requireActor, type Actor } from "./auth";
-import { quizList, quizGet, quizCreate, quizUpdate, quizPublish, quizReview, quizReviewGet } from "./quiz";
+import { quizList, quizGet, quizCreate, quizUpdate, quizPublish, quizLanguageSet, quizReview, quizReviewGet } from "./quiz";
 import { playStart, playClue, playGuess } from "./play";
 import { weeklyCurrent,weeklySubmit,weeklyPublish,weeklyProposals,weeklySuspend,weeklyStandings,
   runStart,runCurrent,runFinish,runHistory,runFeedback } from "./runs";
@@ -29,11 +29,12 @@ export async function execute(name: Operation, raw: unknown, actor: Actor | null
       version: "v2", format: "progressive-clues" };
     case "topic_list": return topicList(p);
     case "quiz_list": return quizList(p, actor);
-    case "quiz_get": return quizGet(p.id, actor);
+    case "quiz_get": return quizGet(p.id, actor, p.locale);
     case "quiz_create": return quizCreate(p, actor);
     case "quiz_update": return quizUpdate(p, actor);
     case "clues_replace": return quizUpdate({ id: p.id, expectedVersion: p.expectedVersion, clues: p.clues }, actor);
     case "quiz_publish": return quizPublish(p, actor);
+    case "quiz_language_set": return quizLanguageSet(p, actor);
     case "quiz_review_get": return quizReviewGet(p,actor);
     case "quiz_review": return quizReview(p, actor);
     case "pack_list": return packList(p, actor);

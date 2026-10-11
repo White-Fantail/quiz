@@ -27,6 +27,7 @@ const topicName = z.string().trim().min(1).max(80);
 const topicInputSchema = z.union([topicName, z.object({name:topicName,isSpoiler:z.boolean().optional()})]);
 export const quizFields = z.object({
   title: z.string().trim().min(1).max(180), prompt: z.string().trim().min(1).max(2000),
+  locale: z.enum(["en", "ko", "und"]).default("und"),
   mode: gameModeSchema.default("progressive-clues"),
   answerType: answerTypeSchema.default("other"),
   answer: answerSchema, clues: z.array(clueSchema).min(1).max(15),
@@ -35,26 +36,29 @@ export const quizFields = z.object({
   recommendedAudience: z.object({ ageRange: ageRangeSchema.optional(), difficulty: z.enum(["easy","medium","hard"]).optional() }).optional(),
   creatorIntent: z.object({ ageRange: ageRangeSchema.optional(), note: z.string().max(400).optional() }).optional()
 });
+const localeCode = z.enum(["en", "ko"]);
+const optionalLocale = localeCode.default("en");
 const paging = { limit: z.number().int().min(1).max(100).default(20), offset: z.number().int().min(0).default(0) };
 const session = { sessionId: uuid, sessionToken: z.string().min(32).max(200) };
 export const operations = {
   catalog: { public: true, description: "Supported game modes, clue formats and rules", schema: z.object({}) },
-  topic_list: { public: true, description: "Search established topics for discovery and authoring. New topic names are accepted on quiz creation.", schema: z.object({ ...paging, q: topicName.optional(), kids: z.boolean().default(false) }) },
-  quiz_list: { public: true, description: "Find quizzes by game mode, answer kind and topic", schema: z.object({ ...paging, mine: z.boolean().default(false), kids: z.boolean().default(false), mode: gameModeSchema.optional(), answerType: answerTypeSchema.optional(), topic: topicName.optional() }) },
-  quiz_get: { public: true, description: "Get published quiz metadata or my full editable quiz", schema: z.object({ id: uuid }) },
+  topic_list: { public: true, description: "Search established topics for discovery and authoring. New topic names are accepted on quiz creation.", schema: z.object({ ...paging, q: topicName.optional(), locale: optionalLocale, kids: z.boolean().default(false) }) },
+  quiz_list: { public: true, description: "Find quizzes by game mode, answer kind and topic", schema: z.object({ ...paging, mine: z.boolean().default(false), kids: z.boolean().default(false), locale: optionalLocale, mode: gameModeSchema.optional(), answerType: answerTypeSchema.optional(), topic: topicName.optional() }) },
+  quiz_get: { public: true, description: "Get published quiz metadata or my full editable quiz", schema: z.object({ id: uuid, locale: optionalLocale }) },
   quiz_create: { public: false, description: "Create ordered clues; infer answerType, relevant topics, age recommendation and difficulty. Platform safety is never creator input.", schema: quizFields },
   quiz_update: { public: false, description: "Edit my quiz as a new immutable revision", schema: quizFields.partial().extend({ id: uuid, expectedVersion: z.number().int().positive() }) },
   clues_replace: { public: false, description: "Replace my ordered clues as a new revision", schema: z.object({ id: uuid, expectedVersion: z.number().int().positive(), clues: quizFields.shape.clues }) },
+  quiz_language_set: { public: false, description: "Confirm the original language of a legacy unclassified quiz without translating it", schema: z.object({ id: uuid, locale: localeCode, confirm: z.literal(true) }) },
   quiz_publish: { public: false, description: "Publish my quiz; explicit user confirmation needed", schema: z.object({ id: uuid, confirm: z.literal(true) }) },
   quiz_review_get: { public: false, description: "ADMIN ONLY: inspect quiz questions and answers for safety", schema: z.object({id:uuid}) },
   quiz_review: { public: false, description: "ADMIN ONLY: independently approve or restrict a quiz; Kids requires explicit safety approval", schema: z.object({
     id: uuid, verdict: z.enum(["APPROVED","RESTRICTED","PENDING"]), kidsEligible: z.boolean().default(false),
     reason: z.string().trim().min(5).max(1000), confirm: z.literal(true)
   }) },
-  pack_list: { public: true, description: "List published packs or my packs", schema: z.object({ ...paging, mine: z.boolean().default(false) }) },
-  pack_create: { public: false, description: "Create a new ordered quiz pack", schema: z.object({ title: z.string().min(1).max(180), description: z.string().max(2000).default(""), quizIds: z.array(uuid).min(1).max(100) }) },
+  pack_list: { public: true, description: "List published packs or my packs", schema: z.object({ ...paging, mine: z.boolean().default(false), locale: optionalLocale }) },
+  pack_create: { public: false, description: "Create a new ordered quiz pack", schema: z.object({ title: z.string().min(1).max(180), description: z.string().max(2000).default(""), quizIds: z.array(uuid).min(1).max(100), locale: z.enum(["en", "ko", "und"]).default("und") }) },
   pack_update: { public: false, description: "Edit or publish an owned quiz pack", schema: z.object({ id: uuid, title: z.string().min(1).max(180).optional(), description: z.string().max(2000).optional(), quizIds: z.array(uuid).min(1).max(100).optional(), publication: z.enum(["DRAFT", "PUBLISHED", "HIDDEN"]).optional(), confirm: z.boolean().optional() }) },
-  play_start: { public: true, description: "Start a playable session and see first clue", schema: z.object({ quizId: uuid, kids: z.boolean().default(false) }) },
+  play_start: { public: true, description: "Start a playable session and see first clue", schema: z.object({ quizId: uuid, kids: z.boolean().default(false), locale: optionalLocale }) },
   play_clue: { public: true, description: "Reveal the next clue using my play token", schema: z.object(session) },
   play_guess: { public: true, description: "Check my guess on the server", schema: z.object({ ...session, guess: z.string().trim().min(1).max(200) }) },
   reviews_list: { public: true, description: "Read public quiz reviews", schema: z.object({ quizId: uuid, ...paging }) },
@@ -116,7 +120,7 @@ export const operations = {
   play_media: { public: true, description: "Renew time-limited playback URL for a revealed clue or prompt media", schema: z.object({
     ...session, mediaId
   }) },
-  weekly_current: { public: true, description: "This week's globally fixed five questions and featured creator, separately for General/Kids", schema: z.object({ lane: z.enum(["GENERAL","KIDS"]).default("GENERAL") }) },
+  weekly_current: { public: true, description: "This week's globally fixed five questions and featured creator, separately for General/Kids", schema: z.object({ lane: z.enum(["GENERAL","KIDS"]).default("GENERAL"), locale: optionalLocale }) },
   weekly_submit: { public: false, description: "Submit five original published questions as next week's host; staff schedules editions", schema: z.object({
     lane: z.enum(["GENERAL","KIDS"]), weekStart: z.iso.date(), title: z.string().trim().min(3).max(180),
     description: z.string().max(1000).default(""), quizIds: z.array(uuid).length(5).refine(a=>new Set(a).size===5)
@@ -131,14 +135,14 @@ export const operations = {
     challengeId: uuid, reason: z.string().trim().min(5).max(1000), confirm: z.literal(true)
   }) },
   weekly_standings: { public: true, description: "Verified opt-in adults' first-attempt scores for the selected General weekly challenge", schema: z.object({
-    challengeId: uuid, ...paging
+    challengeId: uuid, locale: optionalLocale, ...paging
   }) },
   run_start: { public: true, description: "Begin/resume weekly, five random, or infinite play in General/Kids lane", schema: z.object({
     mode: z.enum(["WEEKLY","RANDOM_FIVE","INFINITE"]), lane: z.enum(["GENERAL","KIDS"]).default("GENERAL"),
-    avoidQuizIds: z.array(uuid).max(1000).default([])
+    avoidQuizIds: z.array(uuid).max(1000).default([]), locale: optionalLocale
   }) },
   run_current: { public: true, description: "Get or resume the current server-side question of a run without revealing later clues", schema: z.object({
-    runId: uuid, runToken: z.string().min(32).max(200), avoidQuizIds: z.array(uuid).max(1000).default([])
+    runId: uuid, runToken: z.string().min(32).max(200), avoidQuizIds: z.array(uuid).max(1000).default([]), locale: localeCode.optional()
   }) },
   run_finish: { public: true, description: "Stop an infinite or practice run and view its scores", schema: z.object({
     runId: uuid, runToken: z.string().min(32).max(200), confirm: z.literal(true)
