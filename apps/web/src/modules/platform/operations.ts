@@ -2,7 +2,7 @@ import { parseOperation, operations, type Operation } from "./contracts";
 import { fail, requireActor, type Actor } from "./auth";
 import { quizList, quizGet, quizCreate, quizUpdate, quizPublish } from "./quiz";
 import { playStart, playClue, playGuess } from "./play";
-import { weeklyCurrent,weeklySubmit,weeklyPublish,weeklyStandings,
+import { weeklyCurrent,weeklySubmit,weeklyPublish,weeklyProposals,weeklySuspend,weeklyStandings,
   runStart,runCurrent,runFinish,runHistory } from "./runs";
 import { reviewsList, reviewUpsert, reportCreate, reportsMine, packCreate, packList, packUpdate } from "./social";
 import { quizStats, myStats, me, leaderboard } from "./analytics";
@@ -60,6 +60,8 @@ export async function execute(name: Operation, raw: unknown, actor: Actor | null
     case "weekly_current": return weeklyCurrent(p);
     case "weekly_submit": return weeklySubmit(p,actor);
     case "weekly_publish": return weeklyPublish(p,actor);
+    case "weekly_proposals": return weeklyProposals(p,actor);
+    case "weekly_suspend": return weeklySuspend(p,actor);
     case "weekly_standings": return weeklyStandings(p);
     case "run_start": return runStart(p,actor);
     case "run_current": return runCurrent(p,actor);

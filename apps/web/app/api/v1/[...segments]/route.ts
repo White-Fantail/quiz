@@ -15,6 +15,7 @@ function route(method: string, segments: string[]): Match | null {
     if (!b && method === "POST") return { op: "quiz_create", args: {} };
     if (b && !c && method === "GET") return { op: "quiz_get", args: { id: b } };
     if (b && !c && method === "PATCH") return { op: "quiz_update", args: { id: b } };
+    if (b && c === "suspend" && method === "POST") return { op: "weekly_suspend", args: { challengeId:b } };
     if (b && c === "publish" && method === "POST") return { op: "quiz_publish", args: { id: b } };
     if (b && c === "clues" && method === "PUT") return { op: "clues_replace", args: { id: b } };
     if (b && c === "stats" && method === "GET") return { op: "quiz_stats", args: { quizId: b } };
@@ -29,6 +30,7 @@ function route(method: string, segments: string[]): Match | null {
   if (a === "packs" && b && !c && method === "PATCH") return { op: "pack_update", args: { id: b } };
   if (a === "weekly") {
     if (b === "current" && !c && method === "GET") return { op: "weekly_current", args: {} };
+    if (b === "proposals" && !c && method === "GET") return { op: "weekly_proposals", args: {} };
     if (b === "submit" && !c && method === "POST") return { op: "weekly_submit", args: {} };
     if (b && c === "publish" && method === "POST") return { op: "weekly_publish", args: { challengeId:b } };
     if (b && c === "standings" && method === "GET") return { op: "weekly_standings", args: { challengeId:b } };

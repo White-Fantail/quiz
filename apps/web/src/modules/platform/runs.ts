@@ -253,6 +253,32 @@ export async function runHistory(p:Record<string,any>,actor:Actor|null) {
   return {items:rows.map(run=>({...runSummary(run),startedAt:run.startedAt,
     weekly:run.weekly?publicWeekly(run.weekly):null})),offset:p.offset,limit:p.limit};
 }
+export async function weeklyProposals(p:Record<string,any>,actor:Actor|null) {
+  const user=requireActor(actor);
+  if(user.role!=="ADMIN") fail(403,"admin_required","Only administrators can review weekly proposals");
+  const where={status:"SUBMITTED",...(p.lane?{lane:p.lane}:{}),
+    ...(p.weekStart?{weekStart:new Date(p.weekStart+"T00:00:00.000Z")}:{})};
+  const rows=await db().weeklyChallenge.findMany({where,orderBy:[{weekStart:"asc"},{createdAt:"asc"}],
+    take:p.limit,skip:p.offset,
+    include:{host:{select:{id:true,displayName:true}},questions:{orderBy:{position:"asc"},include:{revision:{select:{title:true}}}}}});
+  return {items:rows.map(row=>({...publicWeekly(row),status:row.status,
+    questions:row.questions.map(q=>({position:q.position+1,title:q.revision.title,quizId:q.quizId}))})),
+    offset:p.offset,limit:p.limit};
+}
+export async function weeklySuspend(p:Record<string,any>,actor:Actor|null) {
+  const user=requireActor(actor);
+  if(user.role!=="ADMIN") fail(403,"admin_required","Only administrators can suspend editions");
+  const edition=await db().weeklyChallenge.findUnique({where:{id:p.challengeId}});
+  if(!edition||edition.status!=="SCHEDULED") fail(404,"not_found","Scheduled edition not found");
+  await db().$transaction(async tx=>{
+    const updated=await tx.weeklyChallenge.updateMany({
+      where:{id:edition.id,status:"SCHEDULED"},data:{status:"SUSPENDED"}});
+    if(updated.count!==1) fail(409,"conflict","Edition status changed");
+    await tx.auditLog.create({data:{actorId:user.id,action:"weekly.suspend",objectId:edition.id,
+      detail:{reason:p.reason,lane:edition.lane,weekStart:edition.weekStart.toISOString()}}});
+  });
+  return {challengeId:edition.id,status:"SUSPENDED"};
+}
 export async function weeklyStandings(p:Record<string,any>) {
   const edition=await db().weeklyChallenge.findUnique({where:{id:p.challengeId}});
   if(!edition || edition.status!=="SCHEDULED" || edition.lane!=="GENERAL")

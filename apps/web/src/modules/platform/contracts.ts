@@ -91,6 +91,12 @@ export const operations = {
   weekly_publish: { public: false, description: "ADMIN ONLY: freeze the author's five revisions and publish the weekly edition", schema: z.object({
     challengeId: uuid, verifiedHost: z.boolean().default(false), confirm: z.literal(true)
   }) },
+  weekly_proposals: { public: false, description: "ADMIN ONLY: review upcoming five-quiz creator editions", schema: z.object({
+    lane: z.enum(["GENERAL","KIDS"]).optional(), weekStart: z.iso.date().optional(), ...paging
+  }) },
+  weekly_suspend: { public: false, description: "ADMIN ONLY: suspend an edition with audit record", schema: z.object({
+    challengeId: uuid, reason: z.string().trim().min(5).max(1000), confirm: z.literal(true)
+  }) },
   weekly_standings: { public: true, description: "Verified opt-in adults' first-attempt scores for the selected General weekly challenge", schema: z.object({
     challengeId: uuid, ...paging
   }) },
