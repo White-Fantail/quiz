@@ -5,7 +5,7 @@ import { useKidsLocale } from "../../src/state/locale";
 import { theme } from "../../src/theme";
 export default function ChallengeScreen(){
  const {t}=useKidsLocale(),router=useRouter();
- return <Screen title={t("kids.challenge.title")} subtitle={t("kids.challenge.lead")}>
+ return <Screen title={t("kids.challenge.title")} subtitle={t("native.play.fiveDesc")}>
    <Banner emoji="🧩" title={t("native.play.chooseMode")} detail={t("native.play.fiveDesc")} tint={theme.colors.sky}/>
    <Pressable accessibilityRole="button" style={styles.tile}
      onPress={()=>router.push({pathname:"/game",params:{mode:"RANDOM_FIVE"}})}>
