@@ -1,6 +1,7 @@
 import { z, ZodError } from "zod";
 import { nativeKidFromHeaders } from "../../../../../src/modules/kids/service";
 import { fail, PlatformError } from "../../../../../src/modules/platform/auth";
+import { requirePlayable } from "../../../../../src/modules/kids/time";
 import { startKidRun,startKidSingle,currentKidRun,currentKidSingle,
   kidClue,kidGuess,kidMedia,kidTreasures } from "../../../../../src/modules/kids/game";
 
@@ -32,6 +33,7 @@ export async function GET(request:Request){
    const kid=await nativeKidFromHeaders(request.headers);
    if(new URL(request.url).searchParams.get("view")!=="treasures")
      fail(400,"invalid_view","Unknown Kids view");
+   await requirePlayable(kid);
    return respond(await kidTreasures(kid));
  }catch(e){return error(e);}
 }
@@ -42,6 +44,7 @@ export async function POST(request:Request){
    if(!request.headers.get("content-type")?.startsWith("application/json"))
      fail(415,"invalid_content_type","JSON required");
    const kid=await nativeKidFromHeaders(request.headers);
+   await requirePlayable(kid);
    const data=actions.parse(await request.json());
    switch(data.action){
      case "run_start":return respond(await startKidRun(kid,data.mode,data.avoidQuizIds));
