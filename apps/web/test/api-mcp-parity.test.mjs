@@ -5,7 +5,7 @@ import { operations, parseOperation } from "../src/modules/platform/contracts.ts
 
 test("every REST action is exposed as an MCP operation via the shared registry", () => {
   const names = Object.keys(operations);
-  assert.equal(names.length, 25);
+  assert.equal(names.length, 35);
   const restSource = readFileSync(new URL("../app/api/v1/[...segments]/route.ts", import.meta.url), "utf8");
   const mcpSource = readFileSync(new URL("../app/api/mcp/route.ts", import.meta.url), "utf8");
   for (const name of names) {
@@ -21,6 +21,8 @@ test("quiz schema requires at least one usable clue and an answer", () => {
     clues: [{ type: "text", text: "I breathe air" }] };
   assert.equal(parseOperation("quiz_create", good).mode, "guess-animal");
   assert.throws(() => parseOperation("quiz_create", { ...good, clues: [] }));
+  assert.throws(() => parseOperation("quiz_create", { ...good, clues: [{ type: "image", media: { url: "https://unsafe.example/image.png" } }] }));
+  assert.equal(parseOperation("quiz_create", { ...good, promptMediaIds: ["94f0792a-18e6-40c0-a480-0be6d46dbb37"], clues: [{ type: "image", mediaId: "94f0792a-18e6-40c0-a480-0be6d46dbb37" }] }).promptMediaIds.length, 1);
   assert.throws(() => parseOperation("quiz_create", { ...good, answer: { canonical: "" } }));
   assert.throws(() => parseOperation("quiz_create", { ...good, clues: [{ type: "map", map: { latitude: 100, longitude: 0 } }] }));
 });

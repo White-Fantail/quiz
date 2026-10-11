@@ -21,6 +21,7 @@ model User {
   sessions              PlaySession[]
   reviews               Review[]
   reports               Report[]
+  mediaAssets           MediaAsset[]
   creatorReviewsReceived CreatorReview[] @relation("CreatorReceived")
   creatorReviewsWritten  CreatorReview[] @relation("CreatorWritten")
   @@unique([issuer, subject])
@@ -59,6 +60,7 @@ model QuizRevision {
   answer                Json
   clues                 Json
   scoring               Json?
+  promptMediaIds        Json          @default("[]")
   createdAt             DateTime      @default(now())
   sessions              PlaySession[]
   @@unique([quizId, version])
@@ -155,4 +157,31 @@ model CreatorReview {
   updatedAt  DateTime @updatedAt
   @@unique([targetId, reviewerId])
   @@index([targetId, createdAt])
+}
+\n
+model MediaAsset {
+  id                String   @id @default(uuid())
+  ownerId           String
+  owner             User     @relation(fields: [ownerId], references: [id])
+  kind              String
+  mimeType          String
+  originalName      String   @default("")
+  sizeBytes         Int
+  sha256            String?
+  status            String   @default("UPLOADING")
+  moderationStatus  String   @default("PENDING")
+  storageKey        String   @unique
+  uploadKey         String?  @unique
+  uploadExpiresAt   DateTime?
+  sourceUrl         String?
+  parentId          String?
+  alt               String   @default("")
+  transcript        String   @default("")
+  attribution       String   @default("")
+  license           String   @default("")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  deletedAt         DateTime?
+  @@index([ownerId, status, createdAt])
+  @@index([parentId])
 }

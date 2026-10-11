@@ -30,6 +30,18 @@ function route(method: string, segments: string[]): Match | null {
   if (a === "play" && !b && method === "POST") return { op: "play_start", args: {} };
   if (a === "play" && b && c === "clue" && method === "POST") return { op: "play_clue", args: { sessionId: b } };
   if (a === "play" && b && c === "guess" && method === "POST") return { op: "play_guess", args: { sessionId: b } };
+  if (a === "media") {
+    if (!b && method === "GET") return { op: "media_list", args: {} };
+    if (b === "upload" && !c && method === "POST") return { op: "media_upload", args: {} };
+    if (b === "import" && !c && method === "POST") return { op: "media_import", args: {} };
+    if (b && !c && method === "GET") return { op: "media_get", args: { id: b } };
+    if (b && !c && method === "PATCH") return { op: "media_update", args: { id: b } };
+    if (b && !c && method === "DELETE") return { op: "media_delete", args: { id: b } };
+    if (b && c === "complete" && method === "POST") return { op: "media_complete", args: { id: b } };
+    if (b && c === "transform" && method === "POST") return { op: "media_transform", args: { id: b } };
+    if (b && c === "review" && method === "POST") return { op: "media_review", args: { id: b } };
+  }
+  if (a === "play" && b && c === "media" && method === "POST") return { op: "play_media", args: { sessionId: b } };
   if (a === "me" && !b && method === "GET") return { op: "me", args: {} };
   if (a === "me" && b === "quizzes" && method === "GET") return { op: "my_quizzes", args: {} };
   if (a === "me" && b === "stats" && method === "GET") return { op: "my_stats", args: {} };
@@ -76,3 +88,4 @@ export const GET = handle;
 export const POST = handle;
 export const PUT = handle;
 export const PATCH = handle;
+export const DELETE = handle;

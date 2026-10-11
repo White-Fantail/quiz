@@ -3,16 +3,25 @@ import { z } from "zod";
 export const uuid = z.string().uuid();
 export const userId = z.string().min(8).max(200).regex(/^[a-zA-Z0-9_-]+$/);
 export const answerSchema = z.object({ canonical: z.string().trim().min(1).max(200), aliases: z.array(z.string().trim().min(1).max(200)).max(20).default([]) });
-const media = z.object({ url: z.url().max(2000), alt: z.string().max(500).optional(), transcript: z.string().max(2000).optional(), attribution: z.string().max(500).optional() });
+const mediaId = uuid;
 export const clueSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("text"), text: z.string().trim().min(1).max(3000) }),
-  z.object({ type: z.enum(["image", "audio", "video"]), media, text: z.string().max(1000).optional() }),
+  z.object({ type: z.enum(["image", "audio", "video"]), mediaId, text: z.string().max(1000).optional() }),
   z.object({ type: z.literal("map"), map: z.object({ latitude: z.number().min(-90).max(90), longitude: z.number().min(-180).max(180), zoom: z.number().min(1).max(20).optional() }), text: z.string().max(1000).optional() })
 ]);
+const mediaMetadata = {
+  alt: z.string().max(500).optional(),
+  transcript: z.string().max(5000).optional(),
+  attribution: z.string().max(500).optional(),
+  license: z.string().max(200).optional()
+};
+const mediaKinds = z.enum(["image", "audio", "video"]);
+const mediaFormats = z.enum(["image/jpeg","image/png","image/webp","audio/mpeg","audio/wav","audio/ogg","video/mp4","video/webm"]);
 export const quizFields = z.object({
   title: z.string().trim().min(1).max(180), prompt: z.string().trim().min(1).max(2000),
   mode: z.enum(["guess-animal", "guess-person", "guess-place", "guess-thing"]),
   answer: answerSchema, clues: z.array(clueSchema).min(1).max(15),
+  promptMediaIds: z.array(mediaId).max(5).default([]),
   categories: z.array(z.string().min(1).max(50)).max(8).optional(),
   creatorIntent: z.object({ ageRange: z.object({ minimum: z.number().int().min(0).max(120).optional(), maximum: z.number().int().min(0).max(120).optional() }).optional(), note: z.string().max(400).optional() }).optional()
 });
@@ -43,7 +52,30 @@ export const operations = {
   leaderboard: { public: true, description: "Opt-in verified player rankings", schema: z.object({ ...paging, quizId: uuid.optional() }) },
   user_get: { public: true, description: "View a creator's public profile and reputation", schema: z.object({ userId }) },
   creator_reviews_list: { public: true, description: "Read the public reviews of a quiz creator", schema: z.object({ userId, ...paging }) },
-  creator_review_upsert: { public: false, description: "Rate a creator after finishing one of their questions", schema: z.object({ userId, rating: z.union([z.literal(-1), z.literal(1)]), comment: z.string().max(2000).default("") }) }
+  creator_review_upsert: { public: false, description: "Rate a creator after finishing one of their questions", schema: z.object({ userId, rating: z.union([z.literal(-1), z.literal(1)]), comment: z.string().max(2000).default("") }) },
+  media_upload: { public: false, description: "Reserve private object storage and return a short-lived signed upload URL", schema: z.object({
+    kind: mediaKinds, mimeType: mediaFormats, filename: z.string().min(1).max(200), sizeBytes: z.number().int().positive(),
+    sha256: z.string().regex(/^[a-f0-9]{64}$/), ...mediaMetadata
+  }) },
+  media_complete: { public: false, description: "Verify uploaded bytes and finalize immutable media asset", schema: z.object({ id: mediaId }) },
+  media_import: { public: false, description: "Import HTTPS media from a server-approved host into private storage", schema: z.object({
+    url: z.url().max(2000), kind: mediaKinds, filename: z.string().min(1).max(200), ...mediaMetadata
+  }) },
+  media_list: { public: false, description: "List media assets owned by the signed-in user", schema: z.object(paging) },
+  media_get: { public: false, description: "Get a media asset and short-lived owner preview URL", schema: z.object({ id: mediaId }) },
+  media_update: { public: false, description: "Edit attribution or accessible text of my media, resetting moderation", schema: z.object({ id: mediaId, ...mediaMetadata }) },
+  media_delete: { public: false, description: "Delete unreferenced media with explicit confirmation", schema: z.object({ id: mediaId, confirm: z.literal(true) }) },
+  media_transform: { public: false, description: "Create an immutable derived image crop, blur or progressive reveal", schema: z.object({
+    id: mediaId, crop: z.object({ left: z.number().int().min(0), top: z.number().int().min(0),
+      width: z.number().int().positive(), height: z.number().int().positive() }).optional(),
+    blur: z.number().min(0.3).max(20).optional(), resizeWidth: z.number().int().min(64).max(2048).optional()
+  }).refine(p => !!(p.crop || p.blur || p.resizeWidth), { message: "Choose at least one image transform" }) },
+  media_review: { public: false, description: "ADMIN ONLY: explicitly approve or restrict validated media", schema: z.object({
+    id: mediaId, verdict: z.enum(["APPROVED", "RESTRICTED"]), confirm: z.literal(true), reason: z.string().min(5).max(1000)
+  }) },
+  play_media: { public: true, description: "Renew time-limited playback URL for a revealed clue or prompt media", schema: z.object({
+    ...session, mediaId
+  }) }
 } as const;
 export type Operation = keyof typeof operations;
 export function parseOperation(name: Operation, payload: unknown): Record<string, any> {
