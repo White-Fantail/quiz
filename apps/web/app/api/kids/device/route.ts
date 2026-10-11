@@ -1,8 +1,9 @@
 import { z, ZodError } from "zod";
 import { actorFor, requireActor, requireSameOrigin, PlatformError, fail } from "../../../../src/modules/platform/auth";
-import { activateKidDevice, currentKidDevice, exitKidDevice, kidTokenFromHeaders, findKidDevice } from "../../../../src/modules/kids/service";
+import { activateKidDevice, currentKidDevice, exitKidDevice, kidTokenFromHeaders, checkGuardianPin } from "../../../../src/modules/kids/service";
 import { KIDS_COOKIE, MAX_DEVICE_AGE_SECONDS, hasKidCookie } from "../../../../src/modules/kids/credentials";
 import { LOCALE_COOKIE } from "../../../../src/i18n/core";
+import { auth } from "../../../../src/lib/auth";
 
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
@@ -41,7 +42,18 @@ async function handle(request:Request) {
       const p=end.parse(await request.json());
       const token=kidTokenFromHeaders(request.headers);
       if(!token) fail(403,"kid_device_invalid","No child session on this device");
-      const outcome=await exitKidDevice(token,p.pin);
+      let outcome:{unlocked:boolean};
+      try {
+        outcome=await exitKidDevice(token,p.pin);
+      } catch (error) {
+        if (!(error instanceof PlatformError) || error.code !== "kid_device_invalid") throw error;
+        // A parent may have deleted/revoked this profile on another device.
+        // Only the SAME authenticated guardian's verified PIN can clear an orphan cookie.
+        const session=await auth.api.getSession({headers:request.headers});
+        if (!session?.user?.id) throw error;
+        await checkGuardianPin(session.user.id,p.pin);
+        outcome={unlocked:true};
+      }
       const response=Response.json({data:outcome},{headers:{"Cache-Control":"no-store"}});
       setKidCookie(response,"",0);
       return response;
