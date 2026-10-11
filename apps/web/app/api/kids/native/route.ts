@@ -1,6 +1,7 @@
 import { z, ZodError } from "zod";
 import { PlatformError, fail } from "../../../../src/modules/platform/auth";
 import { execute } from "../../../../src/modules/platform/operations";
+import { requirePlayable } from "../../../../src/modules/kids/time";
 import { nativeKidFromHeaders,redeemNativePairTicket,releaseNativeKidDevice } from "../../../../src/modules/kids/service";
 
 export const runtime="nodejs";
@@ -33,6 +34,7 @@ export async function GET(request:Request) {
   if(data.view==="session") return response({active:true,
     profile:{nickname:kid.profile.nickname,ageBand:kid.profile.ageBand,locale:kid.profile.locale},
     expiresAt:kid.expiresAt.toISOString()});
+  await requirePlayable(kid);
   const result=await execute("quiz_list",{
     kids:true,locale:kid.profile.locale,offset:data.offset,limit:data.limit,
     ...(data.answerType?{answerType:data.answerType}:{}),
