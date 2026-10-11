@@ -188,3 +188,17 @@ export async function kidTreasures(kid:Kid){
   ].filter(x=>uniqueSolved.length>=x.required);
   return {solved,completed,discoveries,badges};
 }
+
+/** Children can flag ONLY questions assigned or played on their own private profile.
+ * No comment box to accidentally collect private child information. */
+export async function kidReport(kid:Kid,quizId:string,reason:"UNSAFE"|"INCORRECT"|"BROKEN_MEDIA"){
+  const played=await db().playSession.findFirst({where:{quizId,OR:[
+    {run:{is:{kidOwnership:{is:{profileId:kid.profileId}}}}},
+    {kidSingle:{is:{profileId:kid.profileId}}}
+  ]},select:{id:true}});
+  if(!played)fail(403,"kid_report_forbidden","Only your own played questions can be reported");
+  await db().kidSafetyReport.upsert({where:{profileId_quizId_reason:{
+    profileId:kid.profileId,quizId,reason
+  }},create:{profileId:kid.profileId,quizId,reason},update:{}});
+  return {reported:true};
+}
