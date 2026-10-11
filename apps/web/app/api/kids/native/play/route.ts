@@ -3,7 +3,7 @@ import { nativeKidFromHeaders } from "../../../../../src/modules/kids/service";
 import { fail, PlatformError } from "../../../../../src/modules/platform/auth";
 import { requirePlayable } from "../../../../../src/modules/kids/time";
 import { startKidRun,startKidSingle,currentKidRun,currentKidSingle,
-  kidClue,kidGuess,kidMedia,kidTreasures } from "../../../../../src/modules/kids/game";
+  kidClue,kidGuess,kidMedia,kidTreasures,kidReport } from "../../../../../src/modules/kids/game";
 
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
@@ -19,7 +19,8 @@ const actions=z.discriminatedUnion("action",[
   z.object({action:z.literal("single_current"),...session}).strict(),
   z.object({action:z.literal("clue"),...session}).strict(),
   z.object({action:z.literal("guess"),...session,guess:z.string().trim().min(1).max(200)}).strict(),
-  z.object({action:z.literal("media"),...session,mediaId:uuid}).strict()
+  z.object({action:z.literal("media"),...session,mediaId:uuid}).strict(),
+  z.object({action:z.literal("report"),quizId:uuid,reason:z.enum(["UNSAFE","INCORRECT","BROKEN_MEDIA"])}).strict()
 ]);
 function respond(data:unknown){return Response.json({data},{headers});}
 function error(error:unknown){
@@ -44,8 +45,8 @@ export async function POST(request:Request){
    if(!request.headers.get("content-type")?.startsWith("application/json"))
      fail(415,"invalid_content_type","JSON required");
    const kid=await nativeKidFromHeaders(request.headers);
-   await requirePlayable(kid);
    const data=actions.parse(await request.json());
+   if(data.action!=="report")await requirePlayable(kid);
    switch(data.action){
      case "run_start":return respond(await startKidRun(kid,data.mode,data.avoidQuizIds));
      case "run_current":return respond(await currentKidRun(kid,data.runId,data.runToken));
@@ -54,6 +55,7 @@ export async function POST(request:Request){
      case "clue":return respond(await kidClue(kid,data.sessionId,data.sessionToken));
      case "guess":return respond(await kidGuess(kid,data.sessionId,data.sessionToken,data.guess));
      case "media":return respond(await kidMedia(kid,data.sessionId,data.sessionToken,data.mediaId));
+     case "report":return respond(await kidReport(kid,data.quizId,data.reason));
    }
  }catch(e){return error(e);}
 }
