@@ -1,3 +1,4 @@
+import type { RatingSummary } from "./rating-metadata";
 export type AnswerType = "person" | "animal" | "place" | "thing" | "event" | "concept" | "other";
 export type TopicSummary = { id?: string; key?: string; name: string; isSpoiler?: boolean };
 export type Audience = {
@@ -14,6 +15,7 @@ export type DiscoverQuiz = {
   clueCount: number;
   recommendedAudience: Audience;
   kidsEligible: boolean;
+  ratings?: RatingSummary;
 };
 export const ANSWER_TYPES: { value: AnswerType; label: string; icon: string }[] = [
   { value: "animal", label: "동물", icon: "🐬" },

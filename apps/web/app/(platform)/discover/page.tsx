@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { RatingBadge } from "../../../src/components/quiz-ratings";
 import { useEffect, useState } from "react";
 import {
   ANSWER_TYPES, audienceAgeLabel, difficultyLabel, discoverQuery, modeLabel,
@@ -137,6 +138,7 @@ export default function DiscoverPage() {
                 </button>
               )}
             </div>
+            <RatingBadge ratings={quiz.ratings}/>
             <div className="discover-card-meta">
               <span>{modeLabel(quiz.mode)}</span>
               <span>단서 {quiz.clueCount}개</span>
