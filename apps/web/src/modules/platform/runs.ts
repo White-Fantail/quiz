@@ -112,7 +112,7 @@ export async function weeklyPublish(p:Record<string,any>,actor:Actor|null) {
     (item.lane==="KIDS" && !(q.quiz.safetyStatus==="APPROVED" && q.quiz.kidsEligible))))
     fail(409,"weekly_question_unavailable","All five snapshots must remain authored, published and safe for the lane");
   try {
-    const result=await db().$transaction(async tx=>{
+    await db().$transaction(async tx=>{
       const updated=await tx.weeklyChallenge.updateMany({
         where:{id:item.id,status:"SUBMITTED"},
         data:{status:"SCHEDULED",publishedAt:new Date(),verifiedHost:p.verifiedHost},
@@ -122,7 +122,7 @@ export async function weeklyPublish(p:Record<string,any>,actor:Actor|null) {
         detail:{weekStart:item.weekStart.toISOString(),lane:item.lane,hostId:item.hostId,verifiedHost:p.verifiedHost}}});
       return updated;
     });
-    return {id:item.id,status:"SCHEDULED",lane:item.lane,startsAt:item.weekStart,questionCount:result.count};
+    return {id:item.id,status:"SCHEDULED",lane:item.lane,startsAt:item.weekStart,questionCount:5};
   } catch(error:any) {
     if(error?.code==="P2002") fail(409,"weekly_already_filled","This week and audience already have a featured host");
     throw error;

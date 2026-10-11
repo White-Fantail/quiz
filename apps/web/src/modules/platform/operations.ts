@@ -2,6 +2,8 @@ import { parseOperation, operations, type Operation } from "./contracts";
 import { fail, requireActor, type Actor } from "./auth";
 import { quizList, quizGet, quizCreate, quizUpdate, quizPublish } from "./quiz";
 import { playStart, playClue, playGuess } from "./play";
+import { weeklyCurrent,weeklySubmit,weeklyPublish,weeklyStandings,
+  runStart,runCurrent,runFinish,runHistory } from "./runs";
 import { reviewsList, reviewUpsert, reportCreate, reportsMine, packCreate, packList, packUpdate } from "./social";
 import { quizStats, myStats, me, leaderboard } from "./analytics";
 import { userGet, creatorReviewsList, creatorReviewUpsert } from "./creators";
@@ -17,6 +19,8 @@ export async function execute(name: Operation, raw: unknown, actor: Actor | null
       mediaLimitsBytes: { image: 12582912, audio: 26214400, video: 67108864 }, minClues: 1, maxClues: 15,
       userAdjustable: ["creatorIntent", "categories", "clues", "answer"],
       platformControlled: ["safetyStatus", "kidsEligible"],
+      playModes: ["WEEKLY","RANDOM_FIVE","INFINITE"], audiences: ["GENERAL","KIDS"],
+      weeklyQuestions: 5, weeklyTimezone: "UTC", featuredCreator: true,
       version: "v1", format: "progressive-clues" };
     case "quiz_list": return quizList(p, actor);
     case "quiz_get": return quizGet(p.id, actor);
@@ -53,6 +57,14 @@ export async function execute(name: Operation, raw: unknown, actor: Actor | null
     case "media_transform": return mediaTransform(p, actor);
     case "media_review": return mediaReview(p, actor);
     case "play_media": return signedPlayMedia(p, actor);
+    case "weekly_current": return weeklyCurrent(p);
+    case "weekly_submit": return weeklySubmit(p,actor);
+    case "weekly_publish": return weeklyPublish(p,actor);
+    case "weekly_standings": return weeklyStandings(p);
+    case "run_start": return runStart(p,actor);
+    case "run_current": return runCurrent(p,actor);
+    case "run_finish": return runFinish(p,actor);
+    case "run_history": return runHistory(p,actor);
     default: return fail(404, "operation_not_found", "Unknown operation");
   }
 }

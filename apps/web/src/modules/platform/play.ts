@@ -18,6 +18,16 @@ export async function getPlaySession(p: Record<string, any>, actor: Actor | null
     fail(403, "forbidden", "Invalid session capability");
   if (session.userId && session.userId !== actor?.id) fail(403, "forbidden", "Session belongs to another account");
   if (session.expiresAt.getTime() < Date.now()) fail(410, "session_expired", "Start another game");
+  if (session.runId) {
+    const run=await db().playRun.findUnique({where:{id:session.runId},include:{weekly:true}});
+    if (!run || run.status!=="ACTIVE" || run.currentIndex!==session.roundIndex ||
+        (run.mode==="WEEKLY" && run.weekly?.status!=="SCHEDULED"))
+      fail(409,"run_not_active","This run's active round has changed");
+    const quiz=await db().quiz.findUnique({where:{id:session.quizId}});
+    if (!quiz || quiz.publication!=="PUBLISHED" || quiz.safetyStatus==="RESTRICTED" ||
+      (run.lane==="KIDS" && !(quiz.safetyStatus==="APPROVED"&&quiz.kidsEligible)))
+      fail(409,"question_suspended","This quiz is unavailable for the chosen audience");
+  }
   return session;
 }
 export async function playStart(p: Record<string, any>, actor: Actor | null) {
@@ -61,12 +71,30 @@ export async function playGuess(p: Record<string, any>, actor: Actor | null) {
   const last = session.usedClues === clues.length;
   const failed = !correct && last;
   const score = correct ? Math.round(scoreForClues(clues.length, session.usedClues)) : 0;
-  const updated = await db().playSession.updateMany({
-    where: { id: session.id, status: "ACTIVE", wrongGuesses: session.wrongGuesses, usedClues: session.usedClues },
-    data: { wrongGuesses: correct ? session.wrongGuesses : session.usedClues,
-      ...(correct || failed ? { status: correct ? "SOLVED" : "FAILED", score, finishedAt: new Date() } : {}) }
+  const terminal=correct || failed;
+  await db().$transaction(async tx => {
+    const updated = await tx.playSession.updateMany({
+      where: { id: session.id, status: "ACTIVE", wrongGuesses: session.wrongGuesses, usedClues: session.usedClues },
+      data: { wrongGuesses: correct ? session.wrongGuesses : session.usedClues,
+        ...(terminal ? { status: correct ? "SOLVED" : "FAILED", score, finishedAt: new Date() } : {}) }
+    });
+    if (updated.count !== 1) fail(409, "conflict", "Concurrent session action, retry");
+    if (terminal && session.runId) {
+      const run=await tx.playRun.findUnique({where:{id:session.runId}});
+      if (!run || run.status!=="ACTIVE" || run.currentIndex!==session.roundIndex ||
+          run.expiresAt.getTime()<=Date.now())
+        fail(409,"run_conflict","This run has already moved to another round");
+      const finished=run.mode!=="INFINITE" && run.currentIndex===4;
+      const changed=await tx.playRun.updateMany({
+        where:{id:run.id,status:"ACTIVE",currentIndex:run.currentIndex},
+        data:{currentIndex:{increment:1},score:{increment:score},
+          solved:{increment:correct?1:0},failed:{increment:failed?1:0},
+          ...(finished?{status:"FINISHED",completedAt:new Date()}:{}),
+        }
+      });
+      if(changed.count!==1) fail(409,"run_conflict","Run result was already counted");
+    }
   });
-  if (updated.count !== 1) fail(409, "conflict", "Concurrent session action, retry");
   return {
     status: correct ? "SOLVED" : failed ? "FAILED" : "ACTIVE", correct, score, cluesUsed: session.usedClues,
     ...(correct || failed ? { answer: answer.canonical } : { next: "Reveal the next clue" })

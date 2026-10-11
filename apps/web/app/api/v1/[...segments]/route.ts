@@ -27,6 +27,18 @@ function route(method: string, segments: string[]): Match | null {
     if (method === "POST") return { op: "pack_create", args: {} };
   }
   if (a === "packs" && b && !c && method === "PATCH") return { op: "pack_update", args: { id: b } };
+  if (a === "weekly") {
+    if (b === "current" && !c && method === "GET") return { op: "weekly_current", args: {} };
+    if (b === "submit" && !c && method === "POST") return { op: "weekly_submit", args: {} };
+    if (b && c === "publish" && method === "POST") return { op: "weekly_publish", args: { challengeId:b } };
+    if (b && c === "standings" && method === "GET") return { op: "weekly_standings", args: { challengeId:b } };
+  }
+  if (a === "runs") {
+    if (!b && method === "POST") return { op: "run_start", args: {} };
+    if (!b && method === "GET") return { op: "run_history", args: {} };
+    if (b && c === "current" && method === "POST") return { op: "run_current", args: { runId:b } };
+    if (b && c === "finish" && method === "POST") return { op: "run_finish", args: { runId:b } };
+  }
   if (a === "play" && !b && method === "POST") return { op: "play_start", args: {} };
   if (a === "play" && b && c === "clue" && method === "POST") return { op: "play_clue", args: { sessionId: b } };
   if (a === "play" && b && c === "guess" && method === "POST") return { op: "play_guess", args: { sessionId: b } };
