@@ -47,7 +47,10 @@ async function handle(request:Request) {
           fail(403,"kid_reauth_required","Sign in again before resetting the PIN");
         result=await setGuardianPin(actor.id,p.pin,undefined,true);break;
       }
-      case "profile_add":result=await addKidProfile(actor.id,p);break;
+      case "profile_add":result=await addKidProfile(actor.id,{
+        ...p,dailyMinutes:30,playSessionMinutes:30,
+        breakEveryMinutes:15,timeZone:"Pacific/Auckland"
+      });break;
       case "profile_update":result=await updateKidProfile(actor.id,p.id,p);break;
       case "profile_delete":result=await deleteKidProfile(actor.id,p.id);break;
       case "device_revoke":result=await revokeKidDevice(actor.id,p.id);break;
