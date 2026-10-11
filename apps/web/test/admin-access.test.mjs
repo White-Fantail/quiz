@@ -19,7 +19,8 @@ test("account page offers the admin link only after trusted role lookup", () => 
   assert.match(page, /actorByIdentity\(session\.user\.id\)/);
   assert.match(page, /\.role === "ADMIN"/);
   assert.match(page, /\{isAdmin &&/);
-  assert.match(page, /href="\/admin"/);
+  // Admin link remains behind trusted role checks; user-facing URL now includes the locale.
+  assert.match(page, /href=\{localizeHref\("\/admin", locale\)\}/);
 });
 
 test("admin subpages and moderation operations continue to enforce ADMIN", () => {
