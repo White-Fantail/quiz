@@ -82,8 +82,29 @@ export async function updateKidProfile(guardianId:string,id:string,input:KidProf
   return {updated:true,devicesRevoked:true};
 }
 export async function deleteKidProfile(guardianId:string,id:string) {
-  const deleted=await db().kidProfile.deleteMany({where:{id,guardianId}});
-  if (!deleted.count) fail(404,"kid_profile_missing","Child profile not found");
+  // Remove private play history as well as the profile; cascading only the
+  // KidPlayRun link would leave orphaned anonymous scores and session records.
+  const deleted=await db().$transaction(async tx => {
+    const profile=await tx.kidProfile.findFirst({where:{id,guardianId},select:{id:true}});
+    if(!profile)return false;
+    const [runs,singles]=await Promise.all([
+      tx.kidPlayRun.findMany({where:{profileId:id},select:{runId:true}}),
+      tx.kidPlaySingle.findMany({where:{profileId:id},select:{sessionId:true}})
+    ]);
+    const runIds=runs.map(x=>x.runId),singleIds=singles.map(x=>x.sessionId);
+    await tx.kidPlaySingle.deleteMany({where:{profileId:id}});
+    await tx.kidPlayRun.deleteMany({where:{profileId:id}});
+    if(runIds.length || singleIds.length){
+      await tx.playSession.deleteMany({where:{OR:[
+        {runId:{in:runIds}},{id:{in:singleIds}}
+      ]}});
+      await tx.playRunQuestion.deleteMany({where:{runId:{in:runIds}}});
+      await tx.playRun.deleteMany({where:{id:{in:runIds}}});
+    }
+    const result=await tx.kidProfile.deleteMany({where:{id,guardianId}});
+    return result.count>0;
+  });
+  if (!deleted) fail(404,"kid_profile_missing","Child profile not found");
   return {deleted:true};
 }
 export async function revokeKidDevice(guardianId:string,id:string) {
