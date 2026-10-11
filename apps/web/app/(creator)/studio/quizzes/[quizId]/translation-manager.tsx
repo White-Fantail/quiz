@@ -60,10 +60,10 @@ export default function TranslationManager({quizId}:{quizId:string}){
   },[list,language,source,target]);
   function edit(action:(p:Fields)=>Fields){setFields(p=>p?action(p):p);setVerified(false);}
   const apiBase="/quizzes/"+encodeURIComponent(quizId)+"/languages/"+target;
-  async function transact(task:()=>Promise<any>,ok:string){
+  async function transact(task:()=>Promise<any>,ok:string,refresh=true){
     setBusy(true);setError("");setNotice("");
     try{
-      await task();setNotice(ok);setRevision(n=>n+1);
+      await task();setNotice(ok);if(refresh)setRevision(n=>n+1);
     }catch(e){setError(e instanceof Error?e.message:String(e));}
     finally{setBusy(false);}
   }
@@ -140,7 +140,7 @@ export default function TranslationManager({quizId}:{quizId:string}){
             setFields(suggestion.fields);
             setVerified(false);
           },message("AI 번역 초안을 생성했어요. 내용을 확인하고 저장하세요.",
-            "AI draft generated. Review it before saving."))}>
+            "AI draft generated. Review it before saving."),false)}>
           {busy?message("처리 중…","Working…"):message("AI 번역 초안 만들기","Suggest AI translation")}
         </button>
         <button type="button" className="btn btn-primary" disabled={busy||!fields.title.trim()||!fields.prompt.trim()||!fields.answer.canonical.trim()}
