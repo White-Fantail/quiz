@@ -171,7 +171,7 @@ export default function PlayPage() {
   const endReached=!!run&&(run.status==="FINISHED")&&(!round||isDone);
   return <main className="container inner-page play-experience">
     <div className="play-intro">
-      <span className="eyebrow">CLUPIO · PLAY TOGETHER</span>
+      <span className="eyebrow">QUIZDIP · PLAY TOGETHER</span>
       <h1>같은 다섯 문제, 서로 다른 발견.</h1>
       <p className="lead">이번 주 출제자가 준비한 문제를 모두 함께 풀어요. 또는 마음껏 연습하고 놀아도 좋아요.</p>
     </div>
@@ -189,7 +189,7 @@ export default function PlayPage() {
         <span className="small-tag">WEEKLY FIVE · 이번 주의 메인 챌린지</span>
         {edition?.available? <>
           <h2>{edition.title}</h2>
-          <p className="weekly-host">이번 주 출제자 · <strong>{edition.host?.name||"Clupio 제작자"}</strong>
+          <p className="weekly-host">이번 주 출제자 · <strong>{edition.host?.name||"QuizDip 제작자"}</strong>
             {edition.host?.verified&&<span className="host-verified">✓ 인증된 출제자</span>}</p>
           <p>{edition.description||"한 명의 출제자가 준비한 다섯 문제. 모두에게 같은 순서로 공개돼요."}</p>
           <p className="weekly-dates">{displayedDate(edition.startsAt)} – {displayedDate(edition.endsAt)} (UTC 기준) · 5문제</p>

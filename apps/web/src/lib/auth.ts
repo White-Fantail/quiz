@@ -43,7 +43,7 @@ async function appleClientSecret(): Promise<string> {
 }
 
 export const auth = betterAuth({
-  appName: "Clupio",
+  appName: "QuizDip",
   baseURL: siteOrigin,
   secret: process.env.BETTER_AUTH_SECRET,
   database: authPool(),

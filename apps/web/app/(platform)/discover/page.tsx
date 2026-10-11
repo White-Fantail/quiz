@@ -10,7 +10,7 @@ const themes = [
 export default function DiscoverPage() {
   return (
     <section className="container inner-page">
-      <span className="eyebrow">CLUPIO DISCOVER</span>
+      <span className="eyebrow">QUIZDIP DISCOVER</span>
       <h1>새로운 퀴즈를 발견해 봐</h1>
       <p className="muted">이 카테고리들은 앞으로 채워질 공간이에요. 지금은 샘플 퀴즈를 플레이할 수 있어요.</p>
       <div className="cards">

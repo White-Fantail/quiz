@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 export default async function StudioMediaPage() {
   const session = await auth.api.getSession({ headers: await headers() });
   return <main className="container inner-page">
-    <span className="eyebrow">CLUPIO STUDIO / MEDIA</span>
+    <span className="eyebrow">QUIZDIP STUDIO / MEDIA</span>
     <h1>내 미디어 보관함</h1>
     <p className="lead">문제 본문과 단서에서 재사용할 이미지, 소리, 영상을 안전하게 관리해요.</p>
     {!session ? <div className="placeholder-panel">

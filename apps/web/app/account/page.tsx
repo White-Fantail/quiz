@@ -15,10 +15,10 @@ export default async function AccountPage() {
     </main>;
   }
   return <main className="container inner-page compact">
-    <span className="small-tag">My Clupio</span>
+    <span className="small-tag">My QuizDip</span>
     <h1>내 계정</h1>
     <p>안녕하세요, <b>{session.user.name}</b>!</p>
-    <p className="muted">웹사이트와 MCP는 동일한 Clupio 사용자 ID를 사용해요. Google과 Apple은 하나의 계정에 연결해서 사용할 수 있어요.</p>
+    <p className="muted">웹사이트와 MCP는 동일한 QuizDip 사용자 ID를 사용해요. Google과 Apple은 하나의 계정에 연결해서 사용할 수 있어요.</p>
     <div className="placeholder-panel">
       <h2>연결된 로그인 수단</h2>
       <AccountActions google={availableProviders.google} apple={availableProviders.apple} />

@@ -24,7 +24,7 @@ export async function actorByIdentity(id: string): Promise<Actor> {
       id,
       issuer: "better-auth",
       subject: id,
-      displayName: (identity.rows[0].name || "Clupio Player").slice(0, 60),
+      displayName: (identity.rows[0].name || "QuizDip Player").slice(0, 60),
     },
     update: {},
     select: { id: true, role: true, displayName: true, leaderboardEligible: true, leaderboardOptIn: true },

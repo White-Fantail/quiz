@@ -3,8 +3,9 @@ import Link from "next/link";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Clupio — 단서를 따라, 재미를 발견해",
-  description: "Follow the clues. Find the fun. 누구나 만들고 즐기는 열린 퀴즈 플랫폼.",
+  title: "QuizDip — 단서를 따라, 재미를 발견해",
+  openGraph: { title: "QuizDip — 단서를 따라, 재미를 발견해", description: "Create, play and share quizzes. 매주 다섯 문제에 도전하고 나만의 퀴즈를 만들어 보세요.", siteName: "QuizDip", type: "website" },
+  description: "QuizDip — Create, play and share quizzes. 매주 다섯 문제에 도전하고 나만의 퀴즈를 만들어 보세요.",
 };
 
 const navLinks = [
@@ -21,7 +22,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body>
         <header className="site-header">
           <div className="container header-inner">
-            <Link href="/" className="wordmark" aria-label="Clupio 홈">clupio<span className="wordmark-dot">.</span></Link>
+            <Link href="/" className="wordmark" aria-label="QuizDip 홈">clupio<span className="wordmark-dot">.</span></Link>
             <nav aria-label="주요 메뉴" className="nav">
               {navLinks.map(({ href, label }) => (
                 <Link key={href} href={href}>{label}</Link>
@@ -30,7 +31,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           </div>
         </header>
         <main>{children}</main>
-        <footer className="site-footer"><div className="container">© Clupio · Create it. Play it. Share it.</div></footer>
+        <footer className="site-footer"><div className="container">© QuizDip · Create it. Play it. Share it.</div></footer>
       </body>
     </html>
   );
