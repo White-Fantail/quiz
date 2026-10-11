@@ -8,7 +8,7 @@ type Context = { params: Promise<{ segments: string[] }> };
 type Match = { op: Operation; args: Record<string, unknown> };
 
 function route(method: string, segments: string[]): Match | null {
-  const [a, b, c] = segments;
+  const [a, b, c, d] = segments;
   if (a === "catalog" && method === "GET" && !b) return { op: "catalog", args: {} };
   if (a === "topics" && !b && method === "GET") return { op: "topic_list", args: {} };
   if (a === "quizzes") {
@@ -64,7 +64,8 @@ function route(method: string, segments: string[]): Match | null {
   if (a === "me" && b === "ranking" && method === "PATCH") return { op: "ranking_optin", args: {} };
   if (a === "admin" && b === "verify-adult" && !c && method === "POST") return { op: "adult_verify", args: {} };
   if (a === "me" && !b && method === "GET") return { op: "me", args: {} };
-  if (a === "me" && b === "quizzes" && method === "GET") return { op: "my_quizzes", args: {} };
+  if (a === "me" && b === "quizzes" && c && d === "insights" && method === "GET") return { op: "my_quiz_insights", args: { quizId: c } };
+  if (a === "me" && b === "quizzes" && !c && method === "GET") return { op: "my_quizzes", args: {} };
   if (a === "me" && b === "stats" && method === "GET") return { op: "my_stats", args: {} };
   if (a === "reports" && b === "mine" && method === "GET") return { op: "reports_mine", args: {} };
   if (a === "leaderboard" && !b && method === "GET") return { op: "leaderboard", args: {} };

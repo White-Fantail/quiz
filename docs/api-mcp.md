@@ -44,7 +44,8 @@ The web UI, REST API and MCP tools reuse `execute()` and the same policy layer. 
 | Submit report | POST /api/v1/quizzes/:id/reports | quizdip_report_create |
 | My reports | GET /api/v1/reports/mine | quizdip_reports_mine |
 | Version-scoped success analytics | GET /api/v1/quizzes/:id/stats | quizdip_quiz_stats |
-| My profile / questions / statistics | GET /api/v1/me, /me/quizzes, /me/stats | quizdip_me / quizdip_my_quizzes / quizdip_my_stats |
+| My profile / searchable, paginated authored questions / statistics | GET /api/v1/me, /me/quizzes, /me/stats | quizdip_me / quizdip_my_quizzes / quizdip_my_stats |
+| Owner-only feedback and result summary (all versions), paginated reviews | GET /api/v1/me/quizzes/:id/insights | quizdip_my_quiz_insights |
 | Verified adult rankings | GET /api/v1/leaderboard | quizdip_leaderboard |
 | Creator's public profile/reputation | GET /api/v1/users/:id | quizdip_user_get |
 | Creator's reviews | GET /api/v1/users/:id/reviews | quizdip_creator_reviews_list |

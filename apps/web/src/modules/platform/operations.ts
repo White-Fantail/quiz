@@ -8,6 +8,7 @@ import { weeklyCurrent,weeklySubmit,weeklyPublish,weeklyProposals,weeklySuspend,
 import { reviewsList, reviewUpsert, reportCreate, reportsMine, packCreate, packList, packUpdate } from "./social";
 import { quizStats, myStats, me, leaderboard, rankingOptin, adultVerify } from "./analytics";
 import { userGet, creatorReviewsList, creatorReviewUpsert } from "./creators";
+import { myQuizzes, myQuizInsights } from "./studio";
 import { mediaUpload, mediaChunk, mediaComplete, mediaImport, mediaList, mediaGet, mediaUpdate,
   mediaDelete, mediaTransform, mediaReview, mediaReviewGet, signedPlayMedia } from "./media";
 
@@ -46,7 +47,8 @@ export async function execute(name: Operation, raw: unknown, actor: Actor | null
     case "reports_mine": return reportsMine(p, actor);
     case "quiz_stats": return quizStats(p, actor);
     case "me": return me(p, actor);
-    case "my_quizzes": return quizList({ ...p, mine: true, kids: false }, actor);
+    case "my_quizzes": return myQuizzes(p, actor);
+    case "my_quiz_insights": return myQuizInsights(p, actor);
     case "my_stats": return myStats(p, actor);
     case "leaderboard": return leaderboard(p);
     case "user_get": return userGet(p);

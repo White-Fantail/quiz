@@ -63,7 +63,13 @@ export const operations = {
   reports_mine: { public: false, description: "Track reports I submitted", schema: z.object(paging) },
   quiz_stats: { public: true, description: "Success rate, revision metrics, reviews and per-clue stages", schema: z.object({ quizId: uuid, version: z.number().int().positive().optional() }) },
   me: { public: false, description: "My verified account and settings", schema: z.object({}) },
-  my_quizzes: { public: false, description: "Manage questions I created", schema: z.object(paging) },
+  my_quizzes: { public: false, description: "Search, filter and paginate only my authored quizzes. Returns total count and lightweight feedback totals.", schema: z.object({
+    ...paging, search: z.string().trim().max(120).default(""),
+    publication: z.enum(["all","DRAFT","PUBLISHED","HIDDEN"]).default("all"),
+    safety: z.enum(["all","PENDING","APPROVED","RESTRICTED"]).default("all"),
+    sort: z.enum(["newest","oldest"]).default("newest")
+  }) },
+  my_quiz_insights: { public: false, description: "Private owner-only play results, rating summary, anonymized report counts and paginated quiz feedback across revisions", schema: z.object({ quizId: uuid, ...paging }) },
   my_stats: { public: false, description: "My private scores, attempts and rank", schema: z.object({}) },
   leaderboard: { public: true, description: "Opt-in verified player rankings", schema: z.object({ ...paging, quizId: uuid.optional() }) },
   user_get: { public: true, description: "View a creator's public profile and reputation", schema: z.object({ userId }) },
