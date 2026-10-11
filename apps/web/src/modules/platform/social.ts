@@ -106,6 +106,33 @@ export async function packList(p: Record<string, any>, actor: Actor | null) {
       publication:pack.publication, quizIds:pack.items.map(item=>item.quizId) };
   }) };
 }
+/** Author confirmation of a legacy pack's ORIGINAL language, never an automatic translation. */
+export async function packLanguageSet(p: Record<string, any>, actor: Actor | null) {
+  const user = requireActor(actor);
+  return db().$transaction(async tx => {
+    const old=await tx.quizPack.findFirst({where:{id:p.id,authorId:user.id},
+      include:{items:true}});
+    if(!old) fail(404,"not_found","Pack not found");
+    if(old.sourceLocale===p.locale) return {id:old.id,locale:p.locale,alreadySet:true};
+    if(old.sourceLocale!=="und") fail(409,"locale_already_classified","Pack already has an original language");
+    const oldLocale=await tx.quizPackLocalization.findUnique({
+      where:{packId_locale:{packId:old.id,locale:"und"}}});
+    if(!oldLocale) fail(409,"locale_missing","Legacy pack localization is missing");
+    if(old.publication==="PUBLISHED") {
+      const valid=await tx.quiz.count({where:{id:{in:old.items.map(item=>item.quizId)},
+        ...playableQuizWhere(p.locale)}});
+      if(valid!==old.items.length)
+        fail(409,"incomplete_pack_locale","All questions must exist in the selected pack language");
+    }
+    const changed=await tx.quizPack.updateMany({where:{id:old.id,sourceLocale:"und"},
+      data:{sourceLocale:p.locale}});
+    if(changed.count!==1) fail(409,"locale_conflict","Pack language changed concurrently");
+    await tx.quizPackLocalization.update({where:{id:oldLocale.id},data:{locale:p.locale}});
+    await tx.auditLog.create({data:{actorId:user.id,action:"pack.language.classify",
+      objectId:old.id,detail:{from:"und",to:p.locale,confirmed:true}}});
+    return {id:old.id,locale:p.locale,alreadySet:false};
+  });
+}
 export async function packUpdate(p: Record<string, any>, actor: Actor | null) {
   const user = requireActor(actor);
   const old = await db().quizPack.findFirst({ where: { id: p.id, authorId: user.id }, include: { items: true } });

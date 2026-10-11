@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 type Topic = { name:string; isSpoiler?:boolean };
 type AgeRange = { minimum?:number; maximum?:number };
 type Quiz = {
-  id:string;title:string;prompt:string;version:number;publication:string;
+  id:string;title:string;prompt:string;version:number;publication:string;locale?:string;
   safetyStatus:string;kidsEligible:boolean;answerType:string;topics:Topic[];
   creatorIntent?:{ageRange?:AgeRange;note?:string}|null;
   recommendedAudience?:{ageRange?:AgeRange;difficulty?:string}|null;
@@ -132,6 +132,18 @@ export default function StudioQuizDetail({quizId}:{quizId:string}){
       setError(e instanceof Error?e.message:"저장하지 못했어요. 최신 버전을 확인해 주세요.");
     }finally{setSaving(false);}
   }
+  async function confirmOriginalLanguage(locale:"en"|"ko") {
+    if (!quiz || quiz.locale!=="und" || saving) return;
+    const label = locale==="en" ? "English" : "한국어";
+    if(!window.confirm(`이 문제의 질문, 정답, 단서가 실제로 ${label}로 작성되었는지 확인했나요? 번역은 하지 않고 원본 언어만 지정합니다.`)) return;
+    setSaving(true);setError("");setNotice("");
+    try {
+      await api("/quizzes/"+encodeURIComponent(quiz.id)+"/language","POST",{locale,confirm:true});
+      setNotice("원본 언어를 확인했습니다. 선택한 언어의 퀴즈 목록에 표시될 수 있습니다.");
+      setRefresh(v=>v+1);
+    } catch(e) { setError(e instanceof Error?e.message:"원본 언어를 저장하지 못했습니다."); }
+    finally { setSaving(false); }
+  }
   async function publish(){
     if(!quiz||saving||!window.confirm("이 퀴즈를 공개할까요? 공개 후에도 Kids 노출에는 별도 검토가 필요합니다."))return;
     setSaving(true);setNotice("");setError("");
@@ -153,6 +165,13 @@ export default function StudioQuizDetail({quizId}:{quizId:string}){
       <div>
         <h1>{quiz.title}</h1>
         <p className="muted">v{quiz.version} · 문제 메타정보, 이용 결과, 사용자 반응을 한곳에서 관리하세요.</p>
+        {quiz.locale==="und" && <div className="feedback" role="group" aria-label="원본 언어 확인">
+          <p>언어가 미분류된 기존 퀴즈입니다. 질문과 단서의 원본 언어를 확인해 주세요. 자동 번역은 하지 않습니다.</p>
+          <div className="actions">
+            <button type="button" className="btn btn-outline" disabled={saving} onClick={()=>void confirmOriginalLanguage("en")}>English 원본</button>
+            <button type="button" className="btn btn-outline" disabled={saving} onClick={()=>void confirmOriginalLanguage("ko")}>한국어 원본</button>
+          </div>
+        </div>}
         <div className="studio-chip-row">
           <span className="media-state-chip media-wait">{publicationNames[quiz.publication]||quiz.publication}</span>
           <span className={"media-state-chip "+(quiz.safetyStatus==="RESTRICTED"?"media-blocked":quiz.safetyStatus==="APPROVED"?"media-ok":"media-wait")}>{safetyNames[quiz.safetyStatus]||quiz.safetyStatus}</span>

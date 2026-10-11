@@ -84,12 +84,17 @@ export async function quizCreate(p: Record<string, any>, actor: Actor | null) {
   const quiz = await db().$transaction(async tx => {
     const created = await tx.quiz.create({ data: {
       authorId: user.id, mode: p.mode, answerType: p.answerType, sourceLocale: p.locale,
-      localizations: { create: { id: localizationId, locale: p.locale, status: "DRAFT", currentVersion: 1 } },
       ...(p.creatorIntent ? { creatorIntent: p.creatorIntent } : {}),
       ...(p.recommendedAudience ? { recommendedAudience: p.recommendedAudience } : {}),
-      revisions: { create: { version: 1, localizationId, title: p.title, prompt: p.prompt, mode: p.mode,
-        answerType: p.answerType, answer: p.answer, clues: normalizeClues(p.clues), promptMediaIds: p.promptMediaIds ?? [] } }
     } });
+    await tx.quizLocalization.create({ data: {
+      id:localizationId,quizId:created.id,locale:p.locale,status:"DRAFT",currentVersion:1
+    } });
+    await tx.quizRevision.create({data:{
+      quizId:created.id,version:1,localizationId,
+      title:p.title,prompt:p.prompt,mode:p.mode,answerType:p.answerType,
+      answer:p.answer,clues:normalizeClues(p.clues),promptMediaIds:p.promptMediaIds ?? []
+    }});
     await saveTopicLinks(tx, created.id, p.topics ?? [], p.answer, p.locale);
     return created;
   });

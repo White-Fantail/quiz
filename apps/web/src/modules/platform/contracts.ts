@@ -55,6 +55,7 @@ export const operations = {
     id: uuid, verdict: z.enum(["APPROVED","RESTRICTED","PENDING"]), kidsEligible: z.boolean().default(false),
     reason: z.string().trim().min(5).max(1000), confirm: z.literal(true)
   }) },
+  pack_language_set: { public: false, description: "Confirm original language of an unclassified legacy pack", schema: z.object({ id: uuid, locale: localeCode, confirm: z.literal(true) }) },
   pack_list: { public: true, description: "List published packs or my packs", schema: z.object({ ...paging, mine: z.boolean().default(false), locale: optionalLocale }) },
   pack_create: { public: false, description: "Create a new ordered quiz pack", schema: z.object({ title: z.string().min(1).max(180), description: z.string().max(2000).default(""), quizIds: z.array(uuid).min(1).max(100), locale: z.enum(["en", "ko", "und"]).default("und") }) },
   pack_update: { public: false, description: "Edit or publish an owned quiz pack", schema: z.object({ id: uuid, title: z.string().min(1).max(180).optional(), description: z.string().max(2000).optional(), quizIds: z.array(uuid).min(1).max(100).optional(), publication: z.enum(["DRAFT", "PUBLISHED", "HIDDEN"]).optional(), confirm: z.boolean().optional() }) },
