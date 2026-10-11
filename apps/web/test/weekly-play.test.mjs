@@ -61,7 +61,7 @@ test("frozen weekly revisions, verified authors and first-attempt uniqueness are
   assert.match(source,/user\.role!=="ADMIN"/);
   assert.match(source,/randomChoices/);
   assert.match(source,/weeklyQuestion\.findMany/);
-  assert.match(source,/leaderboardEligible:true/);
+  assert.match(source,/u\."leaderboardEligible"=TRUE/);
   assert.match(source,/return runStart\(p,actor\)/);
   assert.match(play,/tx\.playRun\.updateMany/);
   assert.match(play,/tx\.playSession\.updateMany/);
