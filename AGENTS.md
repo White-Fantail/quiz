@@ -100,3 +100,11 @@ MCP is a full QuizDip product interface, **not just an authoring connector**. Ev
 - MCP tools use only the canonical `quizdip_*` names; do not register retired-name aliases.
 - npm workspaces and imports now use `@quizdip/*`. Existing signed play-token **v1 domains** are compatibility identifiers; keep them stable unless a versioned migration is explicitly designed and tested. Actual provisioned DB names, R2 buckets and external OAuth origins are not changed by editing source or example values. Never expose legacy internal names as public QuizDip branding.
 - Branding changes must not loosen publication, permissions, content safety or Kids requirements.
+
+## Kids native Phase 3 trust boundary
+
+- The private `KidPlayRun` / `KidPlaySingle` join models bind run/session ownership to child profile + native device. `getPlaySession` and `checkedRun` must reject child-owned capabilities from ordinary General REST/MCP, even with a correct session token.
+- Native gameplay uses the existing `execute`, `runCurrent`, `playClue`, `playGuess`, `signedPlayMedia` paths and server-side grading. Only a verified server-internal child actor may resume or mutate a child run. Do not start child runs with adult `User` identity.
+- Guard quiz revision, Kids affirmative safety, guardian-pinned locale, published version and each media asset on **every** protected game request. Never use unapproved translation/media after a review reset.
+- Save child play capabilities only in SecureStore; on approval revocation hide cached content. Child progress/badges stay private. Deleting a child profile clears child-specific play history; no child standings.
+- Map coordinates are a placeholder for a native map view. Never call Phase 3 production-ready without migration `20261012200000_kids_native_play`, builds and real-device R2/media/security tests. Retire web Kids only after Phase 4/5 gates.
