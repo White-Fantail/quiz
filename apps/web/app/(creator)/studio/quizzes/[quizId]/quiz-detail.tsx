@@ -142,7 +142,7 @@ export default function StudioQuizDetail({quizId}:{quizId:string}){
     finally{setSaving(false);}
   }
   if(loading)return <div className="studio-empty" role="status">문제 정보를 불러오는 중…</div>;
-  if(loadError||insightsError&&insightsError.includes("not_found"))return <div className="studio-empty" role="alert">
+  if(loadError||insightsError)return <div className="studio-empty" role="alert">
     <h1>문제를 관리할 수 없어요</h1><p>{loadError||insightsError}</p>
     <Link href="/studio" className="btn btn-outline">내 목록으로 돌아가기</Link>
   </div>;
