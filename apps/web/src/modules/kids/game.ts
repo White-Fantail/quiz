@@ -164,20 +164,27 @@ export async function kidTreasures(kid:Kid){
     revision:{is:{localization:{is:{
       locale:kid.profile.locale,status:"PUBLISHED",origin:{in:approvedOrigins}
     }}}}};
-  const [solved,completed,latest]=await Promise.all([
+  const [solved,completed,latest,uniqueSolved]=await Promise.all([
     db().playSession.count({where:{...own,status:"SOLVED"}}),
     db().playSession.count({where:{...own,status:{in:["SOLVED","FAILED"]}}}),
     db().playSession.findMany({where:{...own,...safe,status:"SOLVED"},
-      orderBy:{finishedAt:"desc"},take:30,
-      select:{quizId:true,score:true,finishedAt:true,revision:{select:{title:true}}}})
+      orderBy:{finishedAt:"desc"},take:60,
+      select:{quizId:true,score:true,finishedAt:true,revision:{select:{
+        title:true,version:true,localization:{select:{publishedVersion:true}}
+      }}}}),
+    db().playSession.findMany({where:{...own,status:"SOLVED"},select:{quizId:true},
+      distinct:["quizId"],take:10})
   ]);
   const seen=new Set<string>();
-  const discoveries=latest.filter(s=>{if(seen.has(s.quizId))return false;seen.add(s.quizId);return true;})
+  const discoveries=latest.filter(s=>{
+    if(s.revision.localization?.publishedVersion!==s.revision.version || seen.has(s.quizId))return false;
+    seen.add(s.quizId);return true;
+  })
     .slice(0,20).map(s=>({quizId:s.quizId,title:s.revision.title,score:s.score,at:s.finishedAt}));
   const badges=[
     {id:"first",required:1,label:"First discovery",emoji:"🌟"},
     {id:"five",required:5,label:"Curious explorer",emoji:"🧭"},
     {id:"ten",required:10,label:"Treasure hunter",emoji:"🏆"}
-  ].filter(x=>solved>=x.required);
+  ].filter(x=>uniqueSolved.length>=x.required);
   return {solved,completed,discoveries,badges};
 }
