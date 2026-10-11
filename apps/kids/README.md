@@ -1,6 +1,6 @@
-# QuizDip Kids (Expo, Phases 1–4)
+# QuizDip Kids (Expo, Phases 1–5)
 
-Dedicated iPad/iPhone/Android experience for QuizDip Kids. **Native guardian-linked device scope is implemented in source but not yet production-verified.** The existing web Kids mode stays in service until the native app meets Phase 2–4 release gates.
+Dedicated iPad/iPhone/Android experience for QuizDip Kids. **Native guardian-linked device scope is implemented in source but not yet production-verified.** The old web Kids game UI has been removed in Phase 5 source on dev; real-device and production validation remain outstanding.
 
 ## Start
 
@@ -13,7 +13,7 @@ cp apps/kids/.env.example apps/kids/.env
 npm run kids:dev
 ```
 
-Start an iOS Simulator, Android emulator, or Expo Go on a device from the Expo CLI. A parent signs in using the **external system browser** to QuizDip's existing Better Auth Google/Apple web login. In `/en/kids/parent` or `/ko/kids/parent`, the parent creates a profile and a six-digit PIN, chooses the profile, enters the PIN, and generates a high-entropy one-time pairing code. The code expires in five minutes. The Kids native app accepts that code and a device name, obtains a **child-only credential**, stores it in OS SecureStore, and validates it on startup and foreground before opening Kids screens. The parent may revoke the device in the same web parent panel. The app's Parent Gate needs the same guardian PIN to revoke the local device session and return to setup.
+Start an iOS Simulator, Android emulator, or Expo Go on a device from the Expo CLI. A parent signs in using the **external system browser** to QuizDip's existing Better Auth Google/Apple web login. In `/en/account/kids` or `/ko/account/kids`, the parent creates a profile and a six-digit PIN, chooses the profile, enters the PIN, and generates a high-entropy one-time pairing code. The code expires in five minutes. The Kids native app accepts that code and a device name, obtains a **child-only credential**, stores it in OS SecureStore, and validates it on startup and foreground before opening Kids screens. The parent may revoke the device in the same web parent panel. The app's Parent Gate needs the same guardian PIN to revoke the local device session and return to setup.
 
 This **browser-assisted onboarding is intentional**: the child never receives an adult Better Auth cookie, Google/Apple OAuth token, or MCP privilege. Full native guardian profile management is planned for Phase 4, at which point the legacy web Kids interface will be removed in Phase 5. Phase 3 native game/clues/treasures and Phase 4 daily play limits, private activity insights and the PIN-protected in-app parent zone are implemented in source. Actual database migrations, real-device QA, an approved privacy policy and store distribution remain pending.
 
@@ -40,7 +40,7 @@ Plan: [native migration](../../docs/kids-native-development-plan.md).
 
 ## Native trust boundaries and tests
 
-- `/api/kids/parent` action `native_pair_issue`: only a signed-in web guardian with same-origin request and correct 6-digit PIN may issue a code for their own profile. This action deliberately has no MCP equivalent (unsafe capability distribution); the normal safety and profile data model remains shared.
+- `/api/account/kids` action `native_pair_issue`: only a signed-in web guardian with same-origin request and correct 6-digit PIN may issue a code for their own profile. This action deliberately has no MCP equivalent (unsafe capability distribution); the normal safety and profile data model remains shared.
 - `/api/kids/native` POST `pair`: exchanges a one-time code and creates a `clientKind=NATIVE` token (hash in DB; plaintext returned once).
 - `/api/kids/native?view=session` and `?view=catalog`: require only the child bearer token. Catalog uses the server `quiz_list` operation with **forced** Kids flag and profile locale. Bearer never authenticates an adult or author.
 - `/api/kids/native` POST `unlock`: requires child bearer **and** 6-digit guardian PIN, then revokes it. Five failed PIN attempts invoke the existing DB-based lockout.
@@ -63,8 +63,12 @@ The app makes a server-authoritative heartbeat immediately and every 45 seconds 
 
 DB migration: `20261012210000_kids_native_parent_time` (after the other three Kids migrations). For privacy a protected `/api/internal/kids-retention` route removes minute entries after 90 days; deploy a separate daily scheduler and `CRON_SECRET`. Full release QA and Phase 5 handover: [Phase 4 runbook](../../docs/kids-native-phase4-release.md).
 
-**Bootstrap dependency:** `/kids/parent` web onboarding is still necessary for first-time paired devices. Do not delete that page until a separate audited adult-account route or native OAuth flow replaces it. Child-facing web Kids mode remains until Phase 5.
+**Phase 5 source cutover:** parental bootstrap and pairing now use authenticated adult `/account/kids` while all child gameplay occurs in the native app. Former `/kids/**` routes no longer serve child-facing web games. Old cookie-locked browsers must use the PIN-only `/account/kids/legacy-unlock` endpoint to avoid exposing coexisting guardian login cookies.
 
 ### Child-safe quiz reporting
 
 During a playable question, tap **Tell us about a problem** and select unsafe content, incorrect answer or broken media. Reports have no free-text form and the server accepts a report only from a profile that actually played that quiz. Moderators see only reason counts from existing ADMIN-only shared REST/MCP review operations. Apply `20261012220000_kids_safety_reports` after the Phase 4 time migration. Do not assume a report automatically withdraws a question: trusted moderation remains responsible for approvals/restrictions and emergency media takedown.
+
+## Phase 5 deployment caution
+
+Apply `20261012230000_retire_web_kids_sessions` after prior Kids migrations; this revokes WEB-only sessions without changing NATIVE tokens. Native setup shows `/en/account/kids` or `/ko/account/kids`, never the deleted `/kids/parent`. Adult web device pairing is a **guardian account setting**, not a browser Kids mode. Read `docs/kids-native-phase5-cutover.md` for unverified production migration, real-device E2E and rollback gates. Do not claim App Store approval, installed iOS/Android builds or a live DB migration based solely on Expo exports.
