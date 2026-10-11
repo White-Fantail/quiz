@@ -20,17 +20,17 @@ The project's three 2026-10-11 source materials (product proposal, brand guideli
 ## Product and branding
 QuizDip is a friendly quiz playground centered on progressive clues and the joy of discovery. External name: **QuizDip (퀴즈딥)**; repository name: `quizdip`. Follow [docs/brand.md](docs/brand.md).
 
-## QuizDip Kids native app (Phase 1)
+## QuizDip Kids native app (Phases 1–5)
 - Native app: `apps/kids` (Expo/React Native) with server-only `apps/web` unchanged. Shared pure `@quizdip/domain`, `@quizdip/i18n`, `@quizdip/api-client` may be used by both; native must NEVER import Prisma, web server modules, credentials or answer keys.
 - Native Kids Phase 1 was a preview shell. Phase 2 adds **source-level** one-time parent PIN pairing and mobile child-session authorization; never claim full deployment or live device success until database migration and real-device tests pass. Gameplay, rewards and daily limits remain Phase 3/4.
-- Existing web Kids routes and its cookie guard remain until Phase 5 cutover. Follow `docs/kids-native-development-plan.md`; never remove shared Kids moderation, `KIDS` lane, API or child-profile data when retiring the web UI.
+- Phase 5 source removes legacy web Kids gameplay/layout/CSS/child activation. Adult bootstrap resides at `/account/kids`; legacy locked browsers require guardian PIN via `/account/kids/legacy-unlock`. Keep Kids moderation, native API, language rules, data, media and KIDS weekly lane.
 
 ## Native Kids Phase 2 guardrails
 - A parent uses a **real Better Auth web session and verified guardian PIN** to issue a short-lived random pairing code; redeeming it returns a child-scoped native token, never adult OAuth cookies or scopes.
 - `/api/kids/native` may serve native session/approved catalog and verified PIN exit only; browser `actorFor` and MCP are never authorized by this bearer. Profile language and safety flags are server enforced.
 - Apply `20261012190000_kids_native_pairing` to each DB before native pairing. Reinstall/revoke/lockout/rate-limit, iPad and Android smoke tests are mandatory release gates, not implied by unit tests.
 - Native pairing credential issue/consume is deliberately an MCP parity exception; document it and keep general REST/MCP gameplay parity.
-- The temporary web `/kids/parent` guardian setup is required until native guardian controls are built in Phase 4. No web Kids removal until Phase 5.
+- First-time app pairing uses a signed-in adult at `/account/kids`, not a web Kids route. Old WEB cookies cannot be auto-cleared because a Better Auth guardian cookie may coexist.
 
 ## Architecture
 - Implement a **single Next.js modular monolith** on Vercel: public Play/Discover, creator Studio, restricted Admin, REST API and Remote MCP share one deployment.
@@ -115,5 +115,5 @@ MCP is a full QuizDip product interface, **not just an authoring connector**. Ev
 - The existing `sessionMinutes` is legacy web expiry; native uses separate `dailyMinutes`, `playSessionMinutes`, `breakEveryMinutes`, `timeZone`. A soft break reminder does not replace a server-enforced daily or continuous-session cap.
 - In-app guardian control requires short-lived PIN-elevated `KidParentAccess` bound to an active child device and stored only in RAM; it must not authorize general REST/MCP and must be cleared on background. Guardian-controlled deletion/revocation is ownership-checked server-side.
 - App store Kids/Families/privacy compliance is **not certified** by static SDK permissions. Publish an accurate privacy policy, configure `CRON_SECRET` and authenticated daily retention cleanup, run real device/security tests, and document proof before rollout.
-- First-time native pairing still depends on `/kids/parent` web guardian bootstrap. Move it to the adult account or implement audited native sign-in **before Phase 5 deletes all web Kids**.
+- Phase 5 moved first-time pairing to `/account/kids` + `/api/account/kids`. The `20261012230000_retire_web_kids_sessions` migration revokes only WEB device tokens but keeps hashed records for PIN exit. Main branch requires explicit request; staging migrations and native device distribution are separately unverified.
 - Full verification matrix: `docs/kids-native-phase4-release.md`. Do not claim Phase 4 release readiness or merge `main` without explicit user request.
