@@ -51,7 +51,7 @@ export async function GET(request:Request) {
     return 0;
   };
   const items=(result as any)?.items;
-  if(Array.isArray(items)) return response({...result,items:[...items].sort((a,b)=>fit(a)-fit(b))});
+  if(Array.isArray(items)) return response({...(result as Record<string,unknown>),items:[...items].sort((a,b)=>fit(a)-fit(b))});
   return response(result);
  }catch(error){return errorResponse(error);}
 }
