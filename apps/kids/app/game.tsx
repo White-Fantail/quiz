@@ -16,7 +16,7 @@ type Ref= {kind:"run";runId:string;runToken:string;mode:"RANDOM_FIVE"|"WEEKLY"} 
           {kind:"single";sessionId:string;sessionToken:string};
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function finished(v:KidQuestion|KidRunResult):v is KidRunResult {
- return v.status==="FINISHED" && !("sessionId" in v);
+ return "status" in v && v.status==="FINISHED" && !("sessionId" in v);
 }
 async function save(value:Ref|null) {
  if(value)await SecureStore.setItemAsync(SAVED,JSON.stringify(value),{
