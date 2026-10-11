@@ -11,7 +11,7 @@ type Edition = { available:boolean; id?:string; title?:string; description?:stri
   startsAt?:string; endsAt?:string; message?:string; host?:{id:string;name:string;verified:boolean};questionCount?:number };
 type RunInfo = {runId:string;runToken:string;mode:Mode;lane:Lane;weekly?:Edition|null;
   completed:number;score:number;status:"ACTIVE"|"FINISHED";total:number|null;official?:boolean;
-  solved?:number;failed?:number};
+  solved?:number;failed?:number;exhausted?:boolean;message?:string};
 type Round = RunInfo & {sessionId:string;sessionToken:string;round:number;quizId:string;title:string;
   prompt:string;promptMediaIds:string[];clues:Clue[];clueIndex:number;clueCount:number;
   sessionStatus:string;canGuess?:boolean};
@@ -28,7 +28,7 @@ async function api(path:string, method:"GET"|"POST"="GET",body?:unknown):Promise
   if(!response.ok) {
     const code=data.error;
     if(code==="weekly_unavailable") throw new Error("이번 주의 공식 5문제가 아직 준비되지 않았어요.");
-    if(code==="not_enough_questions") throw new Error("공개 문제가 아직 충분하지 않아요. 더 많은 문제가 등록되면 시작할 수 있어요.");
+    if(code==="not_enough_questions") throw new Error(data.message||"새로운 문제가 충분하지 않아요. 새 퀴즈가 공개되면 다시 즐겨 주세요.");
     if(code==="question_suspended") throw new Error("문제 안전성 검토로 플레이가 잠시 중단됐어요.");
     if(code==="run_expired"||code==="week_closed") throw new Error("진행 기간이 끝났어요. 새 도전을 시작해 주세요.");
     throw new Error(data.message || code || "요청을 처리하지 못했어요.");
@@ -36,6 +36,18 @@ async function api(path:string, method:"GET"|"POST"="GET",body?:unknown):Promise
   return data.data;
 }
 
+const SEEN_KEY="quizdip-played-quiz-ids-v1";
+function rememberedQuizzes():string[] {
+  try {
+    const ids=JSON.parse(localStorage.getItem(SEEN_KEY)||"[]");
+    return Array.isArray(ids)?ids.filter((id):id is string=>
+      typeof id==="string"&&/^[a-f0-9-]{36}$/i.test(id)).slice(-1000):[];
+  } catch {return [];}
+}
+function rememberQuiz(id:string) {
+  try {localStorage.setItem(SEEN_KEY,JSON.stringify([...new Set([...rememberedQuizzes(),id])].slice(-1000)));}
+  catch { /* Device-only fallback; signed-in histories remain server-authoritative. */ }
+}
 function displayedDate(v?:string) {
   if(!v) return "";
   return new Date(v).toLocaleDateString("ko-KR",{month:"long",day:"numeric",timeZone:"UTC"});
@@ -64,7 +76,7 @@ export default function PlayPage() {
   const [ranking,setRanking]=useState<Ranking[]>([]);
   const [rankingAvailable,setRankingAvailable]=useState(false);
   const [myHistory,setMyHistory]=useState<RunInfo[]>([]);
-  const [mode,setMode]=useState<Mode>("WEEKLY");
+  const [mode,setMode]=useState<Mode>("RANDOM_FIVE");
 
   useEffect(()=>{
     // Deep links from Kids and campaigns must preserve the audience selection.
@@ -90,12 +102,13 @@ export default function PlayPage() {
   },[lane,edition?.available,edition?.id,round?.sessionStatus,run?.status]);
 
   const showRound=useCallback(async (r:RunInfo) => {
-    const data=await api("/runs/"+r.runId+"/current","POST",{runToken:r.runToken});
+    const data=await api("/runs/"+r.runId+"/current","POST",{runToken:r.runToken,avoidQuizIds:rememberedQuizzes()});
     if(data.status==="FINISHED" && !data.sessionId){
       setRun({...r,...data});setRound(null);setFeedback("");setMedia({});
       return;
     }
     const next=data as Round;
+    rememberQuiz(next.quizId);
     setRun({...r,...data});setRound(next);setGuess("");setFeedback("");setAnswer("");setRoundScore(0);
     setMustReveal(!next.canGuess);
     setMedia({});
@@ -111,7 +124,7 @@ export default function PlayPage() {
   async function start(nextMode:Mode) {
     setBusy(true);setError("");setFeedback("");
     try{
-      const value=await api("/runs","POST",{mode:nextMode,lane});
+      const value=await api("/runs","POST",{mode:nextMode,lane,avoidQuizIds:rememberedQuizzes()});
       setMode(nextMode);setRun(value);
       await showRound(value);
     }catch(e){setError(e instanceof Error?e.message:"시작할 수 없어요.");}
@@ -171,9 +184,9 @@ export default function PlayPage() {
   const endReached=!!run&&(run.status==="FINISHED")&&(!round||isDone);
   return <main className="container inner-page play-experience">
     <div className="play-intro">
-      <span className="eyebrow">QUIZDIP · PLAY TOGETHER</span>
-      <h1>같은 다섯 문제, 서로 다른 발견.</h1>
-      <p className="lead">이번 주 출제자가 준비한 문제를 모두 함께 풀어요. 또는 마음껏 연습하고 놀아도 좋아요.</p>
+      <span className="eyebrow">QUIZDIP · PLAY</span>
+      <h1>다섯 문제로 가볍게, 단서를 따라 발견해 봐.</h1>
+      <p className="lead">랜덤 5문제로 시작하고, 재미있으면 또 다섯 문제! 이번 주의 공통 챌린지도 즐길 수 있어요.</p>
     </div>
 
     <div className="lane-picker" role="group" aria-label="플레이 대상 선택">
@@ -184,9 +197,24 @@ export default function PlayPage() {
     </div>
 
     {!run && <>
+      <section className="play-practice">
+        <h2>자유 플레이</h2>
+        <div className="cards">
+          <article className="feature-card">
+            <span className="symbol mint">5</span><h3>랜덤 5문제</h3>
+            <p>아직 보지 않은 다섯 문제를 골라요. 완료하면 새로운 다섯 문제를 더 즐길 수 있어요.</p>
+            <button className="btn btn-primary" disabled={busy} onClick={()=>void start("RANDOM_FIVE")}>5문제 시작하기 →</button>
+          </article>
+          <article className="feature-card">
+            <span className="symbol yellow">∞</span><h3>연속 플레이 (선택)</h3>
+            <p>원한다면 계속 풀 수 있어요. 새로운 문제가 소진되면 반복 없이 끝나요.</p>
+            <button className="btn btn-outline" disabled={busy} onClick={()=>void start("INFINITE")}>이어 풀기</button>
+          </article>
+        </div>
+      </section>
       <section className="weekly-spotlight">
         <div className="weekly-star" aria-hidden="true">✦</div>
-        <span className="small-tag">WEEKLY FIVE · 이번 주의 메인 챌린지</span>
+        <span className="small-tag">WEEKLY FIVE · 이번 주의 특별 챌린지</span>
         {edition?.available? <>
           <h2>{edition.title}</h2>
           <p className="weekly-host">이번 주 출제자 · <strong>{edition.host?.name||"QuizDip 제작자"}</strong>
@@ -195,7 +223,7 @@ export default function PlayPage() {
           <p className="weekly-dates">{displayedDate(edition.startsAt)} – {displayedDate(edition.endsAt)} (UTC 기준) · 5문제</p>
           <button className="btn btn-primary" disabled={busy} onClick={()=>void start("WEEKLY")}>
             {busy?"불러오는 중…":"이번 주 5문제 도전하기 →"}</button>
-          <p className="weekly-footnote">공식 기록은 로그인 계정당 한 번만 반영돼요. 로그인하지 않아도 같은 문제를 체험할 수 있어요.</p>
+          <p className="weekly-footnote">첫 도전만 공식 기록으로 인정해요. 전에 이 문제를 본 사용자는 순위에 포함되지 않아요.</p>
           <Link href="/sign-in?callbackURL=%2Fplay" className="text-button">공식 기록을 위해 로그인하기</Link>
         </>:<>
           <h2>{lane==="KIDS"?"이번 주 어린이 챌린지를 준비하고 있어요":"이번 주 출제자를 기다리고 있어요"}</h2>
@@ -204,21 +232,6 @@ export default function PlayPage() {
         </>}
       </section>
 
-      <section className="play-practice">
-        <h2>다른 플레이 방법</h2>
-        <div className="cards">
-          <article className="feature-card">
-            <span className="symbol mint">5</span><h3>랜덤 5문제</h3>
-            <p>새로운 다섯 문제를 무작위로 골라 연습해요. 매번 다른 구성이에요.</p>
-            <button className="btn btn-outline" disabled={busy} onClick={()=>void start("RANDOM_FIVE")}>5문제 시작</button>
-          </article>
-          <article className="feature-card">
-            <span className="symbol yellow">∞</span><h3>무한 플레이</h3>
-            <p>시간 제한 없이 원하는 만큼 문제를 풀어요. 그만둘 때까지 이어져요.</p>
-            <button className="btn btn-outline" disabled={busy} onClick={()=>void start("INFINITE")}>계속 풀기</button>
-          </article>
-        </div>
-      </section>
       {myHistory.length>0&&<section className="play-recent">
         <h2>최근 내 기록</h2>
         <div className="recent-results">
@@ -278,7 +291,10 @@ export default function PlayPage() {
           <h2>이번 도전 완료!</h2>
           <p>총 <strong>{run.score}점</strong> · {run.completed}문제 · 정답 {run.solved||0}개</p>
           {run.mode==="WEEKLY"&&<p>모두에게 같은 다섯 문제였어요. 이번 주의 다른 도전자들과 결과를 비교해 보세요.</p>}
-          {run.mode==="WEEKLY"&&!run.official&&<p>로그인하지 않은 체험 기록은 공식 순위에 포함되지 않아요.</p>}
+          {run.mode==="WEEKLY"&&!run.official&&<p>비로그인 또는 이전에 본 문제가 있는 기록은 공식 순위에 포함되지 않아요.</p>}
+          {run.exhausted&&<p>{run.message||"새로운 문제를 모두 풀었어요. 새 퀴즈가 등록되면 다시 즐겨 주세요."}</p>}
+          {run.mode==="RANDOM_FIVE"&&<button type="button" className="btn btn-primary"
+            disabled={busy} onClick={()=>void start("RANDOM_FIVE")}>새로운 5문제 더 풀기 →</button>}
         </div>
       </>}
       <div className="play-bottom">
