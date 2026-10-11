@@ -19,7 +19,7 @@ test("no retired web Kids shell, games, parent UI or cookie-activation endpoint 
 test("retired web paths redirect to account pairing without exposing a web game",()=>{
  const edge=file("proxy.ts"),root=file("app/layout.tsx");
  assert.match(edge,/const retired=\(path:string\)=>path==="\/kids"/);
- assert.match(edge,/url.pathname="\/"+locale+"\/account\/kids"/);
+ assert.ok(edge.includes('url.pathname="/"+locale+"/account/kids"'));
  assert.match(edge,/const LEGACY_GATE="\/account\/kids\/legacy-unlock"/);
  assert.match(edge,/if\(locked && resolvedPath!==LEGACY_GATE\)/);
  assert.doesNotMatch(edge,/x-quizdip-shell", isKidsPath/);
@@ -40,7 +40,7 @@ test("parent bootstrap is in the signed-in adult account and native shows its ne
  assert.match(api,/requireActor\(await actorFor\(request\)\)/);
  assert.match(api,/kid_reauth_required/);
  assert.match(api,/issueNativePairTicket/);
- assert.match(native,/locale+"\/account\/kids"/);
+ assert.ok(native.includes('locale+"/account/kids"'));
 });
 test("old child cookies remain locked until guardian PIN; data cutover revokes WEB only",()=>{
  const legacy=file("app/api/account/kids/legacy-unlock/route.ts");
