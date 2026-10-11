@@ -47,7 +47,7 @@ export function proxy(request:NextRequest){
  const fallback=isLocale(selected)?selected:localeFromAcceptLanguage(request.headers.get("accept-language"));
  url.pathname="/"+(fallback||DEFAULT_LOCALE)+(locked?LEGACY_GATE:
    retired(pathname)?"/account/kids":pathname==="/"? "":pathname);
- url.search="";
+ if(locked||retired(pathname))url.search="";
  return NextResponse.redirect(url,307);
 }
 export const config={matcher:"/:path*"};
