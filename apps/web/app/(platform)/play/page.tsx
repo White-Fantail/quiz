@@ -297,6 +297,6 @@ export default function PlayPage() {
         <p className="muted">참여 자격이 확인되고 순위 공개에 동의한 성인만 표시돼요. 동점자는 공동 순위예요.</p>
       </section>}
     {lane==="KIDS"&&<p className="muted">어린이 모드는 플랫폼에서 안전성을 확인한 문제만 제공하고, 공개 개인 순위는 표시하지 않아요.</p>}
-    <div className="play-bottom"><Link href="/discover">다른 퀴즈 둘러보기 →</Link><Link href="/studio">출제자로 참여하기 →</Link></div>
+    <div className="play-bottom"><Link href="/discover">다른 퀴즈 둘러보기 →</Link><Link href="/studio/weekly">출제자로 참여하기 →</Link></div>
   </main>;
 }
