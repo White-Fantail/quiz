@@ -3,6 +3,7 @@ import { isCorrectAnswer, scoreForClues } from "@quizdip/domain";
 import { db } from "./db";
 import { ratingsForQuiz, myRatingForQuiz, ratingAccess } from "./ratings";
 import { fail, type Actor } from "./auth";
+import { currentPlayableRevision } from "./content-locale";
 
 function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
@@ -10,7 +11,7 @@ function hashToken(token: string): string {
 export async function getPlaySession(p: Record<string, any>, actor: Actor | null) {
   const session = await db().playSession.findUnique({
     where: { id: p.sessionId },
-    include: { revision: true }
+    include: { revision: { include: { localization: true } } }
   });
   if (!session) fail(404, "not_found", "Session not found");
   const provided = Buffer.from(hashToken(p.sessionToken), "hex");
@@ -19,6 +20,9 @@ export async function getPlaySession(p: Record<string, any>, actor: Actor | null
     fail(403, "forbidden", "Invalid session capability");
   if (session.userId && session.userId !== actor?.id) fail(403, "forbidden", "Session belongs to another account");
   if (session.expiresAt.getTime() < Date.now()) fail(410, "session_expired", "Start another game");
+  if (session.locale !== "und" && (session.revision.localization?.locale !== session.locale ||
+    session.revision.localization.status !== "PUBLISHED"))
+    fail(409, "locale_unavailable", "This question language is no longer available");
   if (session.runId) {
     const run=await db().playRun.findUnique({where:{id:session.runId},include:{weekly:true}});
     if (!run || run.status!=="ACTIVE" || run.currentIndex!==session.roundIndex ||
@@ -41,19 +45,18 @@ export async function playStart(p: Record<string, any>, actor: Actor | null) {
     fail(404, "not_found", "Quiz unavailable");
   if (p.kids && !(quiz.safetyStatus === "APPROVED" && quiz.kidsEligible))
     fail(403, "not_for_kids", "Quiz has not passed Kids eligibility checks");
-  const revision = await db().quizRevision.findUnique({ where: { quizId_version: { quizId: quiz.id, version: quiz.currentVersion } } });
-  if (!revision) fail(404, "not_found", "Quiz version unavailable");
+  const { revision } = await currentPlayableRevision(quiz.id, p.locale);
   const clues = revision.clues as Record<string, unknown>[];
   if (!clues.length) fail(409, "invalid_quiz", "Quiz has no clues");
   const token = randomBytes(32).toString("base64url");
   const session = await db().playSession.create({ data: {
-    quizId: quiz.id, revisionId: revision.id, userId: actor?.id, tokenHash: hashToken(token),
+    quizId: quiz.id, revisionId: revision.id, locale: p.locale, userId: actor?.id, tokenHash: hashToken(token),
     usedClues: 1, expiresAt: new Date(Date.now() + 3600000)
   } });
   const [ratings,myRating]=await Promise.all([ratingsForQuiz(quiz.id),myRatingForQuiz(quiz.id,actor)]);
   return { sessionId: session.id, sessionToken: token, title: revision.title, prompt: revision.prompt,
     quizId:quiz.id,ratings,myRating,ratingAccess:ratingAccess(actor,quiz.authorId,session.userId),
-    mode: revision.mode, quizVersion: revision.version, promptMediaIds: revision.promptMediaIds, clue: clues[0], clueIndex: 1, clueCount: clues.length };
+    mode: revision.mode, locale: p.locale, quizVersion: revision.version, promptMediaIds: revision.promptMediaIds, clue: clues[0], clueIndex: 1, clueCount: clues.length };
 }
 export async function playClue(p: Record<string, any>, actor: Actor | null) {
   const session = await getPlaySession(p, actor);

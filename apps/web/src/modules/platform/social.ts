@@ -1,6 +1,7 @@
 import { db } from "./db";
 import { ratingsForQuiz } from "./ratings";
 import { fail, requireActor, type Actor } from "./auth";
+import { playableQuizWhere } from "./content-locale";
 
 async function getPublicQuiz(quizId: string) {
   const q = await db().quiz.findUnique({ where: { id: quizId } });
@@ -10,6 +11,8 @@ async function getPublicQuiz(quizId: string) {
 }
 export async function reviewsList(p: Record<string, any>) {
   await getPublicQuiz(p.quizId);
+  const available = await db().quizLocalization.count({where:{quizId:p.quizId,locale:p.locale,status:"PUBLISHED"}});
+  if (!available) fail(404,"locale_unavailable","Quiz not available in this language");
   const [items, count] = await Promise.all([
     db().review.findMany({ where: { quizId: p.quizId }, select: {
       id: true, rating: true, comment: true, createdAt: true,
@@ -61,18 +64,23 @@ export async function reportsMine(p: Record<string, any>, actor: Actor | null) {
     orderBy: { createdAt: "desc" }, skip: p.offset, take: p.limit
   }) };
 }
-async function validatePackQuestions(ids: string[], authorId: string, publish = false) {
+async function validatePackQuestions(ids: string[], authorId: string, publish = false, locale = "und") {
   if (new Set(ids).size !== ids.length) fail(400, "duplicate_quiz", "Pack questions must be unique");
-  const qs = await db().quiz.findMany({ where: { id: { in: ids } } });
+  const qs = await db().quiz.findMany({ where: { id: { in: ids } },
+    include: { localizations: true } });
   if (qs.length !== ids.length || qs.some(q => (q.authorId !== authorId && q.publication !== "PUBLISHED") ||
     q.safetyStatus === "RESTRICTED" || (publish && q.publication !== "PUBLISHED")))
     fail(400, "invalid_pack", "Pack has unavailable or unpublished questions");
+  if(publish && locale!=="und" && qs.some(q=>!q.localizations.some(l=>l.locale===locale && l.status==="PUBLISHED")))
+    fail(409,"incomplete_pack_locale","Every question must be published in the pack language");
 }
 export async function packCreate(p: Record<string, any>, actor: Actor | null) {
   const user = requireActor(actor);
   await validatePackQuestions(p.quizIds, user.id);
   const pack = await db().quizPack.create({
     data: { authorId: user.id, title: p.title, description: p.description,
+      sourceLocale: p.locale,
+      localizations: { create: { locale: p.locale, title: p.title, description: p.description, status: "DRAFT" } },
       items: { create: p.quizIds.map((quizId: string, index: number) => ({ quizId, position: index + 1 })) } },
     include: { items: { orderBy: { position: "asc" } } }
   });
@@ -80,13 +88,23 @@ export async function packCreate(p: Record<string, any>, actor: Actor | null) {
 }
 export async function packList(p: Record<string, any>, actor: Actor | null) {
   if (p.mine) requireActor(actor);
+  const locale = p.locale as "en" | "ko";
+  // PostgreSQL enforces whole-pack language coverage before pagination.
+  const where: any = p.mine ? { authorId: actor!.id } : {
+    publication: "PUBLISHED",
+    localizations: { some: { locale, status: "PUBLISHED" } },
+    items: { some: {}, every: { quiz: playableQuizWhere(locale) } }
+  };
   const packs = await db().quizPack.findMany({
-    where: p.mine ? { authorId: actor!.id } : { publication: "PUBLISHED" },
-    orderBy: { updatedAt: "desc" }, skip: p.offset, take: p.limit,
-    include: { items: { orderBy: { position: "asc" } } }
+    where, orderBy: { updatedAt: "desc" }, skip: p.offset, take: p.limit,
+    include: { localizations: { where: { locale } }, items: { orderBy: { position: "asc" } } }
   });
-  return { items: packs.map(pack => ({ id: pack.id, title: pack.title, description: pack.description,
-    publication: pack.publication, quizIds: pack.items.map(item => item.quizId) })) };
+  return { locale, items: packs.map(pack => {
+    const l = pack.localizations[0];
+    return { id:pack.id, title: p.mine ? pack.title : l?.title,
+      description: p.mine ? pack.description : l?.description,
+      publication:pack.publication, quizIds:pack.items.map(item=>item.quizId) };
+  }) };
 }
 export async function packUpdate(p: Record<string, any>, actor: Actor | null) {
   const user = requireActor(actor);
@@ -94,7 +112,7 @@ export async function packUpdate(p: Record<string, any>, actor: Actor | null) {
   if (!old) fail(404, "not_found", "Pack not found");
   const ids: string[] = p.quizIds ?? old.items.sort((a, b) => a.position - b.position).map(i => i.quizId);
   if (p.publication === "PUBLISHED" && p.confirm !== true) fail(400, "confirmation_required", "Confirm publishing the pack");
-  await validatePackQuestions(ids, user.id, p.publication === "PUBLISHED" || (old.publication === "PUBLISHED" && p.publication !== "DRAFT"));
+  await validatePackQuestions(ids, user.id, p.publication === "PUBLISHED" || (old.publication === "PUBLISHED" && p.publication !== "DRAFT"), old.sourceLocale);
   const updated = await db().$transaction(async tx => {
     if (p.quizIds) {
       await tx.packQuestion.deleteMany({ where: { packId: old.id } });
@@ -104,6 +122,10 @@ export async function packUpdate(p: Record<string, any>, actor: Actor | null) {
       data: { ...(p.title !== undefined ? { title: p.title } : {}),
         ...(p.description !== undefined ? { description: p.description } : {}),
         ...(p.publication ? { publication: p.publication } : {}) } });
+    await tx.quizPackLocalization.updateMany({where:{packId:pack.id,locale:pack.sourceLocale},
+      data:{...(p.title !== undefined ? {title:p.title}:{}),
+        ...(p.description !== undefined ? {description:p.description}:{}),
+        ...(p.publication?{status:p.publication}:{})}});
     await tx.auditLog.create({ data: { actorId: user.id, action: "pack.update", objectId: pack.id } });
     return pack;
   });
