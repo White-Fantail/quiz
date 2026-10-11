@@ -1,5 +1,5 @@
 import { useCallback,useEffect,useRef,useState } from "react";
-import { ActivityIndicator,Alert,Pressable,StyleSheet,Text,TextInput,View } from "react-native";
+import { ActivityIndicator,Pressable,StyleSheet,Text,TextInput,View } from "react-native";
 import { Redirect,useLocalSearchParams,useRouter } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import type { KidQuestion,KidRunResult,KidGuessResult } from "@quizdip/api-client";
@@ -48,6 +48,7 @@ export default function KidGameScreen(){
  const [result,setResult]=useState<KidGuessResult|null>(null);
  const [guess,setGuess]=useState("");
  const [reportNotice,setReportNotice]=useState("");
+ const [reportOpen,setReportOpen]=useState(false);
  const [dismissedBreak,setDismissedBreak]=useState(-1);
  const [pending,setPending]=useState(false);
  const [loading,setLoading]=useState(true);
@@ -121,20 +122,12 @@ export default function KidGameScreen(){
    setResult(v);setGuess("");
    setQuestion(prev=>prev?{...prev,sessionStatus:v.status,canGuess:false}:prev);
  });
- const reportQuiz=()=>{
+ const sendReport=(reason:"UNSAFE"|"INCORRECT"|"BROKEN_MEDIA")=>{
    if(!token||!question||!kidsApi)return;
    const id=question.quizId;
-   const send=(reason:"UNSAFE"|"INCORRECT"|"BROKEN_MEDIA")=>{
-     if(!kidsApi)return;
-     void kidsApi.report(token,id,reason).then(()=>setReportNotice(t("native.report.thanks")))
-       .catch(()=>setReportNotice(t("native.report.failed")));
-   };
-   Alert.alert(t("native.report.title"),t("native.report.help"),[
-     {text:"🛡️ "+t("native.report.unsafe"),onPress:()=>send("UNSAFE")},
-     {text:"❓ "+t("native.report.incorrect"),onPress:()=>send("INCORRECT")},
-     {text:"🖼 "+t("native.report.broken"),onPress:()=>send("BROKEN_MEDIA")},
-     {text:t("kids.guardian.cancel"),style:"cancel"}
-   ]);
+   setReportOpen(false);
+   void kidsApi.report(token,id,reason).then(()=>setReportNotice(t("native.report.thanks")))
+     .catch(()=>setReportNotice(t("native.report.failed")));
  };
  const next=()=>void guarded(async()=>{
    if(!token||!reference)return;
@@ -233,9 +226,21 @@ export default function KidGameScreen(){
        </Pressable>:null}
    </>:null}
    {reportNotice?<Text accessibilityRole="alert" style={styles.note}>{reportNotice}</Text>:null}
-   <Pressable accessibilityRole="button" onPress={reportQuiz} style={styles.reportButton}>
+   <Pressable accessibilityRole="button" onPress={()=>setReportOpen(v=>!v)} style={styles.reportButton}>
      <Text style={styles.reportText}>🛡️ {t("native.report.title")}</Text>
    </Pressable>
+   {reportOpen?<View style={styles.reportChoices}>
+     <Text style={styles.note}>{t("native.report.help")}</Text>
+     {([["UNSAFE","native.report.unsafe"],["INCORRECT","native.report.incorrect"],
+       ["BROKEN_MEDIA","native.report.broken"]] as const).map(([reason,label])=>
+       <Pressable key={reason} accessibilityRole="button" style={styles.secondary}
+         onPress={()=>sendReport(reason)}>
+         <Text style={styles.secondaryText}>{t(label)}</Text>
+       </Pressable>)}
+     <Pressable accessibilityRole="button" onPress={()=>setReportOpen(false)}>
+       <Text style={styles.note}>{t("kids.guardian.cancel")}</Text>
+     </Pressable>
+   </View>:null}
    {ended?<Pressable accessibilityRole="button" disabled={pending} style={styles.button} onPress={next}>
      <Text style={styles.buttonText}>{reference?.kind==="single"?t("native.play.back"):t("native.play.continue")}</Text>
    </Pressable>:null}
@@ -243,6 +248,7 @@ export default function KidGameScreen(){
 }
 const styles=StyleSheet.create({
  reportButton:{alignItems:"center",padding:14,borderRadius:14,backgroundColor:theme.colors.card},
+ reportChoices:{backgroundColor:theme.colors.card,padding:16,borderRadius:18,gap:12},
  reportText:{fontSize:14,fontWeight:"700",color:theme.colors.muted},
  restNotice:{backgroundColor:theme.colors.peach,borderRadius:17,padding:17,gap:6},
  restText:{color:theme.colors.ink,fontSize:17,fontWeight:"800"},
