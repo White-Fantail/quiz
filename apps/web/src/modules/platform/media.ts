@@ -138,9 +138,16 @@ async function referencedMediaIds(ownerId: string): Promise<string[]> {
 async function mediaUsage(id: string, ownerId: string) {
   const matches = await db().$queryRaw<Array<{
     quizId: string; title: string; version: number; isCurrent: boolean; publication: string;
+    inPrompt: boolean; cluePositions: number[];
   }>>`
     SELECT r."quizId" AS "quizId", r."title", r."version",
-      (q."currentVersion" = r."version") AS "isCurrent", q."publication"
+      (q."currentVersion" = r."version") AS "isCurrent", q."publication",
+      (r."promptMediaIds" @> ${JSON.stringify([id])}::jsonb) AS "inPrompt",
+      ARRAY(
+        SELECT ord::integer
+        FROM jsonb_array_elements(r."clues") WITH ORDINALITY AS element(clue,ord)
+        WHERE element.clue ->> 'mediaId' = ${id}
+      ) AS "cluePositions"
     FROM "QuizRevision" r JOIN "Quiz" q ON q."id" = r."quizId"
     WHERE q."authorId" = ${ownerId}
       AND (r."promptMediaIds" @> ${JSON.stringify([id])}::jsonb
