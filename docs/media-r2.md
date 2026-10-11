@@ -54,7 +54,7 @@ Image transformations support crops, Gaussian blur and resize (result WebP), wit
    R2_ENDPOINT=https://YOUR_ACCOUNT_ID.r2.cloudflarestorage.com
    R2_ACCESS_KEY_ID=...
    R2_SECRET_ACCESS_KEY=...
-   R2_BUCKET=clupio-media-dev
+   R2_BUCKET=quizdip-media-dev
    MEDIA_IMPORT_HOSTS=
    ```
    Use literal `MEDIA_IMPORT_HOSTS=example-media-cdn.com,another-approved-cdn.com` only for carefully trusted HTTPS hosts; leave empty initially. No wildcard.
@@ -75,7 +75,7 @@ A media approval reset is blocked while the asset is used in a currently publish
 
 ### QuizDip naming transition
 
-For new installations, use a QuizDip-named R2 bucket. Existing deployments may continue to use a previously provisioned Clupio-named bucket through `R2_BUCKET`; do not rename or delete a live bucket as part of a brand-only update. The MCP tool names shown above use the `quizdip_*` prefix.
+For new installations, use a QuizDip-named R2 bucket. Changing this R2_BUCKET example does not rename existing remote storage. Audit configured buckets before any deliberate infrastructure migration; never delete a live bucket to satisfy a source-code rename. The MCP tool names shown above use the `quizdip_*` prefix.
 
 ## Studio media library: P0/P1 browse experience
 

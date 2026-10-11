@@ -270,9 +270,9 @@ export default function PlayPage() {
           <button type="button" className="btn btn-outline" disabled={busy} onClick={()=>void reveal()}>
             단서 하나 더 보기</button>}
         {!isDone&&<form className="guess-form" onSubmit={e=>void check(e)}>
-          <label htmlFor="clupio-answer">정답은 무엇일까요?</label>
+          <label htmlFor="quizdip-answer">정답은 무엇일까요?</label>
           <div className="guess-row">
-            <input id="clupio-answer" value={guess} onChange={e=>setGuess(e.target.value)}
+            <input id="quizdip-answer" value={guess} onChange={e=>setGuess(e.target.value)}
               autoComplete="off" placeholder="정답을 입력해 보세요" maxLength={200}
               disabled={busy||mustReveal}/>
             <button type="submit" className="btn btn-primary" disabled={busy||mustReveal||!guess.trim()}>

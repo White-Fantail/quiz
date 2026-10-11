@@ -169,7 +169,7 @@ export async function importExternal(input: string, limit: number): Promise<{ by
     const req = httpsRequest(url, {
       method: "GET", timeout: 20000,
       lookup: (_host, _opts, cb) => cb(null, chosen.address, chosen.family),
-      headers: { "accept": "image/*, audio/*, video/*", "user-agent": "Clupio-MediaImport/1.0" },
+      headers: { "accept": "image/*, audio/*, video/*", "user-agent": "QuizDip-MediaImport/1.0" },
     }, async res => {
       if (res.statusCode !== 200 || (res.headers.location)) {
         res.resume(); reject(new Error("Source returned an unsupported response or redirect")); return;

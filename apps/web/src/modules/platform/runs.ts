@@ -27,10 +27,10 @@ function secret(): string {
   return s;
 }
 function authToken(runId: string, userId: string): string {
-  return createHmac("sha256", secret()).update("clupio:run:v1:" + runId + ":" + userId).digest("base64url");
+  return createHmac("sha256", secret()).update("quizdip:run:v1:" + runId + ":" + userId).digest("base64url");
 }
 export function sessionToken(runToken: string, runId: string, index: number): string {
-  return createHmac("sha256", runToken).update("clupio:round:v1:" + runId + ":" + index).digest("base64url");
+  return createHmac("sha256", runToken).update("quizdip:round:v1:" + runId + ":" + index).digest("base64url");
 }
 function matchingToken(provided: string, expectedHash: string): boolean {
   const a=Buffer.from(hash(provided), "hex"), b=Buffer.from(expectedHash,"hex");

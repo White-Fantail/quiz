@@ -12,15 +12,15 @@ export { availableProviders } from "./auth-providers";
 export const siteOrigin = (process.env.BETTER_AUTH_URL || process.env.PUBLIC_ORIGIN || "http://localhost:3000").replace(/\/$/, "");
 export const mcpResource = siteOrigin + "/api/mcp";
 
-const globalPool = globalThis as unknown as { clupioAuthPool?: Pool };
+const globalPool = globalThis as unknown as { quizdipAuthPool?: Pool };
 export function authPool(): Pool {
-  if (!globalPool.clupioAuthPool) {
-    globalPool.clupioAuthPool = new Pool({
-      connectionString: process.env.DATABASE_URL || "postgresql://localhost:5432/clupio",
+  if (!globalPool.quizdipAuthPool) {
+    globalPool.quizdipAuthPool = new Pool({
+      connectionString: process.env.DATABASE_URL || "postgresql://localhost:5432/quizdip",
       max: 5,
     });
   }
-  return globalPool.clupioAuthPool;
+  return globalPool.quizdipAuthPool;
 }
 
 async function appleClientSecret(): Promise<string> {

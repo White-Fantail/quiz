@@ -1,4 +1,4 @@
--- Initial Clupio platform storage. Applied by prisma migrate deploy.
+-- Initial QuizDip platform storage. Applied by prisma migrate deploy.
 CREATE TABLE "User" (
   "id" TEXT NOT NULL, "issuer" TEXT NOT NULL, "subject" TEXT NOT NULL,
   "displayName" TEXT NOT NULL, "role" TEXT NOT NULL DEFAULT 'MEMBER',
