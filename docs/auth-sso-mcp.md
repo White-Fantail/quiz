@@ -92,3 +92,18 @@ Run against **dev** DB first. Review migrations, take backup before prod, and us
 - `/sign-in` does **not** initialize the Better Auth database merely to discover provider availability. This lets visitors see correct sign-in status even if Better Auth initialization is temporarily unavailable.
 - To resolve a production `/account` error, check Vercel function logs (including database errors), verify `DATABASE_URL`, `BETTER_AUTH_SECRET`, the exact `BETTER_AUTH_URL` public origin and Google callback, and ensure **both** Prisma and Better Auth tables/migrations exist in the **correct production DB**. A UI fallback does **not** repair missing migrations or DB connectivity.
 - Verify real Google OAuth: anonymous `/account` → Google button → consent → `/api/auth/callback/google` → authenticated `/account` → `GET /api/v1/me`; test Apple disabled with missing or incomplete configuration. Live verification remains required after secrets/migrations are confirmed.
+
+## Automatic migrations during Vercel builds
+
+The root `npm run build` delegates to `scripts/build.mjs`. It runs migrations **only** when Vercel provides both `VERCEL=1` and `VERCEL_ENV=production`:
+
+1. Check `DATABASE_URL`, `BETTER_AUTH_URL` and `BETTER_AUTH_SECRET` are configured. Refuse an explicitly non-`main` production build.
+2. Run `npm run db:migrate` (Prisma domain migrations).
+3. Run `npx --yes auth@1.7.7 migrate --config ./apps/web/src/lib/auth.ts --yes` (Better Auth user/session/OAuth tables).
+4. Generate Prisma Client and build the Next.js app. A failed migration fails the build, so a broken new deployment is not promoted.
+
+Local builds, GitHub CI, and Vercel Preview **skip database migration**; they still generate Prisma Client and run the Next.js build. Preview schemas must be deployed to a separately configured development database using an explicit migration job before testing authenticated features. Never reuse production `DATABASE_URL` for Preview.
+
+**Production caution:** Vercel may run/retry builds, and a migration commits schema changes even when a later build step fails. Avoid concurrent production deployments, take a database backup before substantive changes, and use backward-compatible, additive schema migrations. For high-impact migrations, use an independently approved pre-deployment migration job rather than automatic build-time execution. The guarded build integration does not itself provision a database, verify Google OAuth credentials, or guarantee ChatGPT connectivity.
+
+Build-plan regression tests are in `apps/web/test/build-migration-plan.test.mjs`. Before merging to `main`, verify that the Vercel production build uses the repository-root `npm run build`, has a reachable production `DATABASE_URL`, and can run the Better Auth CLI. After deploy, check the OAuth metadata endpoint and sign-in/MCP flows.
