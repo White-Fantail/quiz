@@ -81,7 +81,7 @@ export async function heartbeat(kid:Kid){
             breakEveryMinutes:device.profile.breakEveryMinutes,timeZone:device.profile.timeZone},
           serverNow:now.toISOString()}};
       },{isolationLevel:"Serializable"});
-      if("blocked" in result)fail(429,result.blocked,"Session complete: rest for 10 minutes");
+      if("blocked" in result)fail(429,result.blocked ?? "kid_session_limit","Session complete: rest for 10 minutes");
       return result.status;
     }catch(e:any){
       if((e?.code==="P2034"||e?.code==="P2002")&&attempt<2)continue;
