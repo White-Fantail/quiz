@@ -354,22 +354,26 @@ export async function runFeedback(p:Record<string,any>,actor:Actor|null) {
   const recentFirst=run.mode==="INFINITE";
   const sessions=await db().playSession.findMany({
     where:{runId:run.id,status:{in:["SOLVED","FAILED"]}},
-    select:{quizId:true,userId:true,roundIndex:true,revision:{select:{title:true}},
+    select:{quizId:true,userId:true,roundIndex:true,revision:{select:{title:true,localization:{select:{origin:true}}}},
       quiz:{select:{authorId:true}}},
     orderBy:{roundIndex:recentFirst?"desc":"asc"},take:5
   });
   if(recentFirst)sessions.reverse();
   const ids=sessions.map(s=>s.quizId);
-  const [ratings,previous]=await Promise.all([
+  const [ratings,previous,translationRatings]=await Promise.all([
     ratingsForQuizzes(ids,run.locale as Locale),
     actor&&ids.length?db().review.findMany({
       where:{authorId:actor.id,quizId:{in:ids},locale:run.locale,kind:"QUIZ"},select:{quizId:true,rating:true}
-    }):Promise.resolve([])
+    }):Promise.resolve([]),
+    actor&&ids.length?db().review.findMany({where:{authorId:actor.id,quizId:{in:ids},locale:run.locale,kind:"TRANSLATION"},select:{quizId:true,rating:true}}):Promise.resolve([])
   ]);
   const saved=new Map(previous.map(r=>[r.quizId,r.rating]));
+  const savedTranslation=new Map(translationRatings.map(r=>[r.quizId,r.rating]));
   return {runId:run.id,locale:run.locale,items:sessions.map(s=>({
     quizId:s.quizId,title:s.revision.title,round:(s.roundIndex??0)+1,
     ratings:ratings.get(s.quizId),myRating:saved.get(s.quizId)??null,
+    isTranslation:s.revision.localization?.origin==="TRANSLATION",
+    myTranslationRating:savedTranslation.get(s.quizId)??null,
     ratingAccess:ratingAccess(actor,s.quiz.authorId,s.userId)
   }))};
 }

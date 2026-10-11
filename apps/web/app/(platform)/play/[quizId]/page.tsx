@@ -12,7 +12,7 @@ type Clue = { type: "text" | "image" | "audio" | "video" | "map"; text?: string;
   mediaId?: string; map?: {latitude:number;longitude:number;zoom?:number} };
 type Session = { sessionId: string; sessionToken: string; title: string;
   prompt: string; promptMediaIds: string[]; clue: Clue; clueIndex: number; clueCount: number;
-  ratings:RatingSummary;myRating:number|null;ratingAccess:RatingAccess };
+  ratings:RatingSummary;myRating:number|null;ratingAccess:RatingAccess;isTranslation?:boolean;myTranslationRating?:number|null };
 type Media = { mediaId:string; url:string; kind:string };
 
 async function api(path: string, body: unknown): Promise<any> {
@@ -161,8 +161,13 @@ export default function SingleQuizPage() {
       </div>}
       {status !== "ACTIVE" && <div className="single-rating-review">
         <h3>이 문제는 어땠나요?</h3>
-        <RatingButtons quizId={quizId} initialRating={session.myRating} access={session.ratingAccess}
+        <RatingButtons quizId={quizId} locale={locale} initialRating={session.myRating} access={session.ratingAccess}
           onSaved={(ratings,value)=>setSession(old=>old?{...old,ratings,myRating:value}:old)}/>
+        {session.isTranslation&&<div className="translation-quality-feedback">
+          <p className="muted">{locale==="ko"?"번역은 자연스럽고 정확했나요?":"Was the translation clear and accurate?"}</p>
+          <RatingButtons quizId={quizId} locale={locale} kind="TRANSLATION" initialRating={session.myTranslationRating??null} access={session.ratingAccess}
+            onSaved={(_rating,value)=>setSession(old=>old?{...old,myTranslationRating:value}:old)}/>
+        </div>}
         {session.ratingAccess==="SIGN_IN"&&<RatingSignIn destination={localizeHref("/play/"+quizId,locale)}/>}
       </div>}
       {status !== "ACTIVE" && <div className="actions">

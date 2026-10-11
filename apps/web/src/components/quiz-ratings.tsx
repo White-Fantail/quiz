@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useLocale } from "../i18n/provider";
 import type { RatingSummary } from "../modules/quiz/rating-metadata";
 export type RatingAccess = "SIGN_IN" | "OWN_QUIZ" | "GUEST_SESSION" | "READY";
 /** Community sentiment is independent of player success rate. */
@@ -11,24 +12,27 @@ export function RatingBadge({ratings}:{ratings?:RatingSummary|null}) {
     aria-label={"좋아요 "+ratings.positivePercent+"퍼센트, "+ratings.total+"명 평가"}>
     👍 {ratings.positivePercent}% · {ratings.total}명 평가</span>;
 }
-export function RatingButtons({quizId,initialRating,access,onSaved}:{
+export function RatingButtons({quizId,initialRating,access,locale:explicitLocale,kind="QUIZ",onSaved}:{
   quizId:string;initialRating:number|null;access:RatingAccess;
+  locale?:"en"|"ko";kind?:"QUIZ"|"TRANSLATION";
   onSaved?:(ratings:RatingSummary,value:number|null)=>void;
 }) {
+  const contextLocale=useLocale();
+  const locale=explicitLocale??contextLocale;
   const [rating,setRating]=useState<number|null>(initialRating);
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState("");
   const [notice,setNotice]=useState("");
-  useEffect(()=>{setRating(initialRating);setError("");setNotice("");},[quizId,initialRating]);
+  useEffect(()=>{setRating(initialRating);setError("");setNotice("");},[quizId,initialRating,locale,kind]);
   async function submit(next:-1|1) {
     if(access!=="READY"||busy)return;
     setBusy(true);setError("");setNotice("");
     const remove=rating===next;
     try {
-      const response=await fetch("/api/v1/quizzes/"+encodeURIComponent(quizId)+"/reviews",{
+      const response=await fetch("/api/v1/quizzes/"+encodeURIComponent(quizId)+"/reviews?locale="+locale+"&kind="+kind,{
         method:remove?"DELETE":"POST",credentials:"same-origin",
         headers:remove?undefined:{"Content-Type":"application/json"},
-        body:remove?undefined:JSON.stringify({rating:next,comment:""})
+        body:remove?undefined:JSON.stringify({rating:next,comment:"",locale,kind})
       });
       const result=await response.json().catch(()=>({}));
       if(!response.ok)throw new Error(result.message||"평가 저장에 실패했어요.");

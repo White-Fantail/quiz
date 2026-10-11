@@ -20,7 +20,7 @@ type Round = RunInfo & {sessionId:string;sessionToken:string;round:number;quizId
   prompt:string;promptMediaIds:string[];clues:Clue[];clueIndex:number;clueCount:number;
   sessionStatus:string;canGuess?:boolean;ratings?:RatingSummary;myRating?:number|null;ratingAccess?:RatingAccess};
 type Ranking = {rank:number;displayName:string;score:number;solved:number};
-type FeedbackItem = {quizId:string;round:number;title:string;ratings:RatingSummary;myRating:number|null;ratingAccess:RatingAccess};
+type FeedbackItem = {quizId:string;round:number;title:string;ratings:RatingSummary;myRating:number|null;ratingAccess:RatingAccess;isTranslation?:boolean;myTranslationRating?:number|null};
 type MediaPreview = {url:string;kind:string;mimeType:string;mediaId:string};
 
 async function api(path:string, method:"GET"|"POST"="GET",body?:unknown):Promise<any> {
@@ -323,8 +323,14 @@ export default function PlayPage() {
             {questionsToRate.map(q=><div className="run-rating-row" key={q.quizId}>
               <div className="run-rating-question"><strong>{q.round}. {q.title}</strong>
                 <RatingBadge ratings={q.ratings}/></div>
-              <RatingButtons quizId={q.quizId} initialRating={q.myRating} access={q.ratingAccess}
+              <RatingButtons quizId={q.quizId} locale={locale} initialRating={q.myRating} access={q.ratingAccess}
                 onSaved={(ratings,value)=>setQuestionsToRate(old=>old.map(row=>row.quizId===q.quizId?{...row,ratings,myRating:value}:row))}/>
+              {q.isTranslation&&<div className="translation-quality-feedback">
+                <p className="muted">{locale==="ko"?"번역 품질":"Translation quality"}</p>
+                <RatingButtons quizId={q.quizId} locale={locale} kind="TRANSLATION"
+                  initialRating={q.myTranslationRating??null} access={q.ratingAccess}
+                  onSaved={(_rating,value)=>setQuestionsToRate(old=>old.map(row=>row.quizId===q.quizId?{...row,myTranslationRating:value}:row))}/>
+              </div>}
             </div>)}
             {questionsToRate.some(q=>q.ratingAccess==="SIGN_IN")&&<RatingSignIn destination={localizeHref("/play", locale)}/>}
           </div>
