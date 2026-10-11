@@ -7,9 +7,9 @@ QuizDip is an open quiz playground where people dip into clue-led games, tackle 
 
 > **Status:** REST API, authenticated Remote MCP adapters, PostgreSQL/Prisma models, migration and shared quiz/play/community services are implemented on `dev`. **Not production-ready:** Google/Apple SSO and MCP OAuth code have been added, but live credentials, Better Auth migrations and end-to-end sign-in have not yet been verified; AI categorization, Kids safety automation, upload storage, and an operational admin console remain future work.
 
-## QuizDip Kids native app (Phases 1–4)
+## QuizDip Kids native app (Phases 1–5)
 
-`apps/kids` is the separate Expo/React Native experience for iPad/iOS and Android. The Kids web mode is still retained until Phases 2–4 and the verified Phase 5 cutover. Shared Kids messages and typed client contracts live in `packages/i18n` and `packages/api-client`. Phase 2 adds one-time PIN-authorized parent-issued codes, OS SecureStore child-only sessions, PIN-protected native exit, guardian-pinned EN/KO and protected approved-quiz discovery. It requires migration `20261012190000_kids_native_pairing`. The parent currently configures profiles and issues pairing codes through the authenticated web panel; Phases 3–4 add source-level guarded games, media clues, private treasures, 10-minute PIN-gated native guardian controls and device-shared daily time limits. Apply migrations `20261012200000_kids_native_play` and `20261012210000_kids_native_parent_time` before native activity. Real device/store checks remain pending; see [release runbook](docs/kids-native-phase4-release.md). Builds, staging migration and actual device E2E are not yet independently verified. See [native setup](apps/kids/README.md) and [migration plan](docs/kids-native-development-plan.md).
+`apps/kids` is the separate Expo/React Native experience for iPad/iOS and Android. The old web Kids game and menu are removed from dev in Phase 5 source. Native onboarding now starts from the adult `/account/kids` settings, with a PIN-only exit for old browser cookies. Production rollout and device QA remain unverified. Shared Kids messages and typed client contracts live in `packages/i18n` and `packages/api-client`. Phase 2 adds one-time PIN-authorized parent-issued codes, OS SecureStore child-only sessions, PIN-protected native exit, guardian-pinned EN/KO and protected approved-quiz discovery. It requires migration `20261012190000_kids_native_pairing`. The parent currently configures profiles and issues pairing codes through the authenticated web panel; Phases 3–4 add source-level guarded games, media clues, private treasures, 10-minute PIN-gated native guardian controls and device-shared daily time limits. Apply migrations `20261012200000_kids_native_play` and `20261012210000_kids_native_parent_time` before native activity. Real device/store checks remain pending; see [release runbook](docs/kids-native-phase4-release.md). Builds, staging migration and actual device E2E are not yet independently verified. See [native setup](apps/kids/README.md) and [migration plan](docs/kids-native-development-plan.md).
 
 ## Get started
 
@@ -53,7 +53,7 @@ REST and MCP adapters use the same **application service/policy layer** and pers
 | Path | Behavior |
 | --- | --- |
 | `/`, `/discover`, `/play` | Public discovery and game experience; live play requires configured backend services |
-| `/studio` | Creator entry, media library and weekly proposal UI; full general-purpose editor remains a separate feature |\n| `/kids` | Child-facing mode; content must independently pass the trusted Kids safety gate |
+| `/studio` | Creator entry, media library and weekly proposal UI; full general-purpose editor remains a separate feature |\n| `/account/kids` | Adult guardian profiles, PIN, one-time QuizDip Kids app pairing |
 | `/admin/*` | Restricted admin, weekly scheduling and safety review; requires server-side ADMIN checks |
 | `/api/health` | Health check |
 | `/api/v1/*` | Versioned REST: quizzes, packs, play sessions, reviews, reports, personal metrics and leaderboard |
