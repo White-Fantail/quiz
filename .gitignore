@@ -10,3 +10,7 @@ coverage/
 .DS_Store
 *.log
 .vercel/
+.expo/
+.expo-kids-export/
+apps/kids/ios/
+apps/kids/android/
