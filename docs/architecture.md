@@ -1,8 +1,8 @@
-# Architecture — Clupio single-deployment modular monolith
+# Architecture — QuizDip single-deployment modular monolith
 
 ## Decision
 
-The initial Clupio deployment is **one Next.js 16 + TypeScript application on Vercel**. Public Quiz/Play/Discover, creator Studio, restricted Admin, REST API and Remote MCP are logically separated but **not** independent applications or API servers. Introducing a separate FastAPI service or Python worker is not part of the initial setup.
+The initial QuizDip deployment is **one Next.js 16 + TypeScript application on Vercel**. Public Quiz/Play/Discover, creator Studio, restricted Admin, REST API and Remote MCP are logically separated but **not** independent applications or API servers. Introducing a separate FastAPI service or Python worker is not part of the initial setup.
 
 When real load or long-running GPU/media processing justifies it, add a separately deployed worker/service without splitting shared policy logic prematurely.
 

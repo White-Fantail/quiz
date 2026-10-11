@@ -1,9 +1,9 @@
-# Clupio Google / Apple SSO + MCP OAuth
+# QuizDip Google / Apple SSO + MCP OAuth
 
 ## What is implemented
 
 - Web OAuth login: Better Auth with Google and Apple identity providers under `/api/auth/*`.
-- Stable Clupio identity: Better Auth `user.id` is the canonical user ID for signed-in web requests, REST, MCP, quiz ownership, reviews and scores. `actorByIdentity` ensures the existing domain `User` row is provisioned with that ID. Google/Apple credentials are **not** used as domain IDs.
+- Stable QuizDip identity: Better Auth `user.id` is the canonical user ID for signed-in web requests, REST, MCP, quiz ownership, reviews and scores. `actorByIdentity` ensures the existing domain `User` row is provisioned with that ID. Google/Apple credentials are **not** used as domain IDs.
 - Explicit account linking: `/account` provides provider connections using `linkSocial` and `listAccounts`. Different addresses (e.g. Apple's private relay) may be linked after authenticating with the existing account. **Never merge users based on email alone.** Never reassign two already separate accounts automatically.
 - MCP authorization: Better Auth `mcp()` OAuth 2.1 Authorization Server + `cimd()` Client ID Metadata Documents + `jwt()`. Resource identifier: `{BETTER_AUTH_URL}/api/mcp`. Tokens are scoped and audience-bound; the MCP resource route uses `requireMcpAuth` (signature, issuer, audience, expiry, DPoP when bound, and required `mcp:tools` scope).
 - MCP transport: stateless POST with the 2026-07-28 MCP profile. The original 25 authorized tools still call the same shared `execute()` services as REST.
@@ -62,7 +62,7 @@ Run against **dev** DB first. Review migrations, take backup before prod, and us
 
 1. Google first sign-in creates a Better Auth user. `GET /api/v1/me` returns stable domain user ID and owner-only content.
 2. In `/account`, click **이 계정에 연결** for Apple, complete Apple authentication, and return to the same Better Auth user ID. Verify `/api/v1/me` and existing created quizzes are unchanged after either sign-in.
-3. With a separate browser session, use ChatGPT's MCP connection flow for `https://YOUR_DOMAIN/api/mcp`. OAuth discovers authorization metadata and CIMD client identity; sign in with Google or Apple, consent, call `clupio_me`, `clupio_my_quizzes`, then create a test quiz. It must return the **same Clupio ID** as web.
+3. With a separate browser session, use ChatGPT's MCP connection flow for `https://YOUR_DOMAIN/api/mcp`. OAuth discovers authorization metadata and CIMD client identity; sign in with Google or Apple, consent, call `quizdip_me`, `quizdip_my_quizzes`, then create a test quiz. It must return the **same QuizDip ID** as web.
 4. Invalid access token, wrong `aud`, expired token, missing `mcp:tools`, cross-origin web mutation, other user's draft, and an unrelated Google/Apple account must be rejected.
 5. Deny consent and confirm the client has no authorized MCP access. Test refresh and revocation. Verify all 25 MCP tools remain registered, and source-level REST/MCP parity.
 6. If an older MCP client cannot use CIMD, consider setting `MCP_ENABLE_DCR=true` **only with front-door rate limiting, monitoring and anti-abuse rules**. CIMD is the recommended default for modern MCP.

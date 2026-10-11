@@ -1,4 +1,4 @@
-# Clupio REST API / Remote MCP v1
+# QuizDip REST API / Remote MCP v1
 
 The web UI, REST API and MCP tools reuse `execute()` and the same policy layer. MCP is a permanent, full-capability interface. The mandatory future feature parity rule lives in `AGENTS.md`.
 
@@ -6,48 +6,48 @@ The web UI, REST API and MCP tools reuse `execute()` and the same policy layer. 
 
 | Action | HTTP REST | MCP tool |
 | --- | --- | --- |
-| Capabilities and schemas | GET /api/v1/catalog | clupio_catalog |
-| Featured weekly edition and host | GET /api/v1/weekly/current | clupio_weekly_current |
-| Creator's five-question weekly submission | POST /api/v1/weekly/submit | clupio_weekly_submit |
-| ADMIN proposal queue and approved schedule | GET /api/v1/weekly/proposals, POST /api/v1/weekly/:id/publish | clupio_weekly_proposals / clupio_weekly_publish |
-| ADMIN suspend an edition | POST /api/v1/weekly/:id/suspend | clupio_weekly_suspend |
-| Weekly official first-attempt leaderboard | GET /api/v1/weekly/:id/standings | clupio_weekly_standings |
-| Begin/resume weekly/five random/infinite | POST /api/v1/runs | clupio_run_start |
-| Current question in fixed run | POST /api/v1/runs/:id/current | clupio_run_current |
-| End infinite practice | POST /api/v1/runs/:id/finish | clupio_run_finish |
-| User's run history | GET /api/v1/runs | clupio_run_history |
-| Public ranking user consent | PATCH /api/v1/me/ranking | clupio_ranking_optin |
-| Adult eligibility verification (ADMIN) | POST /api/v1/admin/verify-adult | clupio_adult_verify |
-| Reserve R2 media upload / upload small base64 chunk / seal asset | POST /api/v1/media/upload, POST /api/v1/media/:id/chunk, POST /api/v1/media/:id/complete | clupio_media_upload / clupio_media_chunk / clupio_media_complete |
-| Import media by approved HTTPS hostname | POST /api/v1/media/import | clupio_media_import |
-| My media asset library | GET /api/v1/media, GET /api/v1/media/:id | clupio_media_list / clupio_media_get |
-| Metadata update / confirmed deletion | PATCH /api/v1/media/:id, DELETE /api/v1/media/:id | clupio_media_update / clupio_media_delete |
-| Image crop/blur/resize | POST /api/v1/media/:id/transform | clupio_media_transform |
-| ADMIN-only media moderation | POST /api/v1/media/:id/review | clupio_media_review |
-| Session-gated signed media URL | POST /api/v1/play/:id/media | clupio_play_media |
-| List public / own / Kids-eligible quizzes | GET /api/v1/quizzes | clupio_quiz_list |
-| Get question (answer only for owner) | GET /api/v1/quizzes/:id | clupio_quiz_get |
-| ADMIN inspect full quiz and answer | GET /api/v1/quizzes/:id/review | clupio_quiz_review_get |
-| ADMIN independently approve Kids or restrict quiz | POST /api/v1/quizzes/:id/review | clupio_quiz_review |
-| ADMIN inspect media | GET /api/v1/media/:id/review | clupio_media_review_get |
-| Create versioned question | POST /api/v1/quizzes | clupio_quiz_create |
-| Edit with expectedVersion | PATCH /api/v1/quizzes/:id | clupio_quiz_update |
-| Replace clue sequence | PUT /api/v1/quizzes/:id/clues | clupio_clues_replace |
-| Confirm public publication | POST /api/v1/quizzes/:id/publish | clupio_quiz_publish |
-| List/create packs | GET/POST /api/v1/packs | clupio_pack_list / clupio_pack_create |
-| Update pack and publication | PATCH /api/v1/packs/:id | clupio_pack_update |
-| Start game | POST /api/v1/play | clupio_play_start |
-| Reveal next clue | POST /api/v1/play/:id/clue | clupio_play_clue |
-| Submit answer | POST /api/v1/play/:id/guess | clupio_play_guess |
-| List/leave reviews | GET/POST /api/v1/quizzes/:id/reviews | clupio_reviews_list / clupio_review_upsert |
-| Submit report | POST /api/v1/quizzes/:id/reports | clupio_report_create |
-| My reports | GET /api/v1/reports/mine | clupio_reports_mine |
-| Version-scoped success analytics | GET /api/v1/quizzes/:id/stats | clupio_quiz_stats |
-| My profile / questions / statistics | GET /api/v1/me, /me/quizzes, /me/stats | clupio_me / clupio_my_quizzes / clupio_my_stats |
-| Verified adult rankings | GET /api/v1/leaderboard | clupio_leaderboard |
-| Creator's public profile/reputation | GET /api/v1/users/:id | clupio_user_get |
-| Creator's reviews | GET /api/v1/users/:id/reviews | clupio_creator_reviews_list |
-| Review a creator after playing their question | POST /api/v1/users/:id/reviews | clupio_creator_review_upsert |
+| Capabilities and schemas | GET /api/v1/catalog | quizdip_catalog |
+| Featured weekly edition and host | GET /api/v1/weekly/current | quizdip_weekly_current |
+| Creator's five-question weekly submission | POST /api/v1/weekly/submit | quizdip_weekly_submit |
+| ADMIN proposal queue and approved schedule | GET /api/v1/weekly/proposals, POST /api/v1/weekly/:id/publish | quizdip_weekly_proposals / quizdip_weekly_publish |
+| ADMIN suspend an edition | POST /api/v1/weekly/:id/suspend | quizdip_weekly_suspend |
+| Weekly official first-attempt leaderboard | GET /api/v1/weekly/:id/standings | quizdip_weekly_standings |
+| Begin/resume weekly/five random/infinite | POST /api/v1/runs | quizdip_run_start |
+| Current question in fixed run | POST /api/v1/runs/:id/current | quizdip_run_current |
+| End infinite practice | POST /api/v1/runs/:id/finish | quizdip_run_finish |
+| User's run history | GET /api/v1/runs | quizdip_run_history |
+| Public ranking user consent | PATCH /api/v1/me/ranking | quizdip_ranking_optin |
+| Adult eligibility verification (ADMIN) | POST /api/v1/admin/verify-adult | quizdip_adult_verify |
+| Reserve R2 media upload / upload small base64 chunk / seal asset | POST /api/v1/media/upload, POST /api/v1/media/:id/chunk, POST /api/v1/media/:id/complete | quizdip_media_upload / quizdip_media_chunk / quizdip_media_complete |
+| Import media by approved HTTPS hostname | POST /api/v1/media/import | quizdip_media_import |
+| My media asset library | GET /api/v1/media, GET /api/v1/media/:id | quizdip_media_list / quizdip_media_get |
+| Metadata update / confirmed deletion | PATCH /api/v1/media/:id, DELETE /api/v1/media/:id | quizdip_media_update / quizdip_media_delete |
+| Image crop/blur/resize | POST /api/v1/media/:id/transform | quizdip_media_transform |
+| ADMIN-only media moderation | POST /api/v1/media/:id/review | quizdip_media_review |
+| Session-gated signed media URL | POST /api/v1/play/:id/media | quizdip_play_media |
+| List public / own / Kids-eligible quizzes | GET /api/v1/quizzes | quizdip_quiz_list |
+| Get question (answer only for owner) | GET /api/v1/quizzes/:id | quizdip_quiz_get |
+| ADMIN inspect full quiz and answer | GET /api/v1/quizzes/:id/review | quizdip_quiz_review_get |
+| ADMIN independently approve Kids or restrict quiz | POST /api/v1/quizzes/:id/review | quizdip_quiz_review |
+| ADMIN inspect media | GET /api/v1/media/:id/review | quizdip_media_review_get |
+| Create versioned question | POST /api/v1/quizzes | quizdip_quiz_create |
+| Edit with expectedVersion | PATCH /api/v1/quizzes/:id | quizdip_quiz_update |
+| Replace clue sequence | PUT /api/v1/quizzes/:id/clues | quizdip_clues_replace |
+| Confirm public publication | POST /api/v1/quizzes/:id/publish | quizdip_quiz_publish |
+| List/create packs | GET/POST /api/v1/packs | quizdip_pack_list / quizdip_pack_create |
+| Update pack and publication | PATCH /api/v1/packs/:id | quizdip_pack_update |
+| Start game | POST /api/v1/play | quizdip_play_start |
+| Reveal next clue | POST /api/v1/play/:id/clue | quizdip_play_clue |
+| Submit answer | POST /api/v1/play/:id/guess | quizdip_play_guess |
+| List/leave reviews | GET/POST /api/v1/quizzes/:id/reviews | quizdip_reviews_list / quizdip_review_upsert |
+| Submit report | POST /api/v1/quizzes/:id/reports | quizdip_report_create |
+| My reports | GET /api/v1/reports/mine | quizdip_reports_mine |
+| Version-scoped success analytics | GET /api/v1/quizzes/:id/stats | quizdip_quiz_stats |
+| My profile / questions / statistics | GET /api/v1/me, /me/quizzes, /me/stats | quizdip_me / quizdip_my_quizzes / quizdip_my_stats |
+| Verified adult rankings | GET /api/v1/leaderboard | quizdip_leaderboard |
+| Creator's public profile/reputation | GET /api/v1/users/:id | quizdip_user_get |
+| Creator's reviews | GET /api/v1/users/:id/reviews | quizdip_creator_reviews_list |
+| Review a creator after playing their question | POST /api/v1/users/:id/reviews | quizdip_creator_review_upsert |
 
 Tool arguments are typed by Zod schemas in `apps/web/src/modules/platform/contracts.ts`, and validation also runs for REST. REST uses JSON response envelopes `{ data: ... }`; mutations accept a JSON object body. MCP uses Streamable HTTP at `/api/mcp` (SDK v2, stateless).
 
@@ -71,11 +71,15 @@ Before remote access:
 1. Follow [Google/Apple SSO and MCP OAuth setup](auth-sso-mcp.md). Configure and migrate development PostgreSQL before production.
 2. Configure Google and Apple provider credentials, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, and `PUBLIC_ORIGIN`. The old `OIDC_ISSUER`/`OIDC_AUDIENCE`/`OIDC_JWKS_URL` configuration has been replaced.
 3. Apply both migrations: Prisma domain (`npm run db:migrate`) and Better Auth auth/OAuth tables (`npx auth@1.7.7 migrate --config ./apps/web/src/lib/auth.ts --yes`).
-4. Run tests, typecheck and build, then verify signed-in web identity matches MCP `clupio_me` identity, linking, refresh, consent, account restrictions, Kids and rankings.
+4. Run tests, typecheck and build, then verify signed-in web identity matches MCP `quizdip_me` identity, linking, refresh, consent, account restrictions, Kids and rankings.
 5. Before public traffic, enable distributed OAuth and game rate limiting, moderation/abuse automation, adult eligibility checks and verified media storage.
 
 Never treat an MCP tool listed in metadata or a passing typecheck as proof that it is live with an authenticated DB.
 
 ## Authentication interface exception
 
-OAuth provider sign-in, linking and unlinking Google/Apple accounts, and interactive third-party consent are **deliberately web-only** user-presence operations at `/sign-in`, `/account` and `/consent`, rather than MCP tools. This prevents an AI agent from silently rebinding the owner's identity or authorizing a new external client. ChatGPT initiates the standard MCP OAuth protocol, which redirects the human to these screens; afterward it uses the verified `clupio_me` tool to identify the same account. OAuth refresh/revocation are standard authorization-server endpoints, not business-domain MCP tools.
+OAuth provider sign-in, linking and unlinking Google/Apple accounts, and interactive third-party consent are **deliberately web-only** user-presence operations at `/sign-in`, `/account` and `/consent`, rather than MCP tools. This prevents an AI agent from silently rebinding the owner's identity or authorizing a new external client. ChatGPT initiates the standard MCP OAuth protocol, which redirects the human to these screens; afterward it uses the verified `quizdip_me` tool to identify the same account. OAuth refresh/revocation are standard authorization-server endpoints, not business-domain MCP tools.
+
+### QuizDip MCP tool migration
+
+Clients should discover and use `quizdip_*` tool names. Every existing `clupio_*` name is also registered temporarily as a deprecated alias and calls the same operation, authorization and validation logic. The endpoint remains `/api/mcp`; consented identities and stored records are unchanged.

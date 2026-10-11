@@ -2,7 +2,7 @@
 
 > 문제 제작은 자유롭게. 공개는 즉시. 분류는 자동으로. 노출은 사용자에 맞게. 안전 관리는 지속적으로.
 
-Clupio is an open quiz platform centered on progressive clues and the joy of figuring things out.
+QuizDip is an open quiz platform centered on progressive clues and the joy of figuring things out.
 
 - Anyone can create and publish quizzes. Minimize required creator settings; AI can propose defaults and help craft better clue progression.
 - Creators may edit their target audience or intention, but cannot alter platform-assessed safety.

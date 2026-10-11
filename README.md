@@ -1,9 +1,9 @@
-# Clupio (클루피오)
+# QuizDip (퀴즈딥)
 
-**Follow the clues. Find the fun.**  
+**A little quiz. A lot of fun.**  
 단서를 따라, 재미를 발견해.
 
-Clupio is a playful, open quiz platform where people follow clues, discover answers, and create and share their own quizzes.
+QuizDip is an open quiz playground where people dip into clue-led games, tackle a weekly five-question challenge, and create and share their own quizzes.
 
 > **Status:** REST API, authenticated Remote MCP adapters, PostgreSQL/Prisma models, migration and shared quiz/play/community services are implemented on `dev`. **Not production-ready:** Google/Apple SSO and MCP OAuth code have been added, but live credentials, Better Auth migrations and end-to-end sign-in have not yet been verified; AI categorization, Kids safety automation, upload storage, and an operational admin console remain future work.
 
@@ -67,7 +67,7 @@ Creator intent, AI recommended audience/difficulty and platform-managed safety a
 - **`main`** is the stable baseline, advanced only on explicit request.
 - Use **fast-forward-only** merges (`git merge --ff-only`); no merge commits, squash merges or force pushes.
 
-See [AGENTS.md](AGENTS.md), [architecture](docs/architecture.md), [brand](docs/brand.md) and [roadmap](docs/roadmap.md).
+See [AGENTS.md](AGENTS.md), [architecture](docs/architecture.md), [brand](docs/brand.md) and [roadmap](docs/roadmap.md). The official brand and GitHub repository are **QuizDip** / `White-Fantail/quizdip`; legacy internal `@clupio/*` workspace identifiers and `clupio_*` MCP aliases are retained temporarily for compatibility.
 
 ## API and MCP setup
 
@@ -88,3 +88,7 @@ The main `/play` experience is the **featured creator's same five questions for 
 ## Trusted safety moderation
 
 Staff can inspect full quiz answers, clues and media via /admin/quiz-review before approving Kids eligibility. REST and MCP share the four ADMIN-only quiz_review_get, quiz_review, media_review_get and media_review operations. This is human moderation, not a live automatic AI classifier.
+
+## QuizDip rebrand rollout
+
+The code and docs use the new brand; connecting `quizdip.com`, configuring production origins/SSO callbacks and replacing any third-party app name or DNS entries are separate deployment steps. New MCP operations use `quizdip_*`; existing `clupio_*` names still work as deprecated aliases. No data migrations or token format changes are needed solely for this branding update.

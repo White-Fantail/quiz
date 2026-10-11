@@ -1,7 +1,7 @@
-# Clupio AI development instructions
+# QuizDip AI development instructions
 
 ## Product and branding
-Clupio is a friendly quiz playground centered on progressive clues and the joy of discovery. External name: **Clupio (클루피오)**; repository name: `quiz`. Follow [docs/brand.md](docs/brand.md).
+QuizDip is a friendly quiz playground centered on progressive clues and the joy of discovery. External name: **QuizDip (퀴즈딥)**; repository name: `quizdip`. Follow [docs/brand.md](docs/brand.md).
 
 ## Architecture
 - Implement a **single Next.js modular monolith** on Vercel: public Play/Discover, creator Studio, restricted Admin, REST API and Remote MCP share one deployment.
@@ -14,7 +14,7 @@ Clupio is a friendly quiz playground centered on progressive clues and the joy o
 
 ## Web, social identity, and MCP OAuth (mandatory)
 - Use Better Auth's *stable user.id* as the identity for both web browser sessions and MCP OAuth tokens. Do not derive account IDs separately from provider emails or Google/Apple tokens.
-- All new auth providers must be wired into `apps/web/src/lib/auth.ts`, sign-in and account-linking UX, and `docs/auth-sso-mcp.md`; they must preserve the same Clupio account, ownership, reviews and scores.
+- All new auth providers must be wired into `apps/web/src/lib/auth.ts`, sign-in and account-linking UX, and `docs/auth-sso-mcp.md`; they must preserve the same QuizDip account, ownership, reviews and scores.
 - Never automatically merge accounts by email. Different Google/Apple identities may be linked **explicitly from an already authenticated account**. Never silently transfer content between two existing Better Auth users.
 - MCP requires a resource-bound OAuth 2.1 token for `/api/mcp` validated by `requireMcpAuth`. The web uses Better Auth session cookies. No raw Google/Apple tokens, shared master API keys, or mock identities.
 - Keep `/consent`, OAuth discovery and the auth provider migrations tested whenever changing MCP scopes or tool permissions. Every new operation must maintain the REST/MCP feature-parity requirement below.
@@ -46,7 +46,7 @@ Clupio is a friendly quiz playground centered on progressive clues and the joy o
 
 
 ## REQUIRED: API + MCP feature parity for every future change
-MCP is a full Clupio product interface, **not just an authoring connector**. Every new capability available through REST, Studio, Play, Discover, user profiles, community, analytics, moderation-status or rankings **MUST also have an appropriately authorized MCP tool**.
+MCP is a full QuizDip product interface, **not just an authoring connector**. Every new capability available through REST, Studio, Play, Discover, user profiles, community, analytics, moderation-status or rankings **MUST also have an appropriately authorized MCP tool**.
 - When adding or modifying a feature, update **together**: Prisma schema and migration (when needed), shared service operation, input validation in `apps/web/src/modules/platform/contracts.ts`, REST route mapping, MCP tool exposed by `apps/web/app/api/mcp/route.ts`, `docs/api-mcp.md`, plus relevant unit/integration/parity tests.
 - Both interfaces MUST call `execute()` in `apps/web/src/modules/platform/operations.ts` with the same server-enforced access control and business rules. Do not write an MCP-only database implementation or bypass safety, publication, creator ownership, version checks, ranking privacy or spam limits.
 - **MCP tool coverage is a release requirement**, not optional follow-up work. If a dangerous/privileged action is deliberately omitted, document precisely why and expose its safe read-only alternative where possible.
@@ -64,3 +64,10 @@ MCP is a full Clupio product interface, **not just an authoring connector**. Eve
 ## Moderator play safety release requirement
 - The Kids manual review console is /admin/quiz-review. Its read operations quiz_review_get and media_review_get deliberately return sensitive answers and signed unapproved media **only** to authenticated ADMIN; all other public tool routes must keep staged answers and media secret.
 - A Kids approval requires all media preapproved, currentVersion optimistic concurrency and auditable reason; creators cannot approve themselves or override RESTRICTED.
+
+## QuizDip transition safeguards
+
+- QuizDip is the only new customer-facing brand. The repository is `White-Fantail/quizdip`.
+- New MCP clients use `quizdip_*`; maintain the old `clupio_*` aliases until a separately reviewed breaking-change release.
+- Internal npm workspace scopes (`@clupio/*`), persisted database names, existing R2 buckets and HMAC token namespaces are legacy technical identifiers, NOT copy shown to users. Do not change these without migration tests.
+- Branding changes must not loosen publication, permissions, content safety or Kids requirements.
