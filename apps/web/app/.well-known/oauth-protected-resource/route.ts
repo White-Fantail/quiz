@@ -1,4 +1,4 @@
-import { auth } from "../../src/lib/auth";
+import { auth } from "../../../src/lib/auth";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 // Forward the request to the metadata produced by the SAME configured OAuth server.

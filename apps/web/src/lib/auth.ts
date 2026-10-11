@@ -59,7 +59,6 @@ export const auth = betterAuth({
       consentPage: "/consent",
       resource: mcpResource,
       scopes: ["openid", "profile", "email", "offline_access", "mcp:tools"],
-      requiredScopes: ["mcp:tools"],
       accessTokenExpiresIn: 3600,
       // CIMD is preferred. Allow DCR only by explicitly enabling a controlled environment.
       allowDynamicClientRegistration: process.env.MCP_ENABLE_DCR === "true",
