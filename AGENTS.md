@@ -108,3 +108,12 @@ MCP is a full QuizDip product interface, **not just an authoring connector**. Ev
 - Guard quiz revision, Kids affirmative safety, guardian-pinned locale, published version and each media asset on **every** protected game request. Never use unapproved translation/media after a review reset.
 - Save child play capabilities only in SecureStore; on approval revocation hide cached content. Child progress/badges stay private. Deleting a child profile clears child-specific play history; no child standings.
 - Map coordinates are a placeholder for a native map view. Never call Phase 3 production-ready without migration `20261012200000_kids_native_play`, builds and real-device R2/media/security tests. Retire web Kids only after Phase 4/5 gates.
+
+## Kids native Phase 4 privacy, time and release gates
+
+- Child usage is the server's UTC-minute ledger, unique per child across devices, with guardian-chosen local day. Every Kids play/media, catalogue and treasure endpoint must require a recent verified time heartbeat; offline is fail-closed.
+- The existing `sessionMinutes` is legacy web expiry; native uses separate `dailyMinutes`, `playSessionMinutes`, `breakEveryMinutes`, `timeZone`. A soft break reminder does not replace a server-enforced daily or continuous-session cap.
+- In-app guardian control requires short-lived PIN-elevated `KidParentAccess` bound to an active child device and stored only in RAM; it must not authorize general REST/MCP and must be cleared on background. Guardian-controlled deletion/revocation is ownership-checked server-side.
+- App store Kids/Families/privacy compliance is **not certified** by static SDK permissions. Publish an accurate privacy policy, configure `CRON_SECRET` and authenticated daily retention cleanup, run real device/security tests, and document proof before rollout.
+- First-time native pairing still depends on `/kids/parent` web guardian bootstrap. Move it to the adult account or implement audited native sign-in **before Phase 5 deletes all web Kids**.
+- Full verification matrix: `docs/kids-native-phase4-release.md`. Do not claim Phase 4 release readiness or merge `main` without explicit user request.
