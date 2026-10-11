@@ -64,3 +64,7 @@ The app makes a server-authoritative heartbeat immediately and every 45 seconds 
 DB migration: `20261012210000_kids_native_parent_time` (after the other three Kids migrations). For privacy a protected `/api/internal/kids-retention` route removes minute entries after 90 days; deploy a separate daily scheduler and `CRON_SECRET`. Full release QA and Phase 5 handover: [Phase 4 runbook](../../docs/kids-native-phase4-release.md).
 
 **Bootstrap dependency:** `/kids/parent` web onboarding is still necessary for first-time paired devices. Do not delete that page until a separate audited adult-account route or native OAuth flow replaces it. Child-facing web Kids mode remains until Phase 5.
+
+### Child-safe quiz reporting
+
+During a playable question, tap **Tell us about a problem** and select unsafe content, incorrect answer or broken media. Reports have no free-text form and the server accepts a report only from a profile that actually played that quiz. Moderators see only reason counts from existing ADMIN-only shared REST/MCP review operations. Apply `20261012220000_kids_safety_reports` after the Phase 4 time migration. Do not assume a report automatically withdraws a question: trusted moderation remains responsible for approvals/restrictions and emergency media takedown.
