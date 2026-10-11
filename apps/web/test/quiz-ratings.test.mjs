@@ -30,8 +30,8 @@ test("Discover and run UI rate finished questions, not the middle of a five-roun
   assert.match(continuous,/questionsToRate\.map/);
   assert.match(single,/status !== "ACTIVE" && <div className="single-rating-review">/);
   assert.match(discover,/<RatingBadge ratings={quiz\.ratings}/);
-  assert.match(service,/playSession\.count/);
-  assert.match(service,/quizId_authorId/);
+  assert.match(service,/playSession\.findFirst/);
+  assert.match(service,/quizId_authorId_locale_kind/);
   assert.match(service,/authorId:user\.id/);
   assert.match(feedback,/checkedRun\(p\.runId,p\.runToken,actor\)/);
   assert.match(feedback,/status:\{in:\["SOLVED","FAILED"\]\}/);

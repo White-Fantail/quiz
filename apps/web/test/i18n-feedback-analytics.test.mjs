@@ -1,0 +1,57 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import {readFileSync} from "node:fs";
+import {parseOperation,operations} from "../src/modules/platform/contracts.ts";
+const read=p=>readFileSync(new URL("../"+p,import.meta.url),"utf8");
+const id="94f0792a-18e6-40c0-a480-0be6d46dbb37";
+test("feedback language and category input validation",()=>{
+  assert.equal(parseOperation("review_upsert",{quizId:id,rating:1,locale:"ko",kind:"TRANSLATION"}).kind,"TRANSLATION");
+  assert.equal(parseOperation("review_remove",{quizId:id,locale:"ko"}).locale,"ko");
+  assert.equal(parseOperation("reviews_list",{quizId:id,locale:"en"}).kind,"QUIZ");
+  assert.equal(parseOperation("quiz_stats",{quizId:id,locale:"ko",version:2}).version,2);
+  assert.equal(parseOperation("my_quiz_insights",{quizId:id}).locale,"all");
+  assert.equal(parseOperation("weekly_insights",{challengeId:id}).locale,"all");
+  assert.equal(operations.weekly_insights.public,false);
+  assert.throws(()=>parseOperation("review_upsert",{quizId:id,locale:"xx",rating:1}));
+  assert.throws(()=>parseOperation("review_upsert",{quizId:id,locale:"ko",kind:"FAKE",rating:1}));
+  assert.equal("authorId" in parseOperation("review_remove",{quizId:id,locale:"en",authorId:"attacker"}),false);
+});
+test("migration preserves legacy votes with unknown locale, revision FK",()=>{
+  const schema=read("../../prisma/schema.prisma");
+  const sql=read("../../prisma/migrations/20261012120000_locale_feedback_analytics/migration.sql");
+  assert.match(schema,/@@unique\(\[quizId, authorId, locale, kind\]\)/);
+  assert.match(schema,/model Report[\s\S]*?revisionId\s+String\?/);
+  assert.match(sql,/DEFAULT 'und'/);
+  assert.match(sql,/DROP INDEX IF EXISTS "Review_quizId_authorId_key"/);
+  assert.match(sql,/REFERENCES "QuizRevision"/);
+});
+test("rating summaries and reviewer eligibility depend on same-language completed sessions",()=>{
+  const ratings=read("src/modules/platform/ratings.ts");
+  const social=read("src/modules/platform/social.ts");
+  const runs=read("src/modules/platform/runs.ts");
+  const ui=read("src/components/quiz-ratings.tsx");
+  assert.match(ratings,/where:\{quizId:\{in:unique\},locale,kind\}/);
+  assert.match(social,/playSession\.findFirst/);
+  assert.match(social,/revision:\{localizationId:loc.id\}/);
+  assert.match(social,/kind:p.kind/);
+  assert.match(runs,/run.locale as Locale/);
+  assert.match(runs,/weeklyInsights/);
+  assert.match(runs,/edition.hostId!==user.id/);
+  assert.match(ui,/locale:explicitLocale/);
+  assert.match(ui,/kind="QUIZ"/);
+  assert.match(read("app/api/v1/[...segments]/route.ts"),/request.method === "DELETE"/);
+});
+test("studio/public statistics filter by locale and revision without leaking user identities",()=>{
+  const stats=read("src/modules/platform/analytics.ts");
+  const studio=read("src/modules/platform/studio.ts");
+  const view=read("app/(creator)/studio/quizzes/[quizId]/quiz-detail.tsx");
+  const single=read("app/(platform)/play/[quizId]/page.tsx");
+  assert.match(stats,/localizationId_version/);
+  assert.match(stats,/locale:p.locale/);
+  assert.match(stats,/TRANSLATION/);
+  assert.match(studio,/selectedLocale==="all"/);
+  assert.match(studio,/by:\["locale","status"\]/);
+  assert.match(view,/studio-locale-filter/);
+  assert.match(view,/insights.languages.map/);
+  assert.match(single,/kind="TRANSLATION"/);
+});
