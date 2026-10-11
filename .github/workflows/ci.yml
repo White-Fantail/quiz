@@ -1,0 +1,24 @@
+name: CI
+
+on:
+  push:
+    branches: [dev, main]
+  pull_request:
+    branches: [dev, main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      # Initial scaffold does not have a lockfile yet.
+      # After generating and committing package-lock.json, switch to npm ci.
+      - run: npm install --no-audit --no-fund
+      - run: npm run test
+      - run: npm run typecheck
+      - run: npm run build

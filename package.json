@@ -1,0 +1,23 @@
+{
+  "name": "clupio",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "dev": "npm run dev --workspace @clupio/web",
+    "build": "npm run build --workspace @clupio/web",
+    "start": "npm run start --workspace @clupio/web",
+    "typecheck": "npm run typecheck --workspace @clupio/domain && npm run typecheck --workspace @clupio/web",
+    "test": "node --experimental-strip-types --test packages/domain/test/*.test.mjs"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.0",
+    "@types/node": "^22.15.0"
+  }
+}
