@@ -82,3 +82,16 @@ a.feature-card:hover { border-color:#B4AEF7; transform:translateY(-3px); }
 .social-actions > .btn { width:100%; }
 .connected-provider { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px; border:1px solid var(--border); border-radius:14px; flex-wrap:wrap; }
 .connected-provider .btn { min-height:39px; padding:7px 14px; }
+
+.media-workspace .placeholder-panel { margin-top:24px; }
+.media-editor { display:grid; gap:14px; max-width:650px; margin-bottom:20px; }
+.media-editor label { display:grid; gap:6px; font-weight:700; }
+.media-editor input { border:1px solid #CBC7E4; border-radius:12px; padding:11px 14px; min-width:0; background:white; }
+.media-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr)); gap:20px; margin-top:24px; }
+.media-grid .feature-card h3 { overflow-wrap:anywhere; min-height:0; }
+.media-grid .feature-card p { min-height:0; }
+.media-grid .actions { margin-top:15px; }
+.media-grid .btn { padding:7px 12px; min-height:39px; font-size:.85rem; }
+.media-identity { font-size:.7rem; overflow-wrap:anywhere; }
+.media-preview { width:100%; max-height:250px; object-fit:contain; background:#eee; border-radius:12px; }
+.media-grid audio { max-width:100%; }

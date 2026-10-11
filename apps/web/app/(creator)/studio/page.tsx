@@ -8,8 +8,8 @@ export default function StudioPage() {
       <p className="lead">만들고 싶은 퀴즈만 생각해 둬. 복잡한 설정 없이 제작하고 AI에게 도움받는 Studio를 준비하고 있어.</p>
       <div className="placeholder-panel">
         <h2>Studio는 개발 예정이에요</h2>
-        <p>지금은 실제 저장·공개·AI 제작 기능이 없어요. 향후 웹 제작 도구와 ChatGPT/MCP 모두 동일한 콘텐츠 API를 사용해요.</p>
-        <Link href="/play" className="btn btn-outline">게임 먼저 체험하기</Link>
+        <p>퀴즈 제작 UI는 준비 중이지만, 이미지·음원·영상은 지금 미디어 보관함에서 업로드할 수 있어요. 문제 등록과 단서 연결은 REST/MCP API를 통해 지원해요.</p>
+        <div className="actions"><Link href="/studio/media" className="btn btn-primary">미디어 보관함 열기</Link><Link href="/play" className="btn btn-outline">게임 먼저 체험하기</Link></div>
       </div>
     </section>
   );
