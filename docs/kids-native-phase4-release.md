@@ -6,6 +6,7 @@ Status (2026-10-12): **source implemented on `dev`; not deployed, built or certi
 
 - Dedicated Expo app `apps/kids`. Child is paired once using a high-entropy one-time code issued by a guardian who authenticated to QuizDip web with Better Auth and verified their six-digit PIN. First pairing still requires that temporary web guardian-bootstrap page; full web Kids removal must first relocate onboarding into adult account settings **or** implement independently audited system-browser guardian OAuth/PKCE. Never remove `/kids/parent` while it's the only path to pairing first devices.
 - `KidParentAccess` grants 10 minutes of **server-scoped guardian settings** to a verified native child device plus parent PIN. Native stores guardian elevation **only in React memory** (not SecureStore). When backgrounded, it is erased, and a new PIN is required. It never becomes an adult Better Auth cookie or grants Studio/Admin/MCP operations.
+- Guardian activity is logged via `AuditLog` with action name and guardian ID only — no PINs, pairing codes, child nicknames or bearer credentials.
 - Parent screen supports adding/editing/deleting a child profile, PIN changes, native pairing, device revocation, child-only progress deletion, 7-day private plays/accuracy/topics/usage summary, EN/KO language, age band, family time zone, daily minutes, continuous-play cap and soft break reminder. PIN reset after forgetting it still requires fresh authenticated guardian web login. **Changing age or locale revokes child devices; changing limits takes effect server-side without re-pairing.**
 - Child bearer can only call the strict Kids catalog, game, usage and private reward APIs. Separate parent elevation is required for profile / device management. Child profile IDs are always derived from verified server sessions, not accepted from child request bodies.
 
@@ -20,7 +21,8 @@ Status (2026-10-12): **source implemented on `dev`; not deployed, built or certi
 
 ## Retention and privacy
 
-- Data stored: guardian-owned profile nickname, age band, language, settings, opaque device token hashes, PIN salted verifier, private quiz play and clue results, private daily minute slots, time-limited guardian authentication hashes and one-time pairing hashes. No public child leaderboard, chats, exact GPS, camera capture, microphone recording or advertising SDK is intentionally integrated.
+- Data stored: guardian-owned profile nickname, age band, language, settings, opaque device token hashes, PIN salted verifier, private quiz play and clue results, private daily minute slots, time-limited guardian authentication hashes and one-time pairing hashes. A child who played a question can send a duplicate-protected `UNSAFE`, `INCORRECT` or `BROKEN_MEDIA` flag without text input; moderator `quiz_review_get` returns only aggregate reason counts through the existing ADMIN-only REST/MCP operation. No child identity is exposed there.
+- No public child leaderboard, chats, exact GPS, camera capture, microphone recording or advertising SDK is intentionally integrated.
 - Child API error logging should not serialize request bodies, PINs, child prompts or bearer tokens. Server debug logs and any external observability SDK must be audited before launch.
 - The guardian can delete a child profile and its linked runs, sessions, badges and time slots; can also delete just the child's private history while retaining the profile. Removing history deliberately resets that child's daily usage history and requires PIN-elevated parent access. Any database backup retention and delete-request handling must be covered in the published privacy policy.
 - `GET /api/internal/kids-retention` requires `Authorization: Bearer ${CRON_SECRET}`, at least 32-character secret. It removes child usage minute slots older than **90 days**, plus expired one-time pairing and guardian access rows older than one day. **A scheduler must be configured** (recommended once daily via the Vercel project or a protected job runner); this source code does not by itself schedule it. Audit its success daily and alert on failures. Do not publish the cron secret.
@@ -33,6 +35,7 @@ Required in order:
 2. `20261012190000_kids_native_pairing` (native token pairing).
 3. `20261012200000_kids_native_play` (child-only run ownership).
 4. `20261012210000_kids_native_parent_time` (guardian privilege and time budgets).
+5. `20261012220000_kids_safety_reports` (private child safety flags).
 
 Only after a verified staging DB backup, then production backup and separately approved rollout:
 
@@ -64,6 +67,7 @@ The existing CI config executes tests, web build and both native JS exports. Exp
 - [ ] App Store Connect Kids category age rating/parent gates/consent, no child tracking/ad SDK, privacy nutrition labels and human-reviewed user-generated quiz exposure
 - [ ] Google Play Families target audience/data safety/IARC, SDK permissions and AAID disclosure checks, accurate privacy policy URL
 - [ ] iPadOS portrait/landscape accessibility, VoiceOver/Dynamic Type/reduce motion, Android TalkBack/font scaling, device sleep/power-loss and low bandwidth
+- [ ] Child structured safety reports: played/unplayed/another child, per-reason deduplication, ADMIN-only aggregate in REST/MCP, moderator triage and removal SLA
 - [ ] Content-moderation revoke propagation, approved translations/media updates, insufficient Kids question pool in EN and KO, server incidents and rollback rehearsal
 - [ ] A signed iPad TestFlight build and Android internal-test APK/AAB installed and exercised against staging
 
