@@ -158,7 +158,7 @@ model CreatorReview {
   @@unique([targetId, reviewerId])
   @@index([targetId, createdAt])
 }
-\n
+
 model MediaAsset {
   id                String   @id @default(uuid())
   ownerId           String
