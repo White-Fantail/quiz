@@ -80,6 +80,8 @@ model QuizRevision {
   weeklyQuestions       WeeklyQuestion[]
   runQuestions          PlayRunQuestion[]
   weeklyLocalized       WeeklyQuestionLocalization[]
+  reviews               Review[]
+  reports               Report[]
   @@index([quizId, version])
   @@unique([localizationId, version])
 }
@@ -207,10 +209,15 @@ model Review {
   authorId              String
   author                User          @relation(fields: [authorId], references: [id])
   rating                Int
+  locale                String        @default("und")
+  kind                  String        @default("QUIZ")
+  revisionId            String?
+  revision              QuizRevision? @relation(fields: [revisionId], references: [id], onDelete: SetNull)
   comment               String        @default("")
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @updatedAt
-  @@unique([quizId, authorId])
+  @@unique([quizId, authorId, locale, kind])
+  @@index([quizId, locale, kind, rating])
   @@index([quizId, createdAt])
 }
 
@@ -220,11 +227,15 @@ model Report {
   quiz                  Quiz          @relation(fields: [quizId], references: [id])
   reporterId            String
   reporter              User          @relation(fields: [reporterId], references: [id])
+  locale                String        @default("und")
+  revisionId            String?
+  revision              QuizRevision? @relation(fields: [revisionId], references: [id], onDelete: SetNull)
   reason                String
   detail                String        @default("")
   status                String        @default("OPEN")
   createdAt             DateTime      @default(now())
   @@index([quizId, status])
+  @@index([quizId, locale, reason])
 }
 
 model AuditLog {
