@@ -1,5 +1,22 @@
 # QuizDip AI development instructions
 
+## Required agent reading — source documents consolidated
+
+The project's three 2026-10-11 source materials (product proposal, brand guidelines and architecture framework) are now distributed into these **authoritative, maintained** docs. Read the relevant sections **before** changing the code. Treat future features in these documents as goals, not proof of deployment.
+
+| Concern | Document |
+| --- | --- |
+| Mission, game types, shared content model, creation philosophy | [Product principles](docs/product-principles.md) |
+| Fun clues, gradual evidence, difficulty, multimedia and metrics | [Clue quality](docs/clue-design.md) |
+| Creator intent vs AI audience vs trusted safety, General/Kids gates, reports | [Content safety](docs/content-policy.md) |
+| Browser Studio and ChatGPT/MCP publishing/editing and confirmation | [Creator workflows](docs/creator-workflows.md) |
+| QuizDip name, localization, tone, colors, mascot proposals and navigation | [Brand](docs/brand.md) |
+| Next.js/Vercel monolith, shared services, auth, R2, AI and async | [Architecture](docs/architecture.md) |
+| dev/main, fast-forward-only, tests and development reports | [Development workflow](docs/development-workflow.md) |
+| Feature-specific contracts | [API/MCP](docs/api-mcp.md), [OAuth](docs/auth-sso-mcp.md), [Media](docs/media-r2.md), [Play modes](docs/play-modes.md), [Quiz metadata](docs/quiz-metadata.md), [Roadmap](docs/roadmap.md) |
+
+**Priority:** child safety/privacy and server authorization → product/publication policies → actual schemas, backward compatibility and tested integration → visual and brand proposals. Do not add compulsory creator controls, make Kids approval creator-editable, skip REST/MCP parity or claim planned AI/moderation is live.
+
 ## Product and branding
 QuizDip is a friendly quiz playground centered on progressive clues and the joy of discovery. External name: **QuizDip (퀴즈딥)**; repository name: `quizdip`. Follow [docs/brand.md](docs/brand.md).
 
@@ -69,5 +86,5 @@ MCP is a full QuizDip product interface, **not just an authoring connector**. Ev
 
 - QuizDip is the only new customer-facing brand. The repository is `White-Fantail/quizdip`.
 - MCP tools use only the canonical `quizdip_*` names; do not register retired-name aliases.
-- Internal npm workspace scopes (`@clupio/*`), persisted database names, existing R2 buckets and HMAC token namespaces are legacy technical identifiers, NOT copy shown to users. Do not change these without migration tests.
+- npm workspaces and imports now use `@quizdip/*`. Existing signed play-token **v1 domains** are compatibility identifiers; keep them stable unless a versioned migration is explicitly designed and tested. Actual provisioned DB names, R2 buckets and external OAuth origins are not changed by editing source or example values. Never expose legacy internal names as public QuizDip branding.
 - Branding changes must not loosen publication, permissions, content safety or Kids requirements.
