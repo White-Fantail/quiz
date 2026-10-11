@@ -1,21 +1,10 @@
 {
-  "name": "@clupio/web",
-  "private": true,
-  "version": "0.1.0",
-  "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "typecheck": "tsc --noEmit --project tsconfig.json"
-  },
+  "name": "@clupio/web", "private": true, "version": "0.2.0",
+  "scripts": { "dev": "next dev", "build": "next build", "start": "next start", "typecheck": "tsc --noEmit --project tsconfig.json" },
   "dependencies": {
-    "@clupio/domain": "*",
-    "next": "^16.2.6",
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "@clupio/domain": "*", "@prisma/client": "7.10.0", "@prisma/adapter-pg": "7.10.0",
+    "@modelcontextprotocol/server": "^2.1.0", "jose": "^6.1.0", "next": "^16.2.6",
+    "pg": "^8.16.0", "react": "^19.2.0", "react-dom": "^19.2.0", "zod": "^4.1.0"
   },
-  "devDependencies": {
-    "@types/react": "^19.2.0",
-    "@types/react-dom": "^19.2.0"
-  }
+  "devDependencies": { "@types/react": "^19.2.0", "@types/react-dom": "^19.2.0", "@types/pg": "^8.15.0" }
 }

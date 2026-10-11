@@ -1,0 +1,142 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../apps/web/src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id                    String        @id
+  issuer                String
+  subject               String
+  displayName           String
+  role                  String        @default("MEMBER")
+  leaderboardEligible   Boolean       @default(false)
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+  quizzes               Quiz[]
+  packs                 QuizPack[]
+  sessions              PlaySession[]
+  reviews               Review[]
+  reports               Report[]
+  @@unique([issuer, subject])
+}
+
+model Quiz {
+  id                    String        @id @default(uuid())
+  authorId              String
+  author                User          @relation(fields: [authorId], references: [id])
+  currentVersion        Int           @default(1)
+  publication           String        @default("DRAFT")
+  safetyStatus          String        @default("PENDING")
+  kidsEligible          Boolean       @default(false)
+  creatorIntent         Json?
+  recommendedAudience   Json?
+  categories            String[]      @default([])
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+  revisions             QuizRevision[]
+  packItems             PackQuestion[]
+  sessions              PlaySession[]
+  reviews               Review[]
+  reports               Report[]
+  @@index([publication, updatedAt])
+  @@index([authorId, updatedAt])
+}
+
+model QuizRevision {
+  id                    String        @id @default(uuid())
+  quizId                String
+  quiz                  Quiz          @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  version               Int
+  title                 String
+  prompt                String
+  mode                  String
+  answer                Json
+  clues                 Json
+  scoring               Json?
+  createdAt             DateTime      @default(now())
+  sessions              PlaySession[]
+  @@unique([quizId, version])
+}
+
+model QuizPack {
+  id                    String        @id @default(uuid())
+  authorId              String
+  author                User          @relation(fields: [authorId], references: [id])
+  title                 String
+  description           String        @default("")
+  publication           String        @default("DRAFT")
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+  items                 PackQuestion[]
+}
+
+model PackQuestion {
+  packId                String
+  quizId                String
+  position              Int
+  pack                  QuizPack      @relation(fields: [packId], references: [id], onDelete: Cascade)
+  quiz                  Quiz          @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  @@id([packId, quizId])
+  @@unique([packId, position])
+}
+
+model PlaySession {
+  id                    String        @id @default(uuid())
+  quizId                String
+  quiz                  Quiz          @relation(fields: [quizId], references: [id])
+  revisionId            String
+  revision              QuizRevision  @relation(fields: [revisionId], references: [id])
+  userId                String?
+  user                  User?         @relation(fields: [userId], references: [id])
+  tokenHash             String
+  status                String        @default("ACTIVE")
+  usedClues             Int           @default(1)
+  wrongGuesses          Int           @default(0)
+  score                 Int           @default(0)
+  startedAt             DateTime      @default(now())
+  expiresAt             DateTime
+  finishedAt            DateTime?
+  @@index([quizId, revisionId, status])
+  @@index([userId, status, score])
+}
+
+model Review {
+  id                    String        @id @default(uuid())
+  quizId                String
+  quiz                  Quiz          @relation(fields: [quizId], references: [id])
+  authorId              String
+  author                User          @relation(fields: [authorId], references: [id])
+  rating                Int
+  comment               String        @default("")
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+  @@unique([quizId, authorId])
+  @@index([quizId, createdAt])
+}
+
+model Report {
+  id                    String        @id @default(uuid())
+  quizId                String
+  quiz                  Quiz          @relation(fields: [quizId], references: [id])
+  reporterId            String
+  reporter              User          @relation(fields: [reporterId], references: [id])
+  reason                String
+  detail                String        @default("")
+  status                String        @default("OPEN")
+  createdAt             DateTime      @default(now())
+  @@index([quizId, status])
+}
+
+model AuditLog {
+  id                    String        @id @default(uuid())
+  actorId               String
+  action                String
+  objectId              String
+  detail                Json?
+  createdAt             DateTime      @default(now())
+  @@index([actorId, createdAt])
+}

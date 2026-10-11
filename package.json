@@ -1,23 +1,18 @@
 {
   "name": "clupio",
   "private": true,
-  "version": "0.1.0",
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
-  "engines": {
-    "node": ">=22.0.0"
-  },
+  "version": "0.2.0",
+  "workspaces": ["apps/*", "packages/*"],
+  "engines": { "node": ">=22.12.0" },
   "scripts": {
     "dev": "npm run dev --workspace @clupio/web",
-    "build": "npm run build --workspace @clupio/web",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate deploy",
+    "db:dev": "prisma migrate dev",
+    "build": "npm run db:generate && npm run build --workspace @clupio/web",
     "start": "npm run start --workspace @clupio/web",
-    "typecheck": "npm run typecheck --workspace @clupio/domain && npm run typecheck --workspace @clupio/web",
+    "typecheck": "npm run db:generate && npm run typecheck --workspace @clupio/domain && npm run typecheck --workspace @clupio/web",
     "test": "node --experimental-strip-types --test packages/domain/test/*.test.mjs apps/web/test/*.test.mjs"
   },
-  "devDependencies": {
-    "typescript": "^5.9.0",
-    "@types/node": "^22.15.0"
-  }
+  "devDependencies": { "prisma": "7.10.0", "typescript": "^5.9.0", "@types/node": "^22.15.0" }
 }
