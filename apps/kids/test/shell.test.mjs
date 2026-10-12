@@ -10,7 +10,7 @@ test("Kids is a real native Expo app, not a webview shell",()=>{
  assert.deepEqual(cfg.expo.platforms,["ios","android","web"]);
  assert.equal(cfg.expo.web.bundler,"metro");
  assert.equal(pkg.dependencies["react-dom"],pkg.dependencies.react);
- assert.match(pkg.dependencies["react-native-web"],/^~0\.21\./);
+ assert.match(pkg.dependencies["react-native-web"],/^\^0\.21\./);
  assert.match(pkg.dependencies["@expo/metro-runtime"],/^~57\./);
  assert.equal(cfg.expo.ios.supportsTablet,true);
  assert.ok(cfg.expo.android.package);
