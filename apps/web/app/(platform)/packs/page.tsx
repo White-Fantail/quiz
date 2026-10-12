@@ -18,7 +18,7 @@ export default async function PackCatalog({searchParams}:{searchParams:Promise<{
       <span className="small-tag">{locale==="ko"?"퀴즈팩":"Quiz pack"}</span>
       <h2>{pack.title}</h2><p>{pack.description}</p>
       <p className="muted">{pack.quizIds.length} {locale==="ko"?"문제":"questions"} · {pack.orderMode==="RANDOM"?(locale==="ko"?"랜덤 순서":"Random order"):(locale==="ko"?"등록 순서":"Creator order")}</p>
-      <Link className="btn btn-primary" href={localizeHref("/packs/"+pack.id,locale)}>{locale==="ko"?"팩 보기 →":"View pack →"}</Link>
+      <Link className="btn btn-primary" href={localizeHref("/packs/"+pack.id+(page?"?page="+page:""),locale)}>{locale==="ko"?"팩 보기 →":"View pack →"}</Link>
     </article>)}</div>
     <nav className="media-pagination">
       {page>0&&<Link className="btn btn-outline" href={localizeHref("/packs?page="+(page-1),locale)}>{locale==="ko"?"이전":"Previous"}</Link>}
