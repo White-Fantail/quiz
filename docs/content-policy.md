@@ -21,6 +21,12 @@ Do not collapse these into a single creator-supplied minimum-age field. A hard q
 - Creators can edit, see review reasons, request reassessment and appeal. They cannot inject approved safety status via web form, REST or MCP.
 - Changes to content, answer or media must not silently inherit old trusted approval. Keep revision-specific moderation decisions and auditability.
 
+## Admin moderation decisions
+
+- Approval requires explicit administrator confirmation and all existing independent content/media safety checks, but a written note is optional.
+- Restriction requires a non-empty explanatory reason (at least 5 characters for a quiz/media asset and 8 for a pack). A pending pack decision may omit a note.
+- Every decision remains audit-logged with reviewer, verdict, content/revision and timestamp even when the optional approval note is blank. Apply the same validation through REST and MCP.
+
 ## Reports, ratings and appeals
 
 Collect likes/dislikes separately from reports. Support wrong-answer reports, misleading clues, inappropriate material, copyright/privacy violations, spam and duplicates. Likes affect discovery. Reports enter a reasoned moderation process. Many dislikes alone should **not** trigger deletion: opinion differences, political controversy or quiz difficulty do not establish policy violation. Defend against retaliatory reporting, review manipulation and brigading, and enable fair appeal.
