@@ -13,7 +13,7 @@ import { kidsApi } from "../src/services/api";
 import { theme } from "../src/theme";
 
 const SAVED="quizdip-kids-active-game-v1";
-type Ref= {kind:"run";runId:string;runToken:string;mode:"RANDOM_FIVE"|"WEEKLY"|"PACK"} |
+type Ref= {kind:"run";runId:string;runToken:string;mode:"RANDOM_FIVE"|"PACK"} |
           {kind:"single";sessionId:string;sessionToken:string};
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function finished(v:KidQuestion|KidRunResult):v is KidRunResult {
@@ -31,7 +31,7 @@ async function read():Promise<Ref|null>{
   if(!raw)return null;
   const v=JSON.parse(raw);
   if(v?.kind==="run" && uuid.test(v.runId) && /^[\w-]{32,200}$/.test(v.runToken) &&
-   ["RANDOM_FIVE","WEEKLY","PACK"].includes(v.mode))return v as Ref;
+   ["RANDOM_FIVE","PACK"].includes(v.mode))return v as Ref;
   if(v?.kind==="single" && uuid.test(v.sessionId) && /^[\w-]{32,200}$/.test(v.sessionToken))
    return v as Ref;
  }catch{/* Unknown state is not trusted. */}
