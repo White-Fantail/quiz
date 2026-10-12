@@ -20,12 +20,11 @@ test("REST and MCP share validated browser-history exclusions",()=>{
   assert.throws(()=>parseOperation("run_start",{mode:"RANDOM_FIVE",avoidQuizIds:["invalid"]}));
   assert.equal("run_current" in operations,true);
 });
-test("server enforces weekly first-exposure ranking guard and pool depletion",()=>{
+test("server enforces fresh random selection and pool depletion",()=>{
   const code=readFileSync(new URL("../src/modules/platform/runs.ts",import.meta.url),"utf8");
-  assert.ok(code.includes('pr."officialEligible"=TRUE'));
-  assert.ok(code.includes('pr."officialEligible"=TRUE'));
   assert.ok(code.includes("const choice=shuffle(selectUnseen"));
   assert.ok(code.includes('exhausted:done.status==="FINISHED"'));
+  assert.doesNotMatch(code,/weeklyQuestion|weekly_reserved/);
 });
 test("UI offers optional quick five, continuous random play and Discover instead of weekly promotion",()=>{
   const code=readFileSync(new URL("../app/(platform)/play/page.tsx",import.meta.url),"utf8");
