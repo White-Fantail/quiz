@@ -21,7 +21,7 @@ export function ImageReveal({src,alt,reveal}:{src:string;alt:string;reveal:Revea
     style.transform=`scale(${(1+strength*0.03).toFixed(2)})`;
     style.transformOrigin=`${x}% ${y}%`;
   }
-  if(reveal.effect==="spotlight")style.clipPath=`circle(${(100-strength*0.9).toFixed(1)}% at ${x}% ${y}%)`;
+  if(reveal.effect==="spotlight" && strength>0)style.clipPath=`circle(${(100-strength*0.9).toFixed(1)}% at ${x}% ${y}%)`;
   return <div className="image-reveal-frame" style={{
       width:"100%",maxWidth:640,aspectRatio:"16 / 9",background:"#15243b",overflow:"hidden",borderRadius:16
     }}>
