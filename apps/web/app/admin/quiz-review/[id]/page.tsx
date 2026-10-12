@@ -18,7 +18,7 @@ export default async function QuizReviewDetailPage({params}:{params:Promise<{id:
   return <main className="container inner-page management-page review-detail-page">
     <ManagementHeader eyebrow="QUIZDIP ADMIN · SAFETY"
       title={msg("Review quiz","문제 상세 심사")}
-      description={msg("Check the question, every clue and associated media before confirming a decision.","질문과 모든 단서·미디어를 확인하고 판정을 확정하세요.")}/>
+      description={msg("Review reported issues or a creator-submitted Kids request, then save a decision.","신고된 문제 또는 제작자의 Kids 신청을 확인한 뒤 심사 결과를 저장하세요.")}/>
     <QuizReviewDetail id={id}/>
   </main>;
 }
