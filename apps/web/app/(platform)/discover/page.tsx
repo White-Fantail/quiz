@@ -7,6 +7,7 @@ import { bilingual } from "../../../src/i18n/view-copy";
 import { RatingBadge } from "../../../src/components/quiz-ratings";
 import { useEffect, useState } from "react";
 import DiscoverySections from "./discovery-sections";
+import EditorialHighlights from "./editorial-highlights";
 import PackBrowser from "./pack-browser";
 import {
   ANSWER_TYPES, audienceAgeLabel, difficultyLabel, discoverQuery, modeLabel,
@@ -88,7 +89,7 @@ export default function DiscoverPage() {
           {view==="ALL"?(locale==="ko"?"전체":"All"):view==="PACK"?(locale==="ko"?"퀴즈팩":"Quiz packs"):(locale==="ko"?"개별 문제":"Questions")}
         </button>)}
       </div>
-      {contentView==="ALL"&&!kids&&<DiscoverySections/>}
+      {contentView==="ALL"&&!kids&&<><EditorialHighlights/><DiscoverySections/></>}
       {contentView==="PACK"&&<PackBrowser/>}
       {contentView!=="PACK"&&<>
       <section className="discover-filters" aria-label={t("discover.filters")}>
