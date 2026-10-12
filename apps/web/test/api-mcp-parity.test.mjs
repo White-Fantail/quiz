@@ -9,7 +9,7 @@ test("every REST action is exposed as an MCP operation via the shared registry",
   const restSource = readFileSync(new URL("../app/api/v1/[...segments]/route.ts", import.meta.url), "utf8");
   const mcpSource = readFileSync(new URL("../app/api/mcp/route.ts", import.meta.url), "utf8");
   for (const name of names) {
-    assert.match(restSource, new RegExp('op: "' + name + '"'), name + " not routed in REST");
+    assert.match(restSource, new RegExp('op:\\s*"'+name+'"'), name + " not routed in REST");
   }
   assert.match(mcpSource, /Object\.keys\(operations\)/);
   assert.match(mcpSource, /server\.registerTool\("quizdip_" \+ name/);
