@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ImageReveal, supersededReveal, type RevealSettings } from "../../../src/components/image-reveal";
 import { useLocale } from "../../../src/i18n/provider";
 import { localizeHref } from "../../../src/i18n/core";
 import { bilingual } from "../../../src/i18n/view-copy";
@@ -10,8 +11,8 @@ import { useCallback, useEffect, useState } from "react";
 
 type Lane = "GENERAL" | "KIDS";
 type Mode = "WEEKLY" | "RANDOM_FIVE" | "INFINITE";
-type Clue = { id?: string; type: "text"|"image"|"audio"|"video"|"map";
-  text?: string; mediaId?: string; map?: {latitude:number;longitude:number;zoom?:number} };
+type Clue = { id?: string; type: "text"|"image"|"image-reveal"|"audio"|"video"|"map";
+  text?: string; mediaId?: string; reveal?:RevealSettings; map?: {latitude:number;longitude:number;zoom?:number} };
 type Edition = { available:boolean; id?:string; title?:string; description?:string;
   startsAt?:string; endsAt?:string; message?:string; host?:{id:string;name:string;verified:boolean};questionCount?:number };
 type RunInfo = {runId:string;runToken:string;mode:Mode;lane:Lane;weekly?:Edition|null;
@@ -59,9 +60,11 @@ function displayedDate(v?:string) {
   return new Date(v).toLocaleDateString("ko-KR",{month:"long",day:"numeric",timeZone:"UTC"});
 }
 
-function MediaPart({item}:{item:MediaPreview}) {
+function MediaPart({item,reveal}:{item:MediaPreview;reveal?:RevealSettings}) {
   const locale=useLocale();
-  if(item.kind==="image") return <img className="round-media" src={item.url} alt={bilingual(locale,"Published quiz clue image","공개된 단서 이미지")}/>;
+  if(item.kind==="image") return reveal ?
+    <ImageReveal src={item.url} reveal={reveal} alt={bilingual(locale,"Revealing quiz image","점차 드러나는 퀴즈 이미지")}/> :
+    <img className="round-media" src={item.url} alt={bilingual(locale,"Published quiz clue image","공개된 단서 이미지")}/>;
   if(item.kind==="audio") return <audio controls src={item.url} preload="none" className="round-audio"/>;
   if(item.kind==="video") return <video controls src={item.url} preload="metadata" className="round-media"/>;
   return null;
@@ -281,14 +284,14 @@ export default function PlayPage() {
           {round.promptMediaIds.map(id=><div key={id}>{media[id]?<MediaPart item={media[id]}/>:<p className="muted">{msg("Couldn't load the media.","미디어를 불러올 수 없어요.")}</p>}</div>)}
         </div>}
         <ol className="clue-list">
-          {round.clues.map((clue,i)=><li key={clue.id||i}>
+          {round.clues.map((clue,i)=>supersededReveal(round.clues,i)?null:<li key={clue.id||i}>
             {clue.text&&<p>{clue.text}</p>}
             {clue.type==="map"&&clue.map&&<div className="map-clue">
               <span>{msg("Map clue · latitude ","지도 단서 · 위도 ")}{clue.map.latitude}{msg(", longitude ",", 경도 ")}{clue.map.longitude}</span>
               <a href={`https://www.openstreetmap.org/?mlat=${clue.map.latitude}&mlon=${clue.map.longitude}#map=${clue.map.zoom||8}/${clue.map.latitude}/${clue.map.longitude}`}
                 target="_blank" rel="noopener noreferrer">{msg("View map ↗","지도에서 보기 ↗")}</a>
             </div>}
-            {clue.mediaId&&(media[clue.mediaId]?<MediaPart item={media[clue.mediaId]}/>:<p className="muted">{msg("Media is unavailable.","미디어가 제공되지 않았어요.")}</p>)}
+            {clue.mediaId&&(media[clue.mediaId]?<MediaPart item={media[clue.mediaId]} reveal={clue.type==="image-reveal"?clue.reveal:undefined}/>:<p className="muted">{msg("Media is unavailable.","미디어가 제공되지 않았어요.")}</p>)}
           </li>)}
         </ol>
         {!isDone&&round.clueIndex<round.clueCount&&

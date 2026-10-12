@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ImageReveal, supersededReveal, type RevealSettings } from "../../../../src/components/image-reveal";
 import { useLocale } from "../../../../src/i18n/provider";
 import { localizeHref } from "../../../../src/i18n/core";
 import { bilingual } from "../../../../src/i18n/view-copy";
@@ -9,8 +10,8 @@ import type { RatingSummary } from "../../../../src/modules/quiz/rating-metadata
 import { useParams } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 
-type Clue = { type: "text" | "image" | "audio" | "video" | "map"; text?: string;
-  mediaId?: string; map?: {latitude:number;longitude:number;zoom?:number} };
+type Clue = { type: "text" | "image" | "image-reveal" | "audio" | "video" | "map"; text?: string;
+  mediaId?: string; reveal?: RevealSettings; map?: {latitude:number;longitude:number;zoom?:number} };
 type Session = { sessionId: string; sessionToken: string; title: string;
   prompt: string; promptMediaIds: string[]; clue: Clue; clueIndex: number; clueCount: number;
   ratings:RatingSummary;myRating:number|null;ratingAccess:RatingAccess;isTranslation?:boolean;myTranslationRating?:number|null };
@@ -109,10 +110,12 @@ export default function SingleQuizPage() {
     } catch (e) { setError(e instanceof Error ? e.message : msg("Could not check your answer.","정답을 확인하지 못했어요.")); }
     finally { setBusy(false); }
   }
-  function clueMedia(id: string) {
+  function clueMedia(id: string, reveal?:RevealSettings) {
     const asset = media[id];
     if (!asset) return <p className="muted">{msg("Could not load this media.","미디어를 불러올 수 없어요.")}</p>;
-    if (asset.kind === "image") return <img className="round-media" src={asset.url} alt={bilingual(locale,"Quiz clue image","퀴즈 단서 이미지")}/>;
+    if (asset.kind === "image") return reveal ?
+      <ImageReveal src={asset.url} alt={msg("Revealing quiz image","점차 드러나는 퀴즈 이미지")} reveal={reveal}/> :
+      <img className="round-media" src={asset.url} alt={msg("Quiz clue image","퀴즈 단서 이미지")}/>;
     if (asset.kind === "audio") return <audio className="round-audio" src={asset.url} controls preload="none"/>;
     if (asset.kind === "video") return <video className="round-media" src={asset.url} controls preload="metadata"/>;
     return null;
@@ -133,9 +136,9 @@ export default function SingleQuizPage() {
         {session.promptMediaIds.map(id => <div key={id}>{clueMedia(id)}</div>)}
       </div>}
       <ol className="clue-list">
-        {clues.map((clue, index) => <li key={index}>
+        {clues.map((clue, index) => supersededReveal(clues, index) ? null : <li key={index}>
           {clue.text && <p>{clue.text}</p>}
-          {clue.mediaId && clueMedia(clue.mediaId)}
+          {clue.mediaId && clueMedia(clue.mediaId,clue.type==="image-reveal"?clue.reveal:undefined)}
           {clue.type === "map" && clue.map && <div className="map-clue">
             <a target="_blank" rel="noopener noreferrer"
               href={"https://www.openstreetmap.org/?mlat=" + clue.map.latitude +

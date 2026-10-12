@@ -7,6 +7,11 @@ const mediaId = uuid;
 export const clueSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("text"), text: z.string().trim().min(1).max(3000) }),
   z.object({ type: z.enum(["image", "audio", "video"]), mediaId, text: z.string().max(1000).optional() }),
+  z.object({ type: z.literal("image-reveal"), mediaId, text: z.string().max(1000).optional(),
+    reveal: z.object({effect:z.enum(["blur","zoom","spotlight"]),
+      strength:z.number().int().min(0).max(100),
+      focusX:z.number().min(0).max(100).default(50),
+      focusY:z.number().min(0).max(100).default(50)}) }),
   z.object({ type: z.literal("map"), map: z.object({ latitude: z.number().min(-90).max(90), longitude: z.number().min(-180).max(180), zoom: z.number().min(1).max(20).optional() }), text: z.string().max(1000).optional() })
 ]);
 export const translationFields = z.object({

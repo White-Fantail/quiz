@@ -339,9 +339,10 @@ export async function validateMediaReferences(
   for (const id of promptMediaIds) expected.set(id, "any");
   for (const clue of clues) if (clue.mediaId) {
     const existing = expected.get(clue.mediaId);
-    if (existing && existing !== "any" && existing !== clue.type)
+    const mediaKind = clue.type === "image-reveal" ? "image" : clue.type;
+    if (existing && existing !== "any" && existing !== mediaKind)
       fail(422, "media_type_conflict", "One asset cannot serve clues of incompatible types");
-    expected.set(clue.mediaId, clue.type);
+    expected.set(clue.mediaId, mediaKind);
   }
   if (!expected.size) return;
   const media = await db().mediaAsset.findMany({ where: {

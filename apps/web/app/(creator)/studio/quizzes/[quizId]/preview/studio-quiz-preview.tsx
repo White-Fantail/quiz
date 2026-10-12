@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ImageReveal, supersededReveal, type RevealSettings } from "../../../../../../src/components/image-reveal";
 import { useEffect, useState, type FormEvent } from "react";
 import { isCorrectAnswer, scoreForClues } from "@quizdip/domain";
 import { RatingBadge } from "../../../../../../src/components/quiz-ratings";
@@ -10,9 +11,10 @@ import { localizeHref } from "../../../../../../src/i18n/core";
 import { bilingual } from "../../../../../../src/i18n/view-copy";
 
 type Clue={
-  type:"text"|"image"|"audio"|"video"|"map";
+  type:"text"|"image"|"image-reveal"|"audio"|"video"|"map";
   text?:string;
   mediaId?:string;
+  reveal?:RevealSettings;
   map?:{latitude:number;longitude:number;zoom?:number};
 };
 type Quiz={
@@ -103,14 +105,15 @@ export default function StudioQuizPreview({quizId}:{quizId:string}){
       setNeedsNext(true);setFeedback(msg("Not quite! Reveal the next clue and try again.","아직 아니야! 다음 단서를 보고 다시 추리해 봐."));
     }
   };
-  const mediaView=(id:string)=>{
+  const mediaView=(id:string,reveal?:RevealSettings)=>{
     const item=media[id];
     if(!item?.previewUrl)
       return <div className="muted" role="status">{mediaErrors[id]?
         msg("Media preview unavailable: ","미디어 미리보기 오류: ")+mediaErrors[id]:
         msg("Loading media…","이미지·미디어 불러오는 중…")}</div>;
-    if(item.kind==="image")return <img className="round-media" src={item.previewUrl}
-      alt={msg("Image clue","그림 단서")}/>;
+    if(item.kind==="image")return reveal ?
+      <ImageReveal src={item.previewUrl} reveal={reveal} alt={msg("Revealing quiz image","점차 드러나는 퀴즈 이미지")}/> :
+      <img className="round-media" src={item.previewUrl} alt={msg("Image clue","그림 단서")}/>;
     if(item.kind==="audio")return <audio className="round-audio" src={item.previewUrl} controls preload="none"/>;
     if(item.kind==="video")return <video className="round-media" src={item.previewUrl} controls preload="metadata"/>;
     return <p className="muted">{msg("Unsupported media.","지원되지 않는 미디어예요.")}</p>;
@@ -151,9 +154,9 @@ export default function StudioQuizPreview({quizId}:{quizId:string}){
         {quiz.promptMediaIds.map(id=><div key={id}>{mediaView(id)}</div>)}
       </div>}
       <ol className="clue-list">
-        {quiz.clues.slice(0,clueIndex).map((clue,index)=><li key={index}>
+        {quiz.clues.slice(0,clueIndex).map((clue,index)=>supersededReveal(quiz.clues.slice(0,clueIndex),index)?null:<li key={index}>
           {clue.text&&<p>{clue.text}</p>}
-          {clue.mediaId&&mediaView(clue.mediaId)}
+          {clue.mediaId&&mediaView(clue.mediaId,clue.type==="image-reveal"?clue.reveal:undefined)}
           {clue.type==="map"&&clue.map&&<div className="map-clue">
             <a target="_blank" rel="noopener noreferrer"
               href={"https://www.openstreetmap.org/?mlat="+clue.map.latitude+

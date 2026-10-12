@@ -21,7 +21,7 @@ export async function execute(name: Operation, raw: unknown, actor: Actor | null
     case "catalog": return { modes: ["progressive-clues"],
       answerTypes: ["person","animal","place","thing","event","concept","other"],
       topics: { model:"unified", tool:"quizdip_topic_list", maxPerQuiz:12, normalizes:true },
-      clueTypes: ["text", "image", "audio", "video", "map"], mediaReference: "mediaId", promptMediaIds: true,
+      clueTypes: ["text", "image", "image-reveal", "audio", "video", "map"], mediaReference: "mediaId", promptMediaIds: true,
       mediaLimitsBytes: { image: 12582912, audio: 26214400, video: 67108864 }, minClues: 1, maxClues: 15,
       userAdjustable: ["answerType", "topics", "creatorIntent", "recommendedAudience", "clues", "answer"],
       platformControlled: ["safetyStatus", "kidsEligible"],

@@ -68,8 +68,9 @@ export class QuizDipPublicApi {
 }
 
 
-export type KidClue = {id:string;order:number;type:"text"|"image"|"audio"|"video"|"map";
-  text?:string;mediaId?:string;map?:{latitude:number;longitude:number;zoom?:number}};
+export type ImageRevealSettings = {effect:"blur"|"zoom"|"spotlight";strength:number;focusX?:number;focusY?:number};
+export type KidClue = {id:string;order:number;type:"text"|"image"|"image-reveal"|"audio"|"video"|"map";
+  text?:string;mediaId?:string;reveal?:ImageRevealSettings;map?:{latitude:number;longitude:number;zoom?:number}};
 export type KidQuestion = {sessionId:string;sessionToken:string;quizId:string;
   title:string;prompt:string;promptMediaIds:string[];
   clues:KidClue[];clueIndex:number;clueCount:number;sessionStatus:"ACTIVE"|"SOLVED"|"FAILED";
