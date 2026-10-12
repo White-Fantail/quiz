@@ -6,12 +6,12 @@ import { fail, requireActor, type Actor } from "./auth";
 import { quizList, quizGet, quizCreate, quizUpdate, quizPublish, quizKidsRequest, quizLanguageSet, quizReview, quizReviewGet, adminQuizReviewList } from "./quiz";
 import { playStart, playClue, playGuess } from "./play";
 import { runStart,runCurrent,runFinish,runHistory,runFeedback } from "./runs";
-import { reviewsList, reviewUpsert, reviewRemove, reportCreate, reportsMine, packCreate, packList, packGet, myPackGet, packPreflight, packUpdate, packLanguageSet, packLanguages, packTranslationUpsert, packPublishPreview, packPublish } from "./social";
+import { reviewsList, reviewUpsert, reviewRemove, reportCreate, reportsMine, packCreate, packList, packGet, myPackGet, packPreflight, packUpdate, packLanguageSet, packLanguages, packTranslationUpsert, packPublishPreview, packPublish, packKidsRequest } from "./social";
 import { quizStats, myStats, me, leaderboard, rankingOptin, adultVerify } from "./analytics";
 import { packReviewsList, packReviewUpsert, packReviewRemove, packReportCreate, packInsightsMine } from "./pack-social";
 import { discoverSections } from "./discovery";
 import { editorialFeaturesList,adminFeatureList,adminFeatureCandidates,adminFeatureCreate,
-  adminFeatureUpdate,adminFeatureRemove,adminPackSafetyList,adminPackSafetyReview } from "./editorial";
+  adminFeatureUpdate,adminFeatureRemove,adminPackSafetyList,adminPackSafetyReview,adminPackReportsList } from "./editorial";
 import { userGet, creatorReviewsList, creatorReviewUpsert } from "./creators";
 import { myQuizzes, myQuizInsights } from "./studio";
 import { mediaUpload, mediaChunk, mediaComplete, mediaImport, mediaList, mediaGet, mediaUpdate,
@@ -59,6 +59,7 @@ export async function execute(name: Operation, raw: unknown, actor: Actor | null
     case "pack_translation_upsert": return packTranslationUpsert(p,actor);
     case "pack_publish_preview": return packPublishPreview(p,actor);
     case "pack_publish": return packPublish(p,actor);
+    case "pack_kids_request": return packKidsRequest(p,actor);
     case "pack_update": return packUpdate(p, actor);
     case "pack_reviews_list": return packReviewsList(p,actor);
     case "pack_review_upsert": return packReviewUpsert(p,actor);
@@ -73,6 +74,7 @@ export async function execute(name: Operation, raw: unknown, actor: Actor | null
     case "admin_feature_update": return adminFeatureUpdate(p,actor);
     case "admin_feature_remove": return adminFeatureRemove(p,actor);
     case "admin_pack_safety_list": return adminPackSafetyList(p,actor);
+    case "admin_pack_reports_list": return adminPackReportsList(p,actor);
     case "admin_pack_safety_review": return adminPackSafetyReview(p,actor);
     case "play_start": return playStart(p, actor);
     case "play_clue": return playClue(p, actor);
