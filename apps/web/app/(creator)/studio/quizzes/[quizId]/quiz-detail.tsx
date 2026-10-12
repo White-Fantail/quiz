@@ -193,8 +193,13 @@ export default function StudioQuizDetail({quizId}:{quizId:string}){
       <div className="actions">
         {quiz.publication!=="PUBLISHED"&&quiz.safetyStatus!=="RESTRICTED"&&<button type="button"
           className="btn btn-primary" disabled={saving||dirty} onClick={()=>void publish()}>{msg("Publish quiz","퀴즈 공개하기")}</button>}
+        <Link href={localizeHref("/studio/quizzes/"+quiz.id+"/preview",locale)} className="btn btn-primary">
+          {msg("Test play (no records)","테스트 플레이 (기록 없음)")}
+        </Link>
         {quiz.publication==="PUBLISHED"&&quiz.safetyStatus!=="RESTRICTED"&&
-          <Link href={localizeHref("/play/"+quiz.id,locale)} className="btn btn-outline">{msg("Play this quiz","플레이 화면")}</Link>}
+          <Link href={localizeHref("/play/"+quiz.id,locale)} className="btn btn-outline">
+            {msg("Live play (records a result)","실제 플레이 (기록됨)")}
+          </Link>}
       </div>
     </div>
     {dirty&&<p className="muted">{msg("You have unsaved changes. Save them before publishing.","저장하지 않은 수정 사항이 있어요. 공개하기 전에 저장해 주세요.")}</p>}
