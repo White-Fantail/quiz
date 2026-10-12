@@ -125,6 +125,8 @@
  .management-page .placeholder-panel{padding:22px 19px;border-radius:19px;}
  .management-page .management-link-grid .feature-card{padding:22px;}
  .management-page :is(.studio-filters,.media-filters){padding:16px;}
+ .management-page .media-filters{grid-template-columns:repeat(2,minmax(0,1fr));}
+ .management-page .media-filter-search{grid-column:1/-1;}
  .management-page .studio-list-row{padding:18px;gap:16px;}
  .management-page .studio-list-side{min-width:0;}
  .management-page .media-workspace{gap:16px;}
