@@ -9,7 +9,7 @@ type Kind = "image" | "audio" | "video";
 type Media = {
   id: string; kind: Kind; mimeType: string; originalName: string;
   sizeBytes: number; status: string; moderationStatus: string;
-  alt: string; attribution: string; createdAt: string; uploadExpiresAt?: string | null;
+  alt: string; attribution: string; license?: string; sourceUrl?: string | null; createdAt: string; uploadExpiresAt?: string | null;
 };
 type MediaUsage = { quizId: string; title: string; version: number; isCurrent: boolean; publication: string; inPrompt: boolean; cluePositions: number[] };
 type MediaDetails = Media & {
@@ -336,6 +336,9 @@ export default function MediaLibrary() {
               {details.previewUrl && details.kind==="audio" && <audio controls preload="none" src={details.previewUrl}/>}
               {details.previewUrl && details.kind==="video" && <video controls preload="none" className="media-preview" src={details.previewUrl}/>}
               <p className="media-identity">ID: <code>{item.id}</code></p>
+              {details.sourceUrl?.startsWith("https://") && <p>{msg("Original source: ","원본 출처: ")}<a href={details.sourceUrl} target="_blank" rel="noopener noreferrer">{msg("View original image","원본 이미지 보기")}</a></p>}
+              {details.attribution && <p>{msg("Credit: ","저작자 · 출처: ")}{details.attribution}</p>}
+              {details.license && <p>{msg("Licence / permission: ","라이선스 · 사용 권한: ")}{details.license}</p>}
               <p>{msg("Safety: ","안전성: ")}{mediaModerationLabel(item.moderationStatus,locale)}{msg(" · Preview availability does not mean public approval."," · 자동 미리보기는 공개 승인을 뜻하지 않습니다.")}</p>
               <h4>{msg("Quizzes and versions using this media","사용 중인 퀴즈 / 버전")}</h4>
               {!details.usage?.items?.length && <p>{msg("No linked quizzes. Copy this ID to use it in a new question.","연결된 퀴즈가 없습니다. 이 ID를 복사하여 새 문제에 사용할 수 있어요.")}</p>}
