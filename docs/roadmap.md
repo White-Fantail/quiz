@@ -9,7 +9,7 @@
 5. **Kids and multimodal:** independent affirmative Kids gate, image partial reveal, audio/video/map clues, age-appropriate UI, minimized children's data, personalized discovery.
 6. **Community and quality:** creator reputation, dashboards and packs, clue-step analytics, AI suggestions for improvement, recommendations and new game formats.
 
-**Current extra product direction:** globally consistent **Weekly Five** by a selected creator is the featured Play experience. Random-five and infinite practice remain options. Separate GENERAL and KIDS lanes and preserve official run/revision/ranking privacy rules; see [play-modes](play-modes.md).
+**Current extra product direction:** Discovery-first content browsing with editorially selected quizzes/packs and data-based popularity, quality and difficulty replaces new Weekly Five challenges. Quick random-five is an optional introduction; continuous practice and full-pack play are central. The previous Weekly Five implementation remains available for archival compatibility while being retired in phases.
 
 **Actual dev code:** Postgres schema/migrations, shared REST/MCP operations, Better Auth configuration, Cloudflare R2 media APIs, editorial weekly challenges, manual Admin review routes and corresponding test scaffolding exist. **Not automatically ready to launch:** fully provisioned and E2E-verified Google/Apple/MCP OAuth, verified live R2 storage, automatic AI safety/genre classification and background classification workflows, final moderation operations, real assets and production legal/brand checks.
 
