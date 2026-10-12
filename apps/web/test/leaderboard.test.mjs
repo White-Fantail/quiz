@@ -105,6 +105,6 @@ test("homepage features winners, account shows private records, no weekly challe
   assert.match(home,/<LeaderboardSpotlight/);
   assert.match(account,/<MyStatsPanel/);
   assert.doesNotMatch(home,/home\.weekly/);
-  assert.match(read("app/(platform)/leaderboard/page.tsx"),/period==="week"/);
+  assert.match(read("app/(platform)/leaderboard/page.tsx"),/useState<Period>\("week"\)/);
   assert.match(read("app/account/account-actions.tsx"),/Public leaderboard visibility/);
 });
