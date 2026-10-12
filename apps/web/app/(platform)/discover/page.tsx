@@ -86,7 +86,7 @@ export default function DiscoverPage() {
       <span className="eyebrow">QUIZDIP DISCOVER</span>
       <h1>{t("discover.heading")}</h1>
       <p className="lead">{t("discover.lead")}</p>
-      {!kids && <PackSpotlight onBrowsePacks={() => updateListing({view:"PACK",packPage:"1"})} />}
+      {!kids && contentView === "ALL" && <PackSpotlight onBrowsePacks={() => updateListing({view:"PACK",packPage:"1"})} />}
 
       <div id="discover-content" className="actions discover-view-switch" role="group" aria-label={locale==="ko"?"탐색 콘텐츠 유형":"Discover content type"}>
         {(["ALL","PACK","QUIZ"] as const).map(view=><button key={view} type="button"
