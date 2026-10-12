@@ -33,6 +33,7 @@ model User {
   kidDeviceSessions     KidDeviceSession[]
   kidGuardianPin        KidGuardianPin?
   kidPairTickets        KidPairTicket[]
+  kidPairRequests       KidPairRequest[]
   kidParentAccess       KidParentAccess[]
   @@unique([issuer, subject])
 }
@@ -399,6 +400,7 @@ model KidProfile {
   playRuns        KidPlayRun[]
   singlePlays     KidPlaySingle[]
   pairTickets     KidPairTicket[]
+  pairRequests    KidPairRequest[]
   @@index([guardianId, updatedAt])
 }
 
@@ -408,6 +410,8 @@ model KidGuardianPin {
   hash             String
   attempts         Int      @default(0)
   lockedUntil      DateTime?
+  pairCodeAttempts Int      @default(0)
+  pairCodeLockedUntil DateTime?
   updatedAt        DateTime @updatedAt
 }
 
@@ -443,6 +447,27 @@ model KidPairTicket {
   expiresAt  DateTime
   consumedAt DateTime?
   @@index([guardianId, expiresAt, consumedAt])
+}
+
+
+/** Ephemeral, device-initiated pairing: only hashes of all three secrets are retained.
+    The low-entropy short code can ONLY be approved by an authenticated guardian with PIN. */
+model KidPairRequest {
+  id               String   @id @default(uuid())
+  deviceSecretHash String   @unique
+  approvalHash     String   @unique
+  shortCodeHash    String   @unique
+  deviceName       String
+  guardianId       String?
+  guardian         User?    @relation(fields: [guardianId], references: [id], onDelete: Cascade)
+  profileId        String?
+  profile          KidProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  createdAt        DateTime @default(now())
+  expiresAt        DateTime
+  approvedAt       DateTime?
+  claimedAt        DateTime?
+  @@index([expiresAt, approvedAt, claimedAt])
+  @@index([guardianId, expiresAt])
 }
 
 /** Private, nonpublic child ownership of existing server-graded play runs. */

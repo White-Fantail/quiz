@@ -1,4 +1,4 @@
-import { randomBytes, createHash, scryptSync, timingSafeEqual } from "node:crypto";
+import { randomBytes, randomInt, createHash, scryptSync, timingSafeEqual } from "node:crypto";
 
 /** Tokens are random capabilities, persisted only by hash; PINs are salted and memory-hard. */
 import { KIDS_COOKIE } from "./constants.ts";
@@ -48,3 +48,15 @@ export function normalizePairCode(value: unknown): string | null {
 export function pairCodeHash(value: string): string {
   return tokenHash("quizdip-native-pair-v1:" + value);
 }
+
+/** Three different capabilities: QR approval, short human code, and device-only claim. */
+export function createNativePairSecrets() {
+  return {
+    deviceSecret: newDeviceToken(),
+    qrToken: randomBytes(18).toString("base64url"),
+    shortCode: String(randomInt(0, 1_000_000)).padStart(6,"0")
+  };
+}
+export const devicePairHash = (secret:string) => tokenHash("quizdip-device-pair-v1:"+secret);
+export const qrPairHash = (token:string) => tokenHash("quizdip-pair-approval-v1:"+token);
+export const shortPairHash = (code:string) => tokenHash("quizdip-pair-six-digit-v1:"+code);

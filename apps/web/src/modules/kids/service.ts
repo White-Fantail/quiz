@@ -1,3 +1,4 @@
+import { createNativePairSecrets, devicePairHash, qrPairHash, shortPairHash } from "./credentials";
 import { db } from "../platform/db";
 import { fail } from "../platform/auth";
 import { checkPin, hashPin, newDeviceToken, tokenHash, MAX_DEVICE_AGE_SECONDS, createPairCode, normalizePairCode, pairCodeHash } from "./credentials";
@@ -203,4 +204,103 @@ export async function releaseNativeKidDevice(sessionId: string, guardianId: stri
   },data:{revokedAt:new Date()}});
   if(!result.count) fail(401,"native_session_invalid","Device already revoked");
   return {unlocked:true};
+}
+
+/** A child device starts a request before there is any parent/child identity attached. */
+export async function startNativePairRequest(deviceName:string) {
+  const expiresAt=new Date(Date.now()+5*60*1000);
+  for(let attempt=0;attempt<5;attempt++) {
+    const secrets=createNativePairSecrets();
+    try {
+      await db().kidPairRequest.create({data:{
+        deviceSecretHash:devicePairHash(secrets.deviceSecret),
+        approvalHash:qrPairHash(secrets.qrToken),
+        shortCodeHash:shortPairHash(secrets.shortCode),
+        deviceName,expiresAt
+      }});
+      return {...secrets,expiresAt:expiresAt.toISOString()};
+    }catch(e) {
+      if((e as {code?:string})?.code!=="P2002") throw e;
+    }
+  }
+  fail(503,"pair_busy","Please try creating the pairing code again");
+}
+
+/** Device poller has a 256-bit secret never included in the QR or browser URL. */
+export async function claimNativePairRequest(secret:string) {
+  if(!/^[A-Za-z0-9_-]{40,90}$/.test(secret))
+    fail(400,"invalid_pair_secret","Invalid device pairing request");
+  const now=new Date();
+  const deviceSecretHash=devicePairHash(secret);
+  return db().$transaction(async tx=>{
+    const request=await tx.kidPairRequest.findUnique({where:{deviceSecretHash}});
+    if(!request || request.expiresAt<=now)
+      fail(410,"pair_expired","Pairing request expired");
+    if(request.claimedAt) fail(409,"pair_claimed","Pairing request already used");
+    if(!request.approvedAt||!request.guardianId||!request.profileId)
+      return {status:"pending" as const};
+    const claimed=await tx.kidPairRequest.updateMany({where:{
+      id:request.id,approvedAt:{not:null},claimedAt:null,expiresAt:{gt:now}
+    },data:{claimedAt:now}});
+    if(claimed.count!==1)fail(409,"pair_claimed","Pairing request already used");
+    const profile=await tx.kidProfile.findFirst({where:{
+      id:request.profileId,guardianId:request.guardianId
+    }});
+    if(!profile)fail(410,"pair_expired","Parent profile no longer available");
+    const count=await tx.kidDeviceSession.count({where:{
+      guardianId:request.guardianId,revokedAt:null,expiresAt:{gt:now}
+    }});
+    if(count>=10)fail(409,"kid_device_limit","At most ten active child devices");
+    const token=newDeviceToken();
+    const expiresAt=new Date(Date.now()+MAX_DEVICE_AGE_SECONDS*1000);
+    await tx.kidDeviceSession.create({data:{
+      guardianId:request.guardianId,profileId:profile.id,clientKind:"NATIVE",
+      tokenHash:tokenHash(token),deviceName:request.deviceName,expiresAt
+    }});
+    return {status:"paired" as const,token,expiresAt:expiresAt.toISOString(),
+      profile:{nickname:profile.nickname,ageBand:profile.ageBand,locale:profile.locale}};
+  });
+}
+
+/** QR is high entropy; fallback has per-guardian DB rate limiting and requires PIN. */
+export async function approveNativePairRequest(guardianId:string,profileId:string,pin:string,
+  qrToken?:string,shortCode?:string) {
+  if(Boolean(qrToken)===Boolean(shortCode))
+    fail(400,"pair_input_invalid","Provide either a QR request or a six-digit code");
+  if(qrToken && !/^[A-Za-z0-9_-]{24}$/.test(qrToken))
+    fail(400,"pair_input_invalid","Invalid QR token");
+  if(shortCode && !/^[0-9]{6}$/.test(shortCode))
+    fail(400,"pair_input_invalid","Enter the six-digit code shown on the child device");
+  await checkGuardianPin(guardianId,pin);
+  const profile=await db().kidProfile.findFirst({where:{id:profileId,guardianId}});
+  if(!profile)fail(404,"kid_profile_missing","Child profile not found");
+  const now=new Date();
+  if(shortCode) {
+    const limiter=await db().kidGuardianPin.findUnique({where:{guardianId}});
+    if(!limiter)fail(409,"kid_pin_unset","Set your guardian PIN");
+    if(limiter.pairCodeLockedUntil && limiter.pairCodeLockedUntil>now)
+      fail(429,"pair_code_locked","Too many code attempts; try again in five minutes");
+    if(limiter.pairCodeLockedUntil && limiter.pairCodeLockedUntil<=now)
+      await db().kidGuardianPin.update({where:{guardianId},data:{pairCodeAttempts:0,pairCodeLockedUntil:null}});
+    const updated=await db().kidGuardianPin.update({where:{guardianId},data:{pairCodeAttempts:{increment:1}}});
+    if(updated.pairCodeAttempts>=5)
+      await db().kidGuardianPin.update({where:{guardianId},
+        data:{pairCodeLockedUntil:new Date(now.getTime()+5*60000)}});
+  }
+  const where=qrToken?{approvalHash:qrPairHash(qrToken)}:{shortCodeHash:shortPairHash(shortCode!)};
+  const existing=await db().kidPairRequest.findFirst({where:{
+    ...where,expiresAt:{gt:now},approvedAt:null,claimedAt:null
+  }});
+  if(!existing)fail(403,"pair_unavailable","Pairing code expired or invalid");
+  const devices=await db().kidDeviceSession.count({where:{guardianId,revokedAt:null,expiresAt:{gt:now}}});
+  if(devices>=10)fail(409,"kid_device_limit","At most ten active child devices");
+  const assigned=await db().kidPairRequest.updateMany({
+    where:{id:existing.id,expiresAt:{gt:now},approvedAt:null,claimedAt:null},
+    data:{guardianId,profileId,approvedAt:now}
+  });
+  if(assigned.count!==1)fail(409,"pair_unavailable","This device was already approved");
+  if(shortCode)await db().kidGuardianPin.update({where:{guardianId},data:{
+    pairCodeAttempts:0,pairCodeLockedUntil:null
+  }});
+  return {approved:true,deviceName:existing.deviceName};
 }
