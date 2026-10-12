@@ -27,7 +27,7 @@ export async function packRatingFor(id:string,locale:string) {
 /** Returns only a public pack with all questions eligible in this locale. */
 async function publicPack(id:string,locale:string) {
   const pack=await db().quizPack.findFirst({
-    where:{id,publication:"PUBLISHED",localizations:{some:{locale,status:"PUBLISHED"}}},
+    where:{id,publication:"PUBLISHED",safetyStatus:{not:"RESTRICTED"},localizations:{some:{locale,status:"PUBLISHED"}}},
     select:{id:true,authorId:true,currentVersion:true,
       items:{select:{quizId:true}}}
   });
