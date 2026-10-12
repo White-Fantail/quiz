@@ -118,19 +118,58 @@ export async function mediaImport(p: Record<string, any>, actor: Actor | null) {
     throw error;
   }
 }
-/** Stable reference IDs across all quiz revisions, not only the currently published revision.
- * Old revisions continue to block deletion, so the "unused" filter must agree.
+/** Media that can still be requested by a creator or a player.
+ * Old immutable revisions remain as historical metadata, but their assets do not
+ * need to live forever after all runtime references expire. This same query is
+ * shared by the usage filter and deletion guard so "unused" means deletable
+ * (subject to parent/child dependencies and a final transactional recheck).
+ *
+ * A pinned PlaySession can request media until expiresAt, even when SOLVED;
+ * an active run may not yet have created its session for the next round.
+ * SUBMITTED/SCHEDULED weekly snapshots are protected until weekEnd, even if
+ * the quiz was edited after proposal submission.
  */
-async function referencedMediaIds(ownerId: string): Promise<string[]> {
-  const rows = await db().$queryRaw<Array<{ id: string }>>`
+async function protectedMediaIds(ownerId: string, client: Pick<ReturnType<typeof db>, "$queryRaw"> = db()): Promise<string[]> {
+  const rows = await client.$queryRaw<Array<{ id: string }>>`
     SELECT DISTINCT refs.id
-    FROM "Quiz" q JOIN "QuizRevision" r ON r."quizId" = q."id"
+    FROM "Quiz" q
+    JOIN "QuizRevision" r ON r."quizId" = q."id"
+    LEFT JOIN "QuizLocalization" l ON l."id" = r."localizationId"
     CROSS JOIN LATERAL (
       SELECT jsonb_array_elements_text(r."promptMediaIds") AS id
       UNION ALL
       SELECT c.value ->> 'mediaId' AS id FROM jsonb_array_elements(r."clues") c
     ) refs
     WHERE q."authorId" = ${ownerId} AND refs.id IS NOT NULL
+      AND (
+        (l."id" IS NOT NULL AND r."version" = l."currentVersion")
+        OR (l."status" = 'PUBLISHED' AND r."version" = l."publishedVersion")
+        OR (l."id" IS NULL AND r."version" = q."currentVersion")
+        OR EXISTS (
+          SELECT 1 FROM "PlaySession" s
+          WHERE s."revisionId" = r."id" AND s."expiresAt" > CURRENT_TIMESTAMP
+        )
+        OR EXISTS (
+          SELECT 1 FROM "PlayRunQuestion" rq
+          JOIN "PlayRun" run ON run."id" = rq."runId"
+          WHERE rq."revisionId" = r."id"
+            AND run."status" = 'ACTIVE' AND run."expiresAt" > CURRENT_TIMESTAMP
+        )
+        OR EXISTS (
+          SELECT 1 FROM "WeeklyQuestion" wq
+          JOIN "WeeklyChallenge" wc ON wc."id" = wq."challengeId"
+          WHERE wq."revisionId" = r."id"
+            AND wc."status" IN ('SUBMITTED','SCHEDULED')
+            AND wc."weekEnd" > CURRENT_TIMESTAMP
+        )
+        OR EXISTS (
+          SELECT 1 FROM "WeeklyQuestionLocalization" wql
+          JOIN "WeeklyChallenge" wc ON wc."id" = wql."challengeId"
+          WHERE wql."revisionId" = r."id"
+            AND wc."status" IN ('SUBMITTED','SCHEDULED')
+            AND wc."weekEnd" > CURRENT_TIMESTAMP
+        )
+      )
   `;
   return rows.map(row => row.id);
 }
@@ -191,7 +230,7 @@ export async function mediaList(p: Record<string, any>, actor: Actor | null) {
     { attribution: { contains: p.search.trim(), mode: "insensitive" } },
   ];
   if (p.usage === "used" || p.usage === "unused") {
-    const ids = await referencedMediaIds(user.id);
+    const ids = await protectedMediaIds(user.id);
     // An empty list must not accidentally turn the "used" filter into all results.
     where.id = p.usage === "used" ? { in: ids } : { notIn: ids };
   }
@@ -248,25 +287,36 @@ async function publishedCurrentQuizzes(id: string): Promise<string[]> {
   `;
   return rows.map(r => r.id);
 }
-async function referencedByQuiz(id: string): Promise<boolean> {
-  const rows = await db().$queryRaw<Array<{ id: string }>>`
-    SELECT "id" FROM "QuizRevision"
-    WHERE "promptMediaIds" @> ${JSON.stringify([id])}::jsonb
-       OR "clues" @> ${JSON.stringify([{ mediaId: id }])}::jsonb
-    LIMIT 1
-  `;
-  return rows.length > 0;
-}
 export async function mediaDelete(p: Record<string, any>, actor: Actor | null) {
-  const old = await asset(p.id, actor);
+  const user = requireActor(actor);
   if (p.confirm !== true) fail(400, "confirmation_required", "Confirm deletion");
-  if (await referencedByQuiz(old.id)) fail(409, "media_in_use", "Media is referenced by a quiz revision");
-  if (await db().mediaAsset.count({ where: { parentId: old.id, deletedAt: null } }))
-    fail(409, "media_in_use", "Delete derived assets first");
-  const marked = await db().mediaAsset.update({
-    where: { id: old.id }, data: { status: "DELETED", deletedAt: new Date() },
-  });
-  // Deletion is idempotent. Storage lifecycle cleanup should retry on provider errors.
+  // Serializable transaction rechecks play/weekly/current references immediately
+  // before the soft-delete and records who deleted the binary asset and when.
+  // Historical quiz revisions are not edited, and the MediaAsset tombstone remains.
+  const old = await db().$transaction(async tx => {
+    const item = await tx.mediaAsset.findFirst({where:{
+      id:p.id,ownerId:user.id,deletedAt:null,
+    }});
+    if(!item) fail(404,"media_not_found","Media asset not found");
+    if((await protectedMediaIds(user.id,tx)).includes(item.id))
+      fail(409,"media_in_use","Media is required by a current quiz, unexpired play or scheduled challenge");
+    if(await tx.mediaAsset.count({where:{parentId:item.id,deletedAt:null}}))
+      fail(409,"media_in_use","Delete derived assets first");
+    const deletedAt=new Date();
+    const updated=await tx.mediaAsset.updateMany({where:{
+      id:item.id,ownerId:user.id,deletedAt:null,
+    },data:{status:"DELETED",deletedAt}});
+    if(updated.count!==1) fail(409,"media_conflict","Media changed during deletion");
+    await tx.auditLog.create({data:{
+      actorId:user.id,action:"media.delete",objectId:item.id,
+      detail:{deletedAt:deletedAt.toISOString(),kind:item.kind,
+        previouslyReferencedRevisionsRetained:true},
+    }});
+    return item;
+  },{isolationLevel:"Serializable"});
+  // Retention safety does not depend on R2 cleanup succeeding. Soft deletion
+  // invalidates every signed URL request through QuizDip immediately; R2
+  // cleanup failures are logged and may be retried separately.
   try {
     await deleteObject(old.storageKey);
     if (old.kind === "image") await deleteObject(`assets/${old.id}/thumbnail.webp`);
@@ -274,8 +324,9 @@ export async function mediaDelete(p: Record<string, any>, actor: Actor | null) {
   } catch (error) {
     console.error("Media object cleanup failed", error);
   }
-  return { id: marked.id, deleted: true };
+  return { id: old.id, deleted: true };
 }
+
 export async function mediaTransform(p: Record<string, any>, actor: Actor | null) {
   const user = requireActor(actor);
   const origin = await asset(p.id, actor);
