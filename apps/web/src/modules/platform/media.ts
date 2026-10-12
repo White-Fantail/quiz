@@ -126,8 +126,6 @@ export async function mediaImport(p: Record<string, any>, actor: Actor | null) {
  *
  * A pinned PlaySession can request media until expiresAt, even when SOLVED;
  * an active run may not yet have created its session for the next round.
- * SUBMITTED/SCHEDULED weekly snapshots are protected until weekEnd, even if
- * the quiz was edited after proposal submission.
  */
 async function protectedMediaIds(ownerId: string, client: Pick<ReturnType<typeof db>, "$queryRaw"> = db()): Promise<string[]> {
   const rows = await client.$queryRaw<Array<{ id: string }>>`
@@ -155,20 +153,7 @@ async function protectedMediaIds(ownerId: string, client: Pick<ReturnType<typeof
           WHERE rq."revisionId" = r."id"
             AND run."status" = 'ACTIVE' AND run."expiresAt" > CURRENT_TIMESTAMP
         )
-        OR EXISTS (
-          SELECT 1 FROM "WeeklyQuestion" wq
-          JOIN "WeeklyChallenge" wc ON wc."id" = wq."challengeId"
-          WHERE wq."revisionId" = r."id"
-            AND wc."status" IN ('SUBMITTED','SCHEDULED')
-            AND wc."weekEnd" > CURRENT_TIMESTAMP
-        )
-        OR EXISTS (
-          SELECT 1 FROM "WeeklyQuestionLocalization" wql
-          JOIN "WeeklyChallenge" wc ON wc."id" = wql."challengeId"
-          WHERE wql."revisionId" = r."id"
-            AND wc."status" IN ('SUBMITTED','SCHEDULED')
-            AND wc."weekEnd" > CURRENT_TIMESTAMP
-        )
+
       )
   `;
   return rows.map(row => row.id);
@@ -290,7 +275,7 @@ async function publishedCurrentQuizzes(id: string): Promise<string[]> {
 export async function mediaDelete(p: Record<string, any>, actor: Actor | null) {
   const user = requireActor(actor);
   if (p.confirm !== true) fail(400, "confirmation_required", "Confirm deletion");
-  // Serializable transaction rechecks play/weekly/current references immediately
+  // Serializable transaction rechecks play/current references immediately
   // before the soft-delete and records who deleted the binary asset and when.
   // Historical quiz revisions are not edited, and the MediaAsset tombstone remains.
   const old = await db().$transaction(async tx => {
@@ -299,7 +284,7 @@ export async function mediaDelete(p: Record<string, any>, actor: Actor | null) {
     }});
     if(!item) fail(404,"media_not_found","Media asset not found");
     if((await protectedMediaIds(user.id,tx)).includes(item.id))
-      fail(409,"media_in_use","Media is required by a current quiz, unexpired play or scheduled challenge");
+      fail(409,"media_in_use","Media is required by a current quiz or unexpired play");
     if(await tx.mediaAsset.count({where:{parentId:item.id,deletedAt:null}}))
       fail(409,"media_in_use","Delete derived assets first");
     const deletedAt=new Date();
