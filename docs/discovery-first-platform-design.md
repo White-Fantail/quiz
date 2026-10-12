@@ -6,13 +6,19 @@
 
 ## Implementation status (dev, 2026-10-12)
 
+**Native Kids safety behavior:** the Kids pack list is generated only with a guardian-pinned original language and age band, affirmative pack-level approval, individually approved quizzes/revisions/media, and a valid native device. Pack play saves immutable server-side order and signed device-scoped tokens; it rechecks the whole pack and media on each clue/guess and honors server-controlled daily/session limits. No public child ratings or statistics. Author edits invalidate Kids approval; an ADMIN RESTRICTED pack remains restricted until an administrator explicitly changes it.
+
+**Editorial behavior:** Admin picks have exclusive QUIZ/PACK FKs, locale, audience (GENERAL/KIDS), HERO/ROW placement, priority, label/copy and UTC start/end window. Both REST and MCP use the same validation and audit paths; public reads recheck publication, locale, media, Kids approval, and timing. Headline text cannot confer a verified creator identity. The UI presents an explicit "Editor's Pick" label, not an algorithmic popularity claim.
+
+
 - **Phase 1:** retired new Weekly Five entry points, preserved legacy runs, introduced per-run `targetCount`.
 - **Phase 2:** Studio pack management and publish preflight/confirmation, shared REST/MCP.
 - **Phase 3:** localized, immutable `PACK` runs with authenticated resume, pack listing/details and full-length web play.
 - **Phase 4:** per-pack order mode and one-time per-run randomized snapshot, independent `PackReview`/`PackReport`, server-verified reactions, pack owner insights, social share metadata/buttons, and Discover evidence-backed sections/tabs. Ranking is limited to a bounded recently updated eligible catalog, signed-in adult metrics, and sample floors; no claim of global all-time ranking.
-- **Phase 5 (pending):** ADMIN editorial placement/verification, native Kids packs and final legacy retirement sweep.
+- **Phase 5 (source implemented on dev):** ADMIN editorial picks and schedules (independent from organic rankings), eligible candidate search, pause/reorder/remove with audit, separate pack-level Kids moderation, and native Kids pack catalog/play/resume and curated recommendations. Legacy Weekly Five records and old compatibility endpoints remain read-only/sunset-oriented pending a retention audit; no historical deletes.
+- **Creator credentials intentionally not automated:** an Editor's Pick is never a verified celebrity/expert badge. Identity verification needs evidence, consent and a separate moderation workflow before any such badge can be introduced.
 
-Production DB migration and end-to-end manual browser testing remain separate rollout requirements. CI results must be checked against the final commit before merging. Creator-order is the backward-compatible default for existing packs.
+**Production rollout prerequisites:** apply and review the new Prisma migration `20261013030000_editorial_and_kids_packs` after all prior dev migrations; verify the migration against a copy of real data, check active legacy weekly reservations, and perform authenticated Admin/Studio and paired native Kids device tests. The deployment still requires explicit main-branch approval. CI is source validation, not operational proof. Creator-order is the backward-compatible default for existing packs.
 
 ## Product decisions
 
