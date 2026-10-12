@@ -28,7 +28,9 @@ export default function DiscoverySections(){
     .finally(()=>{if(live)setLoading(false)});
    return ()=>{live=false};
  },[locale]);
- const present=sections.filter(s=>s.items.length);
+ const present=sections.filter(s=>s.items.length && Object.prototype.hasOwnProperty.call(names,s.key));
+ // Keep an empty organic ranking from pushing the actual catalog down the page.
+ if (!loading && !present.length) return null;
  return <section aria-label={ko?"추천 및 인기 퀴즈":"Discover recommended quizzes"} className="discovery-dashboard">
   <div className="discover-results-head">
     <h2>{ko?"발견할 만한 콘텐츠":"Worth discovering"}</h2>
