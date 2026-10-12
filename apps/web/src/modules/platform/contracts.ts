@@ -146,25 +146,25 @@ export const operations = {
   play_media: { public: true, description: "Renew time-limited playback URL for a revealed clue or prompt media", schema: z.object({
     ...session, mediaId
   }) },
-  weekly_current: { public: true, description: "This week's globally fixed five questions and featured creator, separately for General/Kids", schema: z.object({ lane: z.enum(["GENERAL","KIDS"]).default("GENERAL"), locale: optionalLocale }) },
-  weekly_submit: { public: false, description: "Submit five original published questions as next week's host; staff schedules editions", schema: z.object({
+  weekly_current: { public: true, description: "RETIRED: legacy weekly metadata read for archival compatibility, not new challenge discovery", schema: z.object({ lane: z.enum(["GENERAL","KIDS"]).default("GENERAL"), locale: optionalLocale }) },
+  weekly_submit: { public: false, description: "RETIRED: returns weekly_retired; create a quiz pack instead", schema: z.object({
     lane: z.enum(["GENERAL","KIDS"]), weekStart: z.iso.date(), title: z.string().trim().min(3).max(180),
     description: z.string().max(1000).default(""), quizIds: z.array(uuid).length(5).refine(a=>new Set(a).size===5)
   }) },
-  weekly_publish: { public: false, description: "ADMIN ONLY: freeze the author's five revisions and publish the weekly edition", schema: z.object({
+  weekly_publish: { public: false, description: "RETIRED: no new weekly publication; returns weekly_retired", schema: z.object({
     challengeId: uuid, verifiedHost: z.boolean().default(false), confirm: z.literal(true)
   }) },
-  weekly_proposals: { public: false, description: "ADMIN ONLY: review upcoming five-quiz creator editions", schema: z.object({
+  weekly_proposals: { public: false, description: "LEGACY ADMIN: read historical weekly proposals during retirement", schema: z.object({
     lane: z.enum(["GENERAL","KIDS"]).optional(), weekStart: z.iso.date().optional(), ...paging
   }) },
   weekly_suspend: { public: false, description: "ADMIN ONLY: suspend an edition with audit record", schema: z.object({
     challengeId: uuid, reason: z.string().trim().min(5).max(1000), confirm: z.literal(true)
   }) },
   weekly_insights: { public:false, description:"Private aggregate weekly performance split by locale, host or admin only", schema:z.object({challengeId:uuid,locale:z.enum(["en","ko","und","all"]).default("all")}) },
-  weekly_standings: { public: true, description: "Verified opt-in adults' first-attempt scores for the selected General weekly challenge", schema: z.object({
+  weekly_standings: { public: true, description: "LEGACY: archived weekly standings only; not part of Discover", schema: z.object({
     challengeId: uuid, locale: optionalLocale, ...paging
   }) },
-  run_start: { public: true, description: "Begin/resume weekly, five random, or infinite play in General/Kids lane", schema: z.object({
+  run_start: { public: true, description: "Begin quick-five or continuous random play. WEEKLY input is recognized only to return an explicit retirement error", schema: z.object({
     mode: z.enum(["WEEKLY","RANDOM_FIVE","INFINITE"]), lane: z.enum(["GENERAL","KIDS"]).default("GENERAL"),
     avoidQuizIds: z.array(uuid).max(1000).default([]), locale: optionalLocale
   }) },
