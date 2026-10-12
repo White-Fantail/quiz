@@ -190,7 +190,9 @@ export default function KidGameScreen(){
    {(Array.isArray(question.promptMediaIds)?question.promptMediaIds:[]).map(id=>
       <SafeKidMedia key={"prompt:"+id} token={token!} mediaId={id}
         sessionId={question.sessionId} sessionToken={question.sessionToken}/>)}
-   {(question.clues??[]).map((clue,i)=><View key={clue.id??String(i)} style={{gap:8}}>
+   {(question.clues??[]).map((clue,i)=>clue.type==="image-reveal" && 
+     question.clues.slice(i+1).some(next=>next.type==="image-reveal"&&next.mediaId===clue.mediaId)
+       ?null:<View key={clue.id??String(i)} style={{gap:8}}>
      <Text style={styles.hintLabel}>✨ {t("native.play.hint")} {i+1}</Text>
      <KidClueView clue={clue} token={token!} sessionId={question.sessionId}
        sessionToken={question.sessionToken}/>

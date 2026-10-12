@@ -8,10 +8,11 @@ import { localizeHref } from "../../../../../src/i18n/core";
 import { bilingual } from "../../../../../src/i18n/view-copy";
 
 type Topic = { name:string; isSpoiler?:boolean };
+type VisualClue = {type:string;mediaId?:string;text?:string;reveal?:{effect:"blur"|"zoom"|"spotlight";strength:number;focusX?:number;focusY?:number}};
 type AgeRange = { minimum?:number; maximum?:number };
 type Quiz = {
   id:string;title:string;prompt:string;version:number;publication:string;locale?:string;
-  safetyStatus:string;kidsEligible:boolean;answerType:string;topics:Topic[];
+  safetyStatus:string;kidsEligible:boolean;answerType:string;topics:Topic[];clues:VisualClue[];
   creatorIntent?:{ageRange?:AgeRange;note?:string}|null;
   recommendedAudience?:{ageRange?:AgeRange;difficulty?:string}|null;
 };
@@ -31,7 +32,7 @@ type FormValues = {
   creatorMin:string;creatorMax:string;creatorNote:string;
   suggestedMin:string;suggestedMax:string;difficulty:string;
 };
-type Tab = "metadata"|"results"|"feedback"|"languages";
+type Tab = "metadata"|"visual"|"results"|"feedback"|"languages";
 const REVIEW_PAGE_SIZE=10;
 const answerTypes=["person","animal","place","thing","event","concept","other"];
 const publicationNames:Record<string,[string,string]>={DRAFT:["Draft","초안"],PUBLISHED:["Published","공개"],HIDDEN:["Hidden","숨김"]};
@@ -93,11 +94,17 @@ export default function StudioQuizDetail({quizId}:{quizId:string}){
   const [feedbackRefresh,setFeedbackRefresh]=useState(0);
   const [saving,setSaving]=useState(false);
   const [notice,setNotice]=useState("");
+  const [imageSource,setImageSource]=useState("");
+  const [effect,setEffect]=useState<"blur"|"zoom"|"spotlight">("blur");
+  const [stages,setStages]=useState(3);
+  const [focusX,setFocusX]=useState(50);
+  const [focusY,setFocusY]=useState(50);
   const [error,setError]=useState("");
   useEffect(()=>{
     let active=true;setLoading(true);setLoadError("");
     void request("/quizzes/"+encodeURIComponent(quizId)).then((q:Quiz)=>{
-      if(active){setQuiz(q);const values=formFromQuiz(q);setForm(values);setOriginal(values);}
+      if(active){setQuiz(q);const values=formFromQuiz(q);setForm(values);setOriginal(values);
+        setImageSource(q.clues?.find(c=>c.mediaId&&(c.type==="image"||c.type==="image-reveal"))?.mediaId??"");}
     }).catch(e=>{if(active)setLoadError(e instanceof Error?e.message:msg("Could not load the quiz.","문제를 불러오지 못했어요."));})
       .finally(()=>{if(active)setLoading(false);});
     return ()=>{active=false;};
@@ -143,6 +150,31 @@ export default function StudioQuizDetail({quizId}:{quizId:string}){
     }catch(e){
       setError(e instanceof Error?e.message:msg("Could not save. Refresh to check the latest version.","저장하지 못했어요. 최신 버전을 확인해 주세요."));
     }finally{setSaving(false);}
+  }
+  async function saveImageReveal(){
+    if(!quiz||saving||dirty)return;
+    const images=quiz.clues.filter(c=>c.type==="image"||c.type==="image-reveal");
+    const firstIndex=quiz.clues.findIndex(c=>c.type==="image"||c.type==="image-reveal");
+    if(!images.length||!imageSource||firstIndex<0)return;
+    const visualStages=Array.from({length:stages},(_,i)=>({
+      type:"image-reveal",mediaId:imageSource,
+      ...(images[i]?.text?{text:images[i].text}:{}),
+      reveal:{effect,strength:Math.round(95*(stages-1-i)/(stages-1)),focusX,focusY}
+    }));
+    const next:VisualClue[]=quiz.clues.flatMap((clue,i)=>i===firstIndex?visualStages:
+      (clue.type==="image"||clue.type==="image-reveal")?[]:[clue]);
+    if(next.length>15){setError(msg("A quiz supports at most 15 clues. Reduce the reveal steps.","단서는 최대 15개까지 가능해요. 이미지 공개 단계를 줄여 주세요."));return;}
+    if(!window.confirm(msg("Replace the image clues with one original image and "+stages+" reveal stages? This creates a new revision and resets safety/Kids approval.","기존 이미지 단서를 한 장의 원본과 "+stages+"단계 공개 효과로 변경할까요? 새 버전이 생성되며 안전 검토와 Kids 승인이 초기화됩니다.")))return;
+    setSaving(true);setError("");setNotice("");
+    try{
+      const updated:Quiz=await request("/quizzes/"+encodeURIComponent(quiz.id),"PATCH",{
+        expectedVersion:quiz.version,clues:next
+      });
+      setQuiz(updated);const values=formFromQuiz(updated);setForm(values);setOriginal(values);
+      setNotice(msg("Image Reveal saved. Use Test play to check every stage.","이미지 공개 단서를 저장했어요. 테스트 플레이에서 각 단계를 확인하세요."));
+      setFeedbackRefresh(n=>n+1);
+    }catch(e){setError(e instanceof Error?e.message:msg("Could not update image clues.","이미지 단서를 수정하지 못했어요."));}
+    finally{setSaving(false);}
   }
   async function confirmOriginalLanguage(locale:"en"|"ko") {
     if (!quiz || quiz.locale!=="und" || saving) return;
@@ -208,6 +240,8 @@ export default function StudioQuizDetail({quizId}:{quizId:string}){
     <nav className="studio-tabs" aria-label={msg("Quiz management menu","문제 관리 메뉴")}>
       <button type="button" className={tab==="metadata"?"active":""} aria-current={tab==="metadata"?"page":undefined}
         onClick={()=>setTab("metadata")}>{msg("Edit details","정보 수정")}</button>
+      <button type="button" className={tab==="visual"?"active":""} aria-current={tab==="visual"?"page":undefined}
+        onClick={()=>setTab("visual")}>{msg("Image Reveal","이미지 공개 효과")}</button>
       <button type="button" className={tab==="results"?"active":""} aria-current={tab==="results"?"page":undefined}
         onClick={()=>setTab("results")}>{msg("Play results","풀이 결과")}</button>
       <button type="button" className={tab==="feedback"?"active":""} aria-current={tab==="feedback"?"page":undefined}
@@ -277,6 +311,54 @@ export default function StudioQuizDetail({quizId}:{quizId:string}){
       </div>
     </form>}
 
+    {tab==="visual"&&<section className="placeholder-panel studio-reveal-editor">
+      <h2>{msg("Progressive Image Reveal","이미지 한 장으로 단계별 공개")}</h2>
+      <p className="muted">{msg("Choose an existing image clue as the original. Blur, Zoom or Spotlight is applied at play time in web and Kids. No duplicate images are created.",
+        "기존 이미지 단서 중 원본 한 장을 선택하세요. 웹과 Kids 앱에서 블러·확대·스포트라이트를 적용하므로 이미지를 여러 장 만들 필요가 없어요.")}</p>
+      {!quiz.clues.some(c=>c.type==="image"||c.type==="image-reveal")?
+        <p className="muted">{msg("Add an image clue using the media library or API first.","먼저 미디어 라이브러리 또는 API에서 이미지 단서를 등록해 주세요.")}</p>:
+        <div className="studio-form-grid">
+          <label className="studio-wide">{msg("Source image","원본 이미지")}
+            <select value={imageSource} onChange={e=>setImageSource(e.target.value)}>
+              {[...new Map(quiz.clues.filter(c=>c.mediaId&&(c.type==="image"||c.type==="image-reveal"))
+                .map((c,i)=>[c.mediaId!,{id:c.mediaId!,text:c.text||"Image "+(i+1)}])).values()].map(item=>
+                <option key={item.id} value={item.id}>{item.text.slice(0,70)}</option>)}
+            </select>
+          </label>
+          <label>{msg("Reveal effect","공개 효과")}
+            <select value={effect} onChange={e=>setEffect(e.target.value as "blur"|"zoom"|"spotlight")}>
+              <option value="blur">{msg("Blur → Clear","흐림 → 선명")}</option>
+              <option value="zoom">{msg("Zoom out → Full","부분 확대 → 전체")}</option>
+              <option value="spotlight">{msg("Spotlight → Full","작은 영역 → 전체")}</option>
+            </select>
+          </label>
+          <label>{msg("Image stages","이미지 공개 단계")}
+            <select value={stages} onChange={e=>setStages(Number(e.target.value))}>
+              {[2,3,4,5].map(count=><option key={count} value={count}>{count}</option>)}
+            </select>
+          </label>
+          {effect!=="blur"&&<>
+            <label>{msg("Focus X (%)","중심 X (%)")}
+              <input type="number" min={0} max={100} value={focusX} onChange={e=>setFocusX(Math.max(0,Math.min(100,Number(e.target.value))))}/>
+            </label>
+            <label>{msg("Focus Y (%)","중심 Y (%)")}
+              <input type="number" min={0} max={100} value={focusY} onChange={e=>setFocusY(Math.max(0,Math.min(100,Number(e.target.value))))}/>
+            </label>
+          </>}
+          <p className="studio-wide muted">{msg("Preview strengths: ","단계별 공개 강도: ")}
+            {Array.from({length:stages},(_,i)=>Math.round(95*(stages-1-i)/(stages-1))).join(" → ")}
+            {msg(" (0 is the fully revealed image). All existing image clues are replaced; text and other media clues remain.",
+              " (0은 완전 공개). 기존 이미지 단서는 모두 대체되며 텍스트 등 다른 단서는 유지됩니다.")}</p>
+          <div className="studio-wide actions">
+            <button type="button" className="btn btn-primary" disabled={saving||dirty||!imageSource}
+              onClick={()=>void saveImageReveal()}>{saving?msg("Saving…","저장 중…"):msg("Create Image Reveal","이미지 공개 단서 만들기")}</button>
+            <Link className="btn btn-outline" href={localizeHref("/studio/quizzes/"+quiz.id+"/preview",locale)}>
+              {msg("Test play","테스트 플레이")}
+            </Link>
+          </div>
+          {dirty&&<p className="studio-wide muted">{msg("Save or discard metadata changes first.","먼저 정보 수정 내용을 저장하거나 취소해 주세요.")}</p>}
+        </div>}
+    </section>}
     {(tab==="results"||tab==="feedback")&&<section className="studio-locale-filter">
       <label>{msg("Analysis language","분석 언어")}
         <select value={insightLocale} onChange={e=>{setInsightLocale(e.target.value as "all"|"en"|"ko"|"und");setFeedbackPage(0);}}>
