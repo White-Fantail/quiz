@@ -29,6 +29,10 @@
     ],
     "experiments": {
       "tsconfigPaths": true
-    }
+    },
+    "platforms": [
+      "ios",
+      "android"
+    ]
   }
 }
