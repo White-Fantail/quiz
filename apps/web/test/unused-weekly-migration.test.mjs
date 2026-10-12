@@ -13,7 +13,7 @@ test("weekly tables and relations are removed only after a fail-closed empty-dat
    assert.match(sql,new RegExp('DROP TABLE "'+table+'"'));
    assert.doesNotMatch(schema,new RegExp("model "+table+" \\{"));
  }
- assert.match(sql,/IF EXISTS \(SELECT 1 FROM "PlayRun" WHERE "mode" = 'WEEKLY' OR "weeklyId" IS NOT NULL\)/);
+ assert.match(sql,/OR EXISTS \(SELECT 1 FROM "PlayRun" WHERE "mode" = 'WEEKLY' OR "weeklyId" IS NOT NULL\)/);
  assert.match(sql,/RAISE EXCEPTION 'Cannot remove weekly challenge schema/);
  assert.doesNotMatch(sql,/TRUNCATE|CASCADE|DELETE FROM "PlayRun"|DROP TABLE "PlayRun"/);
  assert.match(sql,/ALTER TABLE "PlayRun" DROP COLUMN "weeklyId"/);
