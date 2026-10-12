@@ -1,4 +1,4 @@
-import { createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, randomBytes, randomInt, randomUUID, timingSafeEqual } from "node:crypto";
 import { db } from "./db";
 import { ratingsForQuizzes, ratingsForQuiz, myRatingForQuiz, ratingAccess } from "./ratings";
 import { fail, requireActor, type Actor } from "./auth";
@@ -314,11 +314,20 @@ async function startPackRun(p:Record<string,any>,actor:Actor|null) {
       if(approved!==mediaIds.size)
         fail(409,"pack_media_unavailable","A pack question uses unavailable media");
     }
+    // Shuffle exactly once when the run is created; persistence pins this order.
+    // Creator order remains the default for every existing pack.
+    const orderedItems=pack.orderMode==="RANDOM"?[...pack.items]:pack.items;
+    if(pack.orderMode==="RANDOM"){
+      for(let i=orderedItems.length-1;i>0;i--){
+        const j=randomInt(i+1);
+        [orderedItems[i],orderedItems[j]]=[orderedItems[j],orderedItems[i]];
+      }
+    }
     const run=await tx.playRun.create({data:{
       id,mode:"PACK",lane:"GENERAL",locale,userId:actor?.id,
       packId:pack.id,packVersion:pack.currentVersion,targetCount:ids.length,
       tokenHash:hash(runToken),expiresAt:expiry,
-      questions:{create:pack.items.map((item,index)=>({
+      questions:{create:orderedItems.map((item,index)=>({
         position:index,quizId:item.quizId,revisionId:pinned.get(item.quizId)!
       }))}
     }});
