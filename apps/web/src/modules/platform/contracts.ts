@@ -69,7 +69,9 @@ export const operations = {
   quiz_review_get: { public: false, description: "ADMIN ONLY: inspect quiz questions and answers for safety", schema: z.object({id:uuid}) },
   quiz_review: { public: false, description: "ADMIN ONLY: independently approve or restrict a quiz; Kids requires explicit safety approval", schema: z.object({
     id: uuid, verdict: z.enum(["APPROVED","RESTRICTED","PENDING"]), kidsEligible: z.boolean().default(false),
-    reason: z.string().trim().min(5).max(1000), confirm: z.literal(true)
+    reason: z.string().trim().max(1000).default(""), confirm: z.literal(true)
+  }).refine(p=>p.verdict!=="RESTRICTED"||p.reason.length>=5,{
+    path:["reason"],message:"A restriction requires a reason of at least 5 characters"
   }) },
   pack_languages: { public:false, description:"List owned pack localization and complete-language coverage", schema:z.object({id:uuid}) },
   pack_translation_upsert: { public:false, description:"Save or publish localized pack metadata after checking full question coverage", schema:z.object({id:uuid,locale:localeCode,title:z.string().trim().min(1).max(180),description:z.string().max(2000).default(""),status:z.enum(["DRAFT","PUBLISHED","HIDDEN"]).default("DRAFT"),confirm:z.boolean().default(false)}) },
@@ -105,7 +107,9 @@ export const operations = {
   admin_pack_safety_list: { public:false, description:"ADMIN: review independent whole-pack Kids safety readiness", schema:z.object(paging) },
   admin_pack_safety_review: { public:false, description:"ADMIN: independently approve, hold or restrict a pack for Kids", schema:z.object({
     id:uuid,expectedVersion:z.number().int().positive(),verdict:z.enum(["APPROVED","PENDING","RESTRICTED"]),
-    reason:z.string().trim().min(8).max(1000),confirm:z.literal(true)
+    reason:z.string().trim().max(1000).default(""),confirm:z.literal(true)
+  }).refine(p=>p.verdict!=="RESTRICTED"||p.reason.length>=8,{
+    path:["reason"],message:"A pack restriction requires a reason of at least 8 characters"
   }) },
   discover_sections: { public:true, description:"Explore organic trending, popular, rated, difficult and new quiz/pack content", schema:z.object({locale:optionalLocale}) },
   pack_update: { public: false, description: "Edit or publish an owned quiz pack", schema: z.object({ id: uuid, title: z.string().min(1).max(180).optional(), description: z.string().max(2000).optional(), quizIds: z.array(uuid).min(1).max(100).optional(), orderMode:z.enum(["CREATOR","RANDOM"]).optional(), publication: z.enum(["DRAFT", "PUBLISHED", "HIDDEN"]).optional(), confirm: z.boolean().optional() }) },
@@ -173,7 +177,10 @@ export const operations = {
   }).refine(p => !!(p.crop || p.blur || p.resizeWidth), { message: "Choose at least one image transform" }) },
   media_review_get: { public: false, description: "ADMIN ONLY: inspect private media and credits before moderation", schema: z.object({id:mediaId}) },
   media_review: { public: false, description: "ADMIN ONLY: explicitly approve or restrict validated media", schema: z.object({
-    id: mediaId, verdict: z.enum(["APPROVED", "RESTRICTED"]), confirm: z.literal(true), reason: z.string().min(5).max(1000)
+    id: mediaId, verdict: z.enum(["APPROVED", "RESTRICTED"]), confirm: z.literal(true),
+    reason: z.string().trim().max(1000).default("")
+  }).refine(p=>p.verdict!=="RESTRICTED"||p.reason.length>=5,{
+    path:["reason"],message:"A media restriction requires a reason of at least 5 characters"
   }) },
   play_media: { public: true, description: "Renew time-limited playback URL for a revealed clue or prompt media", schema: z.object({
     ...session, mediaId
