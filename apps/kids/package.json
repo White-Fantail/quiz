@@ -33,7 +33,7 @@
     "expo-audio": "~57.0.5",
     "expo-video": "~57.0.5",
     "react-dom": "19.2.3",
-    "react-native-web": "~0.21.0",
+    "react-native-web": "^0.21.2",
     "@expo/metro-runtime": "~57.0.15"
   },
   "devDependencies": {
