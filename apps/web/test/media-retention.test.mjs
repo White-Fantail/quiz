@@ -14,17 +14,14 @@ test("current editable and all published localizations protect media, even for d
   assert.match(media,/l\."id" IS NULL AND r\."version" = q\."currentVersion"/);
 });
 
-test("unexpired sessions, active runs and future weekly snapshots protect their pinned revisions",()=>{
+test("unexpired sessions and active runs protect pinned revisions",()=>{
   assert.match(media,/FROM "PlaySession" s/);
   assert.match(media,/s\."revisionId" = r\."id" AND s\."expiresAt" > CURRENT_TIMESTAMP/);
   assert.doesNotMatch(media,/s\."status" = 'ACTIVE'/);
   assert.match(media,/FROM "PlayRunQuestion" rq/);
   assert.match(media,/JOIN "PlayRun" run/);
   assert.match(media,/run\."status" = 'ACTIVE' AND run\."expiresAt" > CURRENT_TIMESTAMP/);
-  for(const table of ["WeeklyQuestion","WeeklyQuestionLocalization"])
-    assert.ok(media.includes('FROM "'+table+'"'),table+" snapshots protected");
-  assert.match(media,/wc\."status" IN \('SUBMITTED','SCHEDULED'\)/);
-  assert.match(media,/wc\."weekEnd" > CURRENT_TIMESTAMP/);
+  assert.doesNotMatch(media,/WeeklyQuestion|WeeklyChallenge|weekEnd/);
 });
 
 test("used/unused returns assets needed for playback, not historical-only IDs",()=>{
