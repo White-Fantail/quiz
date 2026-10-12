@@ -3,7 +3,7 @@ import { quizLanguages,quizTranslationGet,quizTranslationGenerate,quizTranslatio
 import { localeGet, localeUpdate } from "./locale";
 import { topicList } from "./topics";
 import { fail, requireActor, type Actor } from "./auth";
-import { quizList, quizGet, quizCreate, quizUpdate, quizPublish, quizLanguageSet, quizReview, quizReviewGet } from "./quiz";
+import { quizList, quizGet, quizCreate, quizUpdate, quizPublish, quizLanguageSet, quizReview, quizReviewGet, adminQuizReviewList } from "./quiz";
 import { playStart, playClue, playGuess } from "./play";
 import { runStart,runCurrent,runFinish,runHistory,runFeedback } from "./runs";
 import { reviewsList, reviewUpsert, reviewRemove, reportCreate, reportsMine, packCreate, packList, packGet, packPreflight, packUpdate, packLanguageSet, packLanguages, packTranslationUpsert, packPublishPreview, packPublish } from "./social";
@@ -45,6 +45,7 @@ export async function execute(name: Operation, raw: unknown, actor: Actor | null
     case "quiz_translation_save": return quizTranslationSave(p,actor);
     case "quiz_translation_publish": return quizTranslationPublish(p,actor);
     case "quiz_translation_hide": return quizTranslationHide(p,actor);
+    case "admin_quiz_review_list": return adminQuizReviewList(p,actor);
     case "quiz_review_get": return quizReviewGet(p,actor);
     case "quiz_review": return quizReview(p, actor);
     case "pack_get": return packGet(p,actor);
