@@ -16,6 +16,14 @@ export type Clue =
   | {
       id: string;
       order: number;
+      type: "image-reveal";
+      media: { url: string; alt?: string; attribution?: string };
+      reveal: { effect: "blur" | "zoom" | "spotlight"; strength: number; focusX?: number; focusY?: number };
+      text?: string;
+    }
+  | {
+      id: string;
+      order: number;
       type: "map";
       map: { latitude: number; longitude: number; zoom?: number };
       text?: string;
