@@ -6,7 +6,7 @@ import { AdventureTile } from "../components/AdventureTile";
 import { theme } from "../theme";
 
 type Lang="en"|"ko";
-type Tab="home"|"explore"|"challenge"|"treasures"|"game";
+type Tab="home"|"explore"|"packs"|"challenge"|"treasures"|"game";
 type Words={en:string;ko:string};
 type Example={emoji:string;type:"animal"|"place"|"concept";name:Words;prompt:Words;
   clues:[Words,Words];answers:[Words,Words,Words];correct:0|1|2};
@@ -64,6 +64,7 @@ export default function Preview({initialTab="home"}:{initialTab?:Tab}){
   setRound(n=>n+1);setQuestion(round+1);setHint(1);setAnswer(null);
  };
  const tabs=[["home","🏠","kids.nav.home"],["explore","🧭","kids.nav.explore"],
+  ["packs","📚","kids.nav.packs"],
   ["challenge","🧩","kids.nav.challenge"],["treasures","⭐","kids.nav.treasures"]] as const;
  return <View style={styles.shell}>
   <View style={styles.header}>
@@ -109,6 +110,17 @@ export default function Preview({initialTab="home"}:{initialTab?:Tab}){
       <Text style={styles.link}>▶ {s.play}</Text></View>
     </Pressable>)}
    {filter==="concept"?<Text style={styles.detail}>{t("native.noQuizzes")}</Text>:null}
+  </Screen>:null}
+  {tab==="packs"?<Screen title={t("native.packs.title")} subtitle={t("native.packs.lead")}>
+   <Banner emoji="📚" title={t("native.packs.featured")} detail={s.notice} tint={theme.colors.sky}/>
+   <View style={styles.card}>
+     <Text style={styles.title}>📚 {lang==="ko"?"동물 수수께끼 샘플팩":"Sample animal puzzle pack"}</Text>
+     <Text style={styles.detail}>{t("native.packs.random")} · 3 {t("native.packs.questions")}</Text>
+     <Text style={styles.detail}>{s.privacy}</Text>
+     <Pressable accessibilityRole="button" style={styles.action} onPress={()=>start(0,true)}>
+      <Text style={styles.actionText}>▶ {t("native.packs.play")}</Text>
+     </Pressable>
+   </View>
   </Screen>:null}
   {tab==="challenge"?<Screen title={t("kids.challenge.title")} subtitle={s.begin}>
    <Banner emoji="🧩" title={t("native.play.chooseMode")} detail={s.begin} tint={theme.colors.sky}/>
