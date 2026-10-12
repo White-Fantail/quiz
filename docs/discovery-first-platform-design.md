@@ -1,13 +1,23 @@
 # QuizDip Discovery-first Platform — Revised Design (2026-10-12)
 
-**Status:** Approved direction / design only. No implementation or deployment.  
+**Status:** Implemented in stages on `dev` through Phase 4 (verification and deployment may still be pending). No `main` merge or production migration authorized.  
 **Branch:** `dev`. **Supersedes:** `docs/quiz-pack-first-design.md` wherever it describes Weekly Five as a continuing feature. The prior document remains a technical reference for pack publication, run snapshots, ratings and translations.  
 **Outcome:** Quiz and QuizPack are independent shareable, rateable, playable content. Discover, evidence-based discovery and transparent editor curation replace the scheduled weekly competition.
+
+## Implementation status (dev, 2026-10-12)
+
+- **Phase 1:** retired new Weekly Five entry points, preserved legacy runs, introduced per-run `targetCount`.
+- **Phase 2:** Studio pack management and publish preflight/confirmation, shared REST/MCP.
+- **Phase 3:** localized, immutable `PACK` runs with authenticated resume, pack listing/details and full-length web play.
+- **Phase 4:** per-pack order mode and one-time per-run randomized snapshot, independent `PackReview`/`PackReport`, server-verified reactions, pack owner insights, social share metadata/buttons, and Discover evidence-backed sections/tabs. Ranking is limited to a bounded recently updated eligible catalog, signed-in adult metrics, and sample floors; no claim of global all-time ranking.
+- **Phase 5 (pending):** ADMIN editorial placement/verification, native Kids packs and final legacy retirement sweep.
+
+Production DB migration and end-to-end manual browser testing remain separate rollout requirements. CI results must be checked against the final commit before merging. Creator-order is the backward-compatible default for existing packs.
 
 ## Product decisions
 
 1. **Discover** is the primary experience; include questions and quiz packs as equal content types. Promote what people actually enjoy and find challenging, not a mandated five-question event.
-2. **Quiz packs** have creator-controlled ordered members, their own public URL, cover/title/description, reviews, statistics and resumable full-pack play regardless of pack size. One quiz may appear in multiple packs without duplicating quiz revisions or quiz feedback.
+2. **Quiz packs** have creator-controlled ordered members and an explicit `orderMode=CREATOR|RANDOM` (default `CREATOR`). `RANDOM` is shuffled exactly once when a new run starts, with the resulting permutation and revision IDs pinned; resuming never reshuffles. Each pack has its own public URL, cover/title/description, reviews, statistics and resumable full-pack play regardless of pack size. One quiz may appear in multiple packs without duplicating quiz revisions or quiz feedback.
 3. **Random play** is always accessible as an endless stream, avoiding already-seen questions. "Random five" is only a gentle quick-start tutorial/preset for visitors who want a short game. After five, offer "five more" or "keep going"; never manufacture an author-owned pack from random items.
 4. **Retire Weekly Five**: no recurring celebrity challenge, exactly-five editorial constraint, first-attempt weekly leaderboard, weekly proposal/schedule, or exclusive reservation after sunset. Retain historical records and compatibility through the transition.
 5. **Editorial promotion** is available to ADMIN for any qualifying question or pack, without claiming the item is organically popular. A verified celebrity/expert badge is independent of being featured.
