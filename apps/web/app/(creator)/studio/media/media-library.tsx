@@ -205,7 +205,7 @@ export default function MediaLibrary() {
     finally{setBusy(false);}
   }
   async function remove(item: Media) {
-    if (!window.confirm(msg("Delete this file? Files used in any quiz revision cannot be deleted.","이 파일을 삭제할까요? 과거 버전을 포함해 퀴즈에서 사용 중인 파일은 삭제할 수 없어요."))) return;
+    if (!window.confirm(msg("Delete this file? Active quiz versions, unexpired play sessions and upcoming weekly challenges are protected. Historical usage records remain.","이 파일을 삭제할까요? 현재 버전·만료 전 플레이·예정된 주간 챌린지에서 사용하는 파일은 보호됩니다. 과거 사용 이력은 유지돼요."))) return;
     setBusy(true);setError("");
     try{
       await request("/media/"+item.id,"DELETE",{confirm:true});
@@ -298,7 +298,7 @@ export default function MediaLibrary() {
         </label>
         <label>{msg("Quiz usage","퀴즈 사용")}
           <select value={usage} onChange={e=>newFilter(()=>setUsage(e.target.value as FilterUsage))}>
-            <option value="all">{msg("All","전체")}</option><option value="used">{msg("Used / previously used","사용 중/사용 이력")}</option><option value="unused">{msg("Never used","사용 이력 없음")}</option>
+            <option value="all">{msg("All","전체")}</option><option value="used">{msg("Currently needed","현재 필요한 파일")}</option><option value="unused">{msg("Not needed for playback","현재 재생에 불필요")}</option>
           </select>
         </label>
         <label>{msg("Sort","정렬")}
