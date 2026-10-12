@@ -20,8 +20,9 @@ async function api(path:string,method="GET",body?:object){
   if(!response.ok)throw Error(json.message||json.error||"Request failed");
   return json.data;
 }
-export default function PackEditor({packId}:{packId?:string}){
+export default function PackEditor({packId,detailHref}:{packId?:string;detailHref?:string}){
   const router=useRouter(),locale=useLocale(),ko=locale==="ko";
+  const destination=detailHref??localizeHref(packId?"/studio/packs/"+packId:"/studio/packs",locale);
   const [loading,setLoading]=useState(!!packId);
   const [error,setError]=useState(""),[notice,setNotice]=useState("");
   const [title,setTitle]=useState(""),[description,setDescription]=useState("");
@@ -30,11 +31,7 @@ export default function PackEditor({packId}:{packId?:string}){
   const [members,setMembers]=useState<string[]>([]);
   const [memberTitles,setMemberTitles]=useState<Record<string,string>>({});
   const [publication,setPublication]=useState("DRAFT");
-  const [kidsReviewStatus,setKidsReviewStatus]=useState("NOT_REQUESTED");
-  const [kidsReady,setKidsReady]=useState(false),[kidsIssue,setKidsIssue]=useState("");
-  const [excludedCount,setExcludedCount]=useState(0);
   const [busy,setBusy]=useState(false),[dirty,setDirty]=useState(false);
-  const [preview,setPreview]=useState<Preview|null>(null),[insights,setInsights]=useState<Insights|null>(null);
   const [query,setQuery]=useState(""),[search,setSearch]=useState(""),[page,setPage]=useState(0);
   const [questions,setQuestions]=useState<Quiz[]>([]),[questionTotal,setQuestionTotal]=useState(0);
   const [questionLoading,setQuestionLoading]=useState(true),[questionError,setQuestionError]=useState("");
@@ -42,17 +39,14 @@ export default function PackEditor({packId}:{packId?:string}){
     if(!packId)return;
     let active=true;
     setLoading(true);
-    void Promise.all([api("/me/packs/"+packId),api("/me/packs/"+packId+"/insights?locale=all")])
-      .then(([pack,stats]:[Pack,Insights])=>{
+    void api("/me/packs/"+encodeURIComponent(packId))
+      .then((pack:Pack)=>{
         if(!active)return;
         setTitle(pack.title);setDescription(pack.description||"");setMembers(pack.quizIds);
         setOrderMode(pack.orderMode||"CREATOR");setPublication(pack.publication);
-        setKidsReviewStatus(pack.kidsReviewStatus||"NOT_REQUESTED");
-        setKidsReady(!!pack.kidsReady);setKidsIssue(pack.kidsIssue||"");
-        setExcludedCount(pack.excludedCount||0);
         setMemberTitles(Object.fromEntries(pack.members.map(member=>[member.id,member.title])));
         setLanguage(pack.sourceLocale==="ko"?"ko":"en");
-        setInsights(stats);setDirty(false);
+        setDirty(false);
       }).catch(e=>{if(active)setError(e instanceof Error?e.message:String(e));})
       .finally(()=>{if(active)setLoading(false);});
     return ()=>{active=false;};
@@ -79,58 +73,27 @@ export default function PackEditor({packId}:{packId?:string}){
     }).finally(()=>{if(!controller.signal.aborted)setQuestionLoading(false);});
     return ()=>controller.abort();
   },[page,search]);
-  function change(){setDirty(true);setPreview(null);setNotice("");}
+  function change(){setDirty(true);setNotice("");}
   function changeMembers(ids:string[]){setMembers(ids);change();}
-  async function perform(action:()=>Promise<void>){
-    setBusy(true);setError("");setNotice("");
-    try{await action();}catch(e){setError(e instanceof Error?e.message:String(e));}
-    finally{setBusy(false);}
-  }
   async function save(){
+    if(busy)return;
     if(!title.trim()||!members.length){setError(ko?"제목과 최소 한 문제를 선택하세요.":"Choose a title and at least one question.");return;}
-    await perform(async()=>{
+    setBusy(true);setError("");setNotice("");
+    try{
       const body={title:title.trim(),description,quizIds:members,orderMode};
       if(packId){
-        await api("/packs/"+packId,"PATCH",body);
-        const refreshed=await api("/me/packs/"+packId) as Pack;
-        setKidsReviewStatus(refreshed.kidsReviewStatus);
-        setKidsReady(!!refreshed.kidsReady);setKidsIssue(refreshed.kidsIssue||"");
-        setExcludedCount(refreshed.excludedCount||0);
-        setDirty(false);setPreview(null);setNotice(ko?"변경 사항을 저장했어요.":"Changes saved.");
+        await api("/packs/"+encodeURIComponent(packId),"PATCH",body);
+        setDirty(false);
+        router.replace(destination);
+        router.refresh();
       }else{
         const pack=await api("/packs","POST",{...body,locale:language});
+        setDirty(false);
         router.replace(localizeHref("/studio/packs/"+pack.id,locale));
+        router.refresh();
       }
-    });
-  }
-  async function validate(){
-    if(!packId||dirty)return;
-    await perform(async()=>{
-      const result=await api("/packs/"+packId+"/publish-preview");
-      setPreview(result);
-    });
-  }
-  async function publish(){
-    if(!packId||dirty||!preview?.ready)return;
-    if(!window.confirm(ko?"팩과 포함된 내 초안 문제를 함께 공개할까요?":"Publish this pack and eligible owned drafts?"))return;
-    await perform(async()=>{
-      await api("/packs/"+packId+"/publish","POST",{confirm:true});
-      const refreshed=await api("/me/packs/"+packId) as Pack;
-      setPublication("PUBLISHED");setPreview(null);
-      setKidsReviewStatus(refreshed.kidsReviewStatus);
-      setKidsReady(!!refreshed.kidsReady);setKidsIssue(refreshed.kidsIssue||"");
-      setExcludedCount(refreshed.excludedCount||0);
-      setNotice(ko?"팩을 공개했어요.":"Pack published.");
-    });
-  }
-  async function requestKids(){
-    if(!packId||dirty||!kidsReady||publication!=="PUBLISHED")return;
-    if(!window.confirm(ko?"어린이용 퀴즈팩 심사를 신청할까요?":"Request an independent Kids safety review for this pack?"))return;
-    await perform(async()=>{
-      const result=await api("/packs/"+packId+"/kids-request","POST",{confirm:true});
-      setKidsReviewStatus(result.kidsReviewStatus);
-      setNotice(ko?"어린이용 심사를 신청했어요.":"Kids review requested.");
-    });
+    }catch(e){setError(e instanceof Error?e.message:String(e));}
+    finally{setBusy(false);}
   }
   if(loading)return <div className="studio-empty" role="status">{ko?"팩을 불러오는 중…":"Loading pack…"}</div>;
   if(packId&&error&&!title)return <div className="studio-empty" role="alert">{error}</div>;
@@ -161,10 +124,6 @@ export default function PackEditor({packId}:{packId?:string}){
     <p className="muted">{orderMode==="RANDOM"
       ?(ko?"새 플레이 시작 시 순서를 한 번 섞고, 이어 하기에서는 그 순서를 유지합니다.":"Shuffle once per run; resuming retains the same order.")
       :(ko?"아래에서 정한 순서대로 출제합니다.":"Questions appear in the order below.")}</p>
-    {packId&&publication==="PUBLISHED"&&excludedCount>0&&<p role="status" className="muted">
-      {ko?`현재 ${excludedCount}개 문제가 일반 플레이에서 제외되어 있어요. 팩 구성에서는 삭제되지 않으며 복구되면 자동으로 다시 포함됩니다.`:
-        `${excludedCount} question(s) are temporarily excluded from General play. They remain in the saved pack and return automatically when eligible.`}
-    </p>}
     <div className="pack-editor-columns">
       <section className="feature-card">
         <h2>{ko?"팩에 포함된 문제":"Questions in this pack"} ({members.length}/100)</h2>
@@ -207,43 +166,15 @@ export default function PackEditor({packId}:{packId?:string}){
     </div>
     <div className="pack-editor-footer">
       <div className="actions">
-        <button type="button" className="btn btn-primary" disabled={busy||(!!packId&&!dirty)} onClick={()=>void save()}>{busy?(ko?"처리 중…":"Working…"):(ko?"팩 저장":"Save pack")}</button>
-        {packId&&<button type="button" className="btn btn-outline" disabled={busy||dirty} onClick={()=>void validate()}>{ko?"공개 전 검증":"Check readiness"}</button>}
-        {packId&&<button type="button" className="btn btn-primary" disabled={busy||dirty||!preview?.ready} onClick={()=>void publish()}>{ko?"전체 공개":"Publish all"}</button>}
+        <Link href={destination} className="btn btn-outline"
+          onClick={e=>{if(dirty&&!window.confirm(ko?"수정 사항을 버리고 이동할까요?":"Discard unsaved changes?"))e.preventDefault();}}>
+          {ko?"취소":"Cancel"}</Link>
+        <button type="button" className="btn btn-primary" disabled={busy||(!!packId&&!dirty)} onClick={()=>void save()}>
+          {busy?(ko?"저장 중…":"Saving…"):packId?(ko?"변경사항 저장":"Save changes"):(ko?"팩 만들기":"Create pack")}</button>
       </div>
-      {packId&&dirty&&<p className="muted">{ko?"검증 또는 공개하기 전에 변경 사항을 저장하세요.":"Save changes before checking readiness or publishing."}</p>}
-      {!packId&&<p className="muted">{ko?"먼저 팩을 저장하면 공개 여부를 검증할 수 있습니다.":"Save the pack first to check publication readiness."}</p>}
+      {!packId&&<p className="muted">{ko?"팩을 만든 다음 상세 페이지에서 공개 여부와 어린이용 심사를 관리하세요.":"Create the pack, then manage publication and Kids review from its detail page."}</p>}
       {error&&<p role="alert">{error}</p>}
       {notice&&<p role="status">{notice}</p>}
-      {preview&&<div role="status" className="placeholder-panel">
-        <h3>{preview.ready?(ko?"공개 준비 완료":"Ready to publish"):(ko?"수정이 필요해요":"Needs attention")}</h3>
-        <p>{preview.questionCount} {ko?"문제":"questions"} · {preview.draftCount} {ko?"초안":"drafts"}</p>
-        {preview.issues.map(issue=><p key={issue}>{issue}</p>)}
-      </div>}
     </div>
-    {packId&&publication==="PUBLISHED"&&<section className="feature-card pack-insights" aria-label={ko?"어린이용 노출 심사":"Kids review"}>
-      <h2>{ko?"어린이용 퀴즈팩":"Kids quiz pack"}</h2>
-      <p className="muted">{ko?"공개와 어린이용 승인은 별개입니다. 구성된 모든 문제와 미디어가 먼저 어린이용 승인을 받아야 신청할 수 있습니다.":"General publication and Kids approval are separate. Every member quiz and media item must already be Kids-approved before requesting review."}</p>
-      <p role="status">{kidsReviewStatus==="APPROVED"?(ko?"어린이용 승인 완료":"Approved for Kids"):
-        kidsReviewStatus==="PENDING"?(ko?"관리자 심사 대기":"Waiting for moderator review"):
-        kidsReviewStatus==="REJECTED"?(ko?"어린이용 신청 거절 · 보완 후 재신청 가능":"Kids request rejected; fix and reapply"):
-        (ko?"어린이용 미신청":"Not requested for Kids")}</p>
-      {!kidsReady&&kidsIssue&&<p className="muted">{ko?"신청 조건 미충족: ":"Not ready to apply: "}{kidsIssue}</p>}
-      <button type="button" className="btn btn-outline"
-        disabled={busy||dirty||!kidsReady||kidsReviewStatus==="PENDING"||kidsReviewStatus==="APPROVED"}
-        onClick={()=>void requestKids()}>{ko?"어린이용 노출 신청":"Request Kids review"}</button>
-    </section>}
-    {packId&&insights&&<section className="feature-card pack-insights" aria-label={ko?"팩 분석":"Pack insights"}>
-      <h2>{ko?"퀴즈팩 통계":"Pack performance"}</h2>
-      <div className="studio-figures">
-        <span><strong>{insights.runs}</strong> {ko?"전체 플레이":"starts"}</span>
-        <span><strong>{insights.completed}</strong> {ko?"완료":"completed"}</span>
-        <span><strong>{insights.ratings.positive}</strong> 👍</span>
-        <span><strong>{insights.ratings.negative}</strong> 👎</span>
-      </div>
-      {insights.averageSolved!==null&&<p className="muted">{ko?"완료 플레이 평균 정답":"Average correct in completed runs"}: {insights.averageSolved.toFixed(1)}</p>}
-      {!!insights.reportCounts.length&&<p className="muted">{ko?"신고 현황":"Reports"}: {insights.reportCounts.map(r=>r.reason+" "+r.count).join(", ")}</p>}
-      <p className="muted">{ko?"이용자별 활동 기록은 노출하지 않습니다.":"Individual player activity is not exposed."}</p>
-    </section>}
   </section>;
 }
