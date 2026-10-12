@@ -1,7 +1,7 @@
 "use client";
 import {useEffect,useState} from "react";
 import {useLocale} from "../../../../src/i18n/provider";
-type Pack={id:string;title:string;description:string;publication:string;quizIds:string[]};
+type Pack={id:string;title:string;description:string;publication:string;orderMode:"CREATOR"|"RANDOM";quizIds:string[]};
 type Quiz={id:string;title:string;publication:string};
 async function api(path:string,method="GET",body?:object){
  const r=await fetch("/api/v1"+path,{method,credentials:"same-origin",cache:"no-store",
@@ -12,18 +12,18 @@ export default function PackWorkspace(){
  const locale=useLocale(),ko=locale==="ko";
  const [packs,setPacks]=useState<Pack[]>([]),[quizzes,setQuizzes]=useState<Quiz[]>([]);
  const [selected,setSelected]=useState(""),[title,setTitle]=useState(""),[description,setDescription]=useState("");
- const [members,setMembers]=useState<string[]>([]),[language,setLanguage]=useState<"en"|"ko">(locale);
+ const [members,setMembers]=useState<string[]>([]),[language,setLanguage]=useState<"en"|"ko">(locale),[orderMode,setOrderMode]=useState<"CREATOR"|"RANDOM">("CREATOR");
  const [message,setMessage]=useState(""),[busy,setBusy]=useState(false),[preview,setPreview]=useState<{ready:boolean;issues:string[];draftCount:number;questionCount:number}|null>(null);
  async function refresh(){
   const [p,q]=await Promise.all([api("/packs?mine=true&locale="+locale+"&limit=100"),api("/me/quizzes?limit=100&offset=0&publication=all&safety=all&sort=newest")]);
   setPacks(p.items||[]);setQuizzes(q.items||[]);
  }
  useEffect(()=>{void refresh().catch(e=>setMessage(String(e)));},[locale]);
- function choose(p:Pack){setSelected(p.id);setTitle(p.title);setDescription(p.description||"");setMembers([...p.quizIds]);setPreview(null);setMessage("");}
+ function choose(p:Pack){setSelected(p.id);setTitle(p.title);setDescription(p.description||"");setMembers([...p.quizIds]);setOrderMode(p.orderMode||"CREATOR");setPreview(null);setMessage("");}
  async function act(fn:()=>Promise<void>){setBusy(true);setMessage("");try{await fn();await refresh();}catch(e){setMessage(e instanceof Error?e.message:String(e));}finally{setBusy(false);}}
  async function save(){
   if(!title.trim()||!members.length){setMessage(ko?"제목과 최소 한 문제를 선택하세요.":"Choose a title and at least one quiz.");return;}
-  await act(async()=>{const body={title:title.trim(),description,quizIds:members};
+  await act(async()=>{const body={title:title.trim(),description,quizIds:members,orderMode};
    if(selected)await api("/packs/"+selected,"PATCH",body);
    else {const p=await api("/packs","POST",{...body,locale:language});setSelected(p.id);}
    setPreview(null);setMessage(ko?"저장했어요.":"Saved.");
@@ -35,11 +35,20 @@ export default function PackWorkspace(){
   await act(async()=>{await api("/packs/"+selected+"/publish","POST",{confirm:true});setPreview(null);setMessage(ko?"공개했어요.":"Published.");});
  }
  return <section className="studio-workspace">
-  <div className="studio-section-head"><h2>{ko?"내 퀴즈팩":"My packs"}</h2><button className="btn btn-outline" onClick={()=>{setSelected("");setTitle("");setDescription("");setMembers([]);setPreview(null);}}>{ko?"새 팩":"New pack"}</button></div>
+  <div className="studio-section-head"><h2>{ko?"내 퀴즈팩":"My packs"}</h2><button className="btn btn-outline" onClick={()=>{setSelected("");setTitle("");setDescription("");setMembers([]);setOrderMode("CREATOR");setPreview(null);}}>{ko?"새 팩":"New pack"}</button></div>
   <div className="studio-list">{packs.map(p=><button key={p.id} type="button" className="btn btn-outline" onClick={()=>choose(p)}>{p.title} · {p.quizIds.length} · {p.publication}</button>)}</div>
   <div className="studio-filters"><label>{ko?"제목":"Title"}<input value={title} maxLength={180} onChange={e=>{setTitle(e.target.value);setPreview(null);}}/></label>
   <label>{ko?"설명":"Description"}<textarea value={description} maxLength={2000} onChange={e=>{setDescription(e.target.value);setPreview(null);}}/></label>
-  {!selected&&<label>{ko?"원본 언어":"Original language"}<select value={language} onChange={e=>setLanguage(e.target.value as "en"|"ko")}><option value="en">English</option><option value="ko">한국어</option></select></label>}</div>
+  {!selected&&<label>{ko?"원본 언어":"Original language"}<select value={language} onChange={e=>setLanguage(e.target.value as "en"|"ko")}><option value="en">English</option><option value="ko">한국어</option></select></label>}
+  <label>{ko?"문제 출제 순서":"Question order"}
+    <select value={orderMode} onChange={e=>{setOrderMode(e.target.value as "CREATOR"|"RANDOM");setPreview(null);}}>
+      <option value="CREATOR">{ko?"등록한 순서대로":"Creator-defined order"}</option>
+      <option value="RANDOM">{ko?"플레이마다 랜덤으로":"Random each play"}</option>
+    </select>
+  </label></div>
+  <p className="muted">{orderMode==="RANDOM"
+    ?(ko?"새 게임을 시작할 때 한 번만 순서를 섞어요. 이어 풀 때는 같은 순서가 유지됩니다.":"Questions shuffle once at the beginning of each run. Resuming keeps the same order.")
+    :(ko?"아래에서 지정한 순서대로 플레이합니다.":"Questions play in the order shown below.")}</p>
   <h3>{ko?"문제 선택 및 순서":"Select and order questions"} ({members.length})</h3>
   <p className="muted">{ko?"내 문제를 선택하고 위아래 버튼으로 순서를 정하세요. 최대 100개.":"Select your quizzes, then move them up or down. Maximum 100."}</p>
   <div className="studio-list">{members.map((id,i)=><div className="studio-list-row" key={id}><span>{i+1}. {quizzes.find(q=>q.id===id)?.title||id}</span><div className="actions">
