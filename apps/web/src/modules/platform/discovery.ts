@@ -94,17 +94,12 @@ export async function discoverSections(p:Record<string,any>) {
       if(clue&&typeof clue==="object"&&"mediaId" in clue&&typeof clue.mediaId==="string")
         mediaIds.add(clue.mediaId);
   }
-  const [approvedMedia,reserved]=await Promise.all([
-    mediaIds.size?db().mediaAsset.findMany({where:{id:{in:[...mediaIds]},
-      status:"READY",moderationStatus:"APPROVED",deletedAt:null},select:{id:true}}):Promise.resolve([]),
-    allQuizIds.length?db().weeklyQuestion.findMany({where:{quizId:{in:allQuizIds},
-      challenge:{status:"SCHEDULED",weekEnd:{gt:new Date()}}},select:{quizId:true}}):Promise.resolve([])
-  ]);
+  const approvedMedia=mediaIds.size?await db().mediaAsset.findMany({where:{id:{in:[...mediaIds]},
+      status:"READY",moderationStatus:"APPROVED",deletedAt:null},select:{id:true}}):[];
   const allowedMedia=new Set(approvedMedia.map(m=>m.id));
-  const blocked=new Set(reserved.map(x=>x.quizId));
   const safeRevisions=new Map<string,{title:string;clueCount:number}>();
   for(const rev of revisions){
-    if(blocked.has(rev.quizId)||!Array.isArray(rev.clues)||!rev.clues.length)continue;
+    if(!Array.isArray(rev.clues)||!rev.clues.length)continue;
     const used=[
       ...(Array.isArray(rev.promptMediaIds)?rev.promptMediaIds:[]),
       ...rev.clues.map(clue=>clue&&typeof clue==="object"&&"mediaId" in clue?clue.mediaId:null)
