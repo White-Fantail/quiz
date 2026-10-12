@@ -21,6 +21,7 @@ model User {
   updatedAt             DateTime      @updatedAt
   quizzes               Quiz[]
   packs                 QuizPack[]
+  editorialFeatures     EditorialFeature[]
   packReviews           PackReview[]
   packReports           PackReport[]
   sessions              PlaySession[]
@@ -60,6 +61,7 @@ model Quiz {
   updatedAt             DateTime      @updatedAt
   revisions             QuizRevision[]
   packItems             PackQuestion[]
+  editorialFeatures     EditorialFeature[]
   weeklyQuestions       WeeklyQuestion[]
   runQuestions          PlayRunQuestion[]
   sessions              PlaySession[]
@@ -152,6 +154,9 @@ model QuizPack {
   id                    String        @id @default(uuid())
   currentVersion        Int           @default(1)
   orderMode             String        @default("CREATOR")
+  safetyStatus          String        @default("PENDING")
+  kidsEligible          Boolean       @default(false)
+  editorialFeatures     EditorialFeature[]
   authorId              String
   author                User          @relation(fields: [authorId], references: [id])
   title                 String
@@ -165,6 +170,32 @@ model QuizPack {
   runs                  PlayRun[]
   reviews               PackReview[]
   reports               PackReport[]
+}
+
+/** Trusted editorial placement: selection never implies identity verification. */
+model EditorialFeature {
+  id           String    @id @default(uuid())
+  targetType   String
+  quizId       String?
+  quiz         Quiz?     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  packId       String?
+  pack         QuizPack? @relation(fields: [packId], references: [id], onDelete: Cascade)
+  locale       String
+  lane         String    @default("GENERAL")
+  placement    String    @default("ROW")
+  priority     Int       @default(0)
+  headline     String    @default("")
+  description  String    @default("")
+  status       String    @default("ACTIVE")
+  startAt      DateTime
+  endAt        DateTime
+  createdById  String
+  createdBy    User      @relation(fields: [createdById], references: [id])
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  @@index([locale, lane, status, placement, startAt, endAt])
+  @@index([packId])
+  @@index([quizId])
 }
 
 model QuizPackLocalization {
