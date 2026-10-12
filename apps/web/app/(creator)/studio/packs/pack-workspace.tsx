@@ -28,7 +28,7 @@ export default function PackWorkspace(){
   void api("/me/packs/"+selected+"/insights?locale=all").then(v=>{if(active)setInsights(v);})
     .catch(()=>{if(active)setInsights(null);});
   return ()=>{active=false};
- },[selected,refresh]);
+ },[selected]);
  async function act(fn:()=>Promise<void>){setBusy(true);setMessage("");try{await fn();await refresh();}catch(e){setMessage(e instanceof Error?e.message:String(e));}finally{setBusy(false);}}
  async function save(){
   if(!title.trim()||!members.length){setMessage(ko?"제목과 최소 한 문제를 선택하세요.":"Choose a title and at least one quiz.");return;}
