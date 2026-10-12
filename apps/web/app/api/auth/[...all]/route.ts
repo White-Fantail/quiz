@@ -1,4 +1,5 @@
 import { toNextJsHandler } from "better-auth/next-js";
+import { defaultMcpAuthorizationResource } from "../../../../src/lib/mcp-oauth-resource";
 import { auth, mcpResource, siteOrigin } from "../../../../src/lib/auth";
 import {
   mcpOAuthTraceEnabled,
@@ -22,6 +23,10 @@ function locked(request:Request,handler:(request:Request)=>Promise<Response>|Res
  * returned unchanged. Logging is explicitly best-effort and non-blocking.
  */
 async function handle(request:Request, handler:(request:Request)=>Promise<Response>|Response):Promise<Response> {
+  // A narrowly scoped MCP compatibility default. Does not add any scopes,
+  // bypass consent, or modify requests explicitly specifying another resource.
+  const normalized = defaultMcpAuthorizationResource(request, mcpResource);
+  const upstreamRequest = normalized.request;
   const pathname = new URL(request.url).pathname;
   const phase = pathname.endsWith("/oauth2/authorize") ? "authorize"
     : pathname.endsWith("/oauth2/token") ? "token" : null;
@@ -34,11 +39,11 @@ async function handle(request:Request, handler:(request:Request)=>Promise<Respon
       // Logging must never interrupt authentication.
     }
   }
-  const response = await locked(request, handler);
+  const response = await locked(upstreamRequest, handler);
   if (trace && phase && input) {
     try {
       const result = await summarizeOAuthResponse(response, phase, mcpResource, siteOrigin);
-      console.info("[mcp-oauth-trace]", { ...input, ...result });
+      console.info("[mcp-oauth-trace]", { ...input, resourceDefaulted: normalized.applied, ...result });
     } catch {
       // Diagnostics are non-authoritative and must never affect the response.
     }
