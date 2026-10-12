@@ -5,7 +5,7 @@ import type { Metadata } from "next";
 import { resolveLocale,localizeHref } from "../../../../src/i18n/core";
 import { PlatformError } from "../../../../src/modules/platform/auth";
 import { packGet } from "../../../../src/modules/platform/social";
-import { PackReport, PackShare } from "../../../../src/components/pack-feedback";
+import { PackPublicReviews, PackReport, PackShare } from "../../../../src/components/pack-feedback";
 export const dynamic="force-dynamic";
 async function fetchPack(id:string){
   const locale=resolveLocale((await headers()).get("x-quizdip-locale"));
@@ -45,6 +45,7 @@ export default async function PackDetail({params}:{params:Promise<{packId:string
     <PackShare path={"/packs/"+pack.id}/>
    </div>
   </section>
+  <PackPublicReviews packId={pack.id}/>
   <PackReport packId={pack.id}/>
  </main>;
 }
