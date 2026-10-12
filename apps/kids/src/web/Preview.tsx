@@ -30,13 +30,13 @@ const examples:Example[]=[
 const copy={
  en:{flag:"BROWSER PREVIEW · SAMPLE DATA ONLY",notice:"This is an interactive design preview. No real child data, account pairing, guardian PIN, server quiz, or media is accessed.",
   profile:"Sample explorer",about:"The guardian-only controls, real play and time limits run in the iPad/Android app.",
-  explore:"Choose a sample question",begin:"Start 3-question sample",weekly:"Real weekly challenges are available only in the native app.",
+  explore:"Choose a sample question",begin:"Start 3-question sample",weekly:"The five-question game is an optional short sample, not a weekly competition.",
   all:"All",animal:"Animals",place:"Places",concept:"Science",play:"Try sample",clue:"Clue",reveal:"Reveal next clue",
   answer:"Choose an answer",correct:"Wonderful!",wrong:"Try again!",next:"Next question",done:"Sample challenge finished!",
   back:"Explore more",again:"Start again",treasure:"Sample rewards",privacy:"Example badges and progress only; no child activity is recorded."},
  ko:{flag:"브라우저 미리보기 · 샘플 데이터",notice:"인터페이스를 미리 볼 수 있어요. 실제 어린이 정보, 계정 연결, 보호자 PIN, 서버 문제, 미디어에 접근하지 않습니다.",
   profile:"샘플 탐험가",about:"보호자 설정, 실제 게임과 시간 제한은 iPad/Android 앱에서 동작합니다.",
-  explore:"샘플 문제를 선택하세요",begin:"샘플 3문제 시작",weekly:"실제 주간 챌린지는 네이티브 앱에서만 사용할 수 있습니다.",
+  explore:"샘플 문제를 선택하세요",begin:"샘플 3문제 시작",weekly:"5문제 플레이는 주간 경쟁이 아닌 짧은 샘플 모험이에요.",
   all:"전체",animal:"동물",place:"장소",concept:"과학",play:"샘플 풀기",clue:"단서",reveal:"다음 단서 보기",
   answer:"정답 고르기",correct:"정답이에요!",wrong:"다시 도전해요!",next:"다음 문제",done:"샘플 챌린지 완료!",
   back:"더 둘러보기",again:"다시 시작",treasure:"샘플 보상",privacy:"배지와 점수는 예시이며 어린이 활동을 기록하지 않습니다."}
