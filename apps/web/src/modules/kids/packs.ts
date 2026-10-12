@@ -17,7 +17,7 @@ export async function kidPacksCatalog(kid:Kid,offset:number,limit:number) {
   const locale=localeOf(kid);
   const packs=await db().quizPack.findMany({
     where:{publication:"PUBLISHED",sourceLocale:locale,
-      kidsEligible:true,safetyStatus:"APPROVED",
+      kidsEligible:true,kidsReviewStatus:"APPROVED",safetyStatus:{not:"RESTRICTED"},
       localizations:{some:{locale,status:"PUBLISHED"}},
       items:{some:{}}},
     orderBy:[{updatedAt:"desc"},{id:"desc"}],
@@ -57,7 +57,7 @@ export async function startKidPack(kid:Kid,packId:string){
     // change the reviewed version between approval check and allocation.
     const pack=await tx.quizPack.findFirst({where:{
       id:packId,currentVersion:approved.packVersion,publication:"PUBLISHED",
-      sourceLocale:locale,kidsEligible:true,safetyStatus:"APPROVED",
+      sourceLocale:locale,kidsEligible:true,kidsReviewStatus:"APPROVED",safetyStatus:{not:"RESTRICTED"},
       localizations:{some:{locale,status:"PUBLISHED"}}
     },select:{id:true,currentVersion:true,orderMode:true,
       items:{orderBy:{position:"asc"},select:{quizId:true}}}});
