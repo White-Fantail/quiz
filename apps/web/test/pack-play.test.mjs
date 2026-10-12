@@ -48,5 +48,6 @@ test("public pack links do not expose answers and the shared player supports res
  assert.match(player,/run\.mode!=="PACK"/);
  assert.match(read("src/modules/platform/play.ts"),/run\.mode==="PACK"/);
  assert.match(read("app/(platform)/packs/[packId]/play/page.tsx"),/packId=\{packId\}/);
- assert.match(read("app/(platform)/discover/page.tsx"),/\/packs/);
+ assert.match(read("app/(platform)/discover/page.tsx"),/PackSpotlight/);
+ assert.match(read("app/(platform)/discover/pack-spotlight.tsx"),/\/packs\//);
 });
