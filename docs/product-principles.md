@@ -11,7 +11,7 @@ QuizDip is an open, AI-assisted quiz playground: **the fun is in following clues
 - **Places / Where on Earth?** — geography, climate, culture, photographs, map or globe answers.
 - **Objects and Concepts** — science, nature, food, inventions, cultural phenomena.
 - **Packs** — reusable collections of multiple questions.
-- **Weekly Five** — a curated globally consistent five-question edition and the current Play flagship. Random-five and infinite practice coexist and do **not** restrict the entire platform to five questions. See [play modes](play-modes.md).
+- **Discover-first** — questions and packs are independently playable, shareable and reviewable. The dashboard features real popularity, challenge and clearly labeled admin-curated picks. Five random questions remain only as an optional newcomer quick start. See [play modes](play-modes.md).
 
 Create game variants atop a common domain: Question, Answer plus accepted alternatives, ordered Clue, Media, Category, Difficulty, Audience, Safety and Quiz Pack. One question may use text, picture, sound, video, map or a mixture; each mode can define its own clue count, reveal rule, answer mechanism and point system. No mandatory universal clue count or scoring formula. See [clue design](clue-design.md).
 
