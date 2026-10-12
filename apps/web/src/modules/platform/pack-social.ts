@@ -1,7 +1,7 @@
 import { db } from "./db";
 import { fail, requireActor, type Actor } from "./auth";
 import { ratingSummary } from "../quiz/rating-metadata";
-import { playableQuizWhere } from "./content-locale";
+import { safePack } from "./feature-eligibility";
 
 /** A pack owns its reputation; its component quizzes retain their separate ratings. */
 export async function packRatingsFor(ids:string[],locale:string) {
@@ -32,10 +32,9 @@ async function publicPack(id:string,locale:string) {
       items:{select:{quizId:true}}}
   });
   if(!pack||!pack.items.length)fail(404,"pack_unavailable","Published quiz pack not found");
-  const count=await db().quiz.count({where:{
-    id:{in:pack.items.map(i=>i.quizId)},...playableQuizWhere(locale as "en"|"ko")
-  }});
-  if(count!==pack.items.length)fail(404,"pack_unavailable","Some pack questions are unavailable");
+  // General packs stay reviewable after one component quiz is restricted.
+  // The strict Kids gate is handled separately by safePack("KIDS").
+  await safePack(id,locale as "en"|"ko","GENERAL");
   return pack;
 }
 export async function packReviewsList(p:Record<string,any>,actor:Actor|null) {
