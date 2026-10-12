@@ -5,6 +5,7 @@ import { resolveLocale, localizeHref } from "../src/i18n/core";
 import { t } from "../src/i18n/messages";
 import { LocaleProvider } from "../src/i18n/provider";
 import "./globals.css";
+import "./management.css";
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = resolveLocale((await headers()).get("x-quizdip-locale"));
