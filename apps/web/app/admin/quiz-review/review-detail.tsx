@@ -7,7 +7,8 @@ import {localizeHref} from "../../../src/i18n/core";
 import {bilingual} from "../../../src/i18n/view-copy";
 
 type Clue={type:string;text?:string;mediaId?:string;map?:{latitude:number;longitude:number};reveal?:{effect:string;strength:number}};
-type Details={id:string;title:string;prompt:string;version:number;publication:string;safetyStatus:string;kidsEligible:boolean;
+type Details={id:string;title:string;prompt:string;version:number;publication:string;safetyStatus:string;kidsEligible:boolean;kidsReviewStatus:string;
+ reports?:Array<{reason:string;detail:string;createdAt:string}>;reviews?:{positive:number;negative:number};
  answer:{canonical:string;aliases?:string[]};clues:Clue[];promptMediaIds:string[];authorId:string;
  childSafetySignals?:Array<{reason:string;count:number}>};
 type Media={id:string;kind:string;alt:string;attribution:string;license:string;moderationStatus:string;previewUrl:string};
@@ -32,7 +33,7 @@ export default function QuizReviewDetail({id}:{id:string}){
   const [error,setError]=useState(""),[notice,setNotice]=useState("");
   const back=useMemo(()=>{
     const state=new URLSearchParams();
-    for(const name of ["filter","q","page"]){const value=params.get(name);if(value)state.set(name,value);}
+    for(const name of ["queue","q","page"]){const value=params.get(name);if(value)state.set(name,value);}
     return localizeHref("/admin/quiz-review",locale)+(state.size?"?"+state.toString():"");
   },[locale,params]);
   useEffect(()=>{
@@ -54,15 +55,16 @@ export default function QuizReviewDetail({id}:{id:string}){
     return ()=>{active=false;};
   },[id,locale]);
   const canRestrict=reason.trim().length>=5;
-  async function review(verdict:"APPROVED"|"RESTRICTED",kidsEligible=false){
+  async function review(verdict:"CLEARED"|"KIDS_APPROVED"|"KIDS_REJECTED"|"RESTRICTED"|"RESTORED"){
     if(!selected||busy)return;
-    if(verdict==="RESTRICTED"&&!canRestrict){setError(msg("Enter at least 5 characters explaining the restriction.","제한 사유를 5자 이상 입력해 주세요."));return;}
-    if(!window.confirm(msg("Have you personally checked the quiz and its media? Confirm the decision.","문제와 미디어를 직접 확인했나요? 심사를 확정할까요?")))return;
+    if(["RESTRICTED","KIDS_REJECTED"].includes(verdict)&&!canRestrict){
+      setError(msg("Enter at least 5 characters explaining the restriction or rejection.","제한 또는 반려 사유를 5자 이상 입력해 주세요."));return;
+    }
+    if(!window.confirm(msg("Confirm this moderation decision after inspecting the question and relevant media.","문제와 관련 미디어를 확인한 후 심사 결과를 확정할까요?")))return;
     setBusy(true);setError("");setNotice("");
     try{
-      await api("/quizzes/"+selected.id+"/review",locale,"POST",{verdict,kidsEligible,reason:reason.trim(),confirm:true});
-      const url=back+(back.includes("?")?"&":"?")+"result="+(verdict==="RESTRICTED"?"restricted":"approved");
-      router.push(url);
+      await api("/quizzes/"+selected.id+"/review",locale,"POST",{verdict,reason:reason.trim(),confirm:true});
+      router.push(back+(back.includes("?")?"&":"?")+"result="+encodeURIComponent(verdict.toLowerCase()));
     }catch(e){setError(e instanceof Error?e.message:msg("Could not save review.","심사 결과를 저장하지 못했어요."));}
     finally{setBusy(false);}
   }
@@ -104,10 +106,18 @@ export default function QuizReviewDetail({id}:{id:string}){
     {selected&&<article className="placeholder-panel review-detail-card">
       <div className="review-detail-heading"><div><h2>{selected.title}</h2>
         <p className="muted">v{selected.version} · {selected.publication}</p></div>
-        <span className="small-tag">{selected.safetyStatus}{selected.kidsEligible?" · KIDS":""}</span>
+        <span className="small-tag">{selected.safetyStatus}{selected.kidsEligible?" · KIDS":selected.kidsReviewStatus==="REQUESTED"?" · Kids requested":""}</span>
       </div>
       <h3>{msg("Question","문제")}</h3><p>{selected.prompt}</p>
       <div className="review-answer"><strong>{msg("Answer","정답")}</strong> {selected.answer.canonical}</div>
+      {!!selected.reports?.length&&<section className="review-content-section">
+        <h3>{msg("Reports requiring review","검토할 사용자 신고")}</h3>
+        <ol className="clue-list">{selected.reports.map((report,i)=><li key={i}>
+          <strong>{report.reason}</strong> · <small>{new Date(report.createdAt).toLocaleDateString()}</small>
+          <p>{report.detail}</p>
+        </li>)}</ol>
+      </section>}
+      {selected.reviews&&<p className="muted">{msg("Quiz ratings","문제 평가")}: 👍 {selected.reviews.positive} · 👎 {selected.reviews.negative}</p>}
       {!!selected.childSafetySignals?.length&&<p className="muted">{msg("Child safety reports","어린이 안전 신고")}: {selected.childSafetySignals.map(s=>s.reason+" ("+s.count+")").join(", ")}</p>}
       {!!selected.promptMediaIds?.length&&<section className="review-content-section">
         <h3>{msg("Question media","문제 미디어")}</h3>
@@ -125,19 +135,27 @@ export default function QuizReviewDetail({id}:{id:string}){
       {!!missingMedia.length&&<p className="feedback" role="alert">{msg("Some media could not be inspected. Verify it before approval.","일부 미디어를 불러오지 못했습니다. 승인 전에 확인하세요.")}</p>}
       <section className="review-decision review-content-section">
         <h3>{msg("Review decision","심사 결정")}</h3>
-        <label className="review-reason-label">{msg("Review note — optional for approval, required for restriction (5+ characters)","심사 사유 — 승인 시 선택, 제한 시 필수 (5자 이상)")}
+        <label className="review-reason-label">{msg("Decision note (required for restriction or Kids rejection, 5+ characters)","심사 메모 (제한 또는 Kids 반려 시 5자 이상 필수)")}
           <textarea rows={3} value={reason} onChange={e=>setReason(e.target.value)} maxLength={1000}
-            placeholder={msg("Explain a restriction, or optionally leave an approval note.","제한 사유를 입력하거나 승인 메모를 남길 수 있어요.")}/>
+            placeholder={msg("Explain the decision if needed.","필요한 경우 심사 사유를 입력하세요.")}/>
         </label>
         <div className="actions review-decision-actions">
-          <button className="btn btn-primary" type="button" disabled={busy||missingMedia.length>0}
-            onClick={()=>void review("APPROVED",true)}>{msg("Approve for Kids","어린이용 승인")}</button>
-          <button className="btn btn-outline" type="button" disabled={busy||missingMedia.length>0}
-            onClick={()=>void review("APPROVED",false)}>{msg("Approve for general play","일반용 승인")}</button>
-          <button className="btn btn-outline" type="button" disabled={busy||!canRestrict}
-            onClick={()=>void review("RESTRICTED",false)}>{msg("Restrict quiz","문제 제한")}</button>
+          {selected.kidsReviewStatus==="REQUESTED"&&selected.safetyStatus!=="RESTRICTED"&&<>
+            <button className="btn btn-primary" type="button" disabled={busy||missingMedia.length>0}
+              onClick={()=>void review("KIDS_APPROVED")}>{msg("Approve requested Kids quiz","어린이용 승인")}</button>
+            <button className="btn btn-outline" type="button" disabled={busy||!canRestrict}
+              onClick={()=>void review("KIDS_REJECTED")}>{msg("Reject Kids request","어린이용 반려")}</button>
+          </>}
+          {selected.safetyStatus!=="RESTRICTED"&&<>
+            <button className="btn btn-outline" type="button" disabled={busy||missingMedia.length>0}
+              onClick={()=>void review("CLEARED")}>{msg("Mark alerts reviewed","신고·평가 검토 완료")}</button>
+            <button className="btn btn-outline" type="button" disabled={busy||!canRestrict}
+              onClick={()=>void review("RESTRICTED")}>{msg("Restrict quiz","문제 제한")}</button>
+          </>}
+          {selected.safetyStatus==="RESTRICTED"&&<button className="btn btn-primary" type="button" disabled={busy||missingMedia.length>0}
+            onClick={()=>void review("RESTORED")}>{msg("Restore general visibility","일반 공개 복구")}</button>}
         </div>
-        <p className="muted">{msg("An approval still requires confirmation and server-side media checks. Every decision is logged.","승인 시에도 확인 절차와 서버 미디어 검증을 거치며 모든 판정은 감사 기록에 남아요.")}</p>
+        <p className="muted">{msg("General publication needs no approval. Clearing alerts preserves any Kids decision and only closes the current moderation signals. Every decision is audited.","일반 공개에는 승인이 필요하지 않습니다. 검토 완료는 Kids 승인을 변경하지 않고 현재 신고·평가 신호만 처리합니다. 모든 결정은 감사 기록에 남습니다.")}</p>
       </section>
     </article>}
   </div>;
