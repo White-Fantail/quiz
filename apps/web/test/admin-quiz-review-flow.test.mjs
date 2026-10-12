@@ -35,7 +35,10 @@ test("media approval is still separate and restriction needs an explanation",()=
 test("pack review retains its independent Kids pending state",()=>{
   const review={...base,expectedVersion:1};
   assert.equal(parseOperation("admin_pack_safety_review",{...review,verdict:"APPROVED"}).reason,"");
-  assert.equal(parseOperation("admin_pack_safety_review",{...review,verdict:"PENDING"}).reason,"");
+  assert.throws(()=>parseOperation("admin_pack_safety_review",{...review,verdict:"PENDING"}));
+  assert.equal(parseOperation("admin_pack_safety_review",{...review,verdict:"RESTORED"}).reason,"");
+  assert.throws(()=>parseOperation("admin_pack_safety_review",{...review,verdict:"REJECTED"}));
+  assert.equal(parseOperation("admin_pack_safety_review",{...review,verdict:"REJECTED",reason:"not appropriate"}).verdict,"REJECTED");
   assert.throws(()=>parseOperation("admin_pack_safety_review",{...review,verdict:"RESTRICTED",reason:"short"}));
 });
 test("moderation queues are admin-only with bounded pagination",()=>{
