@@ -51,7 +51,8 @@ test("private storage, owned media, version-pinned reveal and admin review are s
   assert.match(media,/checksum_mismatch/);
   assert.match(media,/await putObject\(item.storageKey, bytes, item.mimeType\)/);
   assert.match(storage,/blockedIp/);
-  assert.match(storage,/MEDIA_IMPORT_HOSTS/);
+  assert.match(storage,/mediaImportHostAllowed/);
+  assert.match(load("src/modules/platform/import-hosts.ts"),/MEDIA_IMPORT_HOSTS/);
   assert.match(storage,/readChunks/);
   assert.match(media,/ownerId:\s*user\.id/);
   assert.match(media,/checksum_mismatch/);
