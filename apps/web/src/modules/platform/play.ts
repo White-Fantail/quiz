@@ -4,6 +4,7 @@ import { db } from "./db";
 import { ratingsForQuiz, myRatingForQuiz, ratingAccess } from "./ratings";
 import { fail, type Actor } from "./auth";
 import { currentPlayableRevision } from "./content-locale";
+import { completesRun } from "./run-length";
 
 function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
@@ -104,7 +105,7 @@ export async function playGuess(p: Record<string, any>, actor: Actor | null) {
       if (!run || run.status!=="ACTIVE" || run.currentIndex!==session.roundIndex ||
           run.expiresAt.getTime()<=Date.now())
         fail(409,"run_conflict","This run has already moved to another round");
-      const finished=run.mode!=="INFINITE" && run.currentIndex===4;
+      const finished=completesRun(run);
       const changed=await tx.playRun.updateMany({
         where:{id:run.id,status:"ACTIVE",currentIndex:run.currentIndex},
         data:{currentIndex:{increment:1},score:{increment:score},
