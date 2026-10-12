@@ -169,6 +169,7 @@ model QuizPack {
   runs                  PlayRun[]
   reviews               PackReview[]
   reports               PackReport[]
+  @@index([kidsReviewStatus, publication])
 }
 
 /** Trusted editorial placement: selection never implies identity verification. */
