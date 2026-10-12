@@ -9,6 +9,8 @@ import { weeklyCurrent,weeklySubmit,weeklyPublish,weeklyProposals,weeklySuspend,
   runStart,runCurrent,runFinish,runHistory,runFeedback } from "./runs";
 import { reviewsList, reviewUpsert, reviewRemove, reportCreate, reportsMine, packCreate, packList, packGet, packPreflight, packUpdate, packLanguageSet, packLanguages, packTranslationUpsert, packPublishPreview, packPublish } from "./social";
 import { quizStats, myStats, me, leaderboard, rankingOptin, adultVerify } from "./analytics";
+import { packReviewsList, packReviewUpsert, packReviewRemove, packReportCreate, packInsightsMine } from "./pack-social";
+import { discoverSections } from "./discovery";
 import { userGet, creatorReviewsList, creatorReviewUpsert } from "./creators";
 import { myQuizzes, myQuizInsights } from "./studio";
 import { mediaUpload, mediaChunk, mediaComplete, mediaImport, mediaList, mediaGet, mediaUpdate,
@@ -25,8 +27,8 @@ export async function execute(name: Operation, raw: unknown, actor: Actor | null
       mediaLimitsBytes: { image: 12582912, audio: 26214400, video: 67108864 }, minClues: 1, maxClues: 15,
       userAdjustable: ["answerType", "topics", "creatorIntent", "recommendedAudience", "clues", "answer"],
       platformControlled: ["safetyStatus", "kidsEligible"],
-      playModes: ["RANDOM_FIVE","INFINITE"], audiences: ["GENERAL","KIDS"],
-      quickStartQuestions: 5, weeklyChallenge: "RETIRED", editorialPicks: "PLANNED",
+      playModes: ["RANDOM_FIVE","INFINITE","PACK"], audiences: ["GENERAL","KIDS"],
+      quickStartQuestions: 5, weeklyChallenge: "RETIRED", editorialPicks: "PLANNED", packOrderModes: ["CREATOR","RANDOM"],
       version: "v2", format: "progressive-clues" };
     case "topic_list": return topicList(p);
     case "quiz_list": return quizList(p, actor);
@@ -54,6 +56,12 @@ export async function execute(name: Operation, raw: unknown, actor: Actor | null
     case "pack_publish_preview": return packPublishPreview(p,actor);
     case "pack_publish": return packPublish(p,actor);
     case "pack_update": return packUpdate(p, actor);
+    case "pack_reviews_list": return packReviewsList(p);
+    case "pack_review_upsert": return packReviewUpsert(p,actor);
+    case "pack_review_remove": return packReviewRemove(p,actor);
+    case "pack_report_create": return packReportCreate(p,actor);
+    case "my_pack_insights": return packInsightsMine(p,actor);
+    case "discover_sections": return discoverSections(p);
     case "play_start": return playStart(p, actor);
     case "play_clue": return playClue(p, actor);
     case "play_guess": return playGuess(p, actor);
