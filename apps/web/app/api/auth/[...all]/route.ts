@@ -25,9 +25,9 @@ async function handle(request:Request, handler:(request:Request)=>Promise<Respon
   const pathname = new URL(request.url).pathname;
   const phase = pathname.endsWith("/oauth2/authorize") ? "authorize"
     : pathname.endsWith("/oauth2/token") ? "token" : null;
-  const trace = phase && mcpOAuthTraceEnabled();
+  const trace = phase !== null && mcpOAuthTraceEnabled();
   let input: Awaited<ReturnType<typeof summarizeOAuthRequest>> | null = null;
-  if (trace) {
+  if (trace && phase) {
     try {
       input = await summarizeOAuthRequest(request, phase, mcpResource);
     } catch {
@@ -35,7 +35,7 @@ async function handle(request:Request, handler:(request:Request)=>Promise<Respon
     }
   }
   const response = await locked(request, handler);
-  if (trace && input) {
+  if (trace && phase && input) {
     try {
       const result = await summarizeOAuthResponse(response, phase, mcpResource, siteOrigin);
       console.info("[mcp-oauth-trace]", { ...input, ...result });
