@@ -13,6 +13,21 @@ cp apps/kids/.env.example apps/kids/.env
 npm run kids:dev
 ```
 
+## Expo Go and web preview troubleshooting
+
+QuizDip Kids is a **separate native iOS/Android app**, not the retired QuizDip web Kids mode. On iPad, install Expo Go, keep the device and development Mac on the same Wi-Fi, run `npm run kids:dev` at the repository root, then scan the terminal QR code. You do **not** need to open `http://localhost:8081` in Safari to launch the native app.
+
+The Expo CLI also offers a **development-only browser preview** (`w`). It requires `react-dom`, `react-native-web` and `@expo/metro-runtime`, declared in this workspace for Expo SDK 57. Those dependencies are for bundling/debugging; they do not restore child gameplay to the main QuizDip web app. Do not use web preview as proof that native SecureStore, audio/video, device PIN gate, or other iOS/Android behavior works.
+
+If an existing checkout fails with `Unable to resolve "react-native-web/dist/index"`, pull the latest `dev`, run `npm install` from the repository root, and restart Metro after clearing its cache:
+
+```sh
+cd apps/kids
+npx expo start --clear
+```
+
+If errors persist, check `npx expo install --check` in `apps/kids` for SDK-aligned package versions. Native-device and API/backend migration validation are still required separately.
+
 Start an iOS Simulator, Android emulator, or Expo Go on a device from the Expo CLI. A parent signs in using the **external system browser** to QuizDip's existing Better Auth Google/Apple web login. In `/en/account/kids` or `/ko/account/kids`, the parent creates a profile and a six-digit PIN, chooses the profile, enters the PIN, and generates a high-entropy one-time pairing code. The code expires in five minutes. The Kids native app accepts that code and a device name, obtains a **child-only credential**, stores it in OS SecureStore, and validates it on startup and foreground before opening Kids screens. The parent may revoke the device in the same web parent panel. The app's Parent Gate needs the same guardian PIN to revoke the local device session and return to setup.
 
 This **browser-assisted onboarding is intentional**: the child never receives an adult Better Auth cookie, Google/Apple OAuth token, or MCP privilege. Full native guardian profile management is planned for Phase 4, at which point the legacy web Kids interface will be removed in Phase 5. Phase 3 native game/clues/treasures and Phase 4 daily play limits, private activity insights and the PIN-protected in-app parent zone are implemented in source. Actual database migrations, real-device QA, an approved privacy policy and store distribution remain pending.
