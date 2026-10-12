@@ -69,7 +69,7 @@ export default function KidsFamilySettings(){
  return <div className="kids-settings-stack">
    {error&&<p className="feedback" role="alert">{error}</p>}
    {notice&&<p className="feedback success" role="status">{notice}</p>}
-   <section className="placeholder-panel kids-settings-card">
+   <section className="placeholder-panel kids-settings-card kids-pin-card">
      <div className="kids-section-header">
        <span className="kids-step" aria-hidden="true">01</span>
        <div>
