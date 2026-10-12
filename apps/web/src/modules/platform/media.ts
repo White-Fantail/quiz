@@ -98,7 +98,7 @@ export async function mediaImport(p: Record<string, any>, actor: Actor | null) {
   const user = requireActor(actor);
   await dailyLimit(user.id);
   // Import is disabled unless MEDIA_IMPORT_HOSTS explicitly permits the hostname.
-  const fetched = await importExternal(p.url, LIMITS[p.kind]);
+  const fetched = await importExternal(p.url, LIMITS[p.kind], p.kind);
   checkSize(p.kind, fetched.bytes.length);
   const mimeType = await sniff(fetched.bytes, p.kind);
   const id = randomUUID();
