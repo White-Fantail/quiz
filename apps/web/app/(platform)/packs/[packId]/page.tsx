@@ -5,8 +5,7 @@ import type { Metadata } from "next";
 import { resolveLocale,localizeHref } from "../../../../src/i18n/core";
 import { PlatformError } from "../../../../src/modules/platform/auth";
 import { packGet } from "../../../../src/modules/platform/social";
-import { RatingBadge } from "../../../../src/components/quiz-ratings";
-import { PackShare } from "../../../../src/components/pack-feedback";
+import { PackReport, PackShare } from "../../../../src/components/pack-feedback";
 export const dynamic="force-dynamic";
 async function fetchPack(id:string){
   const locale=resolveLocale((await headers()).get("x-quizdip-locale"));
@@ -36,7 +35,9 @@ export default async function PackDetail({params}:{params:Promise<{packId:string
    <h1>{pack.title}</h1><p className="lead">{pack.description}</p></div>
   <section className="feature-card">
    <p>{locale==="ko"?"제작자":"Created by"}: <strong>{pack.author.displayName}</strong></p>
-   <RatingBadge ratings={pack.ratings}/>
+   <p className="muted">{pack.ratings.positivePercent===null
+      ?(locale==="ko"?`평가 ${pack.ratings.total}명 · 표본이 부족해요.`:`${pack.ratings.total} ratings · insufficient sample`)
+      :`👍 ${pack.ratings.positivePercent}% · ${pack.ratings.total} ${locale==="ko"?"명 평가":"ratings"}`}</p>
    <p><strong>{pack.questionCount}</strong> {pack.orderMode==="RANDOM"?(locale==="ko"?"개의 문제 · 시작할 때 랜덤 순서":"questions · shuffled at the start"):(locale==="ko"?"개의 문제 · 제작자가 정한 순서":"questions · creator-defined order")}</p>
    <div className="actions">
     <Link href={localizeHref("/packs/"+pack.id+"/play",locale)} className="btn btn-primary">{locale==="ko"?"전체 플레이 / 이어 풀기 →":"Play or resume full pack →"}</Link>
@@ -44,5 +45,6 @@ export default async function PackDetail({params}:{params:Promise<{packId:string
     <PackShare path={"/packs/"+pack.id}/>
    </div>
   </section>
+  <PackReport packId={pack.id}/>
  </main>;
 }
