@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useLocale } from "../../../src/i18n/provider";
+import { loadDiscoverySections } from "./discovery-client";
 import { localizeHref } from "../../../src/i18n/core";
 
 type Card={id:string;type:"PACK"|"QUIZ";title:string;subtitle:string;creator:string;
@@ -21,8 +22,7 @@ export default function DiscoverySections(){
  const [sections,setSections]=useState<Section[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState("");
  useEffect(()=>{
    let live=true;setLoading(true);setError("");
-   void fetch("/api/v1/discover/sections?locale="+locale,{cache:"no-store"})
-    .then(async r=>{const data=await r.json();if(!r.ok)throw Error(data.message||data.error||"Discovery unavailable");return data.data;})
+   void loadDiscoverySections(locale)
     .then(data=>{if(live)setSections(data.sections??[]);})
     .catch(e=>{if(live)setError(String(e));})
     .finally(()=>{if(live)setLoading(false)});
