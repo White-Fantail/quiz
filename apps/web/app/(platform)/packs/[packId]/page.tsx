@@ -5,6 +5,8 @@ import type { Metadata } from "next";
 import { resolveLocale,localizeHref } from "../../../../src/i18n/core";
 import { PlatformError } from "../../../../src/modules/platform/auth";
 import { packGet } from "../../../../src/modules/platform/social";
+import { RatingBadge } from "../../../../src/components/quiz-ratings";
+import { PackShare } from "../../../../src/components/pack-feedback";
 export const dynamic="force-dynamic";
 async function fetchPack(id:string){
   const locale=resolveLocale((await headers()).get("x-quizdip-locale"));
@@ -14,7 +16,15 @@ async function fetchPack(id:string){
 export async function generateMetadata({params}:{params:Promise<{packId:string}>}):Promise<Metadata>{
   const {packId}=await params;
   const pack=await fetchPack(packId);
-  return {title:pack.title+" · QuizDip",description:pack.description||"Discover this QuizDip question pack.",
+  const locale=resolveLocale((await headers()).get("x-quizdip-locale"));
+  const title=pack.title+" · QuizDip";
+  const description=pack.description||(`${pack.questionCount} questions · QuizDip`);
+  const origin=process.env.PUBLIC_ORIGIN||process.env.BETTER_AUTH_URL||"https://quizdip.vercel.app";
+  const url=new URL(localizeHref("/packs/"+pack.id,locale),origin).href;
+  return {title,description,metadataBase:new URL(origin),
+    alternates:{canonical:url},
+    openGraph:{title,description,siteName:"QuizDip",type:"website",url},
+    twitter:{card:"summary",title,description},
     robots:{index:true,follow:true}};
 }
 export default async function PackDetail({params}:{params:Promise<{packId:string}>}){
@@ -26,10 +36,12 @@ export default async function PackDetail({params}:{params:Promise<{packId:string
    <h1>{pack.title}</h1><p className="lead">{pack.description}</p></div>
   <section className="feature-card">
    <p>{locale==="ko"?"제작자":"Created by"}: <strong>{pack.author.displayName}</strong></p>
+   <RatingBadge ratings={pack.ratings}/>
    <p><strong>{pack.questionCount}</strong> {pack.orderMode==="RANDOM"?(locale==="ko"?"개의 문제 · 시작할 때 랜덤 순서":"questions · shuffled at the start"):(locale==="ko"?"개의 문제 · 제작자가 정한 순서":"questions · creator-defined order")}</p>
    <div className="actions">
     <Link href={localizeHref("/packs/"+pack.id+"/play",locale)} className="btn btn-primary">{locale==="ko"?"전체 플레이 / 이어 풀기 →":"Play or resume full pack →"}</Link>
     <Link href={localizeHref("/packs",locale)} className="btn btn-outline">{locale==="ko"?"다른 퀴즈팩":"More packs"}</Link>
+    <PackShare path={"/packs/"+pack.id}/>
    </div>
   </section>
  </main>;
