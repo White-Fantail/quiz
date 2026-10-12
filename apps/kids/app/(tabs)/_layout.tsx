@@ -9,6 +9,7 @@ import { theme } from "../../src/theme";
 const tabs = [
  {name:"index",label:"kids.nav.home",emoji:"🏠"},
  {name:"explore",label:"kids.nav.explore",emoji:"🧭"},
+ {name:"packs",label:"kids.nav.packs",emoji:"📚"},
  {name:"challenge",label:"kids.nav.challenge",emoji:"🧩"},
  {name:"treasures",label:"kids.nav.treasures",emoji:"⭐"},
 ] as const;
