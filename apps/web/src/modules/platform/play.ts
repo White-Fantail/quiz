@@ -32,9 +32,8 @@ export async function getPlaySession(p: Record<string, any>, actor: Actor | null
     session.revision.localization.status !== "PUBLISHED"))
     fail(409, "locale_unavailable", "This question language is no longer available");
   if (session.runId) {
-    const run=await db().playRun.findUnique({where:{id:session.runId},include:{weekly:true}});
-    if (!run || run.status!=="ACTIVE" || run.currentIndex!==session.roundIndex ||
-        (run.mode==="WEEKLY" && run.weekly?.status!=="SCHEDULED"))
+    const run=await db().playRun.findUnique({where:{id:session.runId}});
+    if (!run || run.status!=="ACTIVE" || run.currentIndex!==session.roundIndex)
       fail(409,"run_not_active","This run's active round has changed");
     if(run.mode==="PACK" && (!run.packId || !await db().quizPack.findFirst({
       where:{id:run.packId,publication:"PUBLISHED",safetyStatus:{not:"RESTRICTED"},
@@ -49,10 +48,6 @@ export async function getPlaySession(p: Record<string, any>, actor: Actor | null
   return session;
 }
 export async function playStart(p: Record<string, any>, actor: Actor | null) {
-  const featured=await db().weeklyQuestion.findFirst({where:{
-    quizId:p.quizId,challenge:{status:"SCHEDULED",weekEnd:{gt:new Date()}}
-  }});
-  if(featured) fail(409,"weekly_reserved","Featured weekly questions are reserved for the shared five-round challenge");
   const quiz = await db().quiz.findUnique({ where: { id: p.quizId } });
   if (!quiz || quiz.publication !== "PUBLISHED" || quiz.safetyStatus === "RESTRICTED")
     fail(404, "not_found", "Quiz unavailable");
