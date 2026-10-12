@@ -149,6 +149,7 @@ model QuizTopic {
 model QuizPack {
   id                    String        @id @default(uuid())
   currentVersion        Int           @default(1)
+  orderMode             String        @default("CREATOR")
   authorId              String
   author                User          @relation(fields: [authorId], references: [id])
   title                 String
