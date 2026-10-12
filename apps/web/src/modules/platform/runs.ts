@@ -246,7 +246,7 @@ async function startPackRun(p:Record<string,any>,actor:Actor|null) {
   // A signed-in player can resume on any device: their run capability is
   // deterministically derived server-side, never obtained from a public URL.
   const current=await db().quizPack.findFirst({
-    where:{id:p.packId,publication:"PUBLISHED",localizations:{some:{locale,status:"PUBLISHED"}}},
+    where:{id:p.packId,publication:"PUBLISHED",safetyStatus:{not:"RESTRICTED"},localizations:{some:{locale,status:"PUBLISHED"}}},
     select:{id:true,currentVersion:true}
   });
   if(!current)fail(404,"pack_unavailable","Quiz pack is not published in this language");
@@ -389,7 +389,7 @@ export async function runCurrent(p:Record<string,any>,actor:Actor|null) {
   if(run.status==="FINISHED") return runSummary(run);
   if(run.mode==="PACK"){
     if(!run.packId || !await db().quizPack.findFirst({where:{id:run.packId,
-      publication:"PUBLISHED",localizations:{some:{locale:run.locale,status:"PUBLISHED"}}},
+      publication:"PUBLISHED",safetyStatus:{not:"RESTRICTED"},localizations:{some:{locale:run.locale,status:"PUBLISHED"}}},
       select:{id:true}}))
       fail(409,"pack_unavailable","Quiz pack is no longer published");
   }
