@@ -89,6 +89,7 @@ export const operations = {
   pack_create: { public: false, description: "Create a new ordered quiz pack", schema: z.object({ title: z.string().min(1).max(180), description: z.string().max(2000).default(""), quizIds: z.array(uuid).min(1).max(100), orderMode:z.enum(["CREATOR","RANDOM"]).default("CREATOR"), locale: z.enum(["en", "ko", "und"]).default("und") }) },
   pack_publish_preview: { public:false, description:"Validate owned pack and draft questions without changing publication", schema:z.object({id:uuid}) },
   pack_publish: { public:false, description:"Confirm atomic publication of pack and eligible owned drafts", schema:z.object({id:uuid,confirm:z.literal(true)}) },
+  pack_kids_request: { public:false, description:"Request Kids review for my fully approved published original-language quiz pack", schema:z.object({id:uuid,confirm:z.literal(true)}) },
   pack_reviews_list: { public:true, description:"Read independent public quiz pack feedback", schema:z.object({id:uuid,locale:optionalLocale,...paging}) },
   pack_review_upsert: { public:false, description:"Rate a full quiz pack after verified completion", schema:z.object({id:uuid,locale:optionalLocale,rating:z.union([z.literal(-1),z.literal(1)]),comment:z.string().max(2000).default("")}) },
   pack_review_remove: { public:false, description:"Remove my quiz pack reaction", schema:z.object({id:uuid,locale:optionalLocale}) },
@@ -111,12 +112,13 @@ export const operations = {
     startAt:z.iso.datetime().optional(),endAt:z.iso.datetime().optional(),confirm:z.literal(true)
   }) },
   admin_feature_remove: { public:false, description:"ADMIN: explicitly remove an audited editorial placement", schema:z.object({id:uuid,confirm:z.literal(true)}) },
-  admin_pack_safety_list: { public:false, description:"ADMIN: review independent whole-pack Kids safety readiness", schema:z.object(paging) },
+  admin_pack_safety_list: { public:false, description:"ADMIN: review only creator-requested Kids pack safety applications", schema:z.object(paging) },
+  admin_pack_reports_list: { public:false, description:"ADMIN: inspect flagged quiz packs requiring content moderation", schema:z.object(paging) },
   admin_pack_safety_review: { public:false, description:"ADMIN: independently approve, hold or restrict a pack for Kids", schema:z.object({
-    id:uuid,expectedVersion:z.number().int().positive(),verdict:z.enum(["APPROVED","PENDING","RESTRICTED"]),
+    id:uuid,expectedVersion:z.number().int().positive(),verdict:z.enum(["APPROVED","REJECTED","RESTRICTED","RESTORED"]),
     reason:z.string().trim().max(1000).default(""),confirm:z.literal(true)
-  }).refine(p=>p.verdict!=="RESTRICTED"||p.reason.length>=8,{
-    path:["reason"],message:"A pack restriction requires a reason of at least 8 characters"
+  }).refine(p=>!["RESTRICTED","REJECTED"].includes(p.verdict)||p.reason.length>=8,{
+    path:["reason"],message:"A pack restriction or Kids rejection requires a reason of at least 8 characters"
   }) },
   discover_sections: { public:true, description:"Explore organic trending, popular, rated, difficult and new quiz/pack content", schema:z.object({locale:optionalLocale}) },
   pack_update: { public: false, description: "Edit or publish an owned quiz pack", schema: z.object({ id: uuid, title: z.string().min(1).max(180).optional(), description: z.string().max(2000).optional(), quizIds: z.array(uuid).min(1).max(100).optional(), orderMode:z.enum(["CREATOR","RANDOM"]).optional(), publication: z.enum(["DRAFT", "PUBLISHED", "HIDDEN"]).optional(), confirm: z.boolean().optional() }) },
