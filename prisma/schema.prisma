@@ -28,7 +28,6 @@ model User {
   reviews               Review[]
   reports               Report[]
   mediaAssets           MediaAsset[]
-  featuredWeeks         WeeklyChallenge[]
   playRuns              PlayRun[]
   creatorReviewsReceived CreatorReview[] @relation("CreatorReceived")
   creatorReviewsWritten  CreatorReview[] @relation("CreatorWritten")
@@ -62,7 +61,6 @@ model Quiz {
   revisions             QuizRevision[]
   packItems             PackQuestion[]
   editorialFeatures     EditorialFeature[]
-  weeklyQuestions       WeeklyQuestion[]
   runQuestions          PlayRunQuestion[]
   sessions              PlaySession[]
   reviews               Review[]
@@ -88,9 +86,7 @@ model QuizRevision {
   promptMediaIds        Json          @default("[]")
   createdAt             DateTime      @default(now())
   sessions              PlaySession[]
-  weeklyQuestions       WeeklyQuestion[]
   runQuestions          PlayRunQuestion[]
-  weeklyLocalized       WeeklyQuestionLocalization[]
   reviews               Review[]
   reports               Report[]
   @@index([quizId, version])
@@ -367,50 +363,6 @@ model MediaAsset {
   @@index([parentId])
 }
 
-model WeeklyChallenge {
-  id          String    @id @default(uuid())
-  lane        String
-  weekStart   DateTime
-  weekEnd     DateTime
-  hostId      String
-  host        User      @relation(fields: [hostId], references: [id])
-  title       String
-  description String    @default("")
-  status      String    @default("SUBMITTED")
-  verifiedHost Boolean  @default(false)
-  hostDisplayName String?
-  createdAt   DateTime  @default(now())
-  publishedAt DateTime?
-  questions   WeeklyQuestion[]
-  localizedQuestions WeeklyQuestionLocalization[]
-  runs        PlayRun[]
-  @@index([lane, weekStart])
-  @@index([status, weekStart, weekEnd])
-}
-
-model WeeklyQuestion {
-  challengeId String
-  position    Int
-  quizId      String
-  revisionId  String
-  challenge   WeeklyChallenge @relation(fields: [challengeId], references: [id])
-  quiz        Quiz @relation(fields: [quizId], references: [id])
-  revision    QuizRevision @relation(fields: [revisionId], references: [id])
-  @@id([challengeId, position])
-  @@unique([challengeId, quizId])
-}
-
-model WeeklyQuestionLocalization {
-  challengeId String
-  position    Int
-  locale      String
-  revisionId  String
-  challenge   WeeklyChallenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
-  revision    QuizRevision @relation(fields: [revisionId], references: [id])
-  @@id([challengeId, position, locale])
-  @@index([revisionId])
-}
-
 model PlayRun {
   id          String    @id @default(uuid())
   mode        String
@@ -418,12 +370,9 @@ model PlayRun {
   locale      String    @default("und")
   userId      String?
   user        User?     @relation(fields: [userId], references: [id])
-  weeklyId    String?
-  weekly      WeeklyChallenge? @relation(fields: [weeklyId], references: [id])
   packId      String?
   pack        QuizPack? @relation(fields: [packId], references: [id], onDelete: Restrict)
   packVersion Int?
-  officialEligible Boolean @default(false)
   tokenHash   String
   currentIndex Int      @default(0)
   targetCount  Int?
@@ -438,7 +387,6 @@ model PlayRun {
   sessions    PlaySession[]
   kidOwnership KidPlayRun?
   @@index([userId, startedAt])
-  @@index([weeklyId, status, score])
   @@index([packId, status, startedAt])
 }
 
