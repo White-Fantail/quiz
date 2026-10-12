@@ -152,21 +152,25 @@ export async function myPackGet(p:Record<string,any>,actor:Actor|null) {
   }):[];
   const titles=new Map<string,string>();
   for(const revision of revisions)if(!titles.has(revision.quizId))titles.set(revision.quizId,revision.title);
-  let kidsReady=false,kidsIssue="";
+  let kidsReady=false,kidsIssue="",excludedCount=0;
   if(pack.publication==="PUBLISHED"&&["en","ko"].includes(pack.sourceLocale)){
+    if(pack.safetyStatus!=="RESTRICTED"){
+      try{excludedCount=(await safePack(pack.id,pack.sourceLocale as "en"|"ko","GENERAL")).excludedCount;}
+      catch{excludedCount=ids.length;}
+    }
     try{await safePack(pack.id,pack.sourceLocale as "en"|"ko","KIDS",{skipPackApproval:true});kidsReady=true;}
     catch(error){kidsIssue=error instanceof Error?error.message:"Kids review prerequisites are not met";}
   }
   return {id:pack.id,title:pack.title,description:pack.description,
     publication:pack.publication,sourceLocale:pack.sourceLocale,orderMode:pack.orderMode,
     safetyStatus:pack.safetyStatus,kidsEligible:pack.kidsEligible,
-    kidsReviewStatus:pack.kidsReviewStatus,kidsReady,kidsIssue,
+    kidsReviewStatus:pack.kidsReviewStatus,kidsReady,kidsIssue,excludedCount,
     quizIds:ids,members:ids.map(id=>({id,title:titles.get(id)??id}))};
 }
 export async function packList(p: Record<string, any>, actor: Actor | null) {
   if (p.mine) requireActor(actor);
   const locale = p.locale as "en" | "ko";
-  // PostgreSQL enforces whole-pack language coverage before pagination.
+  // SQL selects packs with at least one eligible member; safePack checks every asset.
   const where: any = p.mine ? { authorId: actor!.id } : {
     publication: "PUBLISHED",safetyStatus:{not:"RESTRICTED"},
     localizations: { some: { locale, status: "PUBLISHED" } },
