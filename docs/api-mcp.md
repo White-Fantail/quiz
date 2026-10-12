@@ -30,6 +30,7 @@ The web UI, REST API and MCP tools reuse `execute()` and the same policy layer. 
 | List public / own / Kids-eligible quizzes | GET /api/v1/quizzes | quizdip_quiz_list |
 | Get question (answer only for owner) | GET /api/v1/quizzes/:id | quizdip_quiz_get |
 | Clear own rating | DELETE /api/v1/quizzes/:id/reviews | quizdip_review_remove |
+| ADMIN list/search/paginate quiz safety queue (including restricted) | GET /api/v1/admin/quizzes/review | quizdip_admin_quiz_review_list |
 | ADMIN inspect full quiz and answer | GET /api/v1/quizzes/:id/review | quizdip_quiz_review_get |
 | ADMIN independently approve Kids or restrict quiz | POST /api/v1/quizzes/:id/review | quizdip_quiz_review |
 | ADMIN inspect media | GET /api/v1/media/:id/review | quizdip_media_review_get |
@@ -168,3 +169,7 @@ Migration `20261012220000_kids_safety_reports` is required after the Phase 4 par
 A signed-in guardian manages first native pairing in the **adult account** `/account/kids` using `GET/POST /api/account/kids` with same-origin checks. The old web Kids React/Next routes, navigation, CSS, `/api/kids/device` and `/api/kids/parent` are removed. Retired `/kids/**` paths 307 to adult setup, not browser gameplay. Expo's pairing URL uses `/account/kids`.
 
 Existing browser `quizdip-kid-session` cookies remain fail-closed until verified guardian PIN via `POST /api/account/kids/legacy-unlock`. This limited recovery route never returns a child game or adult login; only a validated WEB device token hash and correct guardian PIN allow cookie expiration. This is intentional child-privacy REST/MCP parity exception. Migration `20261012230000_retire_web_kids_sessions` revokes WEB-only rows while retaining their hashes so PIN release works after revocation, and leaves NATIVE rows intact. See `docs/kids-native-phase5-cutover.md` for rollout, E2E and backup gates.
+
+## Moderator approval notes (October 2026)
+
+For `quizdip_quiz_review`, `quizdip_media_review` and `quizdip_admin_pack_safety_review`, `reason` is optional for approval and defaults to an empty string. Restricting a quiz or media requires at least 5 non-whitespace characters; restricting a pack requires at least 8. All decisions still require `confirm:true` and authenticated ADMIN authority, and the audit log records the decision even if its approval note is blank. The same rule is enforced in REST and MCP because both use the shared operation contracts. The separate administrator queue supports `limit`, `offset`, `safety` and `search` and never uses public discovery filtering.
