@@ -218,7 +218,9 @@ function runSummary(run:any) {
  * Its frozen total represents slots at start; restrictions do not reveal answers.
  */
 async function skipWithdrawnPackRound(run:any,p:Record<string,any>,actor:Actor|null):Promise<any>{
-  const last=run.currentIndex+1>=runTargetCount(run);
+  const target=runTargetCount(run);
+  if(target===null)fail(409,"invalid_pack_run","Pack run has no finite target count");
+  const last=run.currentIndex+1>=target;
   await db().playRun.updateMany({where:{id:run.id,mode:"PACK",lane:"GENERAL",
     status:"ACTIVE",currentIndex:run.currentIndex},
     data:{currentIndex:{increment:1},...(last?{status:"FINISHED",completedAt:new Date()}:{})}});
@@ -255,7 +257,8 @@ export async function runCurrent(p:Record<string,any>,actor:Actor|null):Promise<
     }
   }
   if(!round){
-    if(run.mode==="PACK"&&run.currentIndex>=runTargetCount(run)){
+    if(run.mode==="PACK"&&runTargetCount(run)!==null&&
+      run.currentIndex>=runTargetCount(run)!){
       await db().playRun.updateMany({where:{id:run.id,status:"ACTIVE"},
         data:{status:"FINISHED",completedAt:new Date()}});
       return runSummary(await db().playRun.findUniqueOrThrow({where:{id:run.id}}));
