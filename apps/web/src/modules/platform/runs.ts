@@ -9,7 +9,7 @@ import { playableQuizWhere } from "./content-locale";
 import type { Locale } from "../../i18n/core";
 
 export type Lane = "GENERAL" | "KIDS";
-export type RunMode = "WEEKLY" | "RANDOM_FIVE" | "INFINITE";
+export type RunMode = "WEEKLY" | "RANDOM_FIVE" | "INFINITE" | "PACK";
 const weekMs = WEEK_MS;
 // Do not allow any new Weekly Five activity after the discovery-first cutover.
 // Legacy plays, immutable revisions and historical reports remain readable.
@@ -234,8 +234,94 @@ async function randomChoices(lane:Lane,locale:Locale,count:number,avoid:string[]
   }
   return choice.map(q=>({quizId:q.id,revisionId:q.localizations[0].revisions.find(r=>r.version===q.localizations[0].publishedVersion)!.id}));
 }
+/** Build a complete, localized pack snapshot under one database transaction.
+ * Members, positions and published revision ids never change within a started run.
+ */
+async function startPackRun(p:Record<string,any>,actor:Actor|null) {
+  if(p.lane!=="GENERAL" || actor?.childScope)
+    fail(403,"pack_kids_unavailable","Pack play is not yet enabled for child devices");
+  if(!p.packId)fail(400,"pack_required","Choose a quiz pack");
+  const locale=p.locale as Locale;
+  // A signed-in player can resume on any device: their run capability is
+  // deterministically derived server-side, never obtained from a public URL.
+  const current=await db().quizPack.findFirst({
+    where:{id:p.packId,publication:"PUBLISHED",localizations:{some:{locale,status:"PUBLISHED"}}},
+    select:{id:true,currentVersion:true}
+  });
+  if(!current)fail(404,"pack_unavailable","Quiz pack is not published in this language");
+  if(actor && !p.restart){
+    const active=await db().playRun.findFirst({where:{
+      packId:current.id,packVersion:current.currentVersion,userId:actor.id,
+      lane:"GENERAL",locale,mode:"PACK",status:"ACTIVE",expiresAt:{gt:new Date()}
+    },orderBy:{startedAt:"desc"}});
+    if(active){
+      return {...runSummary(active),runToken:authToken(active.id,actor.id),resumed:true};
+    }
+  }
+  const id=randomUUID();
+  const runToken=actor?authToken(id,actor.id):randomBytes(32).toString("base64url");
+  const expiry=new Date(Date.now()+30*86400000);
+  return db().$transaction(async tx=>{
+    const pack=await tx.quizPack.findFirst({
+      where:{id:p.packId,publication:"PUBLISHED",
+        localizations:{some:{locale,status:"PUBLISHED"}}},
+      include:{items:{orderBy:{position:"asc"},select:{quizId:true,position:true}}}
+    });
+    if(!pack||!pack.items.length||pack.items.length>100)
+      fail(409,"pack_unavailable","Quiz pack has no playable questions");
+    const ids=pack.items.map(item=>item.quizId);
+    if(new Set(ids).size!==ids.length)
+      fail(409,"pack_invalid","Quiz pack contains duplicate questions");
+    const playable=await tx.quiz.findMany({where:{id:{in:ids},...playableQuizWhere(locale)}},
+      select:{id:true}});
+    if(playable.length!==ids.length)
+      fail(409,"pack_unavailable","One or more pack questions are no longer public");
+    const localizations=await tx.quizLocalization.findMany({
+      where:{quizId:{in:ids},locale,status:"PUBLISHED"},
+      select:{id:true,quizId:true,publishedVersion:true,
+        revisions:{select:{id:true,version:true}}}
+    });
+    const pinned=new Map<string,string>();
+    for(const localization of localizations){
+      const rev=localization.revisions.find(r=>r.version===localization.publishedVersion);
+      if(rev)pinned.set(localization.quizId,rev.id);
+    }
+    if(pinned.size!==ids.length)
+      fail(409,"pack_locale_incomplete","All pack questions need a published language revision");
+    const revisions=await tx.quizRevision.findMany({
+      where:{id:{in:[...pinned.values()]}},
+      select:{id:true,clues:true,promptMediaIds:true}
+    });
+    if(revisions.length!==ids.length || revisions.some(r=>!Array.isArray(r.clues)||r.clues.length===0))
+      fail(409,"pack_revision_unavailable","A pack question has no usable published clues");
+    const mediaIds=new Set<string>();
+    for(const revision of revisions){
+      for(const mediaId of Array.isArray(revision.promptMediaIds)?revision.promptMediaIds:[])
+        if(typeof mediaId==="string")mediaIds.add(mediaId);
+      for(const clue of Array.isArray(revision.clues)?revision.clues:[])
+        if(clue && typeof clue==="object" && "mediaId" in clue && typeof clue.mediaId==="string")
+          mediaIds.add(clue.mediaId);
+    }
+    if(mediaIds.size){
+      const approved=await tx.mediaAsset.count({where:{id:{in:[...mediaIds]},
+        status:"READY",moderationStatus:"APPROVED",deletedAt:null}});
+      if(approved!==mediaIds.size)
+        fail(409,"pack_media_unavailable","A pack question uses unavailable media");
+    }
+    const run=await tx.playRun.create({data:{
+      id,mode:"PACK",lane:"GENERAL",locale,userId:actor?.id,
+      packId:pack.id,packVersion:pack.currentVersion,targetCount:ids.length,
+      tokenHash:hash(runToken),expiresAt:expiry,
+      questions:{create:pack.items.map((item,index)=>({
+        position:index,quizId:item.quizId,revisionId:pinned.get(item.quizId)!
+      }))}
+    }});
+    return {...runSummary(run),runToken,resumed:false};
+  },{isolationLevel:"Serializable"});
+}
 export async function runStart(p:Record<string,any>,actor:Actor|null) {
   const mode=p.mode as RunMode, lane=p.lane as Lane, locale=p.locale as Locale;
+  if(mode==="PACK")return startPackRun(p,actor);
   if(mode==="WEEKLY" && Date.now()>=WEEKLY_RETIREMENT_AT)
     fail(410,"weekly_retired","Weekly challenges are retired. Choose random play or explore quiz packs.");
   const edition=mode==="WEEKLY"?await currentEdition(lane):null;
@@ -282,6 +368,7 @@ export async function runStart(p:Record<string,any>,actor:Actor|null) {
 function runSummary(run:any) {
   return {runId:run.id,mode:run.mode,lane:run.lane,locale:run.locale,status:run.status,
     completed:run.currentIndex,total:runTargetCount(run),
+    packId:run.packId??null,packVersion:run.packVersion??null,
     score:run.score,solved:run.solved,failed:run.failed,
     official:run.mode==="WEEKLY"&&run.officialEligible&&!!run.userId&&run.weekly?.hostId!==run.userId,
     completedAt:run.completedAt};
@@ -290,6 +377,12 @@ export async function runCurrent(p:Record<string,any>,actor:Actor|null) {
   const run=await checkedRun(p.runId,p.runToken,actor);
   if (p.locale && run.locale!==p.locale) fail(409,"locale_mismatch","Run language cannot be changed mid-game");
   if(run.status==="FINISHED") return runSummary(run);
+  if(run.mode==="PACK"){
+    if(!run.packId || !await db().quizPack.findFirst({where:{id:run.packId,
+      publication:"PUBLISHED",localizations:{some:{locale:run.locale,status:"PUBLISHED"}}},
+      select:{id:true}}))
+      fail(409,"pack_unavailable","Quiz pack is no longer published");
+  }
   if(run.mode==="WEEKLY") {
     if(!run.weekly || run.weekly.status!=="SCHEDULED" ||
       run.weekly.weekEnd <= new Date()) fail(410,"week_closed","이번 주 챌린지가 종료됐어요");
@@ -368,7 +461,7 @@ export async function runFeedback(p:Record<string,any>,actor:Actor|null) {
     where:{runId:run.id,status:{in:["SOLVED","FAILED"]}},
     select:{quizId:true,userId:true,roundIndex:true,revision:{select:{title:true,localization:{select:{origin:true}}}},
       quiz:{select:{authorId:true}}},
-    orderBy:{roundIndex:recentFirst?"desc":"asc"},take:5
+    orderBy:{roundIndex:recentFirst?"desc":"asc"},take:run.mode==="PACK"?100:5
   });
   if(recentFirst)sessions.reverse();
   const ids=sessions.map(s=>s.quizId);
