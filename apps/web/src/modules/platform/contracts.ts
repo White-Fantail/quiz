@@ -66,6 +66,9 @@ export const operations = {
   quiz_translation_hide: { public:false, description:"Hide a non-source translation with explicit confirmation", schema:z.object({id:uuid,locale:z.enum(["en","ko"]),confirm:z.literal(true)}) },
   quiz_language_set: { public: false, description: "Confirm the original language of a legacy unclassified quiz without translating it", schema: z.object({ id: uuid, locale: localeCode, confirm: z.literal(true) }) },
   quiz_publish: { public: false, description: "Publish my quiz; explicit user confirmation needed", schema: z.object({ id: uuid, confirm: z.literal(true) }) },
+  admin_quiz_review_list: { public: false, description: "ADMIN ONLY: search and paginate published quizzes for safety review, including restricted items", schema: z.object({
+    ...paging, search:z.string().trim().max(120).default(""), safety:z.enum(["ALL","PENDING","APPROVED","RESTRICTED"]).default("PENDING")
+  }) },
   quiz_review_get: { public: false, description: "ADMIN ONLY: inspect quiz questions and answers for safety", schema: z.object({id:uuid}) },
   quiz_review: { public: false, description: "ADMIN ONLY: independently approve or restrict a quiz; Kids requires explicit safety approval", schema: z.object({
     id: uuid, verdict: z.enum(["APPROVED","RESTRICTED","PENDING"]), kidsEligible: z.boolean().default(false),
