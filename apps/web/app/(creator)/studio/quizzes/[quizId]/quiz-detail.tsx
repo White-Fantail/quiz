@@ -3,6 +3,9 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import TranslationManager from "./translation-manager";
+import { useLocale } from "../../../../../src/i18n/provider";
+import { localizeHref } from "../../../../../src/i18n/core";
+import { bilingual } from "../../../../../src/i18n/view-copy";
 
 type Topic = { name:string; isSpoiler?:boolean };
 type AgeRange = { minimum?:number; maximum?:number };
@@ -31,14 +34,14 @@ type FormValues = {
 type Tab = "metadata"|"results"|"feedback"|"languages";
 const REVIEW_PAGE_SIZE=10;
 const answerTypes=["person","animal","place","thing","event","concept","other"];
-const publicationNames:Record<string,string>={DRAFT:"초안",PUBLISHED:"공개",HIDDEN:"숨김"};
-const safetyNames:Record<string,string>={PENDING:"검토 대기",APPROVED:"검토 완료",RESTRICTED:"제한됨"};
-const reportNames:Record<string,string>={
-  WRONG_ANSWER:"정답 오류",WRONG_CLUE:"단서 오류",UNSAFE:"부적절한 콘텐츠",
-  COPYRIGHT:"저작권",PRIVACY:"개인정보",SPAM:"스팸",DUPLICATE:"중복"
+const publicationNames:Record<string,[string,string]>={DRAFT:["Draft","초안"],PUBLISHED:["Published","공개"],HIDDEN:["Hidden","숨김"]};
+const safetyNames:Record<string,[string,string]>={PENDING:["Pending review","검토 대기"],APPROVED:["Approved","검토 완료"],RESTRICTED:["Restricted","제한됨"]};
+const reportNames:Record<string,[string,string]>={
+  WRONG_ANSWER:["Incorrect answer","정답 오류"],WRONG_CLUE:["Incorrect clue","단서 오류"],UNSAFE:["Unsafe content","부적절한 콘텐츠"],
+  COPYRIGHT:["Copyright","저작권"],PRIVACY:["Privacy","개인정보"],SPAM:["Spam","스팸"],DUPLICATE:["Duplicate","중복"]
 };
 function formatPercent(ratio:number|null){return ratio===null?"—":Math.round(ratio*100)+"%";}
-function formatNumber(number:number){return number.toLocaleString("ko-KR");}
+function formatNumber(number:number,locale:"en"|"ko"="en"){return number.toLocaleString(locale==="ko"?"ko-KR":"en-NZ");}
 function formFromQuiz(q:Quiz):FormValues{
   return {
     title:q.title,prompt:q.prompt,answerType:q.answerType,
@@ -55,21 +58,25 @@ async function api(path:string,method="GET",body?:object):Promise<any>{
   const res=await fetch("/api/v1"+path,{method,credentials:"same-origin",cache:"no-store",
     headers:body?{"Content-Type":"application/json"}:undefined,body:body?JSON.stringify(body):undefined});
   const data=await res.json().catch(()=>({}));
-  if(!res.ok)throw new Error(data.message||data.error||"요청을 처리하지 못했어요.");
+  if(!res.ok)throw new Error(data.message||data.error||bilingual(locale,"Couldn't process the request.","요청을 처리하지 못했어요."));
   return data.data;
 }
-function validateAge(min:string,max:string):AgeRange{
+function validateAge(min:string,max:string,locale:"en"|"ko"):AgeRange{
+  const msg=(en:string,ko:string)=>bilingual(locale,en,ko);
   const age:AgeRange={};
   if(min!=="")age.minimum=Number(min);
   if(max!=="")age.maximum=Number(max);
   if(Object.values(age).some(n=>!Number.isInteger(n)||n<0||n>120))
-    throw new Error("연령은 0~120 사이의 정수로 입력해 주세요.");
+    throw new Error(bilingual(locale,"Age must be a whole number from 0 to 120.","연령은 0~120 사이의 정수로 입력해 주세요."));
   if(age.minimum!==undefined&&age.maximum!==undefined&&age.minimum>age.maximum)
-    throw new Error("최소 연령은 최대 연령보다 클 수 없어요.");
+    throw new Error(bilingual(locale,"Minimum age cannot exceed maximum age.","최소 연령은 최대 연령보다 클 수 없어요."));
   return age;
 }
 
 export default function StudioQuizDetail({quizId}:{quizId:string}){
+  const locale=useLocale();
+  const msg=(en:string,ko:string)=>bilingual(locale,en,ko);
+  const stateLabel=(names:Record<string,[string,string]>,value:string)=>names[value]?msg(...names[value]):value;
   const [quiz,setQuiz]=useState<Quiz|null>(null);
   const [form,setForm]=useState<FormValues|null>(null);
   const [original,setOriginal]=useState<FormValues|null>(null);
@@ -90,7 +97,7 @@ export default function StudioQuizDetail({quizId}:{quizId:string}){
     let active=true;setLoading(true);setLoadError("");
     void api("/quizzes/"+encodeURIComponent(quizId)).then((q:Quiz)=>{
       if(active){setQuiz(q);const values=formFromQuiz(q);setForm(values);setOriginal(values);}
-    }).catch(e=>{if(active)setLoadError(e instanceof Error?e.message:"문제를 불러오지 못했어요.");})
+    }).catch(e=>{if(active)setLoadError(e instanceof Error?e.message:msg("Could not load the quiz.","문제를 불러오지 못했어요."));})
       .finally(()=>{if(active)setLoading(false);});
     return ()=>{active=false;};
   },[quizId,refresh]);
@@ -99,7 +106,7 @@ export default function StudioQuizDetail({quizId}:{quizId:string}){
     const params=new URLSearchParams({limit:String(REVIEW_PAGE_SIZE),offset:String(feedbackPage*REVIEW_PAGE_SIZE),locale:insightLocale});
     void api("/me/quizzes/"+encodeURIComponent(quizId)+"/insights?"+params.toString())
       .then((data:Insights)=>{if(active)setInsights(data);})
-      .catch(e=>{if(active)setInsightsError(e instanceof Error?e.message:"통계와 리뷰를 가져오지 못했어요.");})
+      .catch(e=>{if(active)setInsightsError(e instanceof Error?e.message:msg("Could not load statistics and reviews.","통계와 리뷰를 가져오지 못했어요."));})
       .finally(()=>{if(active)setInsightsLoading(false);});
     return ()=>{active=false;};
   },[quizId,feedbackPage,feedbackRefresh,insightLocale]);
@@ -113,14 +120,14 @@ export default function StudioQuizDetail({quizId}:{quizId:string}){
     if(!quiz||!form||!dirty||saving)return;
     setNotice("");setError("");
     try{
-      const creatorAge=validateAge(form.creatorMin,form.creatorMax);
-      const suggestedAge=validateAge(form.suggestedMin,form.suggestedMax);
+      const creatorAge=validateAge(form.creatorMin,form.creatorMax,locale);
+      const suggestedAge=validateAge(form.suggestedMin,form.suggestedMax,locale);
       const names=form.topics.split(",").map(t=>t.trim()).filter(Boolean);
-      if(names.length>12)throw new Error("주제는 최대 12개까지 입력할 수 있어요.");
+      if(names.length>12)throw new Error(msg("You can add up to 12 topics.","주제는 최대 12개까지 입력할 수 있어요."));
       const oldTopics=new Map(quiz.topics.map(t=>[t.name.toLocaleLowerCase(),t.isSpoiler===true]));
       const topics=names.map(name=>({name,isSpoiler:oldTopics.get(name.toLocaleLowerCase())??false}));
       if(quiz.publication==="PUBLISHED"&&!window.confirm(
-        "공개된 문제의 정보를 수정할까요? 새 버전이 생성되고 안전 검토는 대기로 돌아가며, 기존 Kids 승인은 해제됩니다."
+        msg("Edit this published quiz? A new revision will be created, safety review will reset and Kids approval will be removed.","공개된 문제의 정보를 수정할까요? 새 버전이 생성되고 안전 검토는 대기로 돌아가며, 기존 Kids 승인은 해제됩니다.")
       ))return;
       setSaving(true);
       const q:Quiz=await api("/quizzes/"+encodeURIComponent(quiz.id),"PATCH",{
@@ -130,10 +137,10 @@ export default function StudioQuizDetail({quizId}:{quizId:string}){
         recommendedAudience:{ageRange:suggestedAge,...(form.difficulty?{difficulty:form.difficulty}:{})}
       });
       setQuiz(q);const values=formFromQuiz(q);setForm(values);setOriginal(values);
-      setNotice("수정 내용을 새 버전으로 저장했습니다. 안전 검토 상태를 확인해 주세요.");
+      setNotice(msg("Saved as a new revision. Please check its safety review status.","수정 내용을 새 버전으로 저장했습니다. 안전 검토 상태를 확인해 주세요."));
       setFeedbackPage(0);setFeedbackRefresh(n=>n+1);
     }catch(e){
-      setError(e instanceof Error?e.message:"저장하지 못했어요. 최신 버전을 확인해 주세요.");
+      setError(e instanceof Error?e.message:msg("Could not save. Refresh to check the latest version.","저장하지 못했어요. 최신 버전을 확인해 주세요."));
     }finally{setSaving(false);}
   }
   async function confirmOriginalLanguage(locale:"en"|"ko") {
@@ -143,70 +150,70 @@ export default function StudioQuizDetail({quizId}:{quizId:string}){
     setSaving(true);setError("");setNotice("");
     try {
       await api("/quizzes/"+encodeURIComponent(quiz.id)+"/language","POST",{locale,confirm:true});
-      setNotice("원본 언어를 확인했습니다. 선택한 언어의 퀴즈 목록에 표시될 수 있습니다.");
+      setNotice(msg("Original language confirmed. This quiz can now appear in the chosen language.","원본 언어를 확인했습니다. 선택한 언어의 퀴즈 목록에 표시될 수 있습니다."));
       setRefresh(v=>v+1);
-    } catch(e) { setError(e instanceof Error?e.message:"원본 언어를 저장하지 못했습니다."); }
+    } catch(e) { setError(e instanceof Error?e.message:msg("Could not save the original language.","원본 언어를 저장하지 못했습니다.")); }
     finally { setSaving(false); }
   }
   async function publish(){
-    if(!quiz||saving||!window.confirm("이 퀴즈를 공개할까요? 공개 후에도 Kids 노출에는 별도 검토가 필요합니다."))return;
+    if(!quiz||saving||!window.confirm(msg("Publish this quiz? Kids visibility still requires a separate safety review.","이 퀴즈를 공개할까요? 공개 후에도 Kids 노출에는 별도 검토가 필요합니다.")))return;
     setSaving(true);setNotice("");setError("");
     try{
       await api("/quizzes/"+encodeURIComponent(quiz.id)+"/publish","POST",{confirm:true});
-      setNotice("공개 요청이 반영됐어요. Kids 노출 여부는 플랫폼 안전 검토에 따라 결정됩니다.");
+      setNotice(msg("Publish request applied. Kids visibility depends on platform safety review.","공개 요청이 반영됐어요. Kids 노출 여부는 플랫폼 안전 검토에 따라 결정됩니다."));
       setRefresh(n=>n+1);
-    }catch(e){setError(e instanceof Error?e.message:"공개하지 못했어요.");}
+    }catch(e){setError(e instanceof Error?e.message:msg("Could not publish the quiz.","공개하지 못했어요."));}
     finally{setSaving(false);}
   }
-  if(loading)return <div className="studio-empty" role="status">문제 정보를 불러오는 중…</div>;
+  if(loading)return <div className="studio-empty" role="status">{msg("Loading quiz details…","문제 정보를 불러오는 중…")}</div>;
   if(loadError||insightsError)return <div className="studio-empty" role="alert">
-    <h1>문제를 관리할 수 없어요</h1><p>{loadError||insightsError}</p>
-    <Link href="/studio" className="btn btn-outline">내 목록으로 돌아가기</Link>
+    <h1>{msg("Could not manage this quiz","문제를 관리할 수 없어요")}</h1><p>{loadError||insightsError}</p>
+    <Link href={localizeHref("/studio",locale)} className="btn btn-outline">{msg("Back to my quizzes","내 목록으로 돌아가기")}</Link>
   </div>;
-  if(!quiz||!form)return <div className="studio-empty">문제를 찾을 수 없어요.</div>;
+  if(!quiz||!form)return <div className="studio-empty">{msg("Quiz not found.","문제를 찾을 수 없어요.")}</div>;
   return <div className="studio-detail-workspace">
     <div className="studio-detail-head">
       <div>
         <h1>{quiz.title}</h1>
-        <p className="muted">v{quiz.version} · 문제 메타정보, 이용 결과, 사용자 반응을 한곳에서 관리하세요.</p>
-        {quiz.locale==="und" && <div className="feedback" role="group" aria-label="원본 언어 확인">
-          <p>언어가 미분류된 기존 퀴즈입니다. 질문과 단서의 원본 언어를 확인해 주세요. 자동 번역은 하지 않습니다.</p>
+        <p className="muted">v{quiz.version}{msg(" · Manage metadata, results and player feedback in one place."," · 문제 메타정보, 이용 결과, 사용자 반응을 한곳에서 관리하세요.")}</p>
+        {quiz.locale==="und" && <div className="feedback" role="group" aria-label={msg("Confirm source language","원본 언어 확인")}>
+          <p>{msg("This older quiz has no assigned language. Confirm its original language; no translation will be performed.","언어가 미분류된 기존 퀴즈입니다. 질문과 단서의 원본 언어를 확인해 주세요. 자동 번역은 하지 않습니다.")}</p>
           <div className="actions">
-            <button type="button" className="btn btn-outline" disabled={saving} onClick={()=>void confirmOriginalLanguage("en")}>English 원본</button>
-            <button type="button" className="btn btn-outline" disabled={saving} onClick={()=>void confirmOriginalLanguage("ko")}>한국어 원본</button>
+            <button type="button" className="btn btn-outline" disabled={saving} onClick={()=>void confirmOriginalLanguage("en")}>{msg("Original English","English 원본")}</button>
+            <button type="button" className="btn btn-outline" disabled={saving} onClick={()=>void confirmOriginalLanguage("ko")}>{msg("Original Korean","한국어 원본")}</button>
           </div>
         </div>}
         <div className="studio-chip-row">
-          <span className="media-state-chip media-wait">{publicationNames[quiz.publication]||quiz.publication}</span>
-          <span className={"media-state-chip "+(quiz.safetyStatus==="RESTRICTED"?"media-blocked":quiz.safetyStatus==="APPROVED"?"media-ok":"media-wait")}>{safetyNames[quiz.safetyStatus]||quiz.safetyStatus}</span>
-          <span className={"media-state-chip "+(quiz.kidsEligible?"media-ok":"media-wait")}>Kids {quiz.kidsEligible?"노출 가능":"미승인"}</span>
+          <span className="media-state-chip media-wait">{stateLabel(publicationNames,quiz.publication)}</span>
+          <span className={"media-state-chip "+(quiz.safetyStatus==="RESTRICTED"?"media-blocked":quiz.safetyStatus==="APPROVED"?"media-ok":"media-wait")}>{stateLabel(safetyNames,quiz.safetyStatus)}</span>
+          <span className={"media-state-chip "+(quiz.kidsEligible?"media-ok":"media-wait")}>Kids {quiz.kidsEligible?msg("eligible","노출 가능"):msg("not approved","미승인")}</span>
         </div>
       </div>
       <div className="actions">
         {quiz.publication!=="PUBLISHED"&&quiz.safetyStatus!=="RESTRICTED"&&<button type="button"
-          className="btn btn-primary" disabled={saving||dirty} onClick={()=>void publish()}>퀴즈 공개하기</button>}
+          className="btn btn-primary" disabled={saving||dirty} onClick={()=>void publish()}>{msg("Publish quiz","퀴즈 공개하기")}</button>}
         {quiz.publication==="PUBLISHED"&&quiz.safetyStatus!=="RESTRICTED"&&
-          <Link href={"/play/"+quiz.id} className="btn btn-outline">플레이 화면</Link>}
+          <Link href={localizeHref("/play/"+quiz.id,locale)} className="btn btn-outline">{msg("Play this quiz","플레이 화면")}</Link>}
       </div>
     </div>
-    {dirty&&<p className="muted">저장하지 않은 수정 사항이 있어요. 공개하기 전에 저장해 주세요.</p>}
+    {dirty&&<p className="muted">{msg("You have unsaved changes. Save them before publishing.","저장하지 않은 수정 사항이 있어요. 공개하기 전에 저장해 주세요.")}</p>}
     {error&&<p className="feedback" role="alert">{error}</p>}
     {notice&&<p className="feedback success" role="status">{notice}</p>}
-    <nav className="studio-tabs" aria-label="문제 관리 메뉴">
+    <nav className="studio-tabs" aria-label={msg("Quiz management menu","문제 관리 메뉴")}>
       <button type="button" className={tab==="metadata"?"active":""} aria-current={tab==="metadata"?"page":undefined}
-        onClick={()=>setTab("metadata")}>정보 수정</button>
+        onClick={()=>setTab("metadata")}>{msg("Edit details","정보 수정")}</button>
       <button type="button" className={tab==="results"?"active":""} aria-current={tab==="results"?"page":undefined}
-        onClick={()=>setTab("results")}>풀이 결과</button>
+        onClick={()=>setTab("results")}>{msg("Play results","풀이 결과")}</button>
       <button type="button" className={tab==="feedback"?"active":""} aria-current={tab==="feedback"?"page":undefined}
-        onClick={()=>setTab("feedback")}>사용자 피드백 {insights?"("+formatNumber(insights.reviews.total)+")":""}</button>
+        onClick={()=>setTab("feedback")}>{msg("User feedback ","사용자 피드백 ")}{insights?"("+formatNumber(insights.reviews.total)+")":""}</button>
       <button type="button" className={tab==="languages"?"active":""} aria-current={tab==="languages"?"page":undefined}
-        onClick={()=>setTab("languages")}>언어 버전 / Languages</button>
+        onClick={()=>setTab("languages")}>{msg("Language versions","언어 버전 / Languages")}</button>
     </nav>
 
     {tab==="languages"&&<TranslationManager quizId={quizId}/>}
     {tab==="metadata"&&<form className="studio-meta-form" onSubmit={e=>void save(e)}>
       <section className="placeholder-panel">
-        <h2>기본 정보</h2>
+        <h2>{msg("Basic information","기본 정보")}</h2>
         <div className="studio-form-grid">
           <label className="studio-wide">퀴즈 제목
             <input value={form.title} onChange={e=>change("title",e.target.value)} maxLength={180} required/>
@@ -221,31 +228,31 @@ export default function StudioQuizDetail({quizId}:{quizId:string}){
           </label>
           <label className="studio-wide">주제 · 쉼표로 구분
             <input value={form.topics} onChange={e=>change("topics",e.target.value)}
-              placeholder="예: New Zealand, Geography, Cities"/>
+              placeholder={msg("e.g. New Zealand, Geography, Cities","예: New Zealand, Geography, Cities")}/>
           </label>
-          <p className="studio-wide muted">기존 비공개 주제 설정은 유지됩니다. 정답을 드러내는 주제는 시스템에서 자동으로 숨깁니다.</p>
+          <p className="studio-wide muted">{msg("Existing private topics are preserved. Topics revealing the answer are automatically hidden.","기존 비공개 주제 설정은 유지됩니다. 정답을 드러내는 주제는 시스템에서 자동으로 숨깁니다.")}</p>
         </div>
       </section>
       <section className="placeholder-panel">
-        <h2>대상과 난이도</h2>
-        <p className="muted">권장 대상은 수정할 수 있지만 플랫폼의 안전성 등급과 Kids 승인 상태는 바꿀 수 없어요.</p>
+        <h2>{msg("Audience and difficulty","대상과 난이도")}</h2>
+        <p className="muted">{msg("You can change the recommended audience, but not the platform safety rating or Kids approval.","권장 대상은 수정할 수 있지만 플랫폼의 안전성 등급과 Kids 승인 상태는 바꿀 수 없어요.")}</p>
         <div className="studio-form-grid">
-          <h3 className="studio-wide">제작자가 생각하는 대상</h3>
+          <h3 className="studio-wide">{msg("Creator's intended audience","제작자가 생각하는 대상")}</h3>
           <label>최소 나이
-            <input type="number" min={0} max={120} step={1} value={form.creatorMin} onChange={e=>change("creatorMin",e.target.value)} placeholder="선택 사항"/>
+            <input type="number" min={0} max={120} step={1} value={form.creatorMin} onChange={e=>change("creatorMin",e.target.value)} placeholder={msg("Optional","선택 사항")}/>
           </label>
           <label>최대 나이
-            <input type="number" min={0} max={120} step={1} value={form.creatorMax} onChange={e=>change("creatorMax",e.target.value)} placeholder="선택 사항"/>
+            <input type="number" min={0} max={120} step={1} value={form.creatorMax} onChange={e=>change("creatorMax",e.target.value)} placeholder={msg("Optional","선택 사항")}/>
           </label>
           <label className="studio-wide">제작자 메모
-            <textarea rows={2} maxLength={400} value={form.creatorNote} onChange={e=>change("creatorNote",e.target.value)} placeholder="이 문제를 누구에게 추천하고 싶나요?"/>
+            <textarea rows={2} maxLength={400} value={form.creatorNote} onChange={e=>change("creatorNote",e.target.value)} placeholder={msg("Who is this quiz for?","이 문제를 누구에게 추천하고 싶나요?")}/>
           </label>
-          <h3 className="studio-wide">추천 대상 · 수정 가능</h3>
+          <h3 className="studio-wide">{msg("Recommended audience · editable","추천 대상 · 수정 가능")}</h3>
           <label>추천 최소 나이
-            <input type="number" min={0} max={120} step={1} value={form.suggestedMin} onChange={e=>change("suggestedMin",e.target.value)} placeholder="자동 추천 또는 직접 입력"/>
+            <input type="number" min={0} max={120} step={1} value={form.suggestedMin} onChange={e=>change("suggestedMin",e.target.value)} placeholder={msg("Auto-recommended or enter your own","자동 추천 또는 직접 입력")}/>
           </label>
           <label>추천 최대 나이
-            <input type="number" min={0} max={120} step={1} value={form.suggestedMax} onChange={e=>change("suggestedMax",e.target.value)} placeholder="선택 사항"/>
+            <input type="number" min={0} max={120} step={1} value={form.suggestedMax} onChange={e=>change("suggestedMax",e.target.value)} placeholder={msg("Optional","선택 사항")}/>
           </label>
           <label>추천 난이도
             <select value={form.difficulty} onChange={e=>change("difficulty",e.target.value)}>
@@ -256,100 +263,100 @@ export default function StudioQuizDetail({quizId}:{quizId:string}){
         </div>
       </section>
       <div className="studio-save-bar">
-        <p className="muted">저장 시 새 버전이 만들어지고 안전 검토는 대기로 돌아가며 Kids 승인은 해제됩니다. 정답과 단서 편집은 현재 API/MCP에서 지원해요.</p>
+        <p className="muted">{msg("Saving creates a new revision, resets safety review and removes Kids approval. Answer and clue editing is available via API/MCP.","저장 시 새 버전이 만들어지고 안전 검토는 대기로 돌아가며 Kids 승인은 해제됩니다. 정답과 단서 편집은 현재 API/MCP에서 지원해요.")}</p>
         <div className="actions">
-          <button type="button" className="btn btn-outline" disabled={!dirty||saving} onClick={()=>{if(original)setForm({...original});}}>변경 취소</button>
-          <button className="btn btn-primary" type="submit" disabled={!dirty||saving}>{saving?"저장 중…":"변경사항 저장"}</button>
+          <button type="button" className="btn btn-outline" disabled={!dirty||saving} onClick={()=>{if(original)setForm({...original});}}>{msg("Discard changes","변경 취소")}</button>
+          <button className="btn btn-primary" type="submit" disabled={!dirty||saving}>{saving?msg("Saving…","저장 중…"):msg("Save changes","변경사항 저장")}</button>
         </div>
       </div>
     </form>}
 
     {(tab==="results"||tab==="feedback")&&<section className="studio-locale-filter">
-      <label>분석 언어
+      <label>{msg("Analysis language","분석 언어")}
         <select value={insightLocale} onChange={e=>{setInsightLocale(e.target.value as "all"|"en"|"ko"|"und");setFeedbackPage(0);}}>
-          <option value="all">전체 언어</option><option value="ko">한국어</option>
-          <option value="en">English</option><option value="und">미분류 과거 기록</option>
+          <option value="all">{msg("All languages","전체 언어")}</option><option value="ko">한국어</option>
+          <option value="en">English</option><option value="und">{msg("Unclassified legacy records","미분류 과거 기록")}</option>
         </select>
       </label>
-      <p className="muted">평가와 성공률은 선택한 언어 기준이며, 과거 언어 미분류 자료는 임의 배정하지 않습니다.</p>
+      <p className="muted">{msg("Ratings and success rates follow the selected language; older unclassified data is not assigned to a language.","평가와 성공률은 선택한 언어 기준이며, 과거 언어 미분류 자료는 임의 배정하지 않습니다.")}</p>
     </section>}
     {tab==="results"&&<section className="studio-results">
-      <h2>{insightLocale==="all"?"언어별 전체 풀이 결과":(insightLocale==="ko"?"한국어":insightLocale==="en"?"English":"미분류")+" 풀이 결과"}</h2>
-      <p className="muted">퀴즈가 수정되기 전의 풀이도 합산합니다. 진행 중이거나 이탈한 플레이는 정답률 계산에서 제외됩니다.</p>
-      {insightsLoading&&!insights&&<p role="status">통계를 불러오는 중…</p>}
+      <h2>{insightLocale==="all"?msg("All language results","언어별 전체 풀이 결과"):msg("Results · ","풀이 결과 · ")+(insightLocale==="ko"?"한국어":insightLocale==="en"?"English":msg("Unclassified","미분류"))}</h2>
+      <p className="muted">{msg("Play statistics include earlier revisions. Incomplete and abandoned attempts are excluded from success rates.","퀴즈가 수정되기 전의 풀이도 합산합니다. 진행 중이거나 이탈한 플레이는 정답률 계산에서 제외됩니다.")}</p>
+      {insightsLoading&&!insights&&<p role="status">{msg("Loading statistics…","통계를 불러오는 중…")}</p>}
       {insightsError&&<p role="alert" className="feedback">{insightsError}</p>}
       {insights&&<><div className="studio-metric-grid">
-        <div><small>시작한 횟수</small><strong>{formatNumber(insights.started)}</strong></div>
-        <div><small>완료한 횟수</small><strong>{formatNumber(insights.completed)}</strong></div>
-        <div><small>완료율</small><strong>{formatPercent(insights.completionRate)}</strong></div>
-        <div><small>정답률</small><strong>{formatPercent(insights.successRate)}</strong></div>
+        <div><small>{msg("Starts","시작한 횟수")}</small><strong>{formatNumber(insights.started)}</strong></div>
+        <div><small>{msg("Completed","완료한 횟수")}</small><strong>{formatNumber(insights.completed)}</strong></div>
+        <div><small>{msg("Completion rate","완료율")}</small><strong>{formatPercent(insights.completionRate)}</strong></div>
+        <div><small>{msg("Success rate","정답률")}</small><strong>{formatPercent(insights.successRate)}</strong></div>
       </div>
       <div className="studio-results-columns">
-        <div className="placeholder-panel"><h3>풀이 현황</h3>
-          <p>정답 {formatNumber(insights.solved)}회 · 오답 {formatNumber(insights.failed)}회</p>
-          <p>미완료 {formatNumber(insights.inProgressOrAbandoned)}회</p>
-          <p>평균 사용 단서 수: <strong>{insights.averageCluesUsed===null?"—":insights.averageCluesUsed.toFixed(1)}</strong></p>
+        <div className="placeholder-panel"><h3>{msg("Play activity","풀이 현황")}</h3>
+          <p>{msg("Correct ","정답 ")}{formatNumber(insights.solved,locale)}{msg(" · Incorrect ","회 · 오답 ")}{formatNumber(insights.failed,locale)}{msg(" attempts","회")}</p>
+          <p>{msg("Unfinished ","미완료 ")}{formatNumber(insights.inProgressOrAbandoned,locale)}{msg(" attempts","회")}</p>
+          <p>{msg("Average clues used: ","평균 사용 단서 수: ")}<strong>{insights.averageCluesUsed===null?"—":insights.averageCluesUsed.toFixed(1)}</strong></p>
         </div>
-        <div className="placeholder-panel"><h3>몇 번째 단서에서 맞혔을까?</h3>
-          {!insights.correctByClueStage.length?<p className="muted">정답 데이터가 아직 없어요.</p>:
+        <div className="placeholder-panel"><h3>{msg("At which clue do players solve it?","몇 번째 단서에서 맞혔을까?")}</h3>
+          {!insights.correctByClueStage.length?<p className="muted">{msg("No correct answers yet.","정답 데이터가 아직 없어요.")}</p>:
           <ul className="studio-clue-stages">{insights.correctByClueStage.map(s=><li key={s.stage}>
-            <span>{s.stage}번째</span><div><span style={{width:(s.correct/Math.max(...insights.correctByClueStage.map(c=>c.correct))*100)+"%"}}/></div><b>{formatNumber(s.correct)}</b>
+            <span>{msg("Clue ","")}{s.stage}{msg("","번째")}</span><div><span style={{width:(s.correct/Math.max(...insights.correctByClueStage.map(c=>c.correct))*100)+"%"}}/></div><b>{formatNumber(s.correct)}</b>
           </li>)}</ul>}
         </div>
       </div>
-      <h3>언어별 정답률</h3>
+      <h3>{msg("Success rates by language","언어별 정답률")}</h3>
       <div className="studio-metric-grid">
         {insights.languages.map(row=><div key={row.locale}>
           <small>{row.locale==="ko"?"한국어":row.locale==="en"?"English":"미분류 / Legacy"}</small>
           <strong>{formatPercent(row.successRate)}</strong>
-          <small>풀이 {formatNumber(row.completed)}회 / 시작 {formatNumber(row.started)}회</small>
+          <small>{msg("Completed ","풀이 ")}{formatNumber(row.completed,locale)}{msg(" / Started ","회 / 시작 ")}{formatNumber(row.started,locale)}{msg("","회")}</small>
         </div>)}
       </div></>}
     </section>}
 
     {tab==="feedback"&&<section className="studio-feedback">
-      <h2>퀴즈 사용자 반응</h2>
-      <p className="muted">리뷰는 공개된 평가이며, 문제 신고는 운영자의 검토 대상입니다. 신고자 정보와 신고 원문은 작성자에게 공개되지 않습니다.</p>
-      {insightsLoading&&!insights&&<p role="status">피드백을 불러오는 중…</p>}
+      <h2>{msg("Player feedback","퀴즈 사용자 반응")}</h2>
+      <p className="muted">{msg("Reviews are public feedback. Reports go to moderators; reporter identities and report details are not shown to creators.","리뷰는 공개된 평가이며, 문제 신고는 운영자의 검토 대상입니다. 신고자 정보와 신고 원문은 작성자에게 공개되지 않습니다.")}</p>
+      {insightsLoading&&!insights&&<p role="status">{msg("Loading feedback…","피드백을 불러오는 중…")}</p>}
       {insightsError&&<p role="alert" className="feedback">{insightsError}</p>}
       {insights&&<>
         <div className="studio-metric-grid studio-feedback-metrics">
-          <div><small>좋아요</small><strong>{formatNumber(insights.reviews.positive)}</strong></div>
-          <div><small>아쉬워요</small><strong>{formatNumber(insights.reviews.negative)}</strong></div>
-          <div><small>긍정 평가 비율</small><strong>{insights.reviews.total>=5?
-            formatPercent(insights.reviews.positive/insights.reviews.total):"평가 더 필요"}</strong></div>
-          <div><small>신고 접수 (집계)</small><strong>{formatNumber(insights.reports.total)}</strong></div>
+          <div><small>{msg("Likes","좋아요")}</small><strong>{formatNumber(insights.reviews.positive)}</strong></div>
+          <div><small>{msg("Needs work","아쉬워요")}</small><strong>{formatNumber(insights.reviews.negative)}</strong></div>
+          <div><small>{msg("Positive rating ratio","긍정 평가 비율")}</small><strong>{insights.reviews.total>=5?
+            formatPercent(insights.reviews.positive/insights.reviews.total):msg("More ratings needed","평가 더 필요")}</strong></div>
+          <div><small>{msg("Reports (aggregate)","신고 접수 (집계)")}</small><strong>{formatNumber(insights.reports.total)}</strong></div>
         </div>
-        {insights.translationQuality&&<p className="muted">번역 품질 별도 평가 · 좋아요 {formatNumber(insights.translationQuality.positive)}회 / 아쉬워요 {formatNumber(insights.translationQuality.negative)}회</p>}
+        {insights.translationQuality&&<p className="muted">{msg("Translation quality · Likes ","번역 품질 별도 평가 · 좋아요 ")}{formatNumber(insights.translationQuality.positive,locale)}{msg(" / Needs work ","회 / 아쉬워요 ")}{formatNumber(insights.translationQuality.negative,locale)}{msg("","회")}</p>}
         <div className="studio-rating-trend">
-          <h3>최근 평가 추이</h3>
-          <p className="muted">평가의 마지막 저장일을 기준으로 해요. 현재 평가만 집계하며 과거 스냅샷은 아니에요.</p>
-          {([["최근 7일",insights.reviews.trend.last7Days],["그 전 7일",insights.reviews.trend.previous7Days]] as const)
+          <h3>{msg("Recent rating trend","최근 평가 추이")}</h3>
+          <p className="muted">{msg("Counts use the last update date of current ratings, not historical snapshots.","평가의 마지막 저장일을 기준으로 해요. 현재 평가만 집계하며 과거 스냅샷은 아니에요.")}</p>
+          {([[(msg("Last 7 days","최근 7일")),insights.reviews.trend.last7Days],[msg("Previous 7 days","그 전 7일"),insights.reviews.trend.previous7Days]] as const)
             .map(([label,period])=><div key={label} className="studio-rating-period">
               <strong>{label}</strong><span>👍 {period.positive} · 👎 {period.negative}</span>
               <span>{period.positive+period.negative>=5?
-                formatPercent(period.positive/(period.positive+period.negative)):"평가 적음"}</span>
+                formatPercent(period.positive/(period.positive+period.negative)):msg("Not enough ratings","평가 적음")}</span>
             </div>)}
         </div>
         {insights.reports.byReason.length>0&&<div className="studio-report-summary">
-          <h3>접수된 문제 유형</h3>
+          <h3>{msg("Reported issue categories","접수된 문제 유형")}</h3>
           <div className="studio-tags">{insights.reports.byReason.map(r=>
-            <span key={r.reason}>{reportNames[r.reason]||r.reason} · {formatNumber(r.count)}</span>)}</div>
-          <p className="muted">신고 건수는 문제 안전성 판정이나 제재 여부를 의미하지 않습니다.</p>
+            <span key={r.reason}>{stateLabel(reportNames,r.reason)} · {formatNumber(r.count)}</span>)}</div>
+          <p className="muted">{msg("Report counts do not determine safety decisions or penalties.","신고 건수는 문제 안전성 판정이나 제재 여부를 의미하지 않습니다.")}</p>
         </div>}
-        <h3>최근 리뷰</h3>
-        {!insights.reviews.items.length?<p className="studio-empty">아직 남겨진 리뷰가 없어요.</p>:
+        <h3>{msg("Recent reviews","최근 리뷰")}</h3>
+        {!insights.reviews.items.length?<p className="studio-empty">{msg("No reviews yet.","아직 남겨진 리뷰가 없어요.")}</p>:
           <div className="studio-review-list">{insights.reviews.items.map(r=><article key={r.id}>
-            <div><strong>{r.rating===1?"👍 좋아요":"👎 아쉬워요"}</strong> <small>{r.locale??"und"}</small>
-              <small>{r.author.displayName} · {new Date(r.createdAt).toLocaleDateString("ko-NZ")}</small></div>
-            <p>{r.comment||"텍스트 리뷰 없이 평가를 남겼습니다."}</p>
+            <div><strong>{r.rating===1?msg("👍 Like","👍 좋아요"):msg("👎 Needs work","👎 아쉬워요")}</strong> <small>{r.locale??"und"}</small>
+              <small>{r.author.displayName} · {new Date(r.createdAt).toLocaleDateString(locale==="ko"?"ko-NZ":"en-NZ")}</small></div>
+            <p>{r.comment||msg("Rating without a written review.","텍스트 리뷰 없이 평가를 남겼습니다.")}</p>
           </article>)}</div>}
-        {insights.reviews.total>REVIEW_PAGE_SIZE&&<nav className="media-pagination" aria-label="리뷰 페이지">
+        {insights.reviews.total>REVIEW_PAGE_SIZE&&<nav className="media-pagination" aria-label={msg("Review pages","리뷰 페이지")}>
           <button type="button" className="btn btn-outline" disabled={feedbackPage===0||insightsLoading}
-            onClick={()=>setFeedbackPage(p=>p-1)}>이전</button>
+            onClick={()=>setFeedbackPage(p=>p-1)}>{msg("Previous","이전")}</button>
           <span>{feedbackPage+1} / {Math.max(1,Math.ceil(insights.reviews.total/REVIEW_PAGE_SIZE))}</span>
           <button type="button" className="btn btn-outline" disabled={!insights.reviews.hasMore||insightsLoading}
-            onClick={()=>setFeedbackPage(p=>p+1)}>다음</button>
+            onClick={()=>setFeedbackPage(p=>p+1)}>{msg("Next","다음")}</button>
         </nav>}
       </>}
     </section>}
