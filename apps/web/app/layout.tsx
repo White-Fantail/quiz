@@ -13,7 +13,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const title = locale === "ko" ? "QuizDip — 단서를 따라, 재미를 발견해" : "QuizDip — Follow the clues. Find the fun.";
   return {
     title, applicationName: "QuizDip",
-    keywords: ["QuizDip", "quiz", "weekly quiz", "quiz creator", "퀴즈", "주간 퀴즈"],
+    keywords: ["QuizDip", "quiz", "quiz pack", "quiz creator", "퀴즈", "퀴즈팩"],
     description,
     openGraph: { title, description, siteName: "QuizDip", type: "website" },
     twitter: { card: "summary", title, description },
