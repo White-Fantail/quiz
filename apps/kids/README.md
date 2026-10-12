@@ -2,16 +2,20 @@
 
 Dedicated iPad/iPhone/Android experience for QuizDip Kids. **Native guardian-linked device scope is implemented in source but not yet production-verified.** The old web Kids game UI has been removed in Phase 5 source on dev; real-device and production validation remain outstanding.
 
-## Start
+## Start — single production API
+
+QuizDip currently has **one backend**: `https://quizdip.vercel.app`. The Kids native source sets this public HTTPS origin directly for every build profile (Expo Go, simulator, EAS preview and production). No `.env` file, EAS secret or user-entered server address is needed.
 
 Use Node.js 22.13+ and npm from the repository root:
 
 ```sh
 npm install
-cp apps/kids/.env.example apps/kids/.env
-# Edit EXPO_PUBLIC_QUIZDIP_API_URL to the existing QuizDip dev/staging HTTPS origin
 npm run kids:dev
 ```
+
+Open an iOS simulator with **i** or a browser-only sample preview with **w**. For the real native experience, use the guardian account at [QuizDip Kids settings](https://quizdip.vercel.app/en/account/kids) to create a child profile and issue a one-time pairing code. API credentials are **not** stored in the Expo config; the child-scoped token remains in OS SecureStore.
+
+**Production data caution:** All real native development, simulator pairing, game activity and parent settings now target the **live production database**. Use an explicit test child profile and avoid destructive or automated E2E operations on real user records. If a separate staging backend is introduced, update the centralized `KIDS_API_ORIGIN` in `src/services/api.ts` and add environment separation deliberately.
 
 ## Launch native app or local browser UI preview
 
@@ -39,7 +43,7 @@ Start an iOS Simulator, Android emulator, or Expo Go on a device from the Expo C
 
 This **browser-assisted onboarding is intentional**: the child never receives an adult Better Auth cookie, Google/Apple OAuth token, or MCP privilege. Full native guardian profile management is planned for Phase 4, at which point the legacy web Kids interface will be removed in Phase 5. Phase 3 native game/clues/treasures and Phase 4 daily play limits, private activity insights and the PIN-protected in-app parent zone are implemented in source. Actual database migrations, real-device QA, an approved privacy policy and store distribution remain pending.
 
-**Until the Prisma migration is applied** (`20261012190000_kids_native_pairing`) native pairing will fail. Use separate dev/prod DBs; do not assume migrations ran just because code is committed.
+**Until the Prisma migration is applied** (`20261012190000_kids_native_pairing`) native pairing will fail. Confirm migrations have been safely applied to production before attempting native pairing; a source commit does not apply migrations.
 
 ## Validation
 
@@ -56,7 +60,7 @@ Run both native bundles from a machine with network-installed dependencies. For 
 
 ## Security scope
 
-`EXPO_PUBLIC_*` values are public; put only the backend origin there. No API secrets, private media credentials, child access token or admin abilities belong in Expo configuration. Kids catalog uses server filtering, checks `kidsEligible === true` again defensively, and never includes the answer. An unconfigured or unreachable API shows a locked setup/unavailable state. The guardian's profile locale is authoritative after pairing; the app cannot override it. A guardian PIN change/recovery revokes active native sessions; an existing browser-only token is not valid natively. Do not infer Kids safety from the creator's intended age.
+The fixed HTTPS backend URL is public and not a secret. No API secrets, private media credentials, child access token or admin abilities belong in Expo configuration. Kids catalog uses server filtering, checks `kidsEligible === true` again defensively, and never includes the answer. An unreachable backend shows a locked/unavailable state; configuration is automatic. The guardian's profile locale is authoritative after pairing; the app cannot override it. A guardian PIN change/recovery revokes active native sessions; an existing browser-only token is not valid natively. Do not infer Kids safety from the creator's intended age.
 
 Plan: [native migration](../../docs/kids-native-development-plan.md).
 

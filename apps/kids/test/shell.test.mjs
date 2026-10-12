@@ -22,7 +22,10 @@ test("native discovery is read-only, locale-scoped and server-safe",()=>{
  assert.match(src,/api\.catalog\(token/);
  assert.match(source("../../packages/api-client/src/index.ts"),/kidsEligible===true/);
  assert.doesNotMatch(src,/play_guess|play_start|answer\.canonical/);
- assert.match(api,/EXPO_PUBLIC_QUIZDIP_API_URL/);
+ assert.match(api,/export const KIDS_API_ORIGIN = "https:\/\/quizdip\.vercel\.app"/);
+ assert.doesNotMatch(api,/process\.env|EXPO_PUBLIC_QUIZDIP_API_URL/);
+ for(const client of ["QuizDipPublicApi","QuizDipKidsDeviceApi","QuizDipKidsParentApi"])
+  assert.ok(api.includes("new "+client+"(KIDS_API_ORIGIN)"));
  assert.doesNotMatch(api,/DATABASE_URL|BETTER_AUTH_SECRET/);
 });
 test("Phase 2 only opens child routes with a validated native credential",()=>{

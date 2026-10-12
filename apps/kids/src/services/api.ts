@@ -1,14 +1,13 @@
-import { QuizDipPublicApi, QuizDipKidsDeviceApi, QuizDipKidsParentApi, ApiError } from "@quizdip/api-client";
+import { QuizDipPublicApi, QuizDipKidsDeviceApi, QuizDipKidsParentApi } from "@quizdip/api-client";
 
-/** Only a public backend origin is bundled. Child credentials live in SecureStore. */
-const raw=process.env.EXPO_PUBLIC_QUIZDIP_API_URL?.trim();
-export let apiConfigurationError:string|null=null;
-export let publicApi:QuizDipPublicApi|null=null;
-export let kidsApi:QuizDipKidsDeviceApi|null=null;
-export let parentApi:QuizDipKidsParentApi|null=null;
-if(!raw)apiConfigurationError="missing_origin";
-else try {
- publicApi=new QuizDipPublicApi(raw,fetch,__DEV__);
- kidsApi=new QuizDipKidsDeviceApi(raw,fetch,__DEV__);
- parentApi=new QuizDipKidsParentApi(raw,fetch,__DEV__);
-}catch(e){apiConfigurationError=e instanceof ApiError?e.code:"invalid_origin";}
+/**
+ * QuizDip currently runs a single production backend.
+ * Expo Go, simulators and release builds must all use the same HTTPS origin.
+ * This public URL is not a credential; child tokens remain in OS SecureStore.
+ * Change it deliberately in source if a separate environment is introduced.
+ */
+export const KIDS_API_ORIGIN = "https://quizdip.vercel.app";
+
+export const publicApi = new QuizDipPublicApi(KIDS_API_ORIGIN);
+export const kidsApi = new QuizDipKidsDeviceApi(KIDS_API_ORIGIN);
+export const parentApi = new QuizDipKidsParentApi(KIDS_API_ORIGIN);
