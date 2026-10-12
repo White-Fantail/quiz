@@ -37,7 +37,7 @@ export async function getPlaySession(p: Record<string, any>, actor: Actor | null
         (run.mode==="WEEKLY" && run.weekly?.status!=="SCHEDULED"))
       fail(409,"run_not_active","This run's active round has changed");
     if(run.mode==="PACK" && (!run.packId || !await db().quizPack.findFirst({
-      where:{id:run.packId,publication:"PUBLISHED",
+      where:{id:run.packId,publication:"PUBLISHED",safetyStatus:{not:"RESTRICTED"},
         localizations:{some:{locale:run.locale,status:"PUBLISHED"}}},
       select:{id:true}
     })))fail(409,"pack_unavailable","This pack has been withdrawn");
