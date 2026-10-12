@@ -77,7 +77,7 @@ export default function KidGameScreen(){
       const started=await kidsApi!.startSingle(token,params.quizId);
       ref={kind:"single",sessionId:started.sessionId,sessionToken:started.sessionToken};
       await save(ref);
-    }else if(params.mode==="RANDOM_FIVE"||params.mode==="WEEKLY"){
+    }else if(params.mode==="RANDOM_FIVE"){
       const started=await kidsApi!.startRun(token,params.mode);
       ref={kind:"run",runId:started.runId,runToken:started.runToken,mode:params.mode};
       await save(ref);
