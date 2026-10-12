@@ -34,7 +34,7 @@ async function api(path: string, body: unknown,locale:"en"|"ko"="en"): Promise<a
 export default function SingleQuizPage() {
   const locale = useLocale();
   const msg=(en:string,ko:string)=>bilingual(locale,en,ko);
-  const request=(path:string,body:unknown)=>request(path,body,locale);
+  const request=(path:string,body:unknown)=>api(path,body,locale);
   const { quizId } = useParams<{ quizId: string }>();
   const [session, setSession] = useState<Session | null>(null);
   const [clues, setClues] = useState<Clue[]>([]);

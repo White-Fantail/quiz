@@ -76,7 +76,7 @@ function validateAge(min:string,max:string,locale:"en"|"ko"):AgeRange{
 export default function StudioQuizDetail({quizId}:{quizId:string}){
   const locale=useLocale();
   const msg=(en:string,ko:string)=>bilingual(locale,en,ko);
-  const request=(path:string,method="GET",body?:object)=>request(path,method,body,locale);
+  const request=(path:string,method="GET",body?:object)=>api(path,method,body,locale);
   const stateLabel=(names:Record<string,[string,string]>,value:string)=>names[value]?msg(...names[value]):value;
   const [quiz,setQuiz]=useState<Quiz|null>(null);
   const [form,setForm]=useState<FormValues|null>(null);

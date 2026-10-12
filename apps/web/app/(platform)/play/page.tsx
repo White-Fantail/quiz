@@ -70,7 +70,7 @@ function MediaPart({item}:{item:MediaPreview}) {
 export default function PlayPage() {
   const locale = useLocale();
   const msg=(en:string,ko:string)=>bilingual(locale,en,ko);
-  const request=(path:string,method:"GET"|"POST"="GET",body?:unknown)=>request(path,method,body,locale);
+  const request=(path:string,method:"GET"|"POST"="GET",body?:unknown)=>api(path,method,body,locale);
   const [lane,setLane]=useState<Lane>("GENERAL");
   const [edition,setEdition]=useState<Edition|null>(null);
   const [run,setRun]=useState<RunInfo|null>(null);
