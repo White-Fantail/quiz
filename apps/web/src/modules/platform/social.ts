@@ -81,12 +81,13 @@ export async function reportsMine(p: Record<string, any>, actor: Actor | null) {
     orderBy: { createdAt: "desc" }, skip: p.offset, take: p.limit
   }) };
 }
-async function validatePackQuestions(ids: string[], authorId: string, publish = false, locale = "und") {
+async function validatePackQuestions(ids: string[], authorId: string, publish = false, locale = "und", existingIds: string[] = []) {
+  const existing=new Set(existingIds);
   if (new Set(ids).size !== ids.length) fail(400, "duplicate_quiz", "Pack questions must be unique");
   const qs = await db().quiz.findMany({ where: { id: { in: ids } },
     include: { localizations: true } });
   if (qs.length !== ids.length || qs.some(q => (q.authorId !== authorId && q.publication !== "PUBLISHED") ||
-    q.safetyStatus === "RESTRICTED" || (publish && q.publication !== "PUBLISHED")))
+    (q.safetyStatus === "RESTRICTED" && !existing.has(q.id)) || (publish && q.publication !== "PUBLISHED")))
     fail(400, "invalid_pack", "Pack has unavailable or unpublished questions");
   if(publish && locale!=="und" && qs.some(q=>!q.localizations.some(l=>l.locale===locale && l.status==="PUBLISHED")))
     fail(409,"incomplete_pack_locale","Every question must be published in the pack language");
@@ -275,7 +276,7 @@ export async function packUpdate(p: Record<string, any>, actor: Actor | null) {
   // Do not stop a creator editing pack metadata merely because an existing member was restricted.
   if(p.quizIds || p.publication==="PUBLISHED")
     await validatePackQuestions(ids,user.id,p.publication==="PUBLISHED" ||
-      (old.publication==="PUBLISHED"&&p.publication!=="DRAFT"),old.sourceLocale);
+      (old.publication==="PUBLISHED"&&p.publication!=="DRAFT"),old.sourceLocale,old.items.map(item=>item.quizId));
   const updated = await db().$transaction(async tx => {
     const changed=await tx.quizPack.updateMany({
       where:{id:old.id,authorId:user.id,currentVersion:old.currentVersion},
