@@ -56,7 +56,7 @@ export async function execute(name: Operation, raw: unknown, actor: Actor | null
     case "pack_publish_preview": return packPublishPreview(p,actor);
     case "pack_publish": return packPublish(p,actor);
     case "pack_update": return packUpdate(p, actor);
-    case "pack_reviews_list": return packReviewsList(p);
+    case "pack_reviews_list": return packReviewsList(p,actor);
     case "pack_review_upsert": return packReviewUpsert(p,actor);
     case "pack_review_remove": return packReviewRemove(p,actor);
     case "pack_report_create": return packReportCreate(p,actor);
