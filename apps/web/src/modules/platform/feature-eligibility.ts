@@ -1,6 +1,7 @@
 import { db } from "./db";
 import { fail } from "./auth";
 import { playableQuizWhere } from "./content-locale";
+import { selectPlayablePackItems } from "./pack-policy";
 import type { Locale } from "../../i18n/core";
 
 export type AudienceLane = "GENERAL"|"KIDS";
@@ -84,8 +85,8 @@ export async function safePack(id:string,locale:Locale,lane:AudienceLane,
   const allowed=new Set(existing.map(m=>m.id));
   const byQuiz=new Map(validRevisions.filter(r=>mediaReferences([r]).every(mid=>allowed.has(mid)))
     .map(r=>[r.quizId,r.id]));
-  const items=ids.filter(quizId=>byQuiz.has(quizId))
-    .map(quizId=>({quizId,revisionId:byQuiz.get(quizId)!}));
+  const items=selectPlayablePackItems(pack.items,new Set(byQuiz.keys()),lane)
+    .map(({quizId})=>({quizId,revisionId:byQuiz.get(quizId)!}));
   if(!items.length || (lane==="KIDS"&&items.length!==ids.length))
     fail(409,"pack_unavailable",lane==="KIDS"
       ?"Every question and media asset must be Kids-approved"
