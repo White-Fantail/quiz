@@ -2,6 +2,7 @@
 
 import { useCallback,useEffect,useState,type FormEvent } from "react";
 import { useLocale,useTranslation } from "../../../src/i18n/provider";
+import PairApproval from "./pair-approval";
 
 type Profile = {id:string;nickname:string;ageBand:"EARLY"|"MIDDLE"|"OLDER";locale:"en"|"ko";sessionMinutes:number};
 type Device = {id:string;profileId:string;deviceName:string;createdAt:string;expiresAt:string};
@@ -27,9 +28,6 @@ export default function KidsFamilySettings(){
  const [pin,setPin]=useState(""),[oldPin,setOldPin]=useState("");
  const [draft,setDraft]=useState<FormProfile>({...blank});
  const [editing,setEditing]=useState<string|null>(null);
- const [selected,setSelected]=useState("");
- const [pairPin,setPairPin]=useState("");
- const [ticket,setTicket]=useState<{code:string;expiresAt:string}|null>(null);
  const refresh=useCallback(async()=>{
    const next=await parentRequest();
    setOverview(next);
@@ -129,36 +127,7 @@ export default function KidsFamilySettings(){
        </div>
      </form>}
    </section>
-   <section className="placeholder-panel">
-     <h2>{t("kids.native.pairTitle")}</h2>
-     <p className="muted">{t("kids.native.pairHelp")}</p>
-     <p className="muted">{t("native.pair.detail")}</p>
-     <label>{t("kids.guardian.selectChild")}
-       <select value={selected||overview.profiles[0]?.id||""} onChange={e=>setSelected(e.target.value)}>
-         {overview.profiles.map(p=><option key={p.id} value={p.id}>{p.nickname}</option>)}
-       </select></label>
-     <label>{t("kids.guardian.confirmPin")}
-       <input type="password" inputMode="numeric" pattern="[0-9]{6}"
-         maxLength={6} autoComplete="off" value={pairPin} onChange={e=>setPairPin(e.target.value)}/>
-     </label>
-     <button type="button" className="btn btn-primary"
-       disabled={busy||!overview.pinConfigured||!overview.profiles.length||pairPin.length!==6}
-       onClick={async()=>{
-         setBusy(true);setError("");setTicket(null);
-         try{
-           const result=await parentRequest("POST",{action:"native_pair_issue",
-             profileId:selected||overview.profiles[0]?.id,pin:pairPin});
-           setTicket(result);setPairPin("");
-         }catch(e){setError(e instanceof Error?e.message:String(e));}
-         finally{setBusy(false);}
-       }}>{t("kids.native.generate")}</button>
-     {ticket&&<div role="status" className="feedback" style={{marginTop:16}}>
-       <p>{t("kids.native.codeLabel")}</p>
-       <strong style={{fontSize:"1.35rem",letterSpacing:".04em",overflowWrap:"anywhere"}}>{ticket.code}</strong>
-       <p>{t("kids.native.expires")}: {new Date(ticket.expiresAt).toLocaleTimeString()}</p>
-       <p>{t("kids.native.oneTime")}</p>
-     </div>}
-   </section>
+   <PairApproval profiles={overview.profiles} pinConfigured={overview.pinConfigured}/>
    <section className="placeholder-panel">
      <h2>{t("kids.guardian.activeDevices")}</h2>
      {overview.devices.length===0?<p className="muted">{t("kids.guardian.noDevices")}</p>:null}
