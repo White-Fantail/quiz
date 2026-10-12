@@ -42,7 +42,11 @@ async function api(path: string, method="GET", body?: object,locale:"en"|"ko"="e
     body: body ? JSON.stringify(body) : undefined,
   });
   const result = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(result.message || result.error || bilingual(locale,"Could not process this media request.","미디어 요청을 처리하지 못했어요."));
+  if (!response.ok) {
+    if (result.error === "import_forbidden" || result.code === "import_forbidden")
+      throw new Error(bilingual(locale,"This image host is not approved. Download a properly licensed file and upload it, or ask an administrator to allow the exact host.","허용되지 않은 이미지 출처입니다. 라이선스가 확인된 파일을 직접 업로드하거나 관리자에게 해당 호스트 허용을 요청하세요."));
+    throw new Error(result.message || result.error || bilingual(locale,"Could not process this media request.","미디어 요청을 처리하지 못했어요."));
+  }
   return result.data;
 }
 
@@ -102,6 +106,11 @@ export default function MediaLibrary() {
   const [page,setPage] = useState(0);
   const [refresh,setRefresh] = useState(0);
   const [selected,setSelected] = useState<File|null>(null);
+  const [importUrl,setImportUrl] = useState("");
+  const [importAlt,setImportAlt] = useState("");
+  const [importCredit,setImportCredit] = useState("");
+  const [importLicense,setImportLicense] = useState("");
+  const [importRights,setImportRights] = useState(false);
   const [alt,setAlt] = useState("");
   const [attribution,setAttribution] = useState("");
   const [details,setDetails] = useState<MediaDetails|null>(null);
@@ -156,6 +165,26 @@ export default function MediaLibrary() {
     } catch(e){setError(e instanceof Error?e.message:msg("Upload failed.","업로드에 실패했어요."));}
     finally{setBusy(false);}
   }
+  async function importImage() {
+    setBusy(true);setError("");setNotice("");
+    try {
+      const source = new URL(importUrl.trim());
+      if (source.protocol !== "https:" || source.username || source.password)
+        throw new Error(msg("Enter a direct HTTPS image URL.","이미지 파일의 HTTPS 직접 주소를 입력해 주세요."));
+      if (!importRights || !importCredit.trim() || !importLicense.trim())
+        throw new Error(msg("Confirm usage rights and provide a source and licence.","사용 권한 확인과 출처, 라이선스 정보를 입력해 주세요."));
+      const filename = (source.pathname.split("/").pop() || "imported-image").slice(0,200);
+      await request("/media/import","POST",{
+        url:source.href,kind:"image",filename,alt:importAlt.trim(),
+        attribution:importCredit.trim(),license:importLicense.trim(),
+      });
+      setImportUrl("");setImportAlt("");setImportCredit("");setImportLicense("");setImportRights(false);
+      setNotice(msg("Image saved to your private library. Safety approval is still required before public use.",
+        "이미지를 비공개 보관함에 저장했어요. 공개 사용 전 안전 검토가 필요합니다."));
+      setPage(0);reload();
+    } catch(e) {setError(e instanceof Error ? e.message : msg("Could not import the image.","이미지를 가져오지 못했어요."));}
+    finally {setBusy(false);}
+  }
   async function show(item: Media) {
     const requestId=++detailRequest.current;
     if (expandedId === item.id) { setExpandedId(null);setDetails(null);setDetailsLoading(false);return; }
@@ -209,6 +238,35 @@ export default function MediaLibrary() {
       <p className="muted">{msg("Images up to 12MB, audio 25MB and video 64MB. Make sure you have permission to use third-party content.","이미지 최대 12MB · 음원 25MB · 영상 64MB. 타인의 콘텐츠는 사용 권한을 확인해 주세요.")}</p>
       <button className="btn btn-primary" type="button" disabled={!selected || busy} onClick={()=>void upload()}>
         {busy?msg("Working…","처리 중…"):msg("Upload to Cloudflare R2","Cloudflare R2에 업로드")}
+      </button>
+    </section>
+    <section className="placeholder-panel">
+      <h2>{msg("Import an image from a URL","이미지 URL로 가져오기")}</h2>
+      <p className="muted">{msg("Paste the direct file URL, not a search page. Wikimedia Commons, Unsplash, Pexels and Pixabay image CDNs are supported by default. Other sites may require an administrator to approve the exact host.","검색 결과 페이지가 아닌 이미지 파일의 직접 주소를 입력하세요. Wikimedia Commons, Unsplash, Pexels, Pixabay 이미지 CDN을 기본 지원합니다. 그 외 출처는 관리자의 정확한 호스트 허용이 필요합니다.")}</p>
+      <div className="media-editor">
+        <label>{msg("Direct HTTPS image URL","HTTPS 이미지 파일 주소")}
+          <input type="url" value={importUrl} maxLength={2000} placeholder="https://upload.wikimedia.org/…" onChange={e=>setImportUrl(e.target.value)} disabled={busy}/>
+        </label>
+        <label>{msg("Description (for accessible clues)","이미지 설명 (접근성 단서)")}
+          <input value={importAlt} maxLength={500} onChange={e=>setImportAlt(e.target.value)} placeholder={msg("Describe what is visible","이미지에 보이는 내용을 설명해 주세요.")} disabled={busy}/>
+        </label>
+        <label>{msg("Photographer / credit / source","사진가 · 출처 · 저작자")}
+          <input value={importCredit} maxLength={500} onChange={e=>setImportCredit(e.target.value)} placeholder={msg("Author and source page","저작자와 출처 페이지")} disabled={busy}/>
+        </label>
+        <label>{msg("Licence or permission","라이선스 또는 사용 허가")}
+          <input value={importLicense} maxLength={200} onChange={e=>setImportLicense(e.target.value)} placeholder={msg("e.g. CC BY 4.0, CC0, Unsplash License","예: CC BY 4.0, CC0, Unsplash License")} disabled={busy}/>
+        </label>
+      </div>
+      <label><input type="checkbox" checked={importRights} onChange={e=>setImportRights(e.target.checked)} disabled={busy}/> {msg("I checked that the licence or permission allows my intended use and provided the required credit.","사용 목적에 맞는 라이선스·사용 허가 및 출처 표시 의무를 확인했습니다.")}</label>
+      <p className="muted">{msg("Find a suitable image at one of these sites, then copy its direct image URL:","아래 사이트에서 이미지를 검색한 뒤 이미지 파일의 직접 주소를 복사하세요:")}{" "}
+        <a target="_blank" rel="noopener noreferrer" href="https://commons.wikimedia.org/wiki/Special:MediaSearch?type=image">Wikimedia Commons</a>{" · "}
+        <a target="_blank" rel="noopener noreferrer" href="https://unsplash.com/s/photos/nature">Unsplash</a>{" · "}
+        <a target="_blank" rel="noopener noreferrer" href="https://www.pexels.com/search/animals/">Pexels</a>{" · "}
+        <a target="_blank" rel="noopener noreferrer" href="https://pixabay.com/images/search/animals/">Pixabay</a>
+      </p>
+      <p className="muted">{msg("If an image host is unavailable, download the appropriately licensed file and use the upload option above. This does not bypass copyright requirements.","허용되지 않은 호스트라면 정당한 사용 권한이 있는 파일을 다운로드하여 위의 직접 업로드를 이용하세요. 저작권 확인 의무는 동일합니다.")}</p>
+      <button className="btn btn-primary" type="button" disabled={!importUrl.trim() || !importCredit.trim() || !importLicense.trim() || !importRights || busy} onClick={()=>void importImage()}>
+        {busy?msg("Working…","처리 중…"):msg("Import into private media library","비공개 미디어 보관함으로 가져오기")}
       </button>
     </section>
     {error && <p role="alert" className="feedback">{error}</p>}
