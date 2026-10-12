@@ -118,7 +118,10 @@ export default function StudioWorkspace() {
         <div className="studio-list-side">
           <div className="studio-figures"><span><b>{item.plays.toLocaleString(locale==="ko"?"ko-KR":"en-NZ")}</b>{msg(" starts","시작")}</span><span><b>{item.reviews.toLocaleString(locale==="ko"?"ko-KR":"en-NZ")}</b>{msg(" reviews","리뷰")}</span></div>
           <small>v{item.version} · {date(locale,item.updatedAt)}{msg(" updated"," 수정")}</small>
-          <Link href={localizeHref("/studio/quizzes/"+item.id,locale)} className="btn btn-outline">{msg("Manage and view results","관리 및 결과 보기")}</Link>
+          <div className="studio-quiz-row-actions">
+            <Link href={localizeHref("/studio/quizzes/"+item.id+"/preview",locale)} className="btn btn-primary">{msg("Test play","테스트 플레이")}</Link>
+            <Link href={localizeHref("/studio/quizzes/"+item.id,locale)} className="btn btn-outline">{msg("Manage and view results","관리 및 결과 보기")}</Link>
+          </div>
         </div>
       </article>)}
     </div>}
