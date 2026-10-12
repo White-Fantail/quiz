@@ -103,7 +103,7 @@ export default function PackSafetyConsole(){
           <h3>{pack.title}</h3>
           {pack.description&&<p>{pack.description}</p>}
           <p className="muted">{pack.publication} · {pack.quizCount} {ko?"문제":"questions"} · {ko?"미처리 신고":"Open reports"}: {pack.openReports} · {pack.safetyStatus}</p>
-          {pack.reportSamples.map((r,i)=><p key={i} className="muted">{r.reason}: {r.detail}</p>)}}
+          {pack.reportSamples.map((r,i)=><p key={i} className="muted">{r.reason}: {r.detail}</p>)}
           {comment(pack.id,ko?"제한 사유 (8자 이상)":"Restriction reason (at least 8 characters)")}
           <div className="actions">
             {pack.safetyStatus!=="RESTRICTED"?
