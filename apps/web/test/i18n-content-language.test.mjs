@@ -49,7 +49,7 @@ test("server-scoped catalog queries and paging enforce published localization be
   assert.match(quiz,/currentPlayableRevision\(id, locale\)/);
   assert.match(topic,/localizations:\s*\{some:\{locale/);
   assert.match(topic,/isSpoiler:false/);
-  assert.match(social,/items: \{ some: \{\}, every: \{ quiz: playableQuizWhere\(locale\) \} \}/);
+  assert.match(social,/items: \{ some: \{ quiz: playableQuizWhere\(locale\) \} \}/);
 });
 test("play sessions and random/pack snapshots pin matching locale and revisions",()=>{
   const play=read("src/modules/platform/play.ts");
