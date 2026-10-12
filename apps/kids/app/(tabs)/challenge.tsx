@@ -14,13 +14,6 @@ export default function ChallengeScreen(){
        <Text style={styles.note}>{t("native.play.fiveDesc")}</Text></View>
      <Text style={styles.arrow}>↗</Text>
    </Pressable>
-   <Pressable accessibilityRole="button" style={[styles.tile,{backgroundColor:theme.colors.lilac}]}
-     onPress={()=>router.push({pathname:"/game",params:{mode:"WEEKLY"}})}>
-     <Text style={styles.emoji}>🌟</Text>
-     <View style={styles.info}><Text style={styles.title}>{t("native.play.weeklyTitle")}</Text>
-       <Text style={styles.note}>{t("native.play.weeklyDesc")}</Text></View>
-     <Text style={styles.arrow}>↗</Text>
-   </Pressable>
    <Pressable accessibilityRole="button" style={styles.secondary} onPress={()=>router.push("/game")}>
      <Text style={styles.secondaryText}>▶ {t("native.play.resume")}</Text>
    </Pressable>
