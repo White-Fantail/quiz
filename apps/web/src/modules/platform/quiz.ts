@@ -153,6 +153,8 @@ export async function quizPublish(p: Record<string, any>, actor: Actor | null) {
   const old = await db().quiz.findFirst({ where: { id: p.id, authorId: user.id } });
   if (!old) fail(404, "not_found", "Quiz not found");
   if (old.safetyStatus === "RESTRICTED") fail(403, "restricted_quiz", "Quiz is restricted");
+  if (old.publication === "PUBLISHED") return { id:old.id, publication:"PUBLISHED",
+    kidsReviewStatus:old.kidsReviewStatus,alreadyPublished:true };
   const currentRevision = await revision(old.id, old.currentVersion);
   await validateMediaReferences(user.id, currentRevision.promptMediaIds as string[], currentRevision.clues as any[], true);
   if (old.publication !== "PUBLISHED" && user.role !== "ADMIN") {
