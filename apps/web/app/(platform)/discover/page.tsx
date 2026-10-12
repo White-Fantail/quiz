@@ -88,7 +88,7 @@ export default function DiscoverPage() {
           {view==="ALL"?(locale==="ko"?"전체":"All"):view==="PACK"?(locale==="ko"?"퀴즈팩":"Quiz packs"):(locale==="ko"?"개별 문제":"Questions")}
         </button>)}
       </div>
-      {contentView==="ALL"&&<DiscoverySections/>}
+      {contentView==="ALL"&&!kids&&<DiscoverySections/>}
       {contentView==="PACK"&&<PackBrowser/>}
       {contentView!=="PACK"&&<>
       <section className="discover-filters" aria-label={t("discover.filters")}>
