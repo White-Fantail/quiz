@@ -272,14 +272,18 @@ export async function packUpdate(p: Record<string, any>, actor: Actor | null) {
   if (!old) fail(404, "not_found", "Pack not found");
   const ids: string[] = p.quizIds ?? old.items.sort((a, b) => a.position - b.position).map(i => i.quizId);
   if (p.publication === "PUBLISHED" && p.confirm !== true) fail(400, "confirmation_required", "Confirm publishing the pack");
-  await validatePackQuestions(ids, user.id, p.publication === "PUBLISHED" || (old.publication === "PUBLISHED" && p.publication !== "DRAFT"), old.sourceLocale);
+  // Do not stop a creator editing pack metadata merely because an existing member was restricted.
+  if(p.quizIds || p.publication==="PUBLISHED")
+    await validatePackQuestions(ids,user.id,p.publication==="PUBLISHED" ||
+      (old.publication==="PUBLISHED"&&p.publication!=="DRAFT"),old.sourceLocale);
   const updated = await db().$transaction(async tx => {
     const changed=await tx.quizPack.updateMany({
       where:{id:old.id,authorId:user.id,currentVersion:old.currentVersion},
       data:{
         currentVersion:{increment:1},
-        // Any author edit invalidates independent Kids approval.
-        safetyStatus:old.safetyStatus==="RESTRICTED"?"RESTRICTED":"PENDING",kidsEligible:false,
+        // Independent general restriction survives creator edits; Kids approval does not.
+        safetyStatus:old.safetyStatus==="RESTRICTED"?"RESTRICTED":"ACTIVE",
+        kidsEligible:false,kidsReviewStatus:"NOT_REQUESTED",
         ...(p.title !== undefined ? {title:p.title}:{}),
         ...(p.description !== undefined ? {description:p.description}:{}),
         ...(p.orderMode !== undefined ? {orderMode:p.orderMode}:{}),
@@ -379,7 +383,7 @@ export async function packPublish(p:Record<string,any>,actor:Actor|null){
       }
     }
     const changed=await tx.quizPack.updateMany({where:{id:pack.id,authorId:user.id,
-      publication:pack.publication,updatedAt:pack.updatedAt,safetyStatus:{not:"RESTRICTED"}},data:{publication:"PUBLISHED",safetyStatus:"PENDING",kidsEligible:false}});
+      publication:pack.publication,updatedAt:pack.updatedAt,safetyStatus:{not:"RESTRICTED"}},data:{publication:"PUBLISHED",safetyStatus:"ACTIVE",kidsEligible:false,kidsReviewStatus:"NOT_REQUESTED"}});
     if(changed.count!==1)fail(409,"pack_changed","Pack changed during publication");
     await tx.quizPackLocalization.updateMany({where:{packId:pack.id,locale:pack.sourceLocale},
       data:{status:"PUBLISHED"}});
@@ -387,6 +391,31 @@ export async function packPublish(p:Record<string,any>,actor:Actor|null){
       detail:{quizCount:ids.length,draftCount:draftIds.length,confirmed:true}}});
     return {id:pack.id,publication:"PUBLISHED",quizCount:ids.length,
       publishedDraftCount:draftIds.length,kidsEligibility:"INDEPENDENT_REVIEW_REQUIRED"};
+  });
+}
+
+/** Only the author can ask for independent Kids review. Nothing here approves children.
+ * Membership, individual quiz reviews and media must already pass the strict gate.
+ */
+export async function packKidsRequest(p:Record<string,any>,actor:Actor|null){
+  const user=requireActor(actor);
+  const pack=await db().quizPack.findFirst({where:{id:p.id,authorId:user.id}});
+  if(!pack)fail(404,"not_found","Owned pack not found");
+  if(pack.publication!=="PUBLISHED"||pack.safetyStatus==="RESTRICTED")
+    fail(409,"pack_unavailable","Only unrestricted published packs can request Kids review");
+  if(pack.kidsReviewStatus==="PENDING"||pack.kidsReviewStatus==="APPROVED")
+    return {id:pack.id,kidsReviewStatus:pack.kidsReviewStatus,alreadyRequested:true};
+  if(pack.sourceLocale!=="en"&&pack.sourceLocale!=="ko")
+    fail(409,"pack_locale_unclassified","An original language must be selected");
+  await safePack(pack.id,pack.sourceLocale as "en"|"ko","KIDS",{skipPackApproval:true});
+  return db().$transaction(async tx=>{
+    const changed=await tx.quizPack.updateMany({where:{id:pack.id,authorId:user.id,
+      currentVersion:pack.currentVersion,updatedAt:pack.updatedAt,publication:"PUBLISHED",
+      safetyStatus:{not:"RESTRICTED"}},data:{kidsReviewStatus:"PENDING",kidsEligible:false}});
+    if(changed.count!==1)fail(409,"pack_conflict","Pack changed; reload before requesting review");
+    await tx.auditLog.create({data:{actorId:user.id,objectId:pack.id,
+      action:"pack.kids.review.request",detail:{version:pack.currentVersion}}});
+    return {id:pack.id,kidsReviewStatus:"PENDING",alreadyRequested:false};
   });
 }
 
@@ -402,12 +431,10 @@ export async function packGet(p:Record<string,any>,actor:Actor|null){
   });
   if(!pack||!pack.items.length||!pack.localizations[0])
     fail(404,"not_found","Published quiz pack is unavailable");
-  const eligible=await db().quiz.count({where:{id:{in:pack.items.map(item=>item.quizId)},
-    ...playableQuizWhere(locale)}});
-  if(eligible!==pack.items.length)
-    fail(404,"pack_unavailable","A pack question is unavailable in this language");
+  const safe=await safePack(pack.id,locale,"GENERAL");
   return {id:pack.id,title:pack.localizations[0].title,
     description:pack.localizations[0].description,author:pack.author,
-    questionCount:pack.items.length,orderMode:pack.orderMode,ratings:await packRatingFor(pack.id,locale),locale,publication:pack.publication,
-    currentVersion:pack.currentVersion};
+    questionCount:safe.questionCount,originalQuestionCount:safe.originalQuestionCount,
+    excludedCount:safe.excludedCount,orderMode:pack.orderMode,ratings:await packRatingFor(pack.id,locale),
+    locale,publication:pack.publication,currentVersion:pack.currentVersion};
 }
