@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useLocale } from "../../../src/i18n/provider";
+import { loadDiscoverySections } from "./discovery-client";
 import { localizeHref } from "../../../src/i18n/core";
 
 type PackCard = {
@@ -44,7 +45,7 @@ export default function PackSpotlight({ onBrowsePacks }: { onBrowsePacks: () => 
     // The ranking API applies publication, locale, moderation and media gates.
     // The public pack list is a separately gated fallback for sparse/new catalogs.
     void Promise.allSettled([
-      readData("/discover/sections?locale=" + locale),
+      loadDiscoverySections(locale),
       readData("/packs?locale=" + locale + "&limit=8&offset=0")
     ]).then(([discovery, catalog]) => {
       if (!live) return;
