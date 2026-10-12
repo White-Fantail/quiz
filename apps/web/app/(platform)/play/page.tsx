@@ -6,6 +6,7 @@ import { useLocale } from "../../../src/i18n/provider";
 import { localizeHref } from "../../../src/i18n/core";
 import { bilingual } from "../../../src/i18n/view-copy";
 import { RatingBadge, RatingButtons, RatingSignIn, type RatingAccess } from "../../../src/components/quiz-ratings";
+import PackFeedback, { PackShare } from "../../../src/components/pack-feedback";
 import type { RatingSummary } from "../../../src/modules/quiz/rating-metadata";
 import { useCallback, useEffect, useState } from "react";
 
@@ -311,6 +312,7 @@ export default function PlayPage({packId}:{packId?:string}={}) {
       </>:<>
         <div className="round-finish">
           <div className="round-finish-symbol">✦</div>
+          {run.mode==="PACK"&&packId&&<><PackFeedback packId={packId}/><PackShare path={"/packs/"+packId}/></>}
           <h2>{msg("Challenge complete!","이번 도전 완료!")}</h2>
           <p>{msg("Total ","총 ")}<strong>{run.score}{msg(" pts","점")}</strong> · {run.completed}{msg(" quizzes · ","문제 · ")}{msg("Correct ","정답 ")}{run.solved||0}</p>
           {run.exhausted&&<p>{msg("You've finished all available new questions. Come back for more.","새로운 문제를 모두 풀었어요. 새 퀴즈가 등록되면 다시 즐겨 주세요.")}</p>}
