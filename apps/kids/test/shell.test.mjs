@@ -7,6 +7,8 @@ test("Kids is a real native Expo app, not a webview shell",()=>{
  const pkg=JSON.parse(source("package.json")),cfg=JSON.parse(source("app.json"));
  assert.equal(pkg.main,"expo-router/entry");
  assert.match(pkg.dependencies.expo,/^~57\./);
+ assert.deepEqual(cfg.expo.platforms,["ios","android"],"Kids must not silently enable web bundling through hoisted React DOM");
+ for(const webOnly of ["react-dom","react-native-web","@expo/metro-runtime"]) assert.equal(pkg.dependencies[webOnly],undefined,"native-only Kids must not depend on "+webOnly);
  assert.equal(cfg.expo.ios.supportsTablet,true);
  assert.ok(cfg.expo.android.package);
  for(const page of ["index","explore","challenge","treasures"]) assert.match(source("app/(tabs)/"+page+".tsx"),/Screen/);
