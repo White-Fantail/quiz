@@ -48,17 +48,20 @@ test("whole-pack safety approval is distinct from author publication and resets 
  const schema=read("../../prisma/schema.prisma");
  assert.match(schema,/kidsEligible\s+Boolean\s+@default\(false\)/);
  const social=read("src/modules/platform/social.ts");
- assert.ok(social.includes('safetyStatus:old.safetyStatus==="RESTRICTED"?"RESTRICTED":"PENDING",kidsEligible:false'));
+ assert.ok(social.includes('safetyStatus:old.safetyStatus==="RESTRICTED"?"RESTRICTED":"ACTIVE"'));
+ assert.match(social,/kidsReviewStatus:"NOT_REQUESTED"/);
  assert.match(social,/restricted_pack/);
- assert.match(social,/publication:"PUBLISHED",safetyStatus:"PENDING",kidsEligible:false/);
+ assert.match(social,/publication:"PUBLISHED",safetyStatus:"ACTIVE",kidsEligible:false,kidsReviewStatus:"NOT_REQUESTED"/);
  const safety=read("src/modules/platform/feature-eligibility.ts");
  assert.match(safety,/sourceLocale!==locale/);
  assert.match(safety,/\["ORIGINAL","LEGACY"\]/);
- assert.match(safety,/approvedMedia\(revisions\)/);
+ assert.match(safety,/selectPlayablePackItems\(pack.items/);
+ assert.match(safety,/moderationStatus:"APPROVED"/);
  assert.match(safety,/ageEligible\(q\.recommendedAudience/);
  const editorial=read("src/modules/platform/editorial.ts");
  assert.match(editorial,/pack\.safetyStatus==="RESTRICTED"/);
- assert.match(editorial,/action:"pack\.kids_safety\.review"/);
+ assert.match(editorial,/pack\.kids_safety\.review/);
+ assert.match(editorial,/kidsReviewStatus:"PENDING"/);
  assert.match(read("app/admin/packs-review/page.tsx"),/actor\.role!=="ADMIN"/);
 });
 
