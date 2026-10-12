@@ -7,11 +7,12 @@ type Pack={id:string;title:string;description:string;publication:string;
   orderMode:"CREATOR"|"RANDOM";quizIds:string[];
   ratings?:{total:number;positivePercent:number|null}};
 const SIZE=12;
-export default function PackBrowser(){
+export default function PackBrowser({page,onPageChange,ready}:{page:number;onPageChange:(page:number)=>void;ready:boolean}){
   const locale=useLocale(),ko=locale==="ko";
-  const [page,setPage]=useState(0),[packs,setPacks]=useState<Pack[]>([]);
+  const [packs,setPacks]=useState<Pack[]>([]);
   const [hasMore,setHasMore]=useState(false),[loading,setLoading]=useState(true),[error,setError]=useState("");
   useEffect(()=>{
+    if(!ready)return;
     let active=true;setLoading(true);setError("");
     const query=new URLSearchParams({locale,limit:String(SIZE+1),offset:String(page*SIZE)});
     void fetch("/api/v1/packs?"+query,{cache:"no-store"}).then(async r=>{
@@ -22,7 +23,7 @@ export default function PackBrowser(){
     }).catch(e=>{if(active){setError(String(e));setPacks([])}})
       .finally(()=>{if(active)setLoading(false)});
     return ()=>{active=false};
-  },[page,locale]);
+  },[ready,page,locale]);
   return <section aria-label={ko?"퀴즈팩":"Quiz packs"}>
     <div className="discover-results-head">
       <h2>{ko?"퀴즈팩 둘러보기":"Browse quiz packs"}</h2>
@@ -45,10 +46,10 @@ export default function PackBrowser(){
       </Link>
     </article>)}</div>
     <nav className="discover-pagination" aria-label={ko?"퀴즈팩 페이지":"Quiz pack pages"}>
-      <button className="btn btn-outline" type="button" disabled={page===0||loading} onClick={()=>setPage(p=>p-1)}>
+      <button className="btn btn-outline" type="button" disabled={page===0||loading} onClick={()=>onPageChange(Math.max(0,page-1))}>
         {ko?"이전":"Previous"}</button>
       <span>{page+1}</span>
-      <button className="btn btn-outline" type="button" disabled={!hasMore||loading} onClick={()=>setPage(p=>p+1)}>
+      <button className="btn btn-outline" type="button" disabled={!hasMore||loading} onClick={()=>onPageChange(page+1)}>
         {ko?"다음":"Next"}</button>
     </nav>
   </section>;
