@@ -27,9 +27,11 @@ test("server enforces weekly first-exposure ranking guard and pool depletion",()
   assert.ok(code.includes("const choice=shuffle(selectUnseen"));
   assert.ok(code.includes('exhausted:done.status==="FINISHED"'));
 });
-test("UI emphasizes five-question free play and provides a next-five action",()=>{
+test("UI offers optional quick five, continuous random play and Discover instead of weekly promotion",()=>{
   const code=readFileSync(new URL("../app/(platform)/play/page.tsx",import.meta.url),"utf8");
-  assert.ok(code.indexOf("play-practice")<code.indexOf("weekly-spotlight"));
+  assert.match(code,/play-practice/);
+  assert.doesNotMatch(code,/weekly-spotlight/);
+  assert.match(code,/문제와 퀴즈팩 둘러보기/);
   assert.match(code,/새로운 5문제 더 풀기/);
   assert.ok(code.includes("rememberQuiz(next.quizId)"));
 });
