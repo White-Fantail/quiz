@@ -16,7 +16,6 @@ export default async function StudioPage() {
   return <main className="container inner-page studio-home management-page">
     <ManagementHeader eyebrow="QUIZDIP STUDIO" title={msg("studio.title")} description={msg("studio.lead")}/>
     <div className="actions studio-home-actions">
-      <Link href={localizeHref("/studio/weekly", locale)} className="btn btn-outline">{msg("studio.weekly")}</Link>
       <Link href={localizeHref("/studio/media", locale)} className="btn btn-outline">{msg("studio.media")}</Link>
     </div>
     {!session ? <section className="placeholder-panel">
