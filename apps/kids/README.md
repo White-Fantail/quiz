@@ -26,7 +26,8 @@ cd ~/Projects/quizdip
 git switch dev
 git pull --ff-only origin dev
 npm install
-npm run kids:dev -- --clear
+cd apps/kids
+npx expo start --clear
 ```
 
 A Metro message saying `Bundler cache is empty, rebuilding` after `--clear` is expected. If you still see **Web Bundling failed**, confirm `apps/kids/app.json` contains `"platforms": ["ios", "android"]`; do not load localhost:8081 in a web browser. Check `npx expo config --type public` in `apps/kids` and ensure you are running the updated checkout. Native iOS/Android bundles and device validation are separate from browser bundling.
