@@ -74,8 +74,9 @@ function validateAge(min:string,max:string,locale:"en"|"ko"):AgeRange{
   return age;
 }
 
-export default function StudioQuizDetail({quizId}:{quizId:string}){
+export default function StudioQuizDetail({quizId,backHref}:{quizId:string;backHref:string}){
   const locale=useLocale();
+  const inListContext=(path:string)=>{const query=backHref.split("?")[1];return localizeHref(path,locale)+(query?"?"+query:"");};
   const msg=(en:string,ko:string)=>bilingual(locale,en,ko);
   const request=(path:string,method="GET",body?:object)=>api(path,method,body,locale);
   const stateLabel=(names:Record<string,[string,string]>,value:string)=>names[value]?msg(...names[value]):value;
@@ -215,7 +216,7 @@ export default function StudioQuizDetail({quizId}:{quizId:string}){
   if(loading)return <div className="studio-empty" role="status">{msg("Loading quiz details…","문제 정보를 불러오는 중…")}</div>;
   if(loadError||insightsError)return <div className="studio-empty" role="alert">
     <h1>{msg("Could not manage this quiz","문제를 관리할 수 없어요")}</h1><p>{loadError||insightsError}</p>
-    <Link href={localizeHref("/studio",locale)} className="btn btn-outline">{msg("Back to my quizzes","내 목록으로 돌아가기")}</Link>
+    <Link href={backHref} className="btn btn-outline">{msg("Back to my quizzes","내 목록으로 돌아가기")}</Link>
   </div>;
   if(!quiz||!form)return <div className="studio-empty">{msg("Quiz not found.","문제를 찾을 수 없어요.")}</div>;
   return <div className="studio-detail-workspace">
@@ -237,10 +238,10 @@ export default function StudioQuizDetail({quizId}:{quizId:string}){
         </div>
       </div>
       <div className="actions">
-        <Link className="btn btn-primary" href={localizeHref("/studio/quizzes/"+quiz.id+"/edit",locale)}>{msg("Edit question & clues","문제 · 단서 편집")}</Link>
+        <Link className="btn btn-primary" href={inListContext("/studio/quizzes/"+quiz.id+"/edit")}>{msg("Edit question & clues","문제 · 단서 편집")}</Link>
         {quiz.publication!=="PUBLISHED"&&quiz.safetyStatus!=="RESTRICTED"&&<button type="button"
           className="btn btn-primary" disabled={saving||dirty} onClick={()=>void publish()}>{msg("Publish quiz","퀴즈 공개하기")}</button>}
-        <Link href={localizeHref("/studio/quizzes/"+quiz.id+"/preview",locale)} className="btn btn-primary">
+        <Link href={inListContext("/studio/quizzes/"+quiz.id+"/preview")} className="btn btn-primary">
           {msg("Test play (no records)","테스트 플레이 (기록 없음)")}
         </Link>
         {quiz.publication==="PUBLISHED"&&quiz.safetyStatus!=="RESTRICTED"&&
@@ -377,7 +378,7 @@ export default function StudioQuizDetail({quizId}:{quizId:string}){
           <div className="studio-wide actions">
             <button type="button" className="btn btn-primary" disabled={saving||dirty||!imageSource}
               onClick={()=>void saveImageReveal()}>{saving?msg("Saving…","저장 중…"):msg("Create Image Reveal","이미지 공개 단서 만들기")}</button>
-            <Link className="btn btn-outline" href={localizeHref("/studio/quizzes/"+quiz.id+"/preview",locale)}>
+            <Link className="btn btn-outline" href={inListContext("/studio/quizzes/"+quiz.id+"/preview")}>
               {msg("Test play","테스트 플레이")}
             </Link>
           </div>
