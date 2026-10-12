@@ -18,7 +18,7 @@ test("pack order is explicit metadata with backward compatible creator-order def
   assert.equal(parseOperation("pack_update",{id:pack,orderMode:"RANDOM"}).orderMode,"RANDOM");
   assert.throws(()=>parseOperation("pack_update",{id:pack,orderMode:"SHUFFLE_EVERY_ROUND"}));
   assert.match(read("../../prisma/schema.prisma"),/orderMode\s+String\s+@default\("CREATOR"\)/);
-  assert.match(read("app/(creator)/studio/packs/pack-workspace.tsx"),/value="RANDOM"/);
+  assert.match(read("app/(creator)/studio/packs/pack-editor.tsx"),/value="RANDOM"/);
 });
 
 test("random ordering is a full permutation, never mutates the saved order, and pins once",()=>{
