@@ -6,6 +6,7 @@ import { actorByIdentity, PlatformError, type Actor } from "../../../src/modules
 import { execute } from "../../../src/modules/platform/operations";
 import { operations, type Operation } from "../../../src/modules/platform/contracts";
 import { isAllowedMcpOrigin } from "../../../src/lib/mcp-origin";
+import { describeMcpAuthFailure } from "../../../src/lib/mcp-auth-diagnostics";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,7 +34,7 @@ function createServer(actor: Actor) {
   return server;
 }
 
-export const POST = requireMcpAuth(auth, async (request, claims) => {
+const authenticatedPost = requireMcpAuth(auth, async (request, claims) => {
   const origin = request.headers.get("origin");
   if (!isAllowedMcpOrigin(origin, siteOrigin)) {
     console.warn("MCP request blocked: untrusted origin");
@@ -67,3 +68,15 @@ export const POST = requireMcpAuth(auth, async (request, claims) => {
   // This is only a 401 challenge hint; access still requires mcp:tools and user consent.
   challengeScopes: ["mcp:tools", "offline_access"],
 });
+
+/**
+ * Observe the Better Auth boundary, including failures that happen BEFORE
+ * the inner MCP handler runs. Responses are forwarded unchanged to clients.
+ */
+export async function POST(request: Request) {
+  const response = await authenticatedPost(request);
+  if (response.status === 401 || response.status === 403) {
+    console.warn("MCP OAuth rejection", describeMcpAuthFailure(request, response, mcpResource));
+  }
+  return response;
+}
