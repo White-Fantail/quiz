@@ -3,6 +3,7 @@ import { PlatformError, fail } from "../../../../src/modules/platform/auth";
 import { execute } from "../../../../src/modules/platform/operations";
 import { requirePlayable } from "../../../../src/modules/kids/time";
 import { nativeKidFromHeaders,redeemNativePairTicket,releaseNativeKidDevice } from "../../../../src/modules/kids/service";
+import { kidPacksCatalog,kidFeatures } from "../../../../src/modules/kids/packs";
 
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
@@ -11,7 +12,7 @@ const pair=z.object({action:z.literal("pair"),code:z.string().min(24).max(32),de
 const unlock=z.object({action:z.literal("unlock"),pin:z.string().regex(/^[0-9]{6}$/)}).strict();
 const actions=z.discriminatedUnion("action",[pair,unlock]);
 const query=z.object({
-  view:z.enum(["session","catalog"]),offset:z.coerce.number().int().min(0).max(100000).default(0),
+  view:z.enum(["session","catalog","packs","features"]),offset:z.coerce.number().int().min(0).max(100000).default(0),
   limit:z.coerce.number().int().min(1).max(30).default(8),
   answerType:z.enum(["person","animal","place","thing","event","concept","other"]).optional(),
   topic:z.string().max(80).optional(),locale:z.enum(["en","ko"]).optional()
@@ -35,6 +36,8 @@ export async function GET(request:Request) {
     profile:{nickname:kid.profile.nickname,ageBand:kid.profile.ageBand,locale:kid.profile.locale},
     expiresAt:kid.expiresAt.toISOString()});
   await requirePlayable(kid);
+  if(data.view==="packs")return response(await kidPacksCatalog(kid,data.offset,data.limit));
+  if(data.view==="features")return response(await kidFeatures(kid));
   const result=await execute("quiz_list",{
     kids:true,locale:kid.profile.locale,offset:data.offset,limit:data.limit,
     ...(data.answerType?{answerType:data.answerType}:{}),
