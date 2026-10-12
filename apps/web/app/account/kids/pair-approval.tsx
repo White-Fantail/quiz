@@ -56,7 +56,7 @@ export default function PairApproval({qrToken,profiles:initialProfiles,pinConfig
    <Link className="btn btn-outline" href={localizeHref("/account/kids",locale)}>
      {ko?"키즈 설정으로 돌아가기":"Back to Kids settings"}</Link>
  </section>;
- return <section className="placeholder-panel kids-settings-card">
+ return <section className="placeholder-panel kids-settings-card kids-pair-card">
    <div className="kids-section-header">
      <span className="kids-step" aria-hidden="true">03</span>
      <div>
