@@ -13,7 +13,7 @@ type Lane = "GENERAL" | "KIDS";
 type Mode = "RANDOM_FIVE" | "INFINITE";
 type Clue = { id?: string; type: "text"|"image"|"image-reveal"|"audio"|"video"|"map";
   text?: string; mediaId?: string; reveal?:RevealSettings; map?: {latitude:number;longitude:number;zoom?:number} };
-type RunInfo = {runId:string;runToken:string;mode:Mode;lane:Lane;
+type RunInfo = {runId:string;runToken:string;mode:Mode|"WEEKLY";lane:Lane;
   completed:number;score:number;status:"ACTIVE"|"FINISHED";total:number|null;official?:boolean;
   solved?:number;failed?:number;exhausted?:boolean;message?:string};
 type Round = RunInfo & {sessionId:string;sessionToken:string;round:number;quizId:string;title:string;
