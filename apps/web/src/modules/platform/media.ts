@@ -355,10 +355,16 @@ export async function mediaReview(p: Record<string, any>, actor: Actor | null) {
   const affected = p.verdict === "RESTRICTED" ? await publishedCurrentQuizzes(item.id) : [];
   const updated = await db().$transaction(async tx => {
     const changed = await tx.mediaAsset.update({ where: { id: item.id }, data: { moderationStatus: p.verdict } });
-    if (affected.length) await tx.quiz.updateMany({
-      where: { id: { in: affected } },
-      data: { safetyStatus: "RESTRICTED", kidsEligible: false },
-    });
+    if (affected.length) {
+      await tx.quiz.updateMany({
+        where:{id:{in:affected},kidsReviewStatus:"NOT_REQUESTED"},
+        data:{safetyStatus:"RESTRICTED",kidsEligible:false}
+      });
+      await tx.quiz.updateMany({
+        where:{id:{in:affected},kidsReviewStatus:{not:"NOT_REQUESTED"}},
+        data:{safetyStatus:"RESTRICTED",kidsEligible:false,kidsReviewStatus:"REJECTED"}
+      });
+    }
     await tx.auditLog.create({ data: {
       actorId: user.id, action: "media.review", objectId: item.id,
       detail: { verdict: p.verdict, reason: p.reason, restrictedQuizIds: affected },

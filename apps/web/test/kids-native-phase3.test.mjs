@@ -36,6 +36,9 @@ test("game starts force Kids lane and the child's guardian-pinned locale",()=>{
   assert.match(game,/revision.localization.publishedVersion!==entry.revision.version/);
   assert.match(game,/mediaAsset.count/);
   assert.match(game,/moderationStatus:"APPROVED"/);
+  assert.match(game,/entry.quiz.kidsReviewStatus!=="APPROVED"/);
+  assert.match(game,/kidsReviewStatus:"APPROVED"/);
+  assert.doesNotMatch(game,/entry.quiz.safetyStatus!=="APPROVED"/);
 });
 test("ordinary guest REST play and run capabilities cannot access child-owned sessions",()=>{
   const play=file("src/modules/platform/play.ts"),runs=file("src/modules/platform/runs.ts");

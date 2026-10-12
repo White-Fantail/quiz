@@ -118,7 +118,7 @@ export async function quizUpdate(p: Record<string, any>, actor: Actor | null) {
     fail(403, "restricted_quiz", "Restricted quizzes require trusted moderation clearance");
   await db().$transaction(async tx => {
     const changed = await tx.quiz.updateMany({
-      where: { id: old.id, authorId: user.id, currentVersion: p.expectedVersion },
+      where: { id: old.id, authorId: user.id, currentVersion: p.expectedVersion, safetyStatus:old.safetyStatus },
       data: { currentVersion: { increment: 1 }, kidsEligible: false,
         kidsReviewStatus:p.kidsRequested===false?"NOT_REQUESTED":p.kidsRequested===true?"REQUESTED":
           old.kidsReviewStatus==="NOT_REQUESTED"?"NOT_REQUESTED":"REQUESTED",
@@ -181,7 +181,8 @@ export async function quizKidsRequest(p:Record<string,any>,actor:Actor|null) {
     ? quiz.kidsReviewStatus==="APPROVED"?"APPROVED":"REQUESTED"
     : "NOT_REQUESTED";
   await db().$transaction(async tx=>{
-    const updated=await tx.quiz.updateMany({where:{id:quiz.id,authorId:user.id,currentVersion:quiz.currentVersion},
+    const updated=await tx.quiz.updateMany({where:{id:quiz.id,authorId:user.id,currentVersion:quiz.currentVersion,
+        safetyStatus:quiz.safetyStatus,kidsReviewStatus:quiz.kidsReviewStatus},
       data:{kidsReviewStatus:status,kidsEligible:status==="APPROVED"}});
     if(updated.count!==1)fail(409,"version_conflict","Quiz changed while requesting Kids review");
     await tx.auditLog.create({data:{actorId:user.id,action:p.requested?"quiz.kids.request":"quiz.kids.withdraw",
