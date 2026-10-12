@@ -25,8 +25,8 @@ export async function execute(name: Operation, raw: unknown, actor: Actor | null
       mediaLimitsBytes: { image: 12582912, audio: 26214400, video: 67108864 }, minClues: 1, maxClues: 15,
       userAdjustable: ["answerType", "topics", "creatorIntent", "recommendedAudience", "clues", "answer"],
       platformControlled: ["safetyStatus", "kidsEligible"],
-      playModes: ["WEEKLY","RANDOM_FIVE","INFINITE"], audiences: ["GENERAL","KIDS"],
-      weeklyQuestions: 5, weeklyTimezone: "UTC", featuredCreator: true,
+      playModes: ["RANDOM_FIVE","INFINITE"], audiences: ["GENERAL","KIDS"],
+      quickStartQuestions: 5, weeklyChallenge: "RETIRED", editorialPicks: "PLANNED",
       version: "v2", format: "progressive-clues" };
     case "topic_list": return topicList(p);
     case "quiz_list": return quizList(p, actor);
