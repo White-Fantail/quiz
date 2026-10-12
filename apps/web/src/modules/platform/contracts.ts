@@ -165,7 +165,7 @@ export const operations = {
   }) },
   media_get: { public: false, description: "Get a media asset, owner preview, thumbnail and quiz usage", schema: z.object({ id: mediaId, purpose: z.enum(["detail", "thumbnail"]).default("detail") }) },
   media_update: { public: false, description: "Edit attribution or accessible text of my media, resetting moderation", schema: z.object({ id: mediaId, ...mediaMetadata }) },
-  media_delete: { public: false, description: "Delete media not needed by current revisions, unexpired plays or future weekly challenges; keep historical records; requires confirmation", schema: z.object({ id: mediaId, confirm: z.literal(true) }) },
+  media_delete: { public: false, description: "Delete media not needed by current revisions or unexpired plays; keep historical revision records; requires confirmation", schema: z.object({ id: mediaId, confirm: z.literal(true) }) },
   media_transform: { public: false, description: "Create an immutable derived image crop, blur or progressive reveal", schema: z.object({
     id: mediaId, crop: z.object({ left: z.number().int().min(0), top: z.number().int().min(0),
       width: z.number().int().positive(), height: z.number().int().positive() }).optional(),
@@ -178,26 +178,8 @@ export const operations = {
   play_media: { public: true, description: "Renew time-limited playback URL for a revealed clue or prompt media", schema: z.object({
     ...session, mediaId
   }) },
-  weekly_current: { public: true, description: "RETIRED: legacy weekly metadata read for archival compatibility, not new challenge discovery", schema: z.object({ lane: z.enum(["GENERAL","KIDS"]).default("GENERAL"), locale: optionalLocale }) },
-  weekly_submit: { public: false, description: "RETIRED: returns weekly_retired; create a quiz pack instead", schema: z.object({
-    lane: z.enum(["GENERAL","KIDS"]), weekStart: z.iso.date(), title: z.string().trim().min(3).max(180),
-    description: z.string().max(1000).default(""), quizIds: z.array(uuid).length(5).refine(a=>new Set(a).size===5)
-  }) },
-  weekly_publish: { public: false, description: "RETIRED: no new weekly publication; returns weekly_retired", schema: z.object({
-    challengeId: uuid, verifiedHost: z.boolean().default(false), confirm: z.literal(true)
-  }) },
-  weekly_proposals: { public: false, description: "LEGACY ADMIN: read historical weekly proposals during retirement", schema: z.object({
-    lane: z.enum(["GENERAL","KIDS"]).optional(), weekStart: z.iso.date().optional(), ...paging
-  }) },
-  weekly_suspend: { public: false, description: "ADMIN ONLY: suspend an edition with audit record", schema: z.object({
-    challengeId: uuid, reason: z.string().trim().min(5).max(1000), confirm: z.literal(true)
-  }) },
-  weekly_insights: { public:false, description:"Private aggregate weekly performance split by locale, host or admin only", schema:z.object({challengeId:uuid,locale:z.enum(["en","ko","und","all"]).default("all")}) },
-  weekly_standings: { public: true, description: "LEGACY: archived weekly standings only; not part of Discover", schema: z.object({
-    challengeId: uuid, locale: optionalLocale, ...paging
-  }) },
-  run_start: { public: true, description: "Start or resume a pack, quick-five or continuous random play; weekly creation retired", schema: z.object({
-    mode: z.enum(["WEEKLY","RANDOM_FIVE","INFINITE","PACK"]), packId:uuid.optional(), restart:z.boolean().default(false), lane: z.enum(["GENERAL","KIDS"]).default("GENERAL"),
+  run_start: { public: true, description: "Start or resume a pack, quick-five or continuous random play", schema: z.object({
+    mode: z.enum(["RANDOM_FIVE","INFINITE","PACK"]), packId:uuid.optional(), restart:z.boolean().default(false), lane: z.enum(["GENERAL","KIDS"]).default("GENERAL"),
     avoidQuizIds: z.array(uuid).max(1000).default([]), locale: optionalLocale
   }) },
   run_current: { public: true, description: "Get or resume the current server-side question of a run without revealing later clues", schema: z.object({
@@ -207,7 +189,7 @@ export const operations = {
     runId: uuid, runToken: z.string().min(32).max(200), confirm: z.literal(true)
   }) },
   run_feedback: { public: true, description: "Read up to five completed run questions and reaction status by signed run token", schema: z.object({runId:uuid,runToken:z.string().min(32).max(200)}) },
-  run_history: { public: false, description: "My latest scores and completed challenges", schema: z.object(paging) },
+  run_history: { public: false, description: "My latest scores and completed quiz runs", schema: z.object(paging) },
   ranking_optin: { public: false, description: "Set my own public ranking consent, independent of staff adult verification", schema: z.object({ enabled: z.boolean(), confirm: z.literal(true) }) },
   adult_verify: { public: false, description: "ADMIN ONLY: independently verify or revoke an adult ranking eligibility status", schema: z.object({
     userId, verified: z.boolean(), reason: z.string().trim().min(8).max(1000), confirm: z.literal(true)
