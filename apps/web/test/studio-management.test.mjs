@@ -11,8 +11,8 @@ test("studio owner listing uses validated server pagination and filters",()=>{
   });
   assert.deepEqual(parseOperation("my_quizzes",{
     limit:20,offset:40,search:"  Auckland  ",publication:"PUBLISHED",
-    safety:"PENDING",sort:"oldest"
-  }),{limit:20,offset:40,search:"Auckland",publication:"PUBLISHED",safety:"PENDING",sort:"oldest"});
+    safety:"ACTIVE",sort:"oldest"
+  }),{limit:20,offset:40,search:"Auckland",publication:"PUBLISHED",safety:"ACTIVE",sort:"oldest"});
   for(const p of [{limit:101},{offset:-1},{search:"x".repeat(121)},
     {safety:"KIDS_APPROVED"},{sort:"score"},{publication:"UNKNOWN"}]){
     assert.equal(operations.my_quizzes.schema.safeParse(p).success,false);

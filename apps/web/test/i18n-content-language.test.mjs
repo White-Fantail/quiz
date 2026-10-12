@@ -41,7 +41,8 @@ test("server-scoped catalog queries and paging enforce published localization be
   const topic=read("src/modules/platform/topics.ts");
   const predicate=read("src/modules/platform/content-locale.ts");
   assert.match(predicate,/locale, status: "PUBLISHED"/);
-  assert.match(predicate,/safetyStatus: "APPROVED"/);
+  assert.match(predicate,/kidsReviewStatus:"APPROVED"/);
+  assert.match(predicate,/safetyStatus: \{ not:"RESTRICTED" \}/);
   assert.match(quiz,/where:.*?\bquiz/); // public query is guarded by helper
   assert.match(quiz,/playableQuizWhere\(locale/);
   assert.match(quiz,/skip: p.offset, take: p.limit/);
