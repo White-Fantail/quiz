@@ -131,6 +131,7 @@ export default function QuizEditor({quizId}:{quizId?:string}) {
     let active=true;setLoading(true);setError("");
     void request("/quizzes/"+encodeURIComponent(quizId)).then((quiz:Quiz)=>{
       if(!active)return;
+      if(!quiz.answer||!Array.isArray(quiz.clues))throw Error("Only the quiz creator can edit this question.");
       setOriginal(quiz);
       const next=fromQuiz(quiz);setForm(next);setInitial(JSON.stringify(next));
     }).catch(e=>{if(active)setError(e instanceof Error?e.message:String(e));})
@@ -280,7 +281,7 @@ export default function QuizEditor({quizId}:{quizId?:string}) {
                 <button className="btn btn-outline" type="button" onClick={()=>setMediaTarget(mediaTarget===clue.key?null:clue.key)}>
                   {msg("Choose from Media Library","미디어 라이브러리에서 선택")}
                 </button>
-                {mediaTarget===clue.key&&<MediaPicker kind={clue.type==="image-reveal"?"image":clue.type} selectedId={clue.mediaId}
+                {mediaTarget===clue.key&&<MediaPicker kind={clue.type==="image-reveal"?"image":clue.type as "image"|"audio"|"video"} selectedId={clue.mediaId}
                   onSelect={id=>{updateClue(clue.key,{mediaId:id});setMediaTarget(null);}}
                   onClose={()=>setMediaTarget(null)}/>}
               </div>}
