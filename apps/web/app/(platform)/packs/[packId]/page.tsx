@@ -26,7 +26,7 @@ export default async function PackDetail({params}:{params:Promise<{packId:string
    <h1>{pack.title}</h1><p className="lead">{pack.description}</p></div>
   <section className="feature-card">
    <p>{locale==="ko"?"제작자":"Created by"}: <strong>{pack.author.displayName}</strong></p>
-   <p><strong>{pack.questionCount}</strong> {locale==="ko"?"개의 문제 · 순서대로 전체 플레이":"questions · complete creator-ordered play"}</p>
+   <p><strong>{pack.questionCount}</strong> {pack.orderMode==="RANDOM"?(locale==="ko"?"개의 문제 · 시작할 때 랜덤 순서":"questions · shuffled at the start"):(locale==="ko"?"개의 문제 · 제작자가 정한 순서":"questions · creator-defined order")}</p>
    <div className="actions">
     <Link href={localizeHref("/packs/"+pack.id+"/play",locale)} className="btn btn-primary">{locale==="ko"?"전체 플레이 / 이어 풀기 →":"Play or resume full pack →"}</Link>
     <Link href={localizeHref("/packs",locale)} className="btn btn-outline">{locale==="ko"?"다른 퀴즈팩":"More packs"}</Link>
