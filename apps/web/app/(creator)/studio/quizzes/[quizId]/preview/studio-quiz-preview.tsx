@@ -154,7 +154,7 @@ export default function StudioQuizPreview({quizId}:{quizId:string}){
         {quiz.promptMediaIds.map(id=><div key={id}>{mediaView(id)}</div>)}
       </div>}
       <ol className="clue-list">
-        {quiz.clues.slice(0,clueIndex).map((clue,index)=>supersededReveal(quiz.clues.slice(0,clueIndex),index)?null:<li key={index}>
+        {quiz.clues.slice(0,clueIndex).map((clue,index)=>supersededReveal(quiz.clues.slice(0,clueIndex),index)?null:<li key={index} style={{counterSet:`clue ${index}`}}>
           {clue.text&&<p>{clue.text}</p>}
           {clue.mediaId&&mediaView(clue.mediaId,clue.type==="image-reveal"?clue.reveal:undefined)}
           {clue.type==="map"&&clue.map&&<div className="map-clue">
