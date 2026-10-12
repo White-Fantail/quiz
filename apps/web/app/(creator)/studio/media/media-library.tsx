@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useLocale } from "../../../../src/i18n/provider";
 import { bilingual } from "../../../../src/i18n/view-copy";
 import { formatMediaBytes, mediaUploadLabel, mediaModerationLabel } from "../../../../src/lib/media-view";
+import {listPageIndex,useListUrlState} from "../../../../src/lib/list-url-state";
 
 type Kind = "image" | "audio" | "video";
 type Media = {
@@ -96,14 +97,27 @@ export default function MediaLibrary() {
   const [items,setItems] = useState<Media[]>([]);
   const [total,setTotal] = useState(0);
   const [loading,setLoading] = useState(true);
-  const [searchInput,setSearchInput] = useState("");
+  const [listing,updateListing,ready]=useListUrlState({
+    q:"",kind:"all",moderation:"all",status:"all",usage:"all",sort:"newest",page:"1"
+  });
+  const searchInput=listing.q;
+  const kind=(["all","image","audio","video"].includes(listing.kind)?listing.kind:"all") as FilterKind;
+  const moderation=(["all","PENDING","APPROVED","RESTRICTED"].includes(listing.moderation)?listing.moderation:"all") as FilterModeration;
+  const status=(["all","READY","UPLOADING"].includes(listing.status)?listing.status:"all") as FilterStatus;
+  const usage=(["all","used","unused"].includes(listing.usage)?listing.usage:"all") as FilterUsage;
+  const sort=(["newest","oldest","name","size"].includes(listing.sort)?listing.sort:"newest") as Sort;
+  const page=listPageIndex(listing.page);
+  const setSearchInput=(value:string)=>updateListing({q:value});
+  const setKind=(value:FilterKind)=>updateListing({kind:value});
+  const setModeration=(value:FilterModeration)=>updateListing({moderation:value});
+  const setStatus=(value:FilterStatus)=>updateListing({status:value});
+  const setUsage=(value:FilterUsage)=>updateListing({usage:value});
+  const setSort=(value:Sort)=>updateListing({sort:value});
+  const setPage=(next:number|((prev:number)=>number))=>{
+    const value=typeof next==="function"?next(page):next;
+    updateListing({page:String(Math.max(0,value)+1)});
+  };
   const [search,setSearch] = useState("");
-  const [kind,setKind] = useState<FilterKind>("all");
-  const [moderation,setModeration] = useState<FilterModeration>("all");
-  const [status,setStatus] = useState<FilterStatus>("all");
-  const [usage,setUsage] = useState<FilterUsage>("all");
-  const [sort,setSort] = useState<Sort>("newest");
-  const [page,setPage] = useState(0);
   const [refresh,setRefresh] = useState(0);
   const [selected,setSelected] = useState<File|null>(null);
   const [importUrl,setImportUrl] = useState("");
@@ -126,6 +140,7 @@ export default function MediaLibrary() {
     return () => clearTimeout(timer);
   }, [searchInput]);
   useEffect(() => {
+    if(!ready)return;
     let active = true;
     const params = new URLSearchParams({ limit:String(PAGE_SIZE),offset:String(page*PAGE_SIZE),
       search,kind,moderation,status,usage,sort });
@@ -138,7 +153,7 @@ export default function MediaLibrary() {
       finally { if (active) setLoading(false); }
     })();
     return () => { active=false; };
-  }, [search,kind,moderation,status,usage,sort,page,refresh]);
+  }, [ready,search,kind,moderation,status,usage,sort,page,refresh]);
 
   function reload() { setRefresh(n=>n+1); }
   function newFilter(update: () => void) { detailRequest.current++;setPage(0);setExpandedId(null);setDetails(null);update(); }
