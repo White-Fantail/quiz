@@ -18,6 +18,6 @@ export default async function EditQuizPage({params,searchParams}:{params:Promise
       description={locale==="ko"?"제목, 질문, 정답, 모든 단서를 한곳에서 수정하세요.":"Edit the title, question, answer and all clues."}/>
     {!session?<section className="placeholder-panel"><p>{locale==="ko"?"편집하려면 로그인하세요.":"Sign in to edit the quiz."}</p>
       <Link className="btn btn-primary" href={localizeHref("/sign-in?callbackURL="+encodeURIComponent("/studio/quizzes/"+quizId+"/edit"),locale)}>{locale==="ko"?"로그인":"Sign in"}</Link>
-    </section>:<QuizEditor quizId={quizId}/>}
+    </section>:<QuizEditor quizId={quizId} backHref={backHref}/>}
   </main>;
 }
