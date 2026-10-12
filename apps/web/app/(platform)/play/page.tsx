@@ -284,7 +284,7 @@ export default function PlayPage() {
           {round.promptMediaIds.map(id=><div key={id}>{media[id]?<MediaPart item={media[id]}/>:<p className="muted">{msg("Couldn't load the media.","미디어를 불러올 수 없어요.")}</p>}</div>)}
         </div>}
         <ol className="clue-list">
-          {round.clues.map((clue,i)=>supersededReveal(round.clues,i)?null:<li key={clue.id||i}>
+          {round.clues.map((clue,i)=>supersededReveal(round.clues,i)?null:<li key={clue.id||i} style={{counterSet:`clue ${i}`}}>
             {clue.text&&<p>{clue.text}</p>}
             {clue.type==="map"&&clue.map&&<div className="map-clue">
               <span>{msg("Map clue · latitude ","지도 단서 · 위도 ")}{clue.map.latitude}{msg(", longitude ",", 경도 ")}{clue.map.longitude}</span>
