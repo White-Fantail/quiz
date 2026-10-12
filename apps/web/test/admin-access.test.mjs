@@ -11,7 +11,7 @@ test("admin landing page checks the real web session and domain role", () => {
   assert.match(page, /if \(!actor\) redirect\(localizeHref\("\/sign-in\?callbackURL=%2Fadmin",locale\)\)/);
   assert.match(page, /if \(actor\.role !== "ADMIN"\) notFound\(\)/);
   assert.match(page, /href=\{localizeHref\("\/admin\/quiz-review",locale\)\}/);
-  assert.match(page, /href=\{localizeHref\("\/admin\/weekly",locale\)\}/);
+  assert.doesNotMatch(page, /href=\{localizeHref\("\/admin\/weekly",locale\)\}/);
 });
 
 test("account page offers the admin link only after trusted role lookup", () => {
