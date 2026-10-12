@@ -753,3 +753,50 @@ a.feature-card:hover { border-color:#B4AEF7; transform:translateY(-3px); }
 .pack-view-preflight {border:1px solid var(--border);border-radius:14px;padding:16px;margin-top:18px;}
 .pack-view-preflight h3 {margin-top:0;}
 @media(max-width:640px){.pack-view-members li {flex-wrap:wrap;}.pack-view-members li .btn {margin-left:auto;}}
+
+/* Discover: quiz packs lead the browsing journey instead of hiding in a secondary route. */
+.discover-pack-spotlight { margin:33px 0 34px; }
+.discover-pack-heading { display:flex;justify-content:space-between;align-items:end;gap:20px;margin-bottom:21px; }
+.discover-pack-heading .eyebrow { display:block;margin-bottom:8px; }
+.discover-pack-heading h2 { margin:0 0 8px;font-size:clamp(1.45rem,2.6vw,2rem);letter-spacing:-.035em; }
+.discover-pack-heading p { margin:0;line-height:1.55; }
+.discover-pack-more { border:0;background:transparent;color:var(--purple);font-weight:800;font:inherit;
+  white-space:nowrap;cursor:pointer;padding:10px 0;text-decoration:none; }
+.discover-pack-more:hover { text-decoration:underline; }
+.discover-pack-more:focus-visible,.discover-pack-title:focus-visible { outline:3px solid var(--purple);outline-offset:4px; }
+.discover-pack-grid { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px; }
+.discover-pack-card { display:flex;flex-direction:column;min-width:0;min-height:287px;gap:13px;
+  padding:24px;border:1px solid #dedafa;border-radius:23px;
+  background:linear-gradient(155deg,#fff 50%,#f8f7ff);box-shadow:0 8px 25px #25264208; }
+.discover-pack-card-primary { border-color:#c2b8fa;background:linear-gradient(150deg,#f0ecff,#fff 78%); }
+.discover-pack-card-top { display:flex;justify-content:space-between;align-items:start;gap:9px; }
+.discover-pack-kind { padding:6px 11px;border-radius:999px;background:#eae5ff;color:#5441c9;
+  font-size:.75rem;font-weight:800; }
+.discover-pack-number { font-size:1.9rem;letter-spacing:-.06em;line-height:1;font-weight:900;color:#b5adf7; }
+.discover-pack-title { display:block;font-size:1.37rem;line-height:1.3;letter-spacing:-.025em;
+  color:var(--ink);font-weight:850;overflow-wrap:anywhere;text-decoration:none; }
+.discover-pack-title:hover { color:var(--purple);text-decoration:underline; }
+.discover-pack-description { margin:0;min-height:0!important;flex:1;color:var(--muted);
+  font-size:.89rem;line-height:1.55;display:-webkit-box;-webkit-box-orient:vertical;
+  -webkit-line-clamp:3;overflow:hidden;overflow-wrap:anywhere; }
+.discover-pack-details { display:flex;flex-wrap:wrap;gap:6px 11px;color:#645f80;font-size:.77rem;font-weight:650; }
+.discover-pack-start { align-self:stretch;text-align:center;margin-top:6px; }
+.discover-pack-loading { min-height:287px;border:1px solid var(--border);border-radius:23px;
+  background:linear-gradient(110deg,#f7f5ff,#fff,#f7f5ff); }
+.discover-pack-empty { border:1px dashed #c9c4e7;border-radius:20px;padding:22px 25px;background:#fff; }
+.discover-pack-empty p { margin:0; }
+.discover-pack-empty .muted { margin-top:7px;font-size:.86rem; }
+.discover-view-switch { margin-top:32px; }
+@media(max-width:960px) {
+  .discover-pack-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .discover-pack-card:last-child:nth-child(odd) { grid-column:1/-1; }
+}
+@media(max-width:640px) {
+  .discover-pack-spotlight { margin-top:26px; }
+  .discover-pack-heading { align-items:start;flex-direction:column;gap:8px; }
+  .discover-pack-more { padding:4px 0; }
+  .discover-pack-grid { grid-template-columns:1fr;gap:12px; }
+  .discover-pack-card:last-child:nth-child(odd) { grid-column:auto; }
+  .discover-pack-card { min-height:0;padding:20px; }
+  .discover-pack-loading { min-height:190px; }
+}
