@@ -17,7 +17,12 @@ try {
 
 for (const { label, command, args } of plan) {
   console.log(`[build] ${label}`);
-  const result = spawnSync(command, args, { stdio: "inherit", shell: false, cwd: repoRoot });
+  // Better Auth's CLI loads the application auth config. For migrations only,
+  // override its database URL with the direct connection, not the pooled app URL.
+  const childEnv = label === "Apply Better Auth migrations" && process.env.DIRECT_URL
+    ? { ...process.env, DATABASE_URL: process.env.DIRECT_URL }
+    : process.env;
+  const result = spawnSync(command, args, { stdio: "inherit", shell: false, cwd: repoRoot, env: childEnv });
   if (result.error) {
     console.error(`[build] ${label}: ${result.error.message}`);
     process.exit(1);

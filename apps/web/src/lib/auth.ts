@@ -3,7 +3,8 @@ import { jwt } from "better-auth/plugins";
 import { mcp } from "@better-auth/mcp";
 import { cimd } from "@better-auth/cimd";
 import { fetchClientMetadataResource } from "@better-auth/cimd/node";
-import { Pool } from "pg";
+import type { Pool } from "pg";
+import { databasePool } from "./postgres";
 import { importPKCS8, SignJWT } from "jose";
 import { availableProviders } from "./auth-providers";
 export { availableProviders } from "./auth-providers";
@@ -12,15 +13,9 @@ export { availableProviders } from "./auth-providers";
 export const siteOrigin = (process.env.BETTER_AUTH_URL || process.env.PUBLIC_ORIGIN || "http://localhost:3000").replace(/\/$/, "");
 export const mcpResource = siteOrigin + "/api/mcp";
 
-const globalPool = globalThis as unknown as { quizdipAuthPool?: Pool };
+/** Prisma and Better Auth must share a single bounded pool per warm function instance. */
 export function authPool(): Pool {
-  if (!globalPool.quizdipAuthPool) {
-    globalPool.quizdipAuthPool = new Pool({
-      connectionString: process.env.DATABASE_URL || "postgresql://localhost:5432/quizdip",
-      max: 5,
-    });
-  }
-  return globalPool.quizdipAuthPool;
+  return databasePool();
 }
 
 async function appleClientSecret(): Promise<string> {
