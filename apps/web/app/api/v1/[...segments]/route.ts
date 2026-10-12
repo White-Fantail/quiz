@@ -37,6 +37,19 @@ function route(method: string, segments: string[]): Match | null {
     if (b && c === "reports" && method === "POST") return { op: "report_create", args: { quizId: b } };
   }
   if(a==="discover" && b==="sections" && !c && method==="GET") return {op:"discover_sections",args:{}};
+  if(a==="editorial" && !b && method==="GET")return {op:"editorial_features",args:{}};
+  if(a==="admin" && b==="features"){
+    if(!c&&method==="GET")return {op:"admin_feature_list",args:{}};
+    if(!c&&method==="POST")return {op:"admin_feature_create",args:{}};
+    if(c==="candidates"&&!d&&method==="GET")return {op:"admin_feature_candidates",args:{}};
+    if(c&&!d&&method==="PATCH")return {op:"admin_feature_update",args:{id:c}};
+    if(c&&!d&&method==="DELETE")return {op:"admin_feature_remove",args:{id:c}};
+  }
+  if(a==="admin" && b==="packs" && c==="safety" && !d && method==="GET")
+    return {op:"admin_pack_safety_list",args:{}};
+  if(a==="admin" && b==="packs" && c && d==="safety-review" && !e && method==="POST")
+    return {op:"admin_pack_safety_review",args:{id:c}};
+
   if(a==="me" && b==="packs" && c && d==="insights" && !e && method==="GET")
     return {op:"my_pack_insights",args:{id:c}};
   if (a === "packs" && !b) {
@@ -109,7 +122,7 @@ export function parseQuery(query: URLSearchParams): Record<string, unknown> {
   const values: Record<string, unknown> = {};
   for (const [key, value] of query) {
     if (["limit", "offset", "version"].includes(key)) values[key] = Number(value);
-    else if (["mine", "kids", "includeContent"].includes(key)) values[key] = value === "true";
+    else if (["mine", "kids", "includeContent", "confirm"].includes(key)) values[key] = value === "true";
     else values[key] = value;
   }
   return values;
