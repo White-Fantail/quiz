@@ -1,5 +1,6 @@
 import { db } from "./db";
 import { fail, requireActor, type Actor } from "./auth";
+import { publicLeaderboard, personalRankingPeriods } from "./leaderboard-service";
 
 export async function quizStats(p:Record<string,any>,actor:Actor|null) {
   const quiz=await db().quiz.findUnique({where:{id:p.quizId}});
@@ -45,49 +46,28 @@ export async function me(p: Record<string, any>, actor: Actor | null) {
   return { id: user.id, displayName: user.displayName, leaderboardEligible: user.leaderboardEligible, leaderboardOptIn: user.leaderboardOptIn,
     note: "Leaderboard requires separately verified adult eligibility; default is opt-out." };
 }
-export async function leaderboard(p: Record<string, any>) {
-  // One best score per question per eligible verified adult, to reduce replay farming.
-  const best = await db().playSession.groupBy({
-    by: ["userId", "quizId"],
-    where: { status: "SOLVED", userId: { not: null }, ...(p.quizId ? { quizId: p.quizId } : {}) },
-    _max: { score: true }
-  });
-  const ids = [...new Set(best.map(b => b.userId).filter((id): id is string => id !== null))];
-  if (!ids.length) return { items: [], total: 0 };
-  const users = await db().user.findMany({
-    where: { id: { in: ids }, leaderboardEligible: true, leaderboardOptIn: true },
-    select: { id: true, displayName: true }
-  });
-  const eligible = new Map(users.map(u => [u.id, u]));
-  const standings = new Map<string, { userId: string; displayName: string; score: number; quizzesSolved: number }>();
-  for (const row of best) {
-    const u = row.userId ? eligible.get(row.userId) : null;
-    if (!u) continue;
-    const previous = standings.get(u.id) || { userId: u.id, displayName: u.displayName, score: 0, quizzesSolved: 0 };
-    previous.score += row._max.score ?? 0;
-    previous.quizzesSolved++;
-    standings.set(u.id, previous);
-  }
-  const all = [...standings.values()].sort((a, b) =>
-    b.score - a.score || b.quizzesSolved - a.quizzesSolved || a.userId.localeCompare(b.userId));
-  return { items: all.slice(p.offset, p.offset + p.limit).map((entry, idx) => ({
-    rank: p.offset + idx + 1, ...entry
-  })), total: all.length, rankingBasis: "best score per quiz, verified adult opt-in only" };
+/** Shared public REST/MCP ranking API, verified adult opt-in only. */
+export async function leaderboard(p:Record<string,any>) {
+  return publicLeaderboard(p as any);
 }
 export async function myStats(p: Record<string, any>, actor: Actor | null) {
   const user = requireActor(actor);
-  const [started, solved, failed, best, standings] = await Promise.all([
+  const [started, solved, failed, best, standings, periodReport, weeklyStandings] = await Promise.all([
     db().playSession.count({ where: { userId: user.id } }),
     db().playSession.count({ where: { userId: user.id, status: "SOLVED" } }),
     db().playSession.count({ where: { userId: user.id, status: "FAILED" } }),
     db().playSession.groupBy({ by: ["quizId"], where: { userId: user.id, status: "SOLVED" }, _max: { score: true } }),
-    user.leaderboardEligible && user.leaderboardOptIn ? leaderboard({ limit: 100000, offset: 0 }) : Promise.resolve(null)
+    user.leaderboardEligible && user.leaderboardOptIn ? leaderboard({ limit: 100000, offset: 0, period:"all",category:"solved" }) : Promise.resolve(null),
+    personalRankingPeriods(user.id),
+    user.leaderboardEligible && user.leaderboardOptIn ? leaderboard({limit:100000,offset:0,period:"week",category:"solved"}) : Promise.resolve(null)
   ]);
   const totalBestScore = best.reduce((sum, row) => sum + (row._max.score ?? 0), 0);
   return { started, finished: solved + failed, solved, failed, successRate: solved + failed ? solved / (solved + failed) : null,
     distinctSolved: best.length, totalBestScore,
     rank: standings ? standings.items.find(item => item.userId === user.id)?.rank ?? null : null,
-    leaderboardEligible: user.leaderboardEligible };
+    weeklyRank: weeklyStandings ? weeklyStandings.items.find(item => item.userId === user.id)?.rank ?? null : null,
+    periodStats: periodReport.periods,periodBasis:periodReport.periodBasis,
+    leaderboardOptIn:user.leaderboardOptIn,leaderboardEligible: user.leaderboardEligible };
 }
 
 /** User consent controls public ranking visibility, not adult verification. */

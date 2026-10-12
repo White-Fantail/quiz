@@ -82,9 +82,9 @@ export default function AccountActions({ google, apple }: { google: boolean; app
       </div>;
     })}
     {rankingLoaded&&<div className="ranking-consent-setting">
-      <h3>{msg("My weekly leaderboard visibility","내 주간 순위 공개")}</h3>
+      <h3>{msg("Public leaderboard visibility","공개 랭킹 표시 설정")}</h3>
       <label className="connected-provider">
-        <span><b>{msg("Show my name and score on official rankings","공식 순위에 내 이름과 점수를 공개")}</b></span>
+        <span><b>{msg("Show my name and results on rankings","랭킹에 내 이름과 기록 공개")}</b></span>
         <input type="checkbox" checked={rankingConsent} disabled={busy}
           onChange={e=>void updateRankingConsent(e.target.checked)}/>
       </label>

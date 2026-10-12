@@ -141,8 +141,11 @@ export const operations = {
     sort: z.enum(["newest","oldest"]).default("newest")
   }) },
   my_quiz_insights: { public: false, description: "Private owner-only play results, rating summary, anonymized report counts and paginated quiz feedback across revisions", schema: z.object({ quizId: uuid, locale: z.enum(["en","ko","und","all"]).default("all"), ...paging }) },
-  my_stats: { public: false, description: "My private scores, attempts and rank", schema: z.object({}) },
-  leaderboard: { public: true, description: "Opt-in verified player rankings", schema: z.object({ ...paging, quizId: uuid.optional() }) },
+  my_stats: { public: false, description: "My private all-time and UTC day/week/month play stats and eligible ranks", schema: z.object({}) },
+  leaderboard: { public: true, description: "UTC daily, weekly, monthly and all-time opt-in verified adult rankings by solved, detective, challenge, explorer or rising", schema: z.object({
+    ...paging,quizId:uuid.optional(),period:z.enum(["day","week","month","all"]).default("all"),
+    category:z.enum(["solved","detective","challenge","explorer","rising"]).default("solved")
+  }) },
   user_get: { public: true, description: "View a creator's public profile and reputation", schema: z.object({ userId }) },
   creator_reviews_list: { public: true, description: "Read the public reviews of a quiz creator", schema: z.object({ userId, ...paging }) },
   creator_review_upsert: { public: false, description: "Rate a creator after finishing one of their questions", schema: z.object({ userId, rating: z.union([z.literal(-1), z.literal(1)]), comment: z.string().max(2000).default("") }) },

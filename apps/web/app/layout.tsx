@@ -23,6 +23,7 @@ export async function generateMetadata(): Promise<Metadata> {
 const navLinks = [
   { href: "/discover", key: "nav.discover" },
   { href: "/play", key: "nav.play" },
+  { href: "/leaderboard", key: "nav.leaderboard" },
   { href: "/studio", key: "nav.studio" },
   { href: "/account", key: "nav.account" },
 ] as const;
