@@ -5,8 +5,7 @@ import { runTargetCount, completesRun } from "../src/modules/platform/run-length
 
 const load = (p) => readFileSync(new URL("../"+p,import.meta.url),"utf8");
 
-test("legacy five-round runs and future long packs have correct server-side completion",()=>{
-  assert.equal(runTargetCount({mode:"WEEKLY"}),5);
+test("five-round runs and longer packs have correct server-side completion",()=>{
   assert.equal(runTargetCount({mode:"RANDOM_FIVE",targetCount:5}),5);
   assert.equal(runTargetCount({mode:"PACK",targetCount:30}),30);
   assert.equal(runTargetCount({mode:"INFINITE"}),null);
@@ -20,14 +19,14 @@ test("legacy five-round runs and future long packs have correct server-side comp
   assert.match(load("../../prisma/migrations/20261013000000_play_run_target_count/migration.sql"),/UPDATE "PlayRun" SET "targetCount" = 5/);
 });
 
-test("retired weekly publication cannot be initiated, but archival paths remain",()=>{
+test("weekly challenge is removed from server contracts and UI",()=>{
   const runs=load("src/modules/platform/runs.ts");
-  assert.match(runs,/weekly_retired/);
-  assert.match(runs,/export async function weeklyInsights/);
-  assert.match(runs,/export async function weeklySuspend/);
+  const api=load("src/modules/platform/contracts.ts");
   const ui=load("app/(platform)/play/page.tsx");
+  assert.doesNotMatch(runs,/weeklyChallenge|weeklyQuestion|mode==="WEEKLY"/);
+  assert.doesNotMatch(api,/weekly_current|weekly_submit|weekly_standings|mode: z.enum\(\["WEEKLY"/);
   assert.doesNotMatch(ui,/weekly-spotlight|weekly\/current|weekly-ranking|start\("WEEKLY"\)/);
-  assert.match(ui,/previous\.total!==null/);
+  assert.match(ui,/previous.total!==null/);
   assert.doesNotMatch(load("app/(creator)/studio/page.tsx"),/studio\/weekly/);
   assert.doesNotMatch(load("../../apps/kids/app/(tabs)/challenge.tsx"),/WEEKLY/);
 });
