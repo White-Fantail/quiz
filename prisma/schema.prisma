@@ -148,6 +148,7 @@ model QuizTopic {
 
 model QuizPack {
   id                    String        @id @default(uuid())
+  currentVersion        Int           @default(1)
   authorId              String
   author                User          @relation(fields: [authorId], references: [id])
   title                 String
@@ -158,6 +159,7 @@ model QuizPack {
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @updatedAt
   items                 PackQuestion[]
+  runs                  PlayRun[]
 }
 
 model QuizPackLocalization {
@@ -350,6 +352,9 @@ model PlayRun {
   user        User?     @relation(fields: [userId], references: [id])
   weeklyId    String?
   weekly      WeeklyChallenge? @relation(fields: [weeklyId], references: [id])
+  packId      String?
+  pack        QuizPack? @relation(fields: [packId], references: [id], onDelete: SetNull)
+  packVersion Int?
   officialEligible Boolean @default(false)
   tokenHash   String
   currentIndex Int      @default(0)
@@ -366,6 +371,7 @@ model PlayRun {
   kidOwnership KidPlayRun?
   @@index([userId, startedAt])
   @@index([weeklyId, status, score])
+  @@index([packId, status, startedAt])
 }
 
 model PlayRunQuestion {
