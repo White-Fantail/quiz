@@ -1,5 +1,7 @@
 "use client";
 import { useEffect,useState } from "react";
+import { useLocale } from "../../../../src/i18n/provider";
+import { bilingual } from "../../../../src/i18n/view-copy";
 type Quiz={id:string;title:string;publication:string;safetyStatus:string;kidsEligible:boolean;version:number};
 type Lane="GENERAL"|"KIDS";
 type WeeklyMetrics={locale:string;started:number;finished:number;roundsCompleted:number;successRate:number|null;averageCompletedRunScore:number|null};
@@ -11,6 +13,8 @@ function upcomingMonday(){
   return utc.toISOString().slice(0,10);
 }
 export default function WeeklyEditor(){
+  const locale=useLocale();
+  const msg=(en:string,ko:string)=>bilingual(locale,en,ko);
   const [lane,setLane]=useState<Lane>("GENERAL");
   const [week,setWeek]=useState(upcomingMonday());
   const [title,setTitle]=useState("");
@@ -24,7 +28,7 @@ export default function WeeklyEditor(){
   useEffect(()=>{
     void fetch("/api/v1/quizzes?mine=true&limit=100",{credentials:"same-origin",cache:"no-store"})
       .then(r=>r.json().then(x=>({ok:r.ok,x})))
-      .then(({ok,x})=>{if(!ok)throw new Error(x.message||x.error||"문제 목록을 가져오지 못했어요");setAll(x.data.items||[]);})
+      .then(({ok,x})=>{if(!ok)throw new Error(x.message||x.error||msg("Could not load quizzes.","문제 목록을 가져오지 못했어요"));setAll(x.data.items||[]);})
       .catch(e=>setError(e.message));
   },[]);
   useEffect(()=>{setSelected([])},[lane]);
@@ -34,7 +38,7 @@ export default function WeeklyEditor(){
       try{
         const options={credentials:"same-origin" as const,cache:"no-store" as const};
         const [meRes,weekRes]=await Promise.all([
-          fetch("/api/v1/me",options),fetch("/api/v1/weekly/current?locale=en&lane="+lane,options)
+          fetch("/api/v1/me",options),fetch("/api/v1/weekly/current?locale="+locale+"&lane="+lane,options)
         ]);
         if(!active || !meRes.ok || !weekRes.ok)return;
         const me=(await meRes.json()).data,current=(await weekRes.json()).data;
@@ -47,7 +51,7 @@ export default function WeeklyEditor(){
     }
     void load();
     return()=>{active=false;};
-  },[lane]);
+  },[lane,locale]);
   const eligible=all.filter(q=>q.publication==="PUBLISHED"&&q.safetyStatus!=="RESTRICTED"&&
     (lane==="GENERAL"||(q.safetyStatus==="APPROVED"&&q.kidsEligible)));
   function toggle(id:string){
@@ -60,56 +64,56 @@ export default function WeeklyEditor(){
         headers:{"Content-Type":"application/json"},
         body:JSON.stringify({lane,weekStart:week,title,description,quizIds:selected})});
       const body=await res.json();
-      if(!res.ok)throw new Error(body.message||body.error||"제안에 실패했어요");
-      setMessage("출제자 제안을 접수했어요. 운영자가 확인하고 공식 주간 챌린지를 편성해요.");
+      if(!res.ok)throw new Error(body.message||body.error||msg("Could not submit the proposal.","제안에 실패했어요"));
+      setMessage(msg("Your proposal was submitted. Moderators review it before scheduling the official challenge.","출제자 제안을 접수했어요. 운영자가 확인하고 공식 주간 챌린지를 편성해요."));
       setSelected([]);
-    }catch(e){setError(e instanceof Error?e.message:"제출에 실패했어요")}
+    }catch(e){setError(e instanceof Error?e.message:msg("Could not submit.","제출에 실패했어요"))}
     finally{setBusy(false)}
   }
   return <form className="placeholder-panel creator-weekly" onSubmit={e=>void submit(e)}>
-    <h2>주간 다섯 문제 제출</h2>
+    <h2>{msg("Submit five weekly questions","주간 다섯 문제 제출")}</h2>
     {weeklyInsights&&<section className="placeholder-panel creator-weekly-insights">
-      <h3>내 주간 챌린지 · 언어별 진행 현황</h3>
-      <p className="muted">개별 참가자 정보 없이 집계한 결과입니다.</p>
+      <h3>{msg("My weekly challenge · Language breakdown","내 주간 챌린지 · 언어별 진행 현황")}</h3>
+      <p className="muted">{msg("Aggregate results only. Individual participant data is private.","개별 참가자 정보 없이 집계한 결과입니다.")}</p>
       <div className="studio-metric-grid">
         {weeklyInsights.languages.map(item=><div key={item.locale}>
-          <small>{item.locale==="en"?"English":item.locale==="ko"?"한국어":"미분류"}</small>
-          <strong>{item.finished}회 완료</strong>
-          <span>시작 {item.started}회 · 정답률 {item.successRate===null?"—":Math.round(item.successRate*100)+"%"}</span>
-          <small>평균 완료 점수: {item.averageCompletedRunScore===null?"—":Math.round(item.averageCompletedRunScore)}</small>
+          <small>{item.locale==="en"?"English":item.locale==="ko"?"한국어":msg("Unclassified","미분류")}</small>
+          <strong>{item.finished}{msg(" completed","회 완료")}</strong>
+          <span>{msg("Starts ","시작 ")}{item.started}{msg(" · Accuracy ","회 · 정답률 ")}{item.successRate===null?"—":Math.round(item.successRate*100)+"%"}</span>
+          <small>{msg("Average completed score: ","평균 완료 점수: ")}{item.averageCompletedRunScore===null?"—":Math.round(item.averageCompletedRunScore)}</small>
         </div>)}
       </div>
     </section>}
     <div className="media-editor">
       <label>대상 모드
         <select value={lane} onChange={e=>setLane(e.target.value as Lane)}>
-          <option value="GENERAL">일반 챌린지</option><option value="KIDS">어린이 챌린지 (승인된 문제만)</option>
+          <option value="GENERAL">{msg("General challenge","일반 챌린지")}</option><option value="KIDS">{msg("Kids challenge (approved quizzes only)","어린이 챌린지 (승인된 문제만)")}</option>
         </select>
       </label>
       <label>출제할 주의 월요일 (UTC)
         <input type="date" value={week} onChange={e=>setWeek(e.target.value)} required/>
       </label>
       <label>특집 제목
-        <input value={title} onChange={e=>setTitle(e.target.value)} placeholder="예: 도시 속 숨겨진 동물들" maxLength={180} required/>
+        <input value={title} onChange={e=>setTitle(e.target.value)} placeholder={msg("e.g. Hidden animals in the city","예: 도시 속 숨겨진 동물들")} maxLength={180} required/>
       </label>
       <label>출제자 한마디
-        <textarea value={description} onChange={e=>setDescription(e.target.value)} placeholder="참가자들에게 한마디!" maxLength={1000} rows={3}/>
+        <textarea value={description} onChange={e=>setDescription(e.target.value)} placeholder={msg("A note for the participants","참가자들에게 한마디!")} maxLength={1000} rows={3}/>
       </label>
     </div>
-    <h3>문제 고르기 ({selected.length}/5)</h3>
-    <p className="muted">순서대로 클릭한 5문제가 모든 참가자에게 똑같은 순서로 나와요. 공개된 직접 제작 문제만 선택할 수 있어요.</p>
-    {!eligible.length&&<p>제안 가능한 문제가 아직 없어요. 다섯 문제를 만들고 공개해 주세요.</p>}
+    <h3>{msg("Choose questions","문제 고르기")} ({selected.length}/5)</h3>
+    <p className="muted">{msg("Select five of your published quizzes in the intended order. Everyone will see the same sequence.","순서대로 클릭한 5문제가 모든 참가자에게 똑같은 순서로 나와요. 공개된 직접 제작 문제만 선택할 수 있어요.")}</p>
+    {!eligible.length&&<p>{msg("No eligible quizzes yet. Create and publish five questions first.","제안 가능한 문제가 아직 없어요. 다섯 문제를 만들고 공개해 주세요.")}</p>}
     <div className="weekly-quiz-options">
       {eligible.map(q=><label key={q.id} className="weekly-quiz-option">
         <input type="checkbox" checked={selected.includes(q.id)} onChange={()=>toggle(q.id)}/>
-        <span><strong>{q.title}</strong><small>v{q.version} · {selected.includes(q.id)?"순서 "+(selected.indexOf(q.id)+1):"선택"}</small></span>
+        <span><strong>{q.title}</strong><small>v{q.version} · {selected.includes(q.id)?msg("Position ","순서 ")+(selected.indexOf(q.id)+1):msg("Select","선택")}</small></span>
       </label>)}
     </div>
     {error&&<p className="feedback" role="alert">{error}</p>}
     {message&&<p className="feedback success" role="status">{message}</p>}
     <button className="btn btn-primary" type="submit" disabled={busy||selected.length!==5||title.trim().length<3}>
-      {busy?"제출하는 중…":"5문제 공식 출제 제안하기"}
+      {busy?msg("Submitting…","제출하는 중…"):msg("Submit five quizzes for the weekly challenge","5문제 공식 출제 제안하기")}
     </button>
-    <p className="muted">제안만으로 공식 게시되지는 않아요. 운영자가 문제 및 출제자 신원을 확인하고 확정해야 해요.</p>
+    <p className="muted">{msg("Submitting does not publish the weekly challenge. Moderators must review the quizzes and verify the host.","제안만으로 공식 게시되지는 않아요. 운영자가 문제 및 출제자 신원을 확인하고 확정해야 해요.")}</p>
   </form>;
 }
