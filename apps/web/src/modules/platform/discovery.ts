@@ -68,7 +68,7 @@ export async function discoverSections(p:Record<string,any>) {
         author:{select:{displayName:true}},
         localizations:{where:{locale,status:"PUBLISHED"},
           select:{id:true,publishedVersion:true}}}}),
-    db().quizPack.findMany({where:{publication:"PUBLISHED",
+    db().quizPack.findMany({where:{publication:"PUBLISHED",safetyStatus:{not:"RESTRICTED"},
       localizations:{some:{locale,status:"PUBLISHED"}},
       items:{some:{},every:{quiz:playableQuizWhere(locale)}}},
       orderBy:[{updatedAt:"desc"},{id:"desc"}],take:100,
