@@ -5,7 +5,9 @@ import {useRouter} from "next/navigation";
 import {useLocale} from "../../../../src/i18n/provider";
 import {localizeHref} from "../../../../src/i18n/core";
 
-type Pack={id:string;title:string;description:string;publication:string;sourceLocale:string;orderMode:"CREATOR"|"RANDOM";quizIds:string[];members:{id:string;title:string}[]};
+type Pack={id:string;title:string;description:string;publication:string;sourceLocale:string;orderMode:"CREATOR"|"RANDOM";
+  kidsReviewStatus:string;kidsEligible:boolean;kidsReady:boolean;kidsIssue:string;
+  quizIds:string[];members:{id:string;title:string}[]};
 type Quiz={id:string;title:string;publication:string};
 type QuizPage={items:Quiz[];total:number};
 type Preview={ready:boolean;issues:string[];draftCount:number;questionCount:number};
@@ -28,6 +30,8 @@ export default function PackEditor({packId}:{packId?:string}){
   const [members,setMembers]=useState<string[]>([]);
   const [memberTitles,setMemberTitles]=useState<Record<string,string>>({});
   const [publication,setPublication]=useState("DRAFT");
+  const [kidsReviewStatus,setKidsReviewStatus]=useState("NOT_REQUESTED");
+  const [kidsReady,setKidsReady]=useState(false),[kidsIssue,setKidsIssue]=useState("");
   const [busy,setBusy]=useState(false),[dirty,setDirty]=useState(false);
   const [preview,setPreview]=useState<Preview|null>(null),[insights,setInsights]=useState<Insights|null>(null);
   const [query,setQuery]=useState(""),[search,setSearch]=useState(""),[page,setPage]=useState(0);
@@ -42,6 +46,8 @@ export default function PackEditor({packId}:{packId?:string}){
         if(!active)return;
         setTitle(pack.title);setDescription(pack.description||"");setMembers(pack.quizIds);
         setOrderMode(pack.orderMode||"CREATOR");setPublication(pack.publication);
+        setKidsReviewStatus(pack.kidsReviewStatus||"NOT_REQUESTED");
+        setKidsReady(!!pack.kidsReady);setKidsIssue(pack.kidsIssue||"");
         setMemberTitles(Object.fromEntries(pack.members.map(member=>[member.id,member.title])));
         setLanguage(pack.sourceLocale==="ko"?"ko":"en");
         setInsights(stats);setDirty(false);
@@ -84,6 +90,9 @@ export default function PackEditor({packId}:{packId?:string}){
       const body={title:title.trim(),description,quizIds:members,orderMode};
       if(packId){
         await api("/packs/"+packId,"PATCH",body);
+        const refreshed=await api("/me/packs/"+packId) as Pack;
+        setKidsReviewStatus(refreshed.kidsReviewStatus);
+        setKidsReady(!!refreshed.kidsReady);setKidsIssue(refreshed.kidsIssue||"");
         setDirty(false);setPreview(null);setNotice(ko?"변경 사항을 저장했어요.":"Changes saved.");
       }else{
         const pack=await api("/packs","POST",{...body,locale:language});
@@ -103,8 +112,20 @@ export default function PackEditor({packId}:{packId?:string}){
     if(!window.confirm(ko?"팩과 포함된 내 초안 문제를 함께 공개할까요?":"Publish this pack and eligible owned drafts?"))return;
     await perform(async()=>{
       await api("/packs/"+packId+"/publish","POST",{confirm:true});
+      const refreshed=await api("/me/packs/"+packId) as Pack;
       setPublication("PUBLISHED");setPreview(null);
+      setKidsReviewStatus(refreshed.kidsReviewStatus);
+      setKidsReady(!!refreshed.kidsReady);setKidsIssue(refreshed.kidsIssue||"");
       setNotice(ko?"팩을 공개했어요.":"Pack published.");
+    });
+  }
+  async function requestKids(){
+    if(!packId||dirty||!kidsReady||publication!=="PUBLISHED")return;
+    if(!window.confirm(ko?"어린이용 퀴즈팩 심사를 신청할까요?":"Request an independent Kids safety review for this pack?"))return;
+    await perform(async()=>{
+      const result=await api("/packs/"+packId+"/kids-request","POST",{confirm:true});
+      setKidsReviewStatus(result.kidsReviewStatus);
+      setNotice(ko?"어린이용 심사를 신청했어요.":"Kids review requested.");
     });
   }
   if(loading)return <div className="studio-empty" role="status">{ko?"팩을 불러오는 중…":"Loading pack…"}</div>;
@@ -192,6 +213,18 @@ export default function PackEditor({packId}:{packId?:string}){
         {preview.issues.map(issue=><p key={issue}>{issue}</p>)}
       </div>}
     </div>
+    {packId&&publication==="PUBLISHED"&&<section className="feature-card pack-insights" aria-label={ko?"어린이용 노출 심사":"Kids review"}>
+      <h2>{ko?"어린이용 퀴즈팩":"Kids quiz pack"}</h2>
+      <p className="muted">{ko?"공개와 어린이용 승인은 별개입니다. 구성된 모든 문제와 미디어가 먼저 어린이용 승인을 받아야 신청할 수 있습니다.":"General publication and Kids approval are separate. Every member quiz and media item must already be Kids-approved before requesting review."}</p>
+      <p role="status">{kidsReviewStatus==="APPROVED"?(ko?"어린이용 승인 완료":"Approved for Kids"):
+        kidsReviewStatus==="PENDING"?(ko?"관리자 심사 대기":"Waiting for moderator review"):
+        kidsReviewStatus==="REJECTED"?(ko?"어린이용 신청 거절 · 보완 후 재신청 가능":"Kids request rejected; fix and reapply"):
+        (ko?"어린이용 미신청":"Not requested for Kids")}</p>
+      {!kidsReady&&kidsIssue&&<p className="muted">{ko?"신청 조건 미충족: ":"Not ready to apply: "}{kidsIssue}</p>}
+      <button type="button" className="btn btn-outline"
+        disabled={busy||dirty||!kidsReady||kidsReviewStatus==="PENDING"||kidsReviewStatus==="APPROVED"}
+        onClick={()=>void requestKids()}>{ko?"어린이용 노출 신청":"Request Kids review"}</button>
+    </section>}
     {packId&&insights&&<section className="feature-card pack-insights" aria-label={ko?"팩 분석":"Pack insights"}>
       <h2>{ko?"퀴즈팩 통계":"Pack performance"}</h2>
       <div className="studio-figures">
