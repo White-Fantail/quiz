@@ -11,13 +11,13 @@ async function api(path:string,method="GET",payload?:unknown,locale:"en"|"ko"="e
     headers:payload?{"Content-Type":"application/json"}:undefined,
     body:payload?JSON.stringify(payload):undefined});
   const data=await res.json().catch(()=>({}));
-  if(!res.ok)throw new Error(data.message||data.error||bilingual(locale,"Could not process the request",msg("Could not process the request","요청을 처리하지 못했어요")));
+  if(!res.ok)throw new Error(data.message||data.error||bilingual(locale,"Could not process the request","요청을 처리하지 못했어요"));
   return data.data;
 }
 export default function QuizReviewConsole(){
   const locale=useLocale();
   const msg=(en:string,ko:string)=>bilingual(locale,en,ko);
-  const request=(path:string,method="GET",body?:unknown)=>request(path,method,body,locale);
+  const request=(path:string,method="GET",body?:unknown)=>api(path,method,body,locale);
   const [quizzes,setQuizzes]=useState<Summary[]>([]);
   const [selected,setSelected]=useState<Details|null>(null);
   const [media,setMedia]=useState<Record<string,Media>>({});

@@ -8,13 +8,13 @@ async function api(path:string,method="GET",body?:unknown,locale:"en"|"ko"="en")
   const res=await fetch("/api/v1"+path,{method,credentials:"same-origin",cache:"no-store",
     headers:body?{"Content-Type":"application/json"}:undefined,body:body?JSON.stringify(body):undefined});
   const data=await res.json();
-  if(!res.ok)throw new Error(data.message||data.error||bilingual(locale,"Request failed",msg("Request failed","요청 실패")));
+  if(!res.ok)throw new Error(data.message||data.error||bilingual(locale,"Request failed","요청 실패"));
   return data.data;
 }
 export default function WeeklyAdmin(){
   const locale=useLocale();
   const msg=(en:string,ko:string)=>bilingual(locale,en,ko);
-  const request=(path:string,method="GET",body?:unknown)=>request(path,method,body,locale);
+  const request=(path:string,method="GET",body?:unknown)=>api(path,method,body,locale);
   const [proposals,setProposals]=useState<Proposal[]>([]);
   const [current,setCurrent]=useState<Edition[]>([]);
   const [busy,setBusy]=useState(false);

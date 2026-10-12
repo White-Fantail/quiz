@@ -88,7 +88,7 @@ function MediaThumbnail({ item }: { item: Media }) {
 export default function MediaLibrary() {
   const locale=useLocale();
   const msg=(en:string,ko:string)=>bilingual(locale,en,ko);
-  const request=(path:string,method="GET",body?:object)=>request(path,method,body,locale);
+  const request=(path:string,method="GET",body?:object)=>api(path,method,body,locale);
   const [items,setItems] = useState<Media[]>([]);
   const [total,setTotal] = useState(0);
   const [loading,setLoading] = useState(true);
