@@ -70,12 +70,12 @@ export async function discoverSections(p:Record<string,any>) {
           select:{id:true,publishedVersion:true}}}}),
     db().quizPack.findMany({where:{publication:"PUBLISHED",safetyStatus:{not:"RESTRICTED"},
       localizations:{some:{locale,status:"PUBLISHED"}},
-      items:{some:{},every:{quiz:playableQuizWhere(locale)}}},
+      items:{some:{quiz:playableQuizWhere(locale)}}},
       orderBy:[{updatedAt:"desc"},{id:"desc"}],take:100,
       select:{id:true,authorId:true,createdAt:true,orderMode:true,
         author:{select:{displayName:true}},
         localizations:{where:{locale,status:"PUBLISHED"},select:{title:true,description:true}},
-        items:{select:{quizId:true}}}})
+        items:{where:{quiz:playableQuizWhere(locale)},select:{quizId:true}}}})
   ]);
   const allQuizIds=[...new Set([...quizzes.map(q=>q.id),...packs.flatMap(p=>p.items.map(i=>i.quizId))])];
   const localizations=await db().quizLocalization.findMany({
@@ -108,7 +108,7 @@ export async function discoverSections(p:Record<string,any>) {
     safeRevisions.set(rev.quizId,{title:rev.title,clueCount:rev.clues.length});
   }
   const validQuizzes=quizzes.filter(q=>safeRevisions.has(q.id));
-  const validPacks=packs.filter(pack=>pack.items.every(item=>safeRevisions.has(item.quizId)));
+  const validPacks=packs.filter(pack=>pack.items.some(item=>safeRevisions.has(item.quizId)));
   const qids=validQuizzes.map(q=>q.id), pids=validPacks.map(pack=>pack.id);
   // Never use child-device activity as public adult ranking evidence, even if
   // a guardian's account id is attached to a child-scoped session.
@@ -167,7 +167,7 @@ export async function discoverSections(p:Record<string,any>) {
     const score=packFail.get(pack.id);
     rows.push({card:{id:pack.id,type:"PACK",title:pack.localizations[0]?.title??"",
       subtitle:pack.localizations[0]?.description??"",creator:pack.author.displayName,
-      questionCount:pack.items.length,orderMode:pack.orderMode,
+      questionCount:pack.items.filter(i=>safeRevisions.has(i.quizId)).length,orderMode:pack.orderMode,
       ratings:pRatings.get(pack.id)!,started:count(pCounts,pack.id,"starts"),
       completed:count(pCounts,pack.id,"completed"),
       difficultyPercent:score&&score.players>=10?Math.round(score.sum/score.players):null,
