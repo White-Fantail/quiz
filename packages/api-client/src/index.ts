@@ -82,7 +82,7 @@ export type KidQuestion = {sessionId:string;sessionToken:string;quizId:string;
   title:string;prompt:string;promptMediaIds:string[];
   clues:KidClue[];clueIndex:number;clueCount:number;sessionStatus:"ACTIVE"|"SOLVED"|"FAILED";
   canGuess:boolean;options?:string[];round?:number;total?:number;score?:number;runId?:string;runToken?:string};
-export type KidRunStart = {runId:string;runToken:string;mode:"RANDOM_FIVE"|"WEEKLY"|"PACK";
+export type KidRunStart = {runId:string;runToken:string;mode:"RANDOM_FIVE"|"PACK";
   lane:"KIDS";locale:Locale;status:string;total:number;completed:number;score:number};
 export type KidRunResult = {runId:string;status:"FINISHED";completed:number;total:number;
   score:number;solved:number;failed:number;official:false};
@@ -244,7 +244,7 @@ export class QuizDipKidsDeviceApi {
     if(!body||typeof body!=="object"||!("data" in body))throw new ApiError("invalid_response");
     return body.data as T;
   }
-  async startRun(token:string,mode:"RANDOM_FIVE"|"WEEKLY",avoidQuizIds:string[]=[]):Promise<KidRunStart> {
+  async startRun(token:string,mode:"RANDOM_FIVE",avoidQuizIds:string[]=[]):Promise<KidRunStart> {
     return this.playRequest(token,{action:"run_start",mode,avoidQuizIds});
   }
   async currentRun(token:string,runId:string,runToken:string):Promise<KidQuestion|KidRunResult> {
