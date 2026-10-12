@@ -48,7 +48,8 @@ async function ownedSession(kid:Kid,sessionId:string,sessionToken:string){
       fail(403,"kid_play_forbidden","Quiz belongs to a different child's device");
   }
   if(entry.locale!==kid.profile.locale || entry.quiz.publication!=="PUBLISHED" ||
-    entry.quiz.safetyStatus!=="APPROVED" || !entry.quiz.kidsEligible ||
+    (entry.quiz.safetyStatus==="RESTRICTED" || !entry.quiz.kidsEligible ||
+      entry.quiz.kidsReviewStatus!=="APPROVED") ||
     entry.revision.localization?.status!=="PUBLISHED" ||
     entry.revision.localization.locale!==kid.profile.locale ||
     !approvedOrigins.includes(entry.revision.localization.origin) ||
@@ -179,7 +180,7 @@ export async function kidTreasures(kid:Kid){
     {run:{is:{kidOwnership:{is:{profileId}}}}},
     {kidSingle:{is:{profileId}}}
   ]};
-  const safe={quiz:{is:{publication:"PUBLISHED",safetyStatus:"APPROVED",kidsEligible:true}},
+  const safe={quiz:{is:{publication:"PUBLISHED",safetyStatus:{not:"RESTRICTED"},kidsEligible:true,kidsReviewStatus:"APPROVED"}},
     revision:{is:{localization:{is:{
       locale:kid.profile.locale,status:"PUBLISHED",origin:{in:approvedOrigins}
     }}}}};
