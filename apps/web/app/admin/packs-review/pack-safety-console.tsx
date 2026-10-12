@@ -28,7 +28,7 @@ export default function PackSafetyConsole(){
  },[page]);
  async function review(pack:Pack,verdict:"APPROVED"|"PENDING"|"RESTRICTED"){
    const reason=(reasons[pack.id]||"").trim();
-   if(reason.length<8){setError(ko?"검토 사유를 8자 이상 입력하세요.":"Please explain the decision in at least eight characters.");return;}
+   if(verdict==="RESTRICTED"&&reason.length<8){setError(ko?"제한 사유를 8자 이상 입력하세요.":"Please explain a restriction in at least eight characters.");return;}
    if(!window.confirm(ko?"이 퀴즈팩의 어린이 안전성 상태를 변경할까요?":"Apply this independent Kids safety decision?"))return;
    setBusy(true);setError("");setNotice("");
    try{
@@ -51,7 +51,7 @@ export default function PackSafetyConsole(){
         {ko?"공개 팩 상세 보기 ↗":"Inspect public pack ↗"}</Link>
         {" · "}<Link href={localizeHref("/admin/quiz-review",locale)}>
           {ko?"개별 문제·미디어 심사":"Question and media review"}</Link></p>
-      <label>{ko?"심사 사유":"Review reason"}
+      <label>{ko?"승인·보류 시 선택, 제한 시 필수 (8자 이상)":"Optional for approval/hold; required for restriction (8+ characters)"}
         <textarea value={reasons[pack.id]??""} maxLength={1000} rows={2}
           onChange={e=>setReasons(old=>({...old,[pack.id]:e.target.value}))}/></label>
       <div className="actions">
