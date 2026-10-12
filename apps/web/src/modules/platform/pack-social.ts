@@ -38,17 +38,21 @@ async function publicPack(id:string,locale:string) {
   if(count!==pack.items.length)fail(404,"pack_unavailable","Some pack questions are unavailable");
   return pack;
 }
-export async function packReviewsList(p:Record<string,any>) {
+export async function packReviewsList(p:Record<string,any>,actor:Actor|null) {
   await publicPack(p.id,p.locale);
   const where={packId:p.id,locale:p.locale};
-  const [rows,count,ratings]=await Promise.all([
+  const [rows,count,ratings,mine]=await Promise.all([
     db().packReview.findMany({where,select:{id:true,rating:true,comment:true,createdAt:true,
       author:{select:{displayName:true}}},orderBy:[{createdAt:"desc"},{id:"desc"}],
       take:p.limit,skip:p.offset}),
     db().packReview.count({where}),
-    packRatingFor(p.id,p.locale)
+    packRatingFor(p.id,p.locale),
+    actor&&!actor.childScope?db().packReview.findUnique({where:{
+      packId_authorId_locale:{packId:p.id,authorId:actor.id,locale:p.locale}
+    },select:{rating:true,comment:true}}):Promise.resolve(null)
   ]);
-  return {locale:p.locale,count,ratings,items:rows};
+  return {locale:p.locale,count,ratings,myRating:mine?.rating??null,
+    myComment:mine?.comment??"",items:rows};
 }
 export async function packReviewUpsert(p:Record<string,any>,actor:Actor|null) {
   const user=requireActor(actor);
