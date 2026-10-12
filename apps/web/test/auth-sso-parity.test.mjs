@@ -24,6 +24,9 @@ test("browser and MCP share one verified Better Auth identity to the domain acto
   assert.match(mcp, /requireMcpAuth\(auth/);
   assert.match(mcp, /actorByIdentity\(claims\.sub\)/);
   assert.match(mcp, /requiredScopes:\s*\["mcp:tools"\]/);
+  assert.match(mcp, /challengeScopes:\s*\["mcp:tools",\s*"offline_access"\]/);
+  assert.match(auth, /scopes:\s*\["openid",\s*"profile",\s*"email",\s*"offline_access",\s*"mcp:tools"\]/);
+  assert.match(auth, /accessTokenExpiresIn:\s*3600/);
   assert.match(mcp, /legacy:\s*"reject"/);
   assert.match(mcp, /Object\.keys\(operations\)/);
   assert.match(rest, /requireSameOrigin\(request\)/);
