@@ -34,10 +34,10 @@ test("random ordering is a full permutation, never mutates the saved order, and 
   assert.deepEqual(orderPackQuestions(ids,"RANDOM",()=>0),random);
   assert.throws(()=>orderPackQuestions(ids,"RANDOM",()=>5));
   const runs=read("src/modules/platform/runs.ts");
-  assert.match(runs,/orderPackQuestions\(pack\.items,pack\.orderMode/);
+  assert.match(runs,/orderPackQuestions\(pack\.items\.filter\(item=>ids\.includes\(item\.quizId\)\)/);
   assert.match(runs,/questions:\{create:orderedItems\.map/);
   assert.match(runs,/runToken:authToken\(active\.id,actor\.id\),resumed:true/);
-  assert.ok(runs.indexOf("if(active){")<runs.indexOf("orderPackQuestions(pack.items"));
+  assert.ok(runs.indexOf("if(active){")<runs.indexOf("orderPackQuestions(pack.items.filter"));
   assert.doesNotMatch(runs.slice(runs.indexOf("export async function runCurrent"),runs.indexOf("export async function runFinish")),/orderPackQuestions/);
 });
 
