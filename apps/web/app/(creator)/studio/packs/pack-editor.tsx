@@ -6,7 +6,7 @@ import {useLocale} from "../../../../src/i18n/provider";
 import {localizeHref} from "../../../../src/i18n/core";
 
 type Pack={id:string;title:string;description:string;publication:string;sourceLocale:string;orderMode:"CREATOR"|"RANDOM";
-  kidsReviewStatus:string;kidsEligible:boolean;kidsReady:boolean;kidsIssue:string;
+  kidsReviewStatus:string;kidsEligible:boolean;kidsReady:boolean;kidsIssue:string;excludedCount:number;
   quizIds:string[];members:{id:string;title:string}[]};
 type Quiz={id:string;title:string;publication:string};
 type QuizPage={items:Quiz[];total:number};
@@ -32,6 +32,7 @@ export default function PackEditor({packId}:{packId?:string}){
   const [publication,setPublication]=useState("DRAFT");
   const [kidsReviewStatus,setKidsReviewStatus]=useState("NOT_REQUESTED");
   const [kidsReady,setKidsReady]=useState(false),[kidsIssue,setKidsIssue]=useState("");
+  const [excludedCount,setExcludedCount]=useState(0);
   const [busy,setBusy]=useState(false),[dirty,setDirty]=useState(false);
   const [preview,setPreview]=useState<Preview|null>(null),[insights,setInsights]=useState<Insights|null>(null);
   const [query,setQuery]=useState(""),[search,setSearch]=useState(""),[page,setPage]=useState(0);
@@ -48,6 +49,7 @@ export default function PackEditor({packId}:{packId?:string}){
         setOrderMode(pack.orderMode||"CREATOR");setPublication(pack.publication);
         setKidsReviewStatus(pack.kidsReviewStatus||"NOT_REQUESTED");
         setKidsReady(!!pack.kidsReady);setKidsIssue(pack.kidsIssue||"");
+        setExcludedCount(pack.excludedCount||0);
         setMemberTitles(Object.fromEntries(pack.members.map(member=>[member.id,member.title])));
         setLanguage(pack.sourceLocale==="ko"?"ko":"en");
         setInsights(stats);setDirty(false);
@@ -93,6 +95,7 @@ export default function PackEditor({packId}:{packId?:string}){
         const refreshed=await api("/me/packs/"+packId) as Pack;
         setKidsReviewStatus(refreshed.kidsReviewStatus);
         setKidsReady(!!refreshed.kidsReady);setKidsIssue(refreshed.kidsIssue||"");
+        setExcludedCount(refreshed.excludedCount||0);
         setDirty(false);setPreview(null);setNotice(ko?"변경 사항을 저장했어요.":"Changes saved.");
       }else{
         const pack=await api("/packs","POST",{...body,locale:language});
@@ -116,6 +119,7 @@ export default function PackEditor({packId}:{packId?:string}){
       setPublication("PUBLISHED");setPreview(null);
       setKidsReviewStatus(refreshed.kidsReviewStatus);
       setKidsReady(!!refreshed.kidsReady);setKidsIssue(refreshed.kidsIssue||"");
+      setExcludedCount(refreshed.excludedCount||0);
       setNotice(ko?"팩을 공개했어요.":"Pack published.");
     });
   }
@@ -157,6 +161,10 @@ export default function PackEditor({packId}:{packId?:string}){
     <p className="muted">{orderMode==="RANDOM"
       ?(ko?"새 플레이 시작 시 순서를 한 번 섞고, 이어 하기에서는 그 순서를 유지합니다.":"Shuffle once per run; resuming retains the same order.")
       :(ko?"아래에서 정한 순서대로 출제합니다.":"Questions appear in the order below.")}</p>
+    {packId&&publication==="PUBLISHED"&&excludedCount>0&&<p role="status" className="muted">
+      {ko?`현재 ${excludedCount}개 문제가 일반 플레이에서 제외되어 있어요. 팩 구성에서는 삭제되지 않으며 복구되면 자동으로 다시 포함됩니다.`:
+        `${excludedCount} question(s) are temporarily excluded from General play. They remain in the saved pack and return automatically when eligible.`}
+    </p>}
     <div className="pack-editor-columns">
       <section className="feature-card">
         <h2>{ko?"팩에 포함된 문제":"Questions in this pack"} ({members.length}/100)</h2>
