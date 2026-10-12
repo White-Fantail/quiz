@@ -257,8 +257,9 @@ export default function PlayPage({packId}:{packId?:string}={}) {
         <h2>{msg("My recent games","최근 내 기록")}</h2>
         <div className="recent-results">
           {myHistory.map(item=><p key={item.runId}>
-            {item.mode==="WEEKLY"?msg("Past weekly game","이전 주간 플레이"):item.mode==="INFINITE"?msg("Continuous play","연속 플레이"):msg("Quick five","랜덤 5문제")}
+            {item.mode==="WEEKLY"?msg("Past weekly game","이전 주간 플레이"):item.mode==="PACK"?msg("Quiz pack","퀴즈팩"):item.mode==="INFINITE"?msg("Continuous play","연속 플레이"):msg("Quick five","랜덤 5문제")}
             {" · "}{item.score}{msg(" pts · ","점 · ")}{item.completed}{msg(" quizzes · ","문제 ")}{item.status==="FINISHED"?msg("Finished","완료"):msg("In progress","진행 중")}
+            {item.mode==="PACK"&&item.packId&&<> · <Link href={localizeHref("/packs/"+item.packId+"/play",locale)}>{msg("Resume pack →","퀴즈팩 이어 풀기 →")}</Link></>}
           </p>)}
         </div>
       </section>}
@@ -332,7 +333,7 @@ export default function PlayPage({packId}:{packId?:string}={}) {
                   onSaved={(_rating,value)=>setQuestionsToRate(old=>old.map(row=>row.quizId===q.quizId?{...row,myTranslationRating:value}:row))}/>
               </div>}
             </div>)}
-            {questionsToRate.some(q=>q.ratingAccess==="SIGN_IN")&&<RatingSignIn destination={localizeHref("/play", locale)}/>}
+            {questionsToRate.some(q=>q.ratingAccess==="SIGN_IN")&&<RatingSignIn destination={localizeHref(packId?"/packs/"+packId+"/play":"/play", locale)}/>}
           </details>
           {run.mode==="PACK"&&<button type="button" className="btn btn-outline" onClick={()=>void start("PACK",true)} disabled={busy}>{msg("Play this pack again","퀴즈팩 다시 풀기")}</button>}
           {run.mode==="RANDOM_FIVE"&&<button type="button" className="btn btn-primary"
