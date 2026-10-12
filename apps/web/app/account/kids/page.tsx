@@ -13,10 +13,12 @@ export default async function FamilySettingsPage(){
  let signedIn=false,unavailable=false;
  try {signedIn=!!(await auth.api.getSession({headers:requestHeaders}))?.user?.id;}
  catch{unavailable=true;}
- return <main className="container inner-page">
-   <span className="small-tag">QuizDip Account</span>
-   <h1>{t(locale,"kids.guardian.title")}</h1>
-   <p className="muted">{t(locale,"kids.native.pairHelp")}</p>
+ return <main className="container inner-page kids-settings-page">
+   <header className="kids-page-header">
+     <span className="small-tag">QuizDip Account</span>
+     <h1>{t(locale,"kids.guardian.title")}</h1>
+     <p className="muted">{t(locale,"kids.native.pairHelp")}</p>
+   </header>
    {unavailable?<p role="alert" className="feedback">{t(locale,"account.unavailable")}</p>:
     !signedIn?<div className="placeholder-panel">
      <p>{t(locale,"kids.guardian.signin")}</p>
@@ -25,7 +27,7 @@ export default async function FamilySettingsPage(){
        {t(locale,"kids.guardian.signinAction")}
      </Link>
     </div>:<KidsFamilySettings/>}
-   <p style={{marginTop:32}}>
+   <p className="kids-back-link">
      <Link className="text-button" href={localizeHref("/account",locale)}>{t(locale,"account.home")}</Link>
    </p>
  </main>;
