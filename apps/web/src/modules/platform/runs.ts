@@ -272,7 +272,7 @@ async function startPackRun(p:Record<string,any>,actor:Actor|null) {
     const ids=pack.items.map(item=>item.quizId);
     if(new Set(ids).size!==ids.length)
       fail(409,"pack_invalid","Quiz pack contains duplicate questions");
-    const playable=await tx.quiz.findMany({where:{id:{in:ids},...playableQuizWhere(locale)}},
+    const playable=await tx.quiz.findMany({where:{id:{in:ids},...playableQuizWhere(locale)},
       select:{id:true}});
     if(playable.length!==ids.length)
       fail(409,"pack_unavailable","One or more pack questions are no longer public");
