@@ -8,7 +8,7 @@ export type KidAgeBand = "EARLY"|"MIDDLE"|"OLDER";
 type SafeRevision={id:string;quizId:string;title:string;clues:unknown;promptMediaIds:unknown};
 type ContentTarget={id:string;type:"QUIZ"|"PACK";title:string;description:string;
   creator:string;questionCount:number;orderMode?:string};
-export type SafePack=ContentTarget & {packVersion:number;items:{quizId:string;revisionId:string}[]};
+export type SafePack=ContentTarget & {packVersion:number;originalQuestionCount:number;excludedCount:number;items:{quizId:string;revisionId:string}[]};
 
 function mediaReferences(revisions:SafeRevision[]){
   const ids=new Set<string>();
@@ -45,7 +45,7 @@ export async function safePack(id:string,locale:Locale,lane:AudienceLane,
     where:{id,publication:"PUBLISHED",safetyStatus:{not:"RESTRICTED"},
       localizations:{some:{locale,status:"PUBLISHED"}},
       ...(lane==="KIDS"&&!options.skipPackApproval?
-        {kidsEligible:true,safetyStatus:"APPROVED",sourceLocale:locale}:{})},
+        {kidsEligible:true,kidsReviewStatus:"APPROVED",sourceLocale:locale}:{})},
     select:{id:true,title:true,sourceLocale:true,currentVersion:true,orderMode:true,
       author:{select:{displayName:true}},
       localizations:{where:{locale,status:"PUBLISHED"},select:{title:true,description:true}},
@@ -53,43 +53,49 @@ export async function safePack(id:string,locale:Locale,lane:AudienceLane,
   });
   if(!pack||!pack.localizations[0]||!pack.items.length||pack.items.length>100)
     fail(404,"pack_unavailable","Quiz pack is not playable");
-  // Kids cannot silently use creator translations: every member and the pack
-  // itself must be independently approved in the ORIGINAL language.
   if(lane==="KIDS"&&pack.sourceLocale!==locale)
     fail(404,"kid_pack_locale","Kids packs require approved original-language content");
   const ids=pack.items.map(i=>i.quizId);
   if(new Set(ids).size!==ids.length)
-    fail(409,"pack_unavailable","Quiz pack is not yet available for play");
-  const quizzes=await db().quiz.findMany({where:{
-    id:{in:ids},...playableQuizWhere(locale,lane)
-  },select:{id:true,recommendedAudience:true,
-    localizations:{where:{locale,status:"PUBLISHED"},
-      select:{id:true,origin:true,publishedVersion:true}}}});
-  if(quizzes.length!==ids.length||quizzes.some(q=>
-      !ageEligible(q.recommendedAudience,options.ageBand)||
-      !q.localizations.length||
-      q.localizations[0].publishedVersion===null||
-      (lane==="KIDS"&&!["ORIGINAL","LEGACY"].includes(q.localizations[0].origin))))
-    fail(409,"pack_unavailable","One or more questions require review for this child/language");
-  const published=quizzes.map(q=>({
-    quizId:q.id,localizationId:q.localizations[0].id,
-    version:q.localizations[0].publishedVersion!
-  }));
-  const revisions=await db().quizRevision.findMany({where:{OR:published.map(x=>({
-    localizationId:x.localizationId,version:x.version
-  }))},select:{id:true,quizId:true,title:true,clues:true,promptMediaIds:true}});
-  if(revisions.length!==ids.length||
-    revisions.some(r=>!Array.isArray(r.clues)||!r.clues.length)||
-    !await approvedMedia(revisions))
-    fail(409,"pack_unavailable","The pack contains unavailable or unapproved media");
-  const lookup=new Map(revisions.map(r=>[r.quizId,r.id]));
-  if(lookup.size!==ids.length)
-    fail(409,"pack_unavailable","One or more published revisions are unavailable");
+    fail(409,"pack_unavailable","Quiz pack contains duplicate questions");
+
+  // Adult packs may continue after an individual quiz is removed or restricted.
+  // Kids require EVERY original-language quiz and approved media, without exception.
+  const quizzes=await db().quiz.findMany({where:{id:{in:ids},...playableQuizWhere(locale,lane)},
+    select:{id:true,recommendedAudience:true,
+      localizations:{where:{locale,status:"PUBLISHED"},
+        select:{id:true,origin:true,publishedVersion:true}}}});
+  const eligible=quizzes.filter(q=>
+    ageEligible(q.recommendedAudience,options.ageBand)&&
+    q.localizations.length>0&&q.localizations[0].publishedVersion!==null&&
+    (lane!=="KIDS"||["ORIGINAL","LEGACY"].includes(q.localizations[0].origin)));
+  if(lane==="KIDS"&&eligible.length!==ids.length)
+    fail(409,"pack_unavailable","Every question must be independently approved for Kids");
+
+  const expected=eligible.map(q=>({quizId:q.id,localizationId:q.localizations[0].id,
+    version:q.localizations[0].publishedVersion!}));
+  const revisions=expected.length?await db().quizRevision.findMany({where:{
+    OR:expected.map(x=>({localizationId:x.localizationId,version:x.version}))
+  },select:{id:true,quizId:true,title:true,clues:true,promptMediaIds:true}}):[];
+  const validRevisions=revisions.filter(r=>Array.isArray(r.clues)&&r.clues.length>0);
+  const needed=mediaReferences(validRevisions);
+  const existing=needed.length?await db().mediaAsset.findMany({where:{id:{in:needed},
+    status:"READY",moderationStatus:"APPROVED",deletedAt:null},select:{id:true}}):[];
+  const allowed=new Set(existing.map(m=>m.id));
+  const byQuiz=new Map(validRevisions.filter(r=>mediaReferences([r]).every(mid=>allowed.has(mid)))
+    .map(r=>[r.quizId,r.id]));
+  const items=ids.filter(quizId=>byQuiz.has(quizId))
+    .map(quizId=>({quizId,revisionId:byQuiz.get(quizId)!}));
+  if(!items.length || (lane==="KIDS"&&items.length!==ids.length))
+    fail(409,"pack_unavailable",lane==="KIDS"
+      ?"Every question and media asset must be Kids-approved"
+      :"This pack has no currently playable questions");
+
   const loc=pack.localizations[0];
   return {id:pack.id,type:"PACK",title:loc.title,description:loc.description,
-    creator:pack.author.displayName,questionCount:ids.length,
-    orderMode:pack.orderMode,packVersion:pack.currentVersion,
-    items:ids.map(quizId=>({quizId,revisionId:lookup.get(quizId)!}))};
+    creator:pack.author.displayName,questionCount:items.length,
+    originalQuestionCount:ids.length,excludedCount:ids.length-items.length,
+    orderMode:pack.orderMode,packVersion:pack.currentVersion,items};
 }
 
 export async function safeQuiz(id:string,locale:Locale,lane:AudienceLane,
