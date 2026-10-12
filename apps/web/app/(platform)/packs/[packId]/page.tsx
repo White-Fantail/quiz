@@ -6,6 +6,7 @@ import { resolveLocale,localizeHref } from "../../../../src/i18n/core";
 import { PlatformError } from "../../../../src/modules/platform/auth";
 import { packGet } from "../../../../src/modules/platform/social";
 import { PackPublicReviews, PackReport, PackShare } from "../../../../src/components/pack-feedback";
+import {listBackHref} from "../../../../src/lib/list-back-href";
 export const dynamic="force-dynamic";
 async function fetchPack(id:string){
   const locale=resolveLocale((await headers()).get("x-quizdip-locale"));
@@ -26,10 +27,11 @@ export async function generateMetadata({params}:{params:Promise<{packId:string}>
     twitter:{card:"summary",title,description},
     robots:{index:true,follow:true}};
 }
-export default async function PackDetail({params}:{params:Promise<{packId:string}>}){
+export default async function PackDetail({params,searchParams}:{params:Promise<{packId:string}>;searchParams:Promise<Record<string,string|string[]|undefined>>}){
  const {packId}=await params;
  const pack=await fetchPack(packId);
  const locale=resolveLocale((await headers()).get("x-quizdip-locale"));
+ const backHref=listBackHref(localizeHref("/packs",locale),await searchParams,["page"]);
  return <main className="container inner-page management-page">
   <div className="play-intro"><span className="eyebrow">QUIZDIP · QUIZ PACK</span>
    <h1>{pack.title}</h1><p className="lead">{pack.description}</p></div>
@@ -41,7 +43,7 @@ export default async function PackDetail({params}:{params:Promise<{packId:string
    <p><strong>{pack.questionCount}</strong> {pack.orderMode==="RANDOM"?(locale==="ko"?"개의 문제 · 시작할 때 랜덤 순서":"questions · shuffled at the start"):(locale==="ko"?"개의 문제 · 제작자가 정한 순서":"questions · creator-defined order")}</p>
    <div className="actions">
     <Link href={localizeHref("/packs/"+pack.id+"/play",locale)} className="btn btn-primary">{locale==="ko"?"전체 플레이 / 이어 풀기 →":"Play or resume full pack →"}</Link>
-    <Link href={localizeHref("/packs",locale)} className="btn btn-outline">{locale==="ko"?"다른 퀴즈팩":"More packs"}</Link>
+    <Link href={backHref} className="btn btn-outline">{locale==="ko"?"다른 퀴즈팩":"More packs"}</Link>
     <PackShare path={"/packs/"+pack.id}/>
    </div>
   </section>
