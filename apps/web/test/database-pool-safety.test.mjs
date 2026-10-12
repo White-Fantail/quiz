@@ -10,7 +10,9 @@ const buildSource = readFileSync(new URL("../../../scripts/build.mjs", import.me
 test("Prisma and Better Auth share one bounded serverless database pool", () => {
   assert.match(poolSource, /quizdipSharedPool/);
   assert.match(poolSource, /max:\s*2\b/);
-  assert.match(poolSource, /connectionTimeoutMillis:\s*5_000/);
+  assert.match(poolSource, /connectionTimeoutMillis:\s*15_000/);
+  assert.match(poolSource, /pool\.on\("error",/);
+  assert.match(poolSource, /waitingCount: pool\.waitingCount/);
   assert.match(prismaSource, /new PrismaPg\(databasePool\(\)\)/);
   assert.match(authSource, /return databasePool\(\)/);
   assert.doesNotMatch(prismaSource, /new PrismaPg\(\{\s*connectionString/);
