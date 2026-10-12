@@ -88,6 +88,39 @@ async function validatePackQuestions(ids: string[], authorId: string, publish = 
   if(publish && locale!=="und" && qs.some(q=>!q.localizations.some(l=>l.locale===locale && l.status==="PUBLISHED")))
     fail(409,"incomplete_pack_locale","Every question must be published in the pack language");
 }
+/** Creator-only dry-run. Never mutates content or exposes other creators' drafts. */
+export async function packPreflight(p:Record<string,any>,actor:Actor|null) {
+  const user=requireActor(actor);
+  const pack=await db().quizPack.findFirst({where:{id:p.id,authorId:user.id},
+    include:{items:{orderBy:{position:"asc"}}}});
+  if(!pack)fail(404,"not_found","Pack not found");
+  const ids=pack.items.map(item=>item.quizId);
+  const quizzes=await db().quiz.findMany({where:{id:{in:ids}},
+    select:{id:true,authorId:true,publication:true,safetyStatus:true,currentVersion:true,
+      localizations:{where:{locale:pack.sourceLocale},select:{status:true,publishedVersion:true,currentVersion:true}}}});
+  const byId=new Map(quizzes.map(q=>[q.id,q]));
+  const issues:{quizId:string;code:string}[]=[];
+  if(!ids.length)issues.push({quizId:pack.id,code:"empty_pack"});
+  if(pack.sourceLocale==="und")issues.push({quizId:pack.id,code:"source_language_required"});
+  for(const id of ids){
+    const quiz=byId.get(id);
+    if(!quiz){issues.push({quizId:id,code:"missing_quiz"});continue;}
+    if(quiz.safetyStatus==="RESTRICTED")issues.push({quizId:id,code:"restricted"});
+    if(quiz.authorId!==user.id && quiz.publication!=="PUBLISHED")issues.push({quizId:id,code:"unavailable_external_quiz"});
+    const loc=quiz.localizations[0];
+    if(!loc)issues.push({quizId:id,code:"missing_localization"});
+    else if(quiz.authorId!==user.id && (loc.status!=="PUBLISHED" || loc.publishedVersion==null))
+      issues.push({quizId:id,code:"external_translation_unpublished"});
+  }
+  const unpublished=quizzes.filter(q=>q.authorId===user.id && q.publication!=="PUBLISHED").length;
+  const publishedToday=user.role==="ADMIN"?0:await db().auditLog.count({where:{
+    actorId:user.id,action:"quiz.publish",createdAt:{gte:new Date(Date.now()-86400000)}}});
+  if(user.role!=="ADMIN" && publishedToday+unpublished>100)
+    issues.push({quizId:pack.id,code:"publication_quota_exceeded"});
+  return {id:pack.id,locale:pack.sourceLocale,total:ids.length,unpublished,
+    quotaRemaining:user.role==="ADMIN"?null:Math.max(0,100-publishedToday),
+    ready:issues.length===0,issues};
+}
 export async function packCreate(p: Record<string, any>, actor: Actor | null) {
   const user = requireActor(actor);
   await validatePackQuestions(p.quizIds, user.id);
