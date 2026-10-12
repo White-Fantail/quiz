@@ -36,11 +36,21 @@ function route(method: string, segments: string[]): Match | null {
     if (b && c === "reviews" && method === "DELETE") return { op: "review_remove", args: { quizId: b } };
     if (b && c === "reports" && method === "POST") return { op: "report_create", args: { quizId: b } };
   }
+  if(a==="discover" && b==="sections" && !c && method==="GET") return {op:"discover_sections",args:{}};
+  if(a==="me" && b==="packs" && c && d==="insights" && !e && method==="GET")
+    return {op:"my_pack_insights",args:{id:c}};
   if (a === "packs" && !b) {
     if (method === "GET") return { op: "pack_list", args: {} };
     if (method === "POST") return { op: "pack_create", args: {} };
   }
   if (a === "packs" && b && !c && method === "GET") return { op: "pack_get", args:{id:b} };
+  if (a === "packs" && b && c === "reviews" && !d) {
+    if(method==="GET")return {op:"pack_reviews_list",args:{id:b}};
+    if(method==="POST")return {op:"pack_review_upsert",args:{id:b}};
+    if(method==="DELETE")return {op:"pack_review_remove",args:{id:b}};
+  }
+  if (a === "packs" && b && c === "reports" && !d && method==="POST")
+    return {op:"pack_report_create",args:{id:b}};
   if (a === "packs" && b && c === "preflight" && !d && method === "GET") return { op:"pack_preflight", args:{id:b} };
   if (a === "packs" && b && c === "publish-preview" && method === "GET") return {op:"pack_publish_preview",args:{id:b}};
   if (a === "packs" && b && c === "publish" && method === "POST") return {op:"pack_publish",args:{id:b}};
