@@ -121,3 +121,23 @@ export function PackReport({packId}:{packId:string}){
     {error&&<p role="alert">{error}</p>}
   </details>;
 }
+
+export function PackPublicReviews({packId}:{packId:string}){
+  const locale=useLocale(),ko=locale==="ko";
+  const [items,setItems]=useState<Array<{id:string;rating:number;comment:string;createdAt:string;author:{displayName:string}}>>([]);
+  useEffect(()=>{
+    let active=true;
+    void fetch("/api/v1/packs/"+packId+"/reviews?locale="+locale+"&limit=5",{cache:"no-store"})
+      .then(async r=>r.ok?(await r.json()).data:null)
+      .then(v=>{if(active)setItems((v?.items??[]).filter((r:{comment:string})=>Boolean(r.comment.trim())));})
+      .catch(()=>{});
+    return ()=>{active=false};
+  },[packId,locale]);
+  if(!items.length)return null;
+  return <section className="feature-card" aria-label={ko?"퀴즈팩 이용자 평가":"Pack reviews"}>
+    <h3>{ko?"이 퀴즈팩에 남긴 의견":"Community feedback"}</h3>
+    {items.map(item=><div key={item.id} className="studio-list-row">
+      <p><strong>{item.rating===1?"👍":"👎"} {item.author.displayName}</strong> · {item.comment}</p>
+    </div>)}
+  </section>;
+}
