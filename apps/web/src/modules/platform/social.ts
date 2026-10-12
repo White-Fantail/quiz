@@ -237,6 +237,8 @@ export async function packUpdate(p: Record<string, any>, actor: Actor | null) {
       where:{id:old.id,authorId:user.id,currentVersion:old.currentVersion},
       data:{
         currentVersion:{increment:1},
+        // Any author edit invalidates independent Kids approval.
+        safetyStatus:"PENDING",kidsEligible:false,
         ...(p.title !== undefined ? {title:p.title}:{}),
         ...(p.description !== undefined ? {description:p.description}:{}),
         ...(p.orderMode !== undefined ? {orderMode:p.orderMode}:{}),
@@ -334,7 +336,7 @@ export async function packPublish(p:Record<string,any>,actor:Actor|null){
       }
     }
     const changed=await tx.quizPack.updateMany({where:{id:pack.id,authorId:user.id,
-      publication:pack.publication,updatedAt:pack.updatedAt},data:{publication:"PUBLISHED"}});
+      publication:pack.publication,updatedAt:pack.updatedAt},data:{publication:"PUBLISHED",safetyStatus:"PENDING",kidsEligible:false}});
     if(changed.count!==1)fail(409,"pack_changed","Pack changed during publication");
     await tx.quizPackLocalization.updateMany({where:{packId:pack.id,locale:pack.sourceLocale},
       data:{status:"PUBLISHED"}});
