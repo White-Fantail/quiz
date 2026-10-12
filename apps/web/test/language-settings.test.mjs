@@ -24,6 +24,8 @@ test("Kids retains an independent parent-locked language per profile", () => {
   assert.match(adult, /value=\{draft\.locale\}/);
   assert.match(guardian, /setField\("locale",v\)/);
   assert.match(root, /chooseLocale\(session\.session\.profile\.locale\)/);
-  assert.match(home, /native\.session\.pinned/);
+  // Language is fixed by the parent-approved session; Kids home is intentionally uncluttered.
+  assert.match(root, /session\.session\.profile\.locale/);
+  assert.doesNotMatch(home, /native\.session\.pinned/);
   assert.doesNotMatch(home, /chooseLocale\(/);
 });
