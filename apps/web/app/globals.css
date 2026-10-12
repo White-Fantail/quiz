@@ -400,3 +400,252 @@ a.feature-card:hover { border-color:#B4AEF7; transform:translateY(-3px); }
   .studio-quiz-preview .play-panel {padding:20px;}
   .studio-preview-toolbar {align-items:start;}
 }
+
+
+/* Kids family settings: calm, consistent form controls and purposeful spacing. */
+.kids-settings-page {
+  max-width:1000px;
+  padding-top:clamp(36px,5vw,64px);
+  padding-bottom:86px;
+}
+.kids-page-header { margin:0 0 clamp(24px,4vw,38px); }
+.kids-page-header h1 {
+  max-width:780px;
+  font-size:clamp(2.1rem,4.1vw,3.15rem);
+  line-height:1.12;
+  margin:16px 0 14px;
+}
+.kids-page-header > p {
+  max-width:760px;
+  font-size:1.04rem;
+  line-height:1.75;
+  margin:0;
+}
+.kids-settings-stack { display:grid; gap:24px; }
+.kids-settings-card.placeholder-panel {
+  margin:0;
+  padding:clamp(24px,3.6vw,40px);
+  border-radius:24px;
+  box-shadow:0 12px 34px rgb(39 32 92 / 4%);
+  min-width:0;
+}
+.kids-section-header {
+  display:flex;
+  gap:16px;
+  align-items:flex-start;
+  margin:0 0 26px;
+}
+.kids-section-header > div { min-width:0; }
+.kids-section-header h2 {
+  font-size:clamp(1.35rem,2.1vw,1.55rem);
+  line-height:1.25;
+  letter-spacing:-.035em;
+  margin:3px 0 0;
+}
+.kids-section-header p.muted {
+  color:var(--muted);
+  font-size:.94rem;
+  line-height:1.65;
+  margin:10px 0 0;
+  max-width:580px;
+}
+.kids-step {
+  display:grid;
+  place-items:center;
+  flex:0 0 42px;
+  width:42px;
+  height:42px;
+  border-radius:14px;
+  background:#F0EDFF;
+  color:#594ACD;
+  font-size:.83rem;
+  font-weight:850;
+  font-variant-numeric:tabular-nums;
+}
+.kids-settings-form { display:grid; gap:18px; min-width:0; }
+.kids-form-fields { display:grid; gap:16px; }
+.kids-form-field {
+  display:grid;
+  align-content:start;
+  gap:9px;
+  min-width:0;
+  font-size:.89rem;
+  font-weight:720;
+  color:#41425C;
+}
+.kids-settings-page .kids-form-field input,
+.kids-settings-page .kids-form-field select {
+  display:block;
+  width:100%;
+  min-width:0;
+  height:51px;
+  padding:11px 15px;
+  border:1px solid #D7D4E8;
+  border-radius:13px;
+  background:#FCFBFF;
+  color:var(--ink);
+  font:inherit;
+  font-size:1rem;
+  font-weight:500;
+  line-height:1.35;
+  transition:border-color .14s,box-shadow .14s;
+}
+.kids-settings-page .kids-form-field select {
+  cursor:pointer;
+  padding-right:32px;
+}
+.kids-settings-page .kids-form-field input::placeholder { color:#8B8CA0; opacity:1; }
+.kids-settings-page .kids-form-field input:hover,
+.kids-settings-page .kids-form-field select:hover { border-color:#B8B1E8; }
+.kids-settings-page .kids-form-field input:focus-visible,
+.kids-settings-page .kids-form-field select:focus-visible {
+  outline:none;
+  border-color:var(--purple);
+  box-shadow:0 0 0 3px rgb(98 85 232 / 13%);
+}
+.kids-settings-card .btn {
+  min-height:45px;
+  border-radius:13px;
+  padding:10px 18px;
+  font-size:.93rem;
+  white-space:normal;
+  text-align:center;
+}
+.kids-settings-card .btn-primary { box-shadow:0 3px 9px rgb(98 85 232 / 12%); }
+.kids-settings-card .btn:disabled { opacity:.55; box-shadow:none; }
+.kids-settings-card .btn-outline { background:#fff; }
+.kids-pin-card,
+.kids-pair-card {
+  display:grid;
+  grid-template-columns:minmax(0,.92fr) minmax(0,1fr);
+  column-gap:clamp(24px,4vw,58px);
+  align-items:start;
+}
+.kids-pin-card > .kids-section-header,
+.kids-pair-card > .kids-section-header { margin-bottom:0; }
+.kids-pin-form,
+.kids-pair-form { width:100%; max-width:440px; }
+.kids-pin-form .btn,
+.kids-pair-form .btn { justify-self:start; min-width:190px; }
+.kids-pin-recovery {
+  grid-column:2;
+  margin-top:20px;
+  max-width:440px;
+  border-top:1px solid var(--border);
+  padding-top:15px;
+  font-size:.89rem;
+}
+.kids-pin-recovery summary { cursor:pointer; color:#5145BF; font-weight:740; }
+.kids-pin-recovery p.muted { margin:12px 0; font-size:.89rem; }
+.kids-pin-recovery .btn { margin-top:4px; }
+.kids-settings-list { display:grid; gap:0; }
+.kids-settings-list-row {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:14px 22px;
+  padding:16px 0;
+  border-bottom:1px solid #EFEDF6;
+}
+.kids-settings-list-row:first-child { padding-top:0; }
+.kids-settings-list-row:last-child { border-bottom:0; padding-bottom:0; }
+.kids-profile-info { min-width:0; display:grid; gap:6px; }
+.kids-profile-info strong { font-weight:780; font-size:1rem; overflow-wrap:anywhere; }
+.kids-profile-meta {
+  width:fit-content;
+  color:#645C8A;
+  background:#F4F1FF;
+  border-radius:8px;
+  padding:4px 9px;
+  font-size:.79rem;
+  line-height:1.5;
+  overflow-wrap:anywhere;
+}
+.kids-settings-list-row .btn { min-height:39px; padding:6px 16px; }
+.kids-profile-editor {
+  background:#FAF9FE;
+  border:1px solid #EEECF7;
+  border-radius:19px;
+  padding:clamp(18px,3vw,28px);
+  margin-top:24px;
+}
+.kids-profile-editor h3 {
+  font-size:1.17rem;
+  letter-spacing:-.03em;
+  margin:0 0 23px;
+}
+.family-kids-fields {
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  column-gap:16px;
+  row-gap:18px;
+  max-width:700px;
+}
+.kids-form-field-wide { grid-column:1/-1; }
+.kids-form-hint {
+  grid-column:1/-1;
+  margin:2px 0 0!important;
+  padding:14px 16px;
+  border-radius:12px;
+  border:1px solid #E6E1FA;
+  background:#F2F0FD;
+  color:#5C567B!important;
+  font-size:.86rem;
+  line-height:1.65;
+}
+.kids-form-actions { margin-top:23px; gap:10px; }
+.kids-form-actions .text-button { padding:10px; }
+.kids-pair-code { font-size:1.3rem!important; letter-spacing:.15em; font-variant-numeric:tabular-nums; }
+.kids-pair-footnote {
+  grid-column:2;
+  margin:18px 0 0!important;
+  max-width:440px;
+  color:#6E6B83!important;
+  font-size:.82rem;
+  line-height:1.6;
+}
+.kids-pair-card > [role="alert"] { grid-column:2; margin:0; }
+.kids-pair-card > .feedback { grid-column:2; margin:0; }
+.kids-empty-state {
+  color:var(--muted)!important;
+  background:#F8F7FD;
+  border-radius:12px;
+  padding:16px;
+  margin:0!important;
+  font-size:.9rem;
+}
+.kids-pair-success { display:grid; gap:12px; }
+.kids-pair-success h2 { margin:0; }
+.kids-pair-success p { margin:0!important; }
+.kids-pair-success .btn { justify-self:start; margin-top:6px; }
+.kids-back-link { margin-top:30px; }
+.kids-connect-page > .kids-page-header { margin-bottom:20px; }
+.kids-connect-page > .kids-settings-card { margin-top:0; }
+
+@media(max-width:820px) {
+  .kids-pin-card,.kids-pair-card { grid-template-columns:1fr; gap:25px; }
+  .kids-pin-card > .kids-section-header,
+  .kids-pair-card > .kids-section-header { margin-bottom:0; }
+  .kids-pin-recovery,.kids-pair-footnote,
+  .kids-pair-card > [role="alert"],.kids-pair-card > .feedback { grid-column:1; }
+}
+@media(max-width:560px) {
+  .kids-settings-page { width:calc(100% - 28px); padding-top:28px; padding-bottom:54px; }
+  .kids-page-header h1 { font-size:2.15rem; }
+  .kids-page-header > p { font-size:.94rem; }
+  .kids-settings-stack { gap:15px; }
+  .kids-settings-card.placeholder-panel { border-radius:19px; padding:21px 18px; }
+  .kids-section-header { gap:12px; margin-bottom:21px; }
+  .kids-section-header h2 { font-size:1.3rem; margin-top:3px; }
+  .kids-section-header p.muted { font-size:.89rem; }
+  .kids-step { flex-basis:36px; width:36px; height:36px; border-radius:11px; font-size:.76rem; }
+  .family-kids-fields { grid-template-columns:1fr; }
+  .kids-form-field-wide,.kids-form-hint { grid-column:1; }
+  .kids-settings-list-row { flex-wrap:nowrap; gap:10px; }
+  .kids-settings-list-row .btn { flex-shrink:0; }
+  .kids-profile-editor { padding:18px 14px; }
+  .kids-pin-form .btn,.kids-pair-form .btn { width:100%; }
+  .kids-form-actions .btn { flex:1 1 100%; }
+  .kids-form-actions .text-button { margin-right:auto; }
+}
