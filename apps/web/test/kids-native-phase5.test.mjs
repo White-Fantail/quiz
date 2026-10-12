@@ -33,14 +33,16 @@ test("parent bootstrap is in the signed-in adult account and native shows its ne
  const api=file("app/api/account/kids/route.ts");
  const native=file("../kids/app/setup.tsx");
  assert.match(page,/auth\.api\.getSession/);
- assert.match(portal,/native_pair_issue/);
+ assert.match(portal,/PairApproval/);
+ assert.match(file("app/account/kids/pair-approval.tsx"),/native_pair_approve/);
  assert.match(portal,/\/api\/account\/kids/);
  assert.doesNotMatch(portal,/\/api\/kids\/device|location\.assign\(localizeHref\("\/kids"/);
  assert.match(api,/requireSameOrigin\(request\)/);
  assert.match(api,/requireActor\(await actorFor\(request\)\)/);
  assert.match(api,/kid_reauth_required/);
  assert.match(api,/issueNativePairTicket/);
- assert.ok(native.includes('locale+"/account/kids"'));
+ assert.ok(native.includes('locale+"/account/kids/connect?token="'));
+ assert.match(native,/request\.shortCode/);
 });
 test("old child cookies remain locked until guardian PIN; data cutover revokes WEB only",()=>{
  const legacy=file("app/api/account/kids/legacy-unlock/route.ts");
