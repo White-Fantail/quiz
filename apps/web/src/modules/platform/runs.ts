@@ -1,10 +1,11 @@
-import { createHash, createHmac, randomBytes, randomInt, randomUUID, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { db } from "./db";
 import { ratingsForQuizzes, ratingsForQuiz, myRatingForQuiz, ratingAccess } from "./ratings";
 import { fail, requireActor, type Actor } from "./auth";
 import { utcWeekStart, WEEK_MS } from "./weekly-clock";
 import { selectUnseen } from "./unseen-questions";
 import { runTargetCount } from "./run-length";
+import { orderPackQuestions } from "./pack-order";
 import { playableQuizWhere } from "./content-locale";
 import type { Locale } from "../../i18n/core";
 
@@ -316,13 +317,7 @@ async function startPackRun(p:Record<string,any>,actor:Actor|null) {
     }
     // Shuffle exactly once when the run is created; persistence pins this order.
     // Creator order remains the default for every existing pack.
-    const orderedItems=pack.orderMode==="RANDOM"?[...pack.items]:pack.items;
-    if(pack.orderMode==="RANDOM"){
-      for(let i=orderedItems.length-1;i>0;i--){
-        const j=randomInt(i+1);
-        [orderedItems[i],orderedItems[j]]=[orderedItems[j],orderedItems[i]];
-      }
-    }
+    const orderedItems=orderPackQuestions(pack.items,pack.orderMode as "CREATOR"|"RANDOM");
     const run=await tx.playRun.create({data:{
       id,mode:"PACK",lane:"GENERAL",locale,userId:actor?.id,
       packId:pack.id,packVersion:pack.currentVersion,targetCount:ids.length,
