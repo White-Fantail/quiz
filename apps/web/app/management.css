@@ -12,6 +12,10 @@
 }
 .management-heading>.muted{max-width:760px;margin:0;font-size:1.04rem;line-height:1.72;}
 .management-heading-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:22px;}
+.account-page-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:14px;}
+.account-page-heading h1{margin:15px 0 0;}
+.account-page-heading .account-admin-link{flex-shrink:0;white-space:nowrap;}
+@media(max-width:560px){.account-page-heading{align-items:flex-start;}.account-page-heading .account-admin-link{margin-top:0;}}
 .management-page>.lead{margin:0 0 26px;}
 .management-page>.placeholder-panel{margin-top:18px;}
 .management-page>.placeholder-panel:first-of-type{margin-top:0;}

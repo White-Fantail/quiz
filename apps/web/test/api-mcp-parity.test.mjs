@@ -17,7 +17,7 @@ test("every REST action is exposed as an MCP operation via the shared registry",
   assert.match(mcpSource, /execute\(name, args, actor\)/);
   // Claude may probe with a 2025-era initialize handshake before loading tools.
   // Keep SDK v2 legacy stateless support while retaining modern MCP support.
-  assert.match(mcpSource, /createMcpHandler\([^\n]+\{ legacy: "stateless" \}\)/);
+  assert.match(mcpSource, /createMcpHandler\([\s\S]+?legacy: "stateless"/);
   assert.doesNotMatch(mcpSource, /legacy: "reject"/);
 });
 

@@ -5,6 +5,7 @@ import { auth, mcpResource, siteOrigin } from "../../../src/lib/auth";
 import { actorByIdentity, PlatformError, type Actor } from "../../../src/modules/platform/auth";
 import { execute } from "../../../src/modules/platform/operations";
 import { operations, type Operation } from "../../../src/modules/platform/contracts";
+import { isAllowedMcpOrigin } from "../../../src/lib/mcp-origin";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -34,8 +35,10 @@ function createServer(actor: Actor) {
 
 export const POST = requireMcpAuth(auth, async (request, claims) => {
   const origin = request.headers.get("origin");
-  if (origin && origin !== new URL(siteOrigin).origin)
+  if (!isAllowedMcpOrigin(origin, siteOrigin)) {
+    console.warn("MCP request blocked: untrusted origin");
     return Response.json({ error: "origin_forbidden" }, { status: 403 });
+  }
 
   // The MCP authorization boundary verified signature, issuer, audience,
   // expiration, PKCE-derived grant and the mcp:tools scope.
@@ -44,8 +47,19 @@ export const POST = requireMcpAuth(auth, async (request, claims) => {
   const actor = await actorByIdentity(claims.sub);
   // Serve both 2025-era stateless MCP clients (including Claude connector probes)
   // and 2026-07-28 per-request MCP clients without changing OAuth protection.
-  const handler = createMcpHandler(() => createServer(actor), { legacy: "stateless" });
-  return handler.fetch(request);
+  const handler = createMcpHandler(() => createServer(actor), {
+    legacy: "stateless",
+    onerror: (error) => console.error("MCP handler error", error.name),
+  });
+  const response = await handler.fetch(request);
+  if (response.status >= 400) {
+    console.warn("MCP protocol request failed after OAuth", {
+      status: response.status,
+      protocol: request.headers.get("mcp-protocol-version"),
+      method: request.headers.get("mcp-method"),
+    });
+  }
+  return response;
 }, {
   resource: mcpResource,
   requiredScopes: ["mcp:tools"],

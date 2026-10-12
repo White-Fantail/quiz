@@ -61,14 +61,18 @@ export default async function AccountPage() {
   }
 
   return <main className="container inner-page compact management-page">
-    <span className="small-tag">My QuizDip</span>
-    <h1>{msg("account.title")}</h1>
+    <header className="account-page-heading">
+      <div>
+        <span className="small-tag">My QuizDip</span>
+        <h1>{msg("account.title")}</h1>
+      </div>
+      {isAdmin && <Link href={localizeHref("/admin", locale)} className="btn btn-outline account-admin-link">
+        {msg("account.admin")} <span aria-hidden="true">↗</span>
+      </Link>}
+    </header>
     <p>{msg("account.greeting")} <b>{session.user.name}</b>!</p>
     <p className="muted">{msg("account.identity")}</p>
     <MyStatsPanel />
-    {isAdmin && <div className="actions">
-      <Link href={localizeHref("/admin", locale)} className="btn btn-primary">{msg("account.admin")}</Link>
-    </div>}
     <div className="placeholder-panel">
       <h2>{msg("account.settings")}</h2>
       <p className="muted">{msg("account.settingsHelp")}</p>
