@@ -35,7 +35,7 @@ async function ownerGet<T>(path:string,signal?:AbortSignal):Promise<T>{
 }
 
 /** Client-only play simulation: no POST /play, /runs, /guess, analytics or reviews. */
-export default function StudioQuizPreview({quizId}:{quizId:string}){
+export default function StudioQuizPreview({quizId,detailHref}:{quizId:string;detailHref:string}){
   const locale=useLocale();
   const msg=(en:string,ko:string)=>bilingual(locale,en,ko);
   const [quiz,setQuiz]=useState<Quiz|null>(null);
@@ -121,7 +121,7 @@ export default function StudioQuizPreview({quizId}:{quizId:string}){
   return <main className="container inner-page discover-solo studio-quiz-preview">
     <div className="studio-preview-toolbar">
       <div>
-        <Link className="card-link" href={localizeHref("/studio/quizzes/"+quizId,locale)}>
+        <Link className="card-link" href={detailHref}>
           {msg("← Back to quiz editor","← 문제 관리로 돌아가기")}
         </Link>
         <span className="eyebrow">QUIZDIP STUDIO / PREVIEW</span>
@@ -201,7 +201,7 @@ export default function StudioQuizPreview({quizId}:{quizId:string}){
         <button type="button" className="btn btn-primary" onClick={reset}>
           {msg("Try again","다시 테스트하기")}
         </button>
-        <Link className="btn btn-outline" href={localizeHref("/studio/quizzes/"+quiz.id,locale)}>
+        <Link className="btn btn-outline" href={detailHref}>
           {msg("Back to editing","수정하러 돌아가기")}
         </Link>
       </div>}
