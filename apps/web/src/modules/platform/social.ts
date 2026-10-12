@@ -3,6 +3,7 @@ import { validateMediaReferences } from "./media";
 import { ratingsForQuiz } from "./ratings";
 import { packRatingFor, packRatingsFor } from "./pack-social";
 import { currentPlayableRevision } from "./content-locale";
+import { safePack } from "./feature-eligibility";
 import { fail, requireActor, type Actor } from "./auth";
 import { playableQuizWhere } from "./content-locale";
 
@@ -150,8 +151,15 @@ export async function myPackGet(p:Record<string,any>,actor:Actor|null) {
   }):[];
   const titles=new Map<string,string>();
   for(const revision of revisions)if(!titles.has(revision.quizId))titles.set(revision.quizId,revision.title);
+  let kidsReady=false,kidsIssue="";
+  if(pack.publication==="PUBLISHED"&&["en","ko"].includes(pack.sourceLocale)){
+    try{await safePack(pack.id,pack.sourceLocale as "en"|"ko","KIDS",{skipPackApproval:true});kidsReady=true;}
+    catch(error){kidsIssue=error instanceof Error?error.message:"Kids review prerequisites are not met";}
+  }
   return {id:pack.id,title:pack.title,description:pack.description,
     publication:pack.publication,sourceLocale:pack.sourceLocale,orderMode:pack.orderMode,
+    safetyStatus:pack.safetyStatus,kidsEligible:pack.kidsEligible,
+    kidsReviewStatus:pack.kidsReviewStatus,kidsReady,kidsIssue,
     quizIds:ids,members:ids.map(id=>({id,title:titles.get(id)??id}))};
 }
 export async function packList(p: Record<string, any>, actor: Actor | null) {
@@ -161,7 +169,7 @@ export async function packList(p: Record<string, any>, actor: Actor | null) {
   const where: any = p.mine ? { authorId: actor!.id } : {
     publication: "PUBLISHED",safetyStatus:{not:"RESTRICTED"},
     localizations: { some: { locale, status: "PUBLISHED" } },
-    items: { some: {}, every: { quiz: playableQuizWhere(locale) } }
+    items: { some: { quiz: playableQuizWhere(locale) } }
   };
   const [packs,total] = await Promise.all([
     db().quizPack.findMany({
@@ -170,12 +178,23 @@ export async function packList(p: Record<string, any>, actor: Actor | null) {
     }),
     db().quizPack.count({where})
   ]);
-  const ratingMap=p.mine?new Map():await packRatingsFor(packs.map(pack=>pack.id),locale);
-  return { locale,total,hasMore:p.offset+packs.length<total,items: packs.map(pack => {
-    const l = pack.localizations[0];
+  const allowed=new Map<string,Awaited<ReturnType<typeof safePack>>>();
+  if(!p.mine){
+    for(const pack of packs){
+      try{allowed.set(pack.id,await safePack(pack.id,locale,"GENERAL"));}
+      catch{ /* Restricted and media-withdrawn packs cannot enter public results. */ }
+    }
+  }
+  const visible=p.mine?packs:packs.filter(pack=>allowed.has(pack.id));
+  const ratingMap=p.mine?new Map():await packRatingsFor(visible.map(pack=>pack.id),locale);
+  return { locale,total,hasMore:p.offset+packs.length<total,items: visible.map(pack => {
+    const l = pack.localizations[0], safe=allowed.get(pack.id);
     return { id:pack.id, title: p.mine ? pack.title : l?.title,
       description: p.mine ? pack.description : l?.description,
-      publication:pack.publication,orderMode:pack.orderMode,ratings:ratingMap.get(pack.id)??null, quizIds:pack.items.map(item=>item.quizId) };
+      publication:pack.publication,orderMode:pack.orderMode,
+      safetyStatus:pack.safetyStatus,kidsReviewStatus:pack.kidsReviewStatus,kidsEligible:pack.kidsEligible,
+      ratings:ratingMap.get(pack.id)??null,excludedCount:safe?.excludedCount??0,
+      quizIds: p.mine?pack.items.map(item=>item.quizId):safe!.items.map(item=>item.quizId) };
   }) };
 }
 /** Author confirmation of a legacy pack's ORIGINAL language, never an automatic translation. */
