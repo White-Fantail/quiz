@@ -7,6 +7,7 @@ import { runCurrent } from "../platform/runs";
 import { signedPlayMedia } from "../platform/media";
 import type { Actor } from "../platform/auth";
 import { playableQuizWhere } from "../platform/content-locale";
+import { safePack } from "../platform/feature-eligibility";
 import type { nativeKidFromHeaders } from "./service";
 
 type Kid = Awaited<ReturnType<typeof nativeKidFromHeaders>>;
@@ -30,7 +31,17 @@ async function ownedSession(kid:Kid,sessionId:string,sessionToken:string){
   const entry=await db().playSession.findUnique({where:{id:sessionId},
     include:{quiz:true,revision:{include:{localization:true}}}});
   if(!entry)fail(404,"kid_play_missing","Game session not found");
-  if(entry.runId)await ownedRun(kid,entry.runId);
+  if(entry.runId){
+    await ownedRun(kid,entry.runId);
+    const packRun=await db().playRun.findUnique({where:{id:entry.runId},
+      select:{mode:true,lane:true,packId:true}});
+    if(packRun?.mode==="PACK"){
+      if(packRun.lane!=="KIDS"||!packRun.packId)
+        fail(403,"kid_pack_invalid","This is not an authorized child pack run");
+      await safePack(packRun.packId,kid.profile.locale as "en"|"ko","KIDS",
+        {ageBand:kid.profile.ageBand as "EARLY"|"MIDDLE"|"OLDER"});
+    }
+  }
   else {
     const link=await db().kidPlaySingle.findUnique({where:{sessionId}});
     if(!link || link.profileId!==kid.profileId || link.deviceId!==kid.id)
@@ -120,6 +131,14 @@ export async function startKidSingle(kid:Kid,quizId:string){
 }
 export async function currentKidRun(kid:Kid,runId:string,runToken:string){
   await ownedRun(kid,runId);
+  const reference=await db().playRun.findUnique({where:{id:runId},
+    select:{mode:true,lane:true,packId:true}});
+  if(reference?.mode==="PACK"){
+    if(reference.lane!=="KIDS"||!reference.packId)
+      fail(403,"kid_pack_invalid","Pack play must belong to the Kids lane");
+    await safePack(reference.packId,kid.profile.locale as "en"|"ko","KIDS",
+      {ageBand:kid.profile.ageBand as "EARLY"|"MIDDLE"|"OLDER"});
+  }
   const result=await runCurrent({runId,runToken,locale:kid.profile.locale,avoidQuizIds:[]},childActor(kid)) as any;
   if(result?.lane!=="KIDS" || result?.locale!==kid.profile.locale)
     fail(403,"kid_run_invalid","Mismatched child content lane");
