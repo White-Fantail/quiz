@@ -1,3 +1,4 @@
+import ManagementHeader from "../../../src/components/management-header";
 import Link from "next/link";
 import { headers } from "next/headers";
 import { auth } from "../../../src/lib/auth";
@@ -12,10 +13,8 @@ export default async function StudioPage() {
   const session = await auth.api.getSession({ headers: requestHeaders });
   const locale = resolveLocale(requestHeaders.get("x-quizdip-locale"));
   const msg = (key: Parameters<typeof t>[1]) => t(locale, key);
-  return <main className="container inner-page studio-home">
-    <span className="eyebrow">QUIZDIP STUDIO</span>
-    <h1>{msg("studio.title")}</h1>
-    <p className="lead">{msg("studio.lead")}</p>
+  return <main className="container inner-page studio-home management-page">
+    <ManagementHeader eyebrow="QUIZDIP STUDIO" title={msg("studio.title")} description={msg("studio.lead")}/>
     <div className="actions studio-home-actions">
       <Link href={localizeHref("/studio/weekly", locale)} className="btn btn-outline">{msg("studio.weekly")}</Link>
       <Link href={localizeHref("/studio/media", locale)} className="btn btn-outline">{msg("studio.media")}</Link>

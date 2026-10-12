@@ -25,7 +25,7 @@ export default async function AccountPage() {
   const locale = resolveLocale((await headers()).get("x-quizdip-locale"));
   const msg = (key: Parameters<typeof t>[1]) => t(locale, key);
   if (unavailable) {
-    return <main className="container inner-page compact">
+    return <main className="container inner-page compact management-page">
       <h1>{msg("account.title")}</h1>
       <p role="alert" className="feedback">{msg("account.unavailable")}</p>
       <p className="muted">{msg("account.unavailableHelp")}</p>
@@ -34,7 +34,7 @@ export default async function AccountPage() {
     </main>;
   }
   if (!session) {
-    return <main className="container inner-page compact">
+    return <main className="container inner-page compact management-page">
       <h1>{msg("account.title")}</h1>
       <p>{msg("account.guest")}</p>
       <div className="placeholder-panel">
@@ -59,7 +59,7 @@ export default async function AccountPage() {
     console.error("[account] Could not resolve platform role", error);
   }
 
-  return <main className="container inner-page compact">
+  return <main className="container inner-page compact management-page">
     <span className="small-tag">My QuizDip</span>
     <h1>{msg("account.title")}</h1>
     <p>{msg("account.greeting")} <b>{session.user.name}</b>!</p>

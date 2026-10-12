@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 export default async function StudioQuizPage({ params }: { params: Promise<{quizId: string}> }) {
   const { quizId } = await params;
   const session = await auth.api.getSession({ headers: await headers() });
-  return <main className="container inner-page studio-detail">
+  return <main className="container inner-page studio-detail management-page">
     <Link href="/studio" className="card-link">← 내 문제 목록으로</Link>
     <span className="eyebrow">QUIZDIP STUDIO / QUIZ</span>
     {!session ? <section className="placeholder-panel">

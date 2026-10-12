@@ -1,3 +1,4 @@
+import ManagementHeader from "../../src/components/management-header";
 import { resolveLocale,localizeHref } from "../../src/i18n/core";
 import { bilingual } from "../../src/i18n/view-copy";
 import Link from "next/link";
@@ -19,13 +20,9 @@ export default async function AdminPage() {
   if (actor.role !== "ADMIN") notFound();
 
   return (
-    <section className="container inner-page">
-      <span className="eyebrow">QUIZDIP ADMIN</span>
-      <h1>{msg("Admin dashboard","관리자 대시보드")}</h1>
-      <p className="lead">
-        {msg("Manage content safety, weekly challenges and other platform operations.","콘텐츠 안전성과 주간 챌린지 등 플랫폼 운영 기능을 관리할 수 있어요.")}
-      </p>
-      <div className="cards">
+    <section className="container inner-page management-page">
+      <ManagementHeader eyebrow="QUIZDIP ADMIN" title={msg("Admin dashboard","관리자 대시보드")} description={msg("Manage content safety, weekly challenges and other platform operations.","콘텐츠 안전성과 주간 챌린지 등 플랫폼 운영 기능을 관리할 수 있어요.")}/>
+      <div className="cards management-link-grid">
         <Link href={localizeHref("/admin/quiz-review",locale)} className="feature-card">
           <span className="symbol mint" aria-hidden="true">✓</span>
           <h2>{msg("Quiz and child safety review","문제 및 어린이 안전성 심사")}</h2>
