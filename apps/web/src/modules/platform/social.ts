@@ -231,14 +231,21 @@ export async function packUpdate(p: Record<string, any>, actor: Actor | null) {
   if (p.publication === "PUBLISHED" && p.confirm !== true) fail(400, "confirmation_required", "Confirm publishing the pack");
   await validatePackQuestions(ids, user.id, p.publication === "PUBLISHED" || (old.publication === "PUBLISHED" && p.publication !== "DRAFT"), old.sourceLocale);
   const updated = await db().$transaction(async tx => {
-    if (p.quizIds) {
-      await tx.packQuestion.deleteMany({ where: { packId: old.id } });
-      await tx.packQuestion.createMany({ data: ids.map((quizId, position) => ({ packId: old.id, quizId, position: position + 1 })) });
+    const changed=await tx.quizPack.updateMany({
+      where:{id:old.id,authorId:user.id,currentVersion:old.currentVersion},
+      data:{
+        currentVersion:{increment:1},
+        ...(p.title !== undefined ? {title:p.title}:{}),
+        ...(p.description !== undefined ? {description:p.description}:{}),
+        ...(p.publication ? {publication:p.publication}:{})
+      }
+    });
+    if(changed.count!==1)fail(409,"pack_conflict","This pack changed while you were editing");
+    const pack=await tx.quizPack.findUniqueOrThrow({where:{id:old.id}});
+    if(p.quizIds) {
+      await tx.packQuestion.deleteMany({where:{packId:old.id}});
+      await tx.packQuestion.createMany({data:ids.map((quizId,position)=>({packId:old.id,quizId,position:position+1}))});
     }
-    const pack = await tx.quizPack.update({ where: { id: old.id },
-      data: { ...(p.title !== undefined ? { title: p.title } : {}),
-        ...(p.description !== undefined ? { description: p.description } : {}),
-        ...(p.publication ? { publication: p.publication } : {}) } });
     await tx.quizPackLocalization.updateMany({where:{packId:pack.id,locale:pack.sourceLocale},
       data:{...(p.title !== undefined ? {title:p.title}:{}),
         ...(p.description !== undefined ? {description:p.description}:{}),
