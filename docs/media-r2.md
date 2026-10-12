@@ -65,6 +65,19 @@ Image transformations support crops, Gaussian blur and resize (result WebP), wit
 4. Add an R2 lifecycle expiration rule for keys starting with `uploads/` after **1 day**, cleaning expired staging uploads and chunk objects. Finalized assets use `assets/` and must not be expired by this rule. Set separate storage retention and deletion retry monitoring.
 5. Apply the new Prisma migration `20261011110000_media_assets` after review, then regenerate the Prisma client. Run the root CI checks, direct R2 signed PUT, chunk upload, corrupt file / wrong MIME, presigned URL reuse, rejected content, owner isolation and signed playback E2E against the dev bucket **before** exposing real uploads.
 
+
+## Retention rules for historical quiz media
+
+Immutable QuizRevision rows and play statistics remain in the database. Old versions cannot normally be selected for new standalone games. Media is protected from cleanup while it is referenced by:
+- a current editable revision (including drafts) or a published language version;
+- any unexpired PlaySession, including completed sessions;
+- a pinned PlayRunQuestion in an active, unexpired PlayRun;
+- a submitted or scheduled WeeklyQuestion or WeeklyQuestionLocalization whose weekEnd is in the future.
+
+Older historical-only references may be cleaned up when none of these conditions apply. Current media and historical provenance must not be confused: the MediaAsset record is soft-deleted, retaining status and deletedAt, and a media.delete audit event records actor and timestamp. QuizRevision JSON is left intact, but files belonging exclusively to an old version may no longer be replayable. The final delete validates current protection inside a serializable transaction, and derived children must be deleted before their source. R2 cleanup happens after the database commit. Existing signed URLs expire separately.
+
+The Studio and MCP used/unused filters use this protection policy. They do not mean never-used versus ever-used. Deployment does not automatically delete files; a later explicitly confirmed cleanup is a separate operation.
+
 ## Safety and release limitations
 
 - **Moderation status starts at PENDING** for every uploaded/imported/transformed asset. The current system records an ADMIN review decision, but **does not yet automatically detect** unsafe images, copyrighted material, malware, inappropriate audio/video or policy violations. Human review (or a future real moderation pipeline) is needed for APPROVED. Do not mark content safety as automated.
