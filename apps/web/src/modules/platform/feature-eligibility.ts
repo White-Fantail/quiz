@@ -36,14 +36,6 @@ function ageEligible(value:unknown,band?:KidAgeBand){
   return !(typeof range.minimum==="number"&&age<range.minimum ||
     typeof range.maximum==="number"&&age>range.maximum);
 }
-async function reservedQuizIds(ids:string[]){
-  if(!ids.length)return false;
-  const count=await db().weeklyQuestion.count({where:{
-    quizId:{in:ids},challenge:{status:"SCHEDULED",weekEnd:{gt:new Date()}}
-  }});
-  return count>0;
-}
-
 /** Revalidate publication, localization, safety, age and EVERY asset. No fallback
  * to another language, no feature/editorial or creator authority can override this.
  */
@@ -66,7 +58,7 @@ export async function safePack(id:string,locale:Locale,lane:AudienceLane,
   if(lane==="KIDS"&&pack.sourceLocale!==locale)
     fail(404,"kid_pack_locale","Kids packs require approved original-language content");
   const ids=pack.items.map(i=>i.quizId);
-  if(new Set(ids).size!==ids.length || await reservedQuizIds(ids))
+  if(new Set(ids).size!==ids.length)
     fail(409,"pack_unavailable","Quiz pack is not yet available for play");
   const quizzes=await db().quiz.findMany({where:{
     id:{in:ids},...playableQuizWhere(locale,lane)
@@ -109,7 +101,7 @@ export async function safeQuiz(id:string,locale:Locale,lane:AudienceLane,
       select:{id:true,publishedVersion:true,origin:true}}}});
   if(!quiz||!quiz.localizations[0]||
     (lane==="KIDS"&&!["ORIGINAL","LEGACY"].includes(quiz.localizations[0].origin))||
-    !ageEligible(quiz.recommendedAudience,ageBand)||await reservedQuizIds([id]))
+    !ageEligible(quiz.recommendedAudience,ageBand))
     fail(404,"quiz_unavailable","Quiz is unavailable for this audience");
   const loc=quiz.localizations[0];
   if(loc.publishedVersion==null)fail(409,"quiz_unavailable","Quiz has no published revision");
