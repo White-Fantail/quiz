@@ -7,6 +7,13 @@ export type KidsCatalogItem = {
   clueCount: number; kidsEligible: true;
 };
 export type KidsCatalogPage = { items: KidsCatalogItem[]; hasMore: boolean };
+export type KidPackItem = { id:string;title:string;description:string;questionCount:number;
+  orderMode:"CREATOR"|"RANDOM";kidsEligible:true };
+export type KidsPackCatalog = {items:KidPackItem[];hasMore:boolean;locale:Locale};
+export type KidsFeaturedItem = {id:string;type:"QUIZ"|"PACK";title:string;
+  headline:string;description:string;creator:string;questionCount:number;
+  orderMode?:string;placement:"HERO"|"ROW";label:"Editor's Pick"};
+export type KidsFeaturedCatalog={items:KidsFeaturedItem[]};
 export type KidsCatalogFilters = { answerType?: AnswerType; topic?: string; offset?: number; limit?: number };
 export type HealthStatus = { status: "ok"; service: string };
 
@@ -75,7 +82,7 @@ export type KidQuestion = {sessionId:string;sessionToken:string;quizId:string;
   title:string;prompt:string;promptMediaIds:string[];
   clues:KidClue[];clueIndex:number;clueCount:number;sessionStatus:"ACTIVE"|"SOLVED"|"FAILED";
   canGuess:boolean;options?:string[];round?:number;total?:number;score?:number;runId?:string;runToken?:string};
-export type KidRunStart = {runId:string;runToken:string;mode:"RANDOM_FIVE"|"WEEKLY";
+export type KidRunStart = {runId:string;runToken:string;mode:"RANDOM_FIVE"|"WEEKLY"|"PACK";
   lane:"KIDS";locale:Locale;status:string;total:number;completed:number;score:number};
 export type KidRunResult = {runId:string;status:"FINISHED";completed:number;total:number;
   score:number;solved:number;failed:number;official:false};
@@ -196,6 +203,32 @@ export class QuizDipKidsDeviceApi {
     const safe=raw.filter((x:any)=>x && typeof x.id==="string" &&
       typeof x.title==="string" && typeof x.prompt==="string" && x.kidsEligible===true);
     return {items:safe.slice(0,limit),hasMore:raw.length>limit};
+  }
+
+  async packs(token:string,offset=0,limit=8):Promise<KidsPackCatalog> {
+    if(!Number.isInteger(offset)||offset<0||offset>100000||
+      !Number.isInteger(limit)||limit<1||limit>20)throw new ApiError("invalid_pagination");
+    const params=new URLSearchParams({view:"packs",offset:String(offset),limit:String(limit+1)});
+    const data=await this.request("GET","?"+params,token);
+    if(!Array.isArray(data?.items))throw new ApiError("invalid_response");
+    const safe=data.items.filter((x:any):x is KidPackItem=>
+      !!x&&x.kidsEligible===true&&typeof x.id==="string"&&typeof x.title==="string"&&
+      typeof x.questionCount==="number"&&["CREATOR","RANDOM"].includes(x.orderMode));
+    return {items:safe.slice(0,limit),hasMore:Boolean(data.hasMore),locale:data.locale};
+  }
+  async features(token:string):Promise<KidsFeaturedCatalog> {
+    const data=await this.request("GET","?view=features",token);
+    if(!Array.isArray(data?.items))throw new ApiError("invalid_response");
+    return {items:data.items.filter((x:any):x is KidsFeaturedItem=>
+      x&&["QUIZ","PACK"].includes(x.type)&&x.label==="Editor's Pick"&&
+      typeof x.id==="string"&&typeof x.title==="string"&&typeof x.headline==="string")};
+  }
+  async startPack(token:string,packId:string):Promise<KidRunStart> {
+    const result=await this.playRequest<KidRunStart>(token,{action:"pack_start",packId});
+    if(result?.mode!=="PACK"||result?.lane!=="KIDS"||
+      typeof result.runToken!=="string"||typeof result.runId!=="string")
+      throw new ApiError("invalid_pack_run_response");
+    return result;
   }
 
   private async playRequest<T>(token:string,action:Record<string,unknown>):Promise<T> {
