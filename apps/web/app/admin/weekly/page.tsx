@@ -1,7 +1,11 @@
-import { redirect } from "next/navigation";
+import { redirect, notFound } from "next/navigation";
 import { headers } from "next/headers";
 import { resolveLocale, localizeHref } from "../../../src/i18n/core";
-/** Archived weekly URLs redirect rather than opening a retired scheduling UI. */
+import { actorFor } from "../../../src/modules/platform/auth";
+/** Archived route still independently enforces ADMIN before redirecting. */
 export default async function RetiredWeeklyAdminPage() {
-  redirect(localizeHref("/admin",resolveLocale((await headers()).get("x-quizdip-locale"))));
+  const requestHeaders=await headers();
+  const actor=await actorFor(new Request("http://localhost/admin/weekly",{headers:requestHeaders}));
+  if(!actor || actor.role !== "ADMIN") notFound();
+  redirect(localizeHref("/admin",resolveLocale(requestHeaders.get("x-quizdip-locale"))));
 }
