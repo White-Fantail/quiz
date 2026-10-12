@@ -2,6 +2,7 @@ import { z, ZodError } from "zod";
 import { nativeKidFromHeaders } from "../../../../../src/modules/kids/service";
 import { fail, PlatformError } from "../../../../../src/modules/platform/auth";
 import { requirePlayable } from "../../../../../src/modules/kids/time";
+import { startKidPack } from "../../../../../src/modules/kids/packs";
 import { startKidRun,startKidSingle,currentKidRun,currentKidSingle,
   kidClue,kidGuess,kidMedia,kidTreasures,kidReport } from "../../../../../src/modules/kids/game";
 
@@ -14,6 +15,7 @@ const run={runId:uuid,runToken:token};
 const actions=z.discriminatedUnion("action",[
   z.object({action:z.literal("run_start"),mode:z.literal("RANDOM_FIVE"),
     avoidQuizIds:z.array(uuid).max(1000).default([])}).strict(),
+  z.object({action:z.literal("pack_start"),packId:uuid}).strict(),
   z.object({action:z.literal("run_current"),...run}).strict(),
   z.object({action:z.literal("single_start"),quizId:uuid}).strict(),
   z.object({action:z.literal("single_current"),...session}).strict(),
@@ -49,6 +51,7 @@ export async function POST(request:Request){
    if(data.action!=="report")await requirePlayable(kid);
    switch(data.action){
      case "run_start":return respond(await startKidRun(kid,data.mode,data.avoidQuizIds));
+     case "pack_start":return respond(await startKidPack(kid,data.packId));
      case "run_current":return respond(await currentKidRun(kid,data.runId,data.runToken));
      case "single_start":return respond(await startKidSingle(kid,data.quizId));
      case "single_current":return respond(await currentKidSingle(kid,data.sessionId,data.sessionToken));
