@@ -237,6 +237,7 @@ export default function StudioQuizDetail({quizId}:{quizId:string}){
         </div>
       </div>
       <div className="actions">
+        <Link className="btn btn-primary" href={localizeHref("/studio/quizzes/"+quiz.id+"/edit",locale)}>{msg("Edit question & clues","문제 · 단서 편집")}</Link>
         {quiz.publication!=="PUBLISHED"&&quiz.safetyStatus!=="RESTRICTED"&&<button type="button"
           className="btn btn-primary" disabled={saving||dirty} onClick={()=>void publish()}>{msg("Publish quiz","퀴즈 공개하기")}</button>}
         <Link href={localizeHref("/studio/quizzes/"+quiz.id+"/preview",locale)} className="btn btn-primary">
@@ -327,7 +328,7 @@ export default function StudioQuizDetail({quizId}:{quizId:string}){
         </div>
       </section>
       <div className="studio-save-bar">
-        <p className="muted">{msg("Saving creates a new revision, requiring Kids re-review if previously approved. General visibility stays active. Answer and clue editing is available via API/MCP.","저장하면 새 버전이 생성되어 기존 Kids 승인은 재심사가 필요합니다. 일반 공개는 유지됩니다. 정답·단서는 API/MCP에서 편집할 수 있어요.")}</p>
+        <p className="muted">{msg("Saving creates a new revision, requiring Kids re-review if previously approved. General visibility stays active. Use the separate editor to change the question, answer and clues.","저장하면 새 버전이 생성되어 기존 Kids 승인은 재심사가 필요합니다. 일반 공개는 유지됩니다. 질문·정답·단서는 별도 편집 페이지에서 수정할 수 있어요.")}</p>
         <div className="actions">
           <button type="button" className="btn btn-outline" disabled={!dirty||saving} onClick={()=>{if(original)setForm({...original});}}>{msg("Discard changes","변경 취소")}</button>
           <button className="btn btn-primary" type="submit" disabled={!dirty||saving}>{saving?msg("Saving…","저장 중…"):msg("Save changes","변경사항 저장")}</button>

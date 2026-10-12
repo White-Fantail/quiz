@@ -16,7 +16,9 @@ export default async function StudioPage() {
   return <main className="container inner-page studio-home management-page">
     <ManagementHeader eyebrow="QUIZDIP STUDIO" title={msg("studio.title")} description={msg("studio.lead")}/>
     <div className="actions studio-home-actions">
-      <Link href={localizeHref("/studio/packs", locale)} className="btn btn-primary">{locale==="ko"?"내 퀴즈팩":"My quiz packs"}</Link>
+      <Link href={localizeHref("/studio/quizzes/new", locale)} className="btn btn-primary">{locale==="ko"?"새 문제 만들기":"+ Create quiz"}</Link>
+      <Link href={localizeHref("/studio/packs/new", locale)} className="btn btn-outline">{locale==="ko"?"새 팩 만들기":"+ Create pack"}</Link>
+      <Link href={localizeHref("/studio/packs", locale)} className="btn btn-outline">{locale==="ko"?"내 퀴즈팩":"My quiz packs"}</Link>
       <Link href={localizeHref("/studio/media", locale)} className="btn btn-outline">{msg("studio.media")}</Link>
     </div>
     {!session ? <section className="placeholder-panel">

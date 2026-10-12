@@ -701,3 +701,34 @@ a.feature-card:hover { border-color:#B4AEF7; transform:translateY(-3px); }
  .review-decision-actions {display:grid;grid-template-columns:1fr;}
  .review-decision-actions .btn {width:100%;}
 }
+
+/* Studio quiz authoring: dedicated create and edit routes; no list/editor split view. */
+.studio-quiz-editor {display:grid;gap:22px;padding-bottom:60px;}
+.studio-quiz-editor>.placeholder-panel {margin:0;}
+.studio-quiz-editor .studio-form-grid label {display:grid;gap:8px;min-width:0;}
+.studio-quiz-editor .studio-form-grid textarea {resize:vertical;}
+.studio-quiz-editor .studio-form-grid .studio-wide {grid-column:1/-1;}
+.studio-quiz-editor-actions {display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.studio-quiz-clue-list {display:grid;gap:16px;margin:20px 0;}
+.studio-quiz-clue {border:1px solid var(--border);border-radius:19px;padding:20px;background:#faf9ff;}
+.studio-quiz-clue-head {display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:20px;flex-wrap:wrap;}
+.studio-quiz-clue-head h3 {margin:0;font-size:1.1rem;}
+.studio-quiz-clue-head .actions {display:flex;gap:6px;flex-wrap:wrap;}
+.studio-quiz-clue-head .btn {padding:7px 11px;}
+.studio-quiz-add-clue {display:flex;align-items:end;gap:10px;flex-wrap:wrap;margin:18px 0;}
+.studio-quiz-add-clue label,.studio-quiz-picker-top label {display:grid;gap:6px;color:var(--muted);font-size:.86rem;font-weight:700;}
+.studio-quiz-add-clue select,.studio-quiz-picker-top input {padding:10px 12px;background:white;border:1px solid var(--border);border-radius:10px;min-height:44px;}
+.studio-quiz-media-field {display:flex;align-items:center;gap:12px;flex-wrap:wrap;min-width:0;}
+.studio-quiz-media-field span {font-size:.8rem;color:var(--muted);overflow-wrap:anywhere;}
+.studio-quiz-picker {flex-basis:100%;border:1px solid var(--border);padding:16px;background:white;border-radius:16px;display:grid;gap:12px;}
+.studio-quiz-picker-top {display:flex;align-items:end;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+.studio-quiz-picker-top label {flex:1;min-width:180px;}
+.studio-quiz-media-grid {display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;}
+.studio-media-choice {min-width:0;text-align:left;display:grid;gap:6px;background:white;border:2px solid var(--border);border-radius:12px;padding:9px;color:var(--ink);}
+.studio-media-choice:hover,.studio-media-choice.selected {border-color:var(--purple);}
+.studio-media-choice-preview {height:92px;display:flex;align-items:center;justify-content:center;border-radius:9px;background:#f3f1fb;overflow:hidden;}
+.studio-media-choice-preview img {width:100%;height:100%;object-fit:cover;}
+.studio-media-choice-preview span {font-size:1.8rem;color:var(--purple);}
+.studio-media-choice strong {font-size:.77rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.studio-media-choice small {font-size:.68rem;color:var(--muted);}
+@media(max-width:640px){.studio-quiz-clue {padding:13px;}.studio-quiz-editor .placeholder-panel {padding:20px;}}
