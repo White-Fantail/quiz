@@ -100,7 +100,7 @@ export function rankCandidates(
 
 export function personalSummary(attempts:RankingAttempt[]):PlayerSummary {
   const me={userId:"personal",displayName:"",createdAt:new Date(0)};
-  const normalized=attempts.map(a=>({...a,userId:"personal"}));
+  const normalized=attempts.filter(a=>a.userId!==a.authorId).map(a=>({...a,userId:"personal"}));
   const solved=rankCandidates([me],normalized,"solved")[0];
   return solved?{
     solved:solved.solved,finished:solved.finished,failed:solved.failed,
