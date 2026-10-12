@@ -293,7 +293,7 @@ export default function PlayPage() {
         </ol>
         {!isDone&&round.clueIndex<round.clueCount&&
           <button type="button" className="btn btn-outline" disabled={busy} onClick={()=>void reveal()}>
-            단서 하나 더 보기</button>}
+            {msg("Reveal another clue","단서 하나 더 보기")}</button>}
         {!isDone&&<form className="guess-form" onSubmit={e=>void check(e)}>
           <label htmlFor="quizdip-answer">{msg("What's your answer?","정답은 무엇일까요?")}</label>
           <div className="guess-row">
@@ -301,7 +301,7 @@ export default function PlayPage() {
               autoComplete="off" placeholder={msg("Enter your answer","정답을 입력해 보세요")} maxLength={200}
               disabled={busy||mustReveal}/>
             <button type="submit" className="btn btn-primary" disabled={busy||mustReveal||!guess.trim()}>
-              정답 확인</button>
+              {msg("Check answer","정답 확인")}</button>
           </div>
         </form>}
         {feedback&&<div className={"feedback "+(answer&&roundScore>0?"success":"")} role="status">

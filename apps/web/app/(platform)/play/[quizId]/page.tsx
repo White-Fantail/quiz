@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useLocale } from "../../../../src/i18n/provider";
 import { localizeHref } from "../../../../src/i18n/core";
+import { bilingual } from "../../../../src/i18n/view-copy";
 import { RatingBadge, RatingButtons, RatingSignIn, type RatingAccess } from "../../../../src/components/quiz-ratings";
 import type { RatingSummary } from "../../../../src/modules/quiz/rating-metadata";
 import { useParams } from "next/navigation";
@@ -15,7 +16,7 @@ type Session = { sessionId: string; sessionToken: string; title: string;
   ratings:RatingSummary;myRating:number|null;ratingAccess:RatingAccess;isTranslation?:boolean;myTranslationRating?:number|null };
 type Media = { mediaId:string; url:string; kind:string };
 
-async function api(path: string, body: unknown): Promise<any> {
+async function api(path: string, body: unknown,locale:"en"|"ko"="en"): Promise<any> {
   const response = await fetch("/api/v1" + path, {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body), cache: "no-store", credentials: "same-origin"
@@ -23,15 +24,17 @@ async function api(path: string, body: unknown): Promise<any> {
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
     if (payload.error === "weekly_reserved")
-      throw new Error("이번 주 공식 챌린지에 포함된 문제예요. Play에서 주간 도전에 참여해 주세요.");
+      throw new Error(bilingual(locale,"This quiz is in the official weekly challenge. Join it from Play.","이번 주 공식 챌린지에 포함된 문제예요. Play에서 주간 도전에 참여해 주세요."));
     if (payload.error === "not_for_kids")
-      throw new Error("이 퀴즈는 아직 어린이 모드 안전성 승인을 받지 않았어요.");
-    throw new Error(payload.message || "퀴즈를 진행하지 못했어요.");
+      throw new Error(bilingual(locale,"This quiz is not yet approved for Kids play.","이 퀴즈는 아직 어린이 모드 안전성 승인을 받지 않았어요."));
+    throw new Error(payload.message || bilingual(locale,"Could not start this quiz.","퀴즈를 진행하지 못했어요."));
   }
   return payload.data;
 }
 export default function SingleQuizPage() {
   const locale = useLocale();
+  const msg=(en:string,ko:string)=>bilingual(locale,en,ko);
+  const request=(path:string,body:unknown)=>request(path,body,locale);
   const { quizId } = useParams<{ quizId: string }>();
   const [session, setSession] = useState<Session | null>(null);
   const [clues, setClues] = useState<Clue[]>([]);
@@ -50,19 +53,19 @@ export default function SingleQuizPage() {
     setSession(null); setClues([]); setMedia({}); setBusy(true); setError("");
     setGuess(""); setFeedback(""); setMustReveal(false); setAnswer(""); setScore(0); setStatus("ACTIVE");
     const kids = new URLSearchParams(window.location.search).get("kids") === "true";
-    void api("/play", { quizId, kids, locale }).then((next:Session) => {
+    void request("/play", { quizId, kids, locale }).then((next:Session) => {
       if (!active) return;
       setSession(next);
       setClues([next.clue]);
       const ids = [...next.promptMediaIds, next.clue.mediaId].filter((id):id is string => !!id);
       void Promise.all([...new Set(ids)].map(async id => {
         try {
-          const asset = await api("/play/" + next.sessionId + "/media",
+          const asset = await request("/play/" + next.sessionId + "/media",
             { sessionToken: next.sessionToken, mediaId: id });
           if (active) setMedia(old => ({ ...old, [id]: asset }));
         } catch { /* Missing or restricted assets are never treated as public URLs. */ }
       }));
-    }).catch(e => { if (active) setError(e instanceof Error ? e.message : "퀴즈를 시작하지 못했어요."); })
+    }).catch(e => { if (active) setError(e instanceof Error ? e.message : msg("Could not start this quiz.","퀴즈를 시작하지 못했어요.")); })
       .finally(() => { if (active) setBusy(false); });
     return () => { active = false; };
   }, [quizId,locale]);
@@ -71,7 +74,7 @@ export default function SingleQuizPage() {
     if (!session) return;
     setBusy(true); setError("");
     try {
-      const result = await api("/play/" + session.sessionId + "/clue",
+      const result = await request("/play/" + session.sessionId + "/clue",
         { sessionToken: session.sessionToken });
       const clue = result.clue as Clue;
       setClues(old => [...old, clue]);
@@ -79,12 +82,12 @@ export default function SingleQuizPage() {
       setMustReveal(false); setFeedback(""); setGuess("");
       if (clue.mediaId) {
         try {
-          const asset = await api("/play/" + session.sessionId + "/media",
+          const asset = await request("/play/" + session.sessionId + "/media",
             { sessionToken: session.sessionToken, mediaId: clue.mediaId });
           setMedia(old => ({ ...old, [clue.mediaId!]: asset }));
         } catch { /* Keep the revealed clue even if its media cannot load. */ }
       }
-    } catch (e) { setError(e instanceof Error ? e.message : "단서를 열지 못했어요."); }
+    } catch (e) { setError(e instanceof Error ? e.message : msg("Could not reveal the next clue.","단서를 열지 못했어요.")); }
     finally { setBusy(false); }
   }
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -92,36 +95,36 @@ export default function SingleQuizPage() {
     if (!session || !guess.trim() || mustReveal) return;
     setBusy(true); setError("");
     try {
-      const result = await api("/play/" + session.sessionId + "/guess",
+      const result = await request("/play/" + session.sessionId + "/guess",
         { sessionToken: session.sessionToken, guess: guess.trim() });
       if (result.status === "ACTIVE") {
-        setFeedback("아직 아니야! 다음 단서를 보고 다시 추리해 봐.");
+        setFeedback(msg("Not quite! Reveal the next clue and try again.","아직 아니야! 다음 단서를 보고 다시 추리해 봐."));
         setMustReveal(true);
       } else {
         setStatus(result.status);
         setAnswer(result.answer ?? "");
         setScore(result.score ?? 0);
-        setFeedback(result.correct ? "정답이야! 알아냈네! 🎉" : "아쉽지만 이번 퀴즈는 여기까지야.");
+        setFeedback(result.correct ? msg("Correct! You got it! 🎉","정답이야! 알아냈네! 🎉") : msg("That's the end of this quiz. Try another!","아쉽지만 이번 퀴즈는 여기까지야."));
       }
-    } catch (e) { setError(e instanceof Error ? e.message : "정답을 확인하지 못했어요."); }
+    } catch (e) { setError(e instanceof Error ? e.message : msg("Could not check your answer.","정답을 확인하지 못했어요.")); }
     finally { setBusy(false); }
   }
   function clueMedia(id: string) {
     const asset = media[id];
-    if (!asset) return <p className="muted">미디어를 불러올 수 없어요.</p>;
-    if (asset.kind === "image") return <img className="round-media" src={asset.url} alt="퀴즈 단서 이미지"/>;
+    if (!asset) return <p className="muted">{msg("Could not load this media.","미디어를 불러올 수 없어요.")}</p>;
+    if (asset.kind === "image") return <img className="round-media" src={asset.url} alt={bilingual(locale,"Quiz clue image","퀴즈 단서 이미지")}/>;
     if (asset.kind === "audio") return <audio className="round-audio" src={asset.url} controls preload="none"/>;
     if (asset.kind === "video") return <video className="round-media" src={asset.url} controls preload="metadata"/>;
     return null;
   }
   return <main className="container inner-page discover-solo">
     <span className="eyebrow">QUIZDIP · PLAY</span>
-    <Link className="card-link" href={localizeHref("/discover",locale)}>← 다른 퀴즈 둘러보기</Link>
-    {busy && !session && <p className="muted" role="status">퀴즈를 준비하고 있어요…</p>}
+    <Link className="card-link" href={localizeHref("/discover",locale)}>{msg("← Discover more quizzes","← 다른 퀴즈 둘러보기")}</Link>
+    {busy && !session && <p className="muted" role="status">{msg("Preparing your quiz…","퀴즈를 준비하고 있어요…")}</p>}
     {session && <section className="play-panel" aria-live="polite">
       <div className="play-top">
-        <span className="small-tag">단계별 단서</span>
-        <span className="clue-count">단서 {session.clueIndex} / {session.clueCount}</span>
+        <span className="small-tag">{msg("Progressive clues","단계별 단서")}</span>
+        <span className="clue-count">{msg("Clue ","단서 ")}{session.clueIndex} / {session.clueCount}</span>
         <RatingBadge ratings={session.ratings}/>
       </div>
       <h1>{session.title}</h1>
@@ -137,30 +140,30 @@ export default function SingleQuizPage() {
             <a target="_blank" rel="noopener noreferrer"
               href={"https://www.openstreetmap.org/?mlat=" + clue.map.latitude +
                 "&mlon=" + clue.map.longitude + "#map=" + (clue.map.zoom ?? 8) +
-                "/" + clue.map.latitude + "/" + clue.map.longitude}>지도 단서 보기 ↗</a>
+                "/" + clue.map.latitude + "/" + clue.map.longitude}>{msg("View map clue ↗","지도 단서 보기 ↗")}</a>
           </div>}
         </li>)}
       </ol>
       {status === "ACTIVE" && session.clueIndex < session.clueCount &&
         <button type="button" className="btn btn-outline" disabled={busy}
-          onClick={() => void reveal()}>힌트 하나 더 볼까?</button>}
+          onClick={() => void reveal()}>{msg("Reveal another clue","힌트 하나 더 볼까?")}</button>}
       {status === "ACTIVE" && <form className="guess-form" onSubmit={e => void submit(e)}>
-        <label htmlFor="single-quiz-answer">정답은 무엇일까요?</label>
+        <label htmlFor="single-quiz-answer">{msg("What's your answer?","정답은 무엇일까요?")}</label>
         <div className="guess-row">
           <input id="single-quiz-answer" maxLength={200} autoComplete="off"
             value={guess} onChange={e => setGuess(e.target.value)}
-            disabled={busy || mustReveal} placeholder="정답을 입력해 봐"/>
+            disabled={busy || mustReveal} placeholder={msg("Type your answer","정답을 입력해 봐")}/>
           <button className="btn btn-primary" type="submit"
-            disabled={busy || mustReveal || !guess.trim()}>정답 확인</button>
+            disabled={busy || mustReveal || !guess.trim()}>{msg("Check answer","정답 확인")}</button>
         </div>
-        {mustReveal && <p className="muted">새로운 단서를 열면 다시 답할 수 있어요.</p>}
+        {mustReveal && <p className="muted">{msg("Reveal another clue before trying again.","새로운 단서를 열면 다시 답할 수 있어요.")}</p>}
       </form>}
       {feedback && <div className={"feedback" + (status === "SOLVED" ? " success" : "")} role="status">
         {feedback}
-        {status !== "ACTIVE" && <p>정답: <strong>{answer}</strong> · {score}점</p>}
+        {status !== "ACTIVE" && <p>{msg("Answer: ","정답: ")}<strong>{answer}</strong> · {score}{msg(" pts","점")}</p>}
       </div>}
       {status !== "ACTIVE" && <div className="single-rating-review">
-        <h3>이 문제는 어땠나요?</h3>
+        <h3>{msg("How was this quiz?","이 문제는 어땠나요?")}</h3>
         <RatingButtons quizId={quizId} locale={locale} initialRating={session.myRating} access={session.ratingAccess}
           onSaved={(ratings,value)=>setSession(old=>old?{...old,ratings,myRating:value}:old)}/>
         {session.isTranslation&&<div className="translation-quality-feedback">
@@ -171,8 +174,8 @@ export default function SingleQuizPage() {
         {session.ratingAccess==="SIGN_IN"&&<RatingSignIn destination={localizeHref("/play/"+quizId,locale)}/>}
       </div>}
       {status !== "ACTIVE" && <div className="actions">
-        <Link className="btn btn-primary" href={localizeHref("/discover",locale)}>다른 퀴즈 발견하기 →</Link>
-        <Link className="btn btn-outline" href={localizeHref("/play",locale)}>랜덤 5문제 도전하기</Link>
+        <Link className="btn btn-primary" href={localizeHref("/discover",locale)}>{msg("Discover more quizzes →","다른 퀴즈 발견하기 →")}</Link>
+        <Link className="btn btn-outline" href={localizeHref("/play",locale)}>{msg("Play five random quizzes","랜덤 5문제 도전하기")}</Link>
       </div>}
     </section>}
     {error && <p className="feedback" role="alert">{error}</p>}
