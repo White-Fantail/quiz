@@ -17,7 +17,7 @@ Media is a **first-class asset** referenced by ID from both the quiz prompt and 
 | Reserve binary upload and get 5-min presigned R2 PUT URL | POST /api/v1/media/upload | `quizdip_media_upload` |
 | Upload a base64 chunk (when client cannot PUT binary) | POST /api/v1/media/:id/chunk | `quizdip_media_chunk` |
 | Verify original SHA-256, MIME and size; seal immutable object | POST /api/v1/media/:id/complete | `quizdip_media_complete` |
-| Import from an explicitly allowed HTTPS host | POST /api/v1/media/import | `quizdip_media_import` |
+| Import from a curated image CDN or configured exact HTTPS host | POST /api/v1/media/import | `quizdip_media_import` |
 | List own assets | GET /api/v1/media | `quizdip_media_list` |
 | Read own asset + signed preview | GET /api/v1/media/:id | `quizdip_media_get` |
 | Change accessible text / attribution (resets approval) | PATCH /api/v1/media/:id | `quizdip_media_update` |
@@ -40,7 +40,8 @@ The authenticated Studio web media library is available at `/studio/media`. A cr
 4. Call `quizdip_media_complete` with `id` and `partCount` only for chunked uploads (no partCount for presigned PUT). Server reads R2, verifies original exact size, SHA-256 and actual MIME signature, then finalizes at a **different non-uploadable key**. Changing a staging object later cannot modify the finalized asset.
 5. Add the ID to a quiz's `promptMediaIds` and/or media clues, and save as draft. Use `quizdip_media_get` for the author-only preview.
 6. Public media exposure requires **APPROVED** moderation. A restricted asset cannot be used. A quiz with PENDING media cannot be published publicly until reviewed; the administrator can review through `media_review` with a recorded reason. New derived images begin in PENDING. Kids mode still requires separate **quiz-level** eligibility approval.
-7. To import an asset from an approved third-party source, use `quizdip_media_import`. It is **disabled unless** `MEDIA_IMPORT_HOSTS` names that exact HTTPS host. The server resolves DNS once and pins a public IP for TLS fetch, rejects redirects, credentials, unsupported file types and over-size content. Copyright/license metadata must be provided as appropriate; permissions are the creator's responsibility.
+7. To import an image from an approved third-party source, use `quizdip_media_import` or Studio → Media → **Import an image from a URL**. Curated exact image-only CDN hosts are `upload.wikimedia.org`, `images.unsplash.com`, `images.pexels.com` and `cdn.pixabay.com`. Extra trusted hosts can be added with `MEDIA_IMPORT_HOSTS` (comma-separated exact hostnames). The server resolves DNS, checks every returned address, pins a verified public IP for TLS fetch, and rejects redirects, credentials, unsupported file types and over-size content. Audio/video imports are NOT automatically allowed from the curated image hosts. Each creator must verify and supply copyright/licence metadata; importing an image does not grant rights to reuse it.
+8. For other image providers, users can download a licensed file and use direct upload. Studio provides outbound search links to public photo sources, not a built-in provider search API yet. Browser UI requires the importing user to acknowledge permission and provide attribution and licence; server-side media safety approval is still independent of that acknowledgement.
 
 Size limits: **images 12 MiB**, **audio 25 MiB**, **video 64 MiB**. Accepted formats: JPEG, PNG, WebP, MP3, WAV, OGG audio, MP4, WebM. All require detectable matching binary signatures. Limits, upload expiration and daily per-user request quota are server-enforced.
 
@@ -55,9 +56,11 @@ Image transformations support crops, Gaussian blur and resize (result WebP), wit
    R2_ACCESS_KEY_ID=...
    R2_SECRET_ACCESS_KEY=...
    R2_BUCKET=quizdip-media-dev
+   # Built-in image-only CDN hosts are curated in src/modules/platform/import-hosts.ts.
+   # Use this variable only to grant additional exact hostnames (no wildcards).
    MEDIA_IMPORT_HOSTS=
    ```
-   Use literal `MEDIA_IMPORT_HOSTS=example-media-cdn.com,another-approved-cdn.com` only for carefully trusted HTTPS hosts; leave empty initially. No wildcard.
+   Curated image hosts work with an empty `MEDIA_IMPORT_HOSTS` once this code is deployed. Optional additional sources use literal `MEDIA_IMPORT_HOSTS=additional-approved-cdn.example` only after reviewing host security and licensing terms. Never allow wildcard, private hosts or subdomain-suffix matching. Changes to environment variables require a new deployment to reach running functions. The Vercel account must have the appropriate project/team permissions.
 3. Configure R2 **bucket CORS** for your exact web origin(s), methods PUT and GET as needed; allow request header `content-type`. The R2 presign does not require S3 SHA-256 checksum headers; QuizDip independently verifies the complete SHA-256 before final storage. Restrict allowed origin to dev and prod site URLs (separately). CORS applies to browser PUT, not server-to-server MCP uploads.
 4. Add an R2 lifecycle expiration rule for keys starting with `uploads/` after **1 day**, cleaning expired staging uploads and chunk objects. Finalized assets use `assets/` and must not be expired by this rule. Set separate storage retention and deletion retry monitoring.
 5. Apply the new Prisma migration `20261011110000_media_assets` after review, then regenerate the Prisma client. Run the root CI checks, direct R2 signed PUT, chunk upload, corrupt file / wrong MIME, presigned URL reuse, rejected content, owner isolation and signed playback E2E against the dev bucket **before** exposing real uploads.
