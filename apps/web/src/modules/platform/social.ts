@@ -127,7 +127,7 @@ export async function packCreate(p: Record<string, any>, actor: Actor | null) {
   await validatePackQuestions(p.quizIds, user.id);
   const pack = await db().quizPack.create({
     data: { authorId: user.id, title: p.title, description: p.description,
-      sourceLocale: p.locale,
+      sourceLocale: p.locale,orderMode:p.orderMode,
       localizations: { create: { locale: p.locale, title: p.title, description: p.description, status: "DRAFT" } },
       items: { create: p.quizIds.map((quizId: string, index: number) => ({ quizId, position: index + 1 })) } },
     include: { items: { orderBy: { position: "asc" } } }
@@ -151,7 +151,7 @@ export async function packList(p: Record<string, any>, actor: Actor | null) {
     const l = pack.localizations[0];
     return { id:pack.id, title: p.mine ? pack.title : l?.title,
       description: p.mine ? pack.description : l?.description,
-      publication:pack.publication, quizIds:pack.items.map(item=>item.quizId) };
+      publication:pack.publication,orderMode:pack.orderMode, quizIds:pack.items.map(item=>item.quizId) };
   }) };
 }
 /** Author confirmation of a legacy pack's ORIGINAL language, never an automatic translation. */
@@ -237,6 +237,7 @@ export async function packUpdate(p: Record<string, any>, actor: Actor | null) {
         currentVersion:{increment:1},
         ...(p.title !== undefined ? {title:p.title}:{}),
         ...(p.description !== undefined ? {description:p.description}:{}),
+        ...(p.orderMode !== undefined ? {orderMode:p.orderMode}:{}),
         ...(p.publication ? {publication:p.publication}:{})
       }
     });
@@ -253,7 +254,7 @@ export async function packUpdate(p: Record<string, any>, actor: Actor | null) {
     await tx.auditLog.create({ data: { actorId: user.id, action: "pack.update", objectId: pack.id } });
     return pack;
   });
-  return { id: updated.id, title: updated.title, publication: updated.publication, quizIds: ids };
+  return { id: updated.id, title: updated.title, publication: updated.publication, orderMode:updated.orderMode, quizIds: ids };
 }
 
 /** Dry-run pack publication with creator-only draft ownership and no side effects. */
@@ -360,6 +361,6 @@ export async function packGet(p:Record<string,any>,actor:Actor|null){
     fail(404,"pack_unavailable","A pack question is unavailable in this language");
   return {id:pack.id,title:pack.localizations[0].title,
     description:pack.localizations[0].description,author:pack.author,
-    questionCount:pack.items.length,locale,publication:pack.publication,
+    questionCount:pack.items.length,orderMode:pack.orderMode,locale,publication:pack.publication,
     currentVersion:pack.currentVersion};
 }
