@@ -19,7 +19,21 @@ The `apps/kids` Expo app supports **iOS, Android and a development-only browser 
 
 From repository root run `npm install` and `npm run kids:dev`. Press **w** for the interactive browser preview at `http://localhost:8081` (local machine only). Preview home, explore, challenge, sample clues/answers, treasures and language switching. To test the real Kids app, scan the QR code **with Expo Go on your iPad/phone** on the same Wi-Fi. The real app still requires guardian pairing and OS SecureStore.
 
-When updating local dependencies: `git pull --ff-only origin dev`, `npm install` in the root, then `cd apps/kids && npx expo start --clear`. The cache-empty warning after a clean start is normal. To validate web bundling run `npm run kids:bundle:web`; exported preview assets **must not be deployed** to the public website. iOS/Android and physical-device tests are independent, and Expo export is not a signed device build.
+When updating local dependencies: `git pull --ff-only origin dev`, `npm install` in the root, then `cd apps/kids && npx expo start --clear`. The cache-empty warning after a clean start is normal.
+
+### Fix `Unable to resolve "react-native-web/dist/index"` on an existing Mac checkout
+
+This means the local dependency tree is missing the browser adapter, even if Expo prints a Web URL. The `apps/kids/package.json` workspace now declares Expo's supported `react-native-web@^0.21.2`. From the **repository root**, stop Metro and run:
+
+```sh
+git switch dev
+git pull --ff-only origin dev
+npm install
+npm ls react-native-web react-dom @expo/metro-runtime --workspace @quizdip/kids
+```
+
+All three modules should appear without a `missing`/ `UNMET DEPENDENCY` error. If `react-native-web` is still missing, explicitly repair this workspace with `npm install --workspace @quizdip/kids 'react-native-web@^0.21.2'` and check `npm ls` again. Then run `cd apps/kids && npx expo start --clear` and press **w**. Avoid mixing pnpm/yarn and npm installs in this npm-workspace repo. CI tests a fresh installation, but cannot repair stale local `node_modules` on the Mac.
+ To validate web bundling run `npm run kids:bundle:web`; exported preview assets **must not be deployed** to the public website. iOS/Android and physical-device tests are independent, and Expo export is not a signed device build.
 
 Start an iOS Simulator, Android emulator, or Expo Go on a device from the Expo CLI. A parent signs in using the **external system browser** to QuizDip's existing Better Auth Google/Apple web login. In `/en/account/kids` or `/ko/account/kids`, the parent creates a profile and a six-digit PIN, chooses the profile, enters the PIN, and generates a high-entropy one-time pairing code. The code expires in five minutes. The Kids native app accepts that code and a device name, obtains a **child-only credential**, stores it in OS SecureStore, and validates it on startup and foreground before opening Kids screens. The parent may revoke the device in the same web parent panel. The app's Parent Gate needs the same guardian PIN to revoke the local device session and return to setup.
 
