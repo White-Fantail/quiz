@@ -1,4 +1,5 @@
 import { db } from "./db";
+import { validateMediaReferences } from "./media";
 import { ratingsForQuiz } from "./ratings";
 import { currentPlayableRevision } from "./content-locale";
 import { fail, requireActor, type Actor } from "./auth";
@@ -246,4 +247,90 @@ export async function packUpdate(p: Record<string, any>, actor: Actor | null) {
     return pack;
   });
   return { id: updated.id, title: updated.title, publication: updated.publication, quizIds: ids };
+}
+
+/** Dry-run pack publication with creator-only draft ownership and no side effects. */
+export async function packPublishPreview(p:Record<string,any>,actor:Actor|null) {
+  const user=requireActor(actor);
+  const pack=await db().quizPack.findFirst({where:{id:p.id,authorId:user.id},
+    include:{items:{orderBy:{position:"asc"}},localizations:true}});
+  if(!pack)fail(404,"not_found","Owned pack not found");
+  const ids=pack.items.map(i=>i.quizId);
+  const issues:string[]=[];
+  if(!ids.length)issues.push("empty_pack");
+  if(new Set(ids).size!==ids.length)issues.push("duplicate_quiz");
+  if(pack.sourceLocale==="und")issues.push("unclassified_pack_locale");
+  const questions=await db().quiz.findMany({where:{id:{in:ids}},
+    include:{localizations:true}});
+  const byId=new Map(questions.map(q=>[q.id,q]));
+  const drafts:string[]=[];
+  for(const id of ids) {
+    const q=byId.get(id);
+    if(!q){issues.push("missing_quiz:"+id);continue;}
+    if(q.safetyStatus==="RESTRICTED")issues.push("restricted_quiz:"+id);
+    if(q.publication!=="PUBLISHED") {
+      if(q.authorId!==user.id)issues.push("unowned_draft:"+id);
+      else drafts.push(id);
+    }
+    if(q.sourceLocale!==pack.sourceLocale && q.publication!=="PUBLISHED")
+      issues.push("draft_locale_mismatch:"+id);
+    const loc=q.localizations.find(l=>l.locale===pack.sourceLocale);
+    if(!loc || (q.publication==="PUBLISHED" && loc.status!=="PUBLISHED"))
+      issues.push("missing_locale:"+id);
+    const revision=await db().quizRevision.findFirst({where:{quizId:id,version:q.currentVersion,
+      localization:{locale:pack.sourceLocale}},select:{promptMediaIds:true,clues:true}});
+    if(!revision){issues.push("missing_revision:"+id);continue;}
+    try{await validateMediaReferences(q.authorId,revision.promptMediaIds as string[],revision.clues as any[],true);}
+    catch{issues.push("invalid_media:"+id);}
+  }
+  if(drafts.length && user.role!=="ADMIN"){
+    const recent=await db().auditLog.count({where:{actorId:user.id,
+      action:{in:["quiz.publish","pack.quiz.publish"]},createdAt:{gte:new Date(Date.now()-86400000)}}});
+    if(recent+drafts.length>100)issues.push("daily_publication_limit");
+  }
+  return {id:pack.id,locale:pack.sourceLocale,questionCount:ids.length,
+    draftCount:drafts.length,draftIds:drafts,issues,ready:issues.length===0};
+}
+
+/** Confirmed all-or-nothing pack + owned-draft release. Never approves Kids content. */
+export async function packPublish(p:Record<string,any>,actor:Actor|null){
+  const user=requireActor(actor);
+  if(p.confirm!==true)fail(400,"confirmation_required","Confirm bulk publication");
+  const preview=await packPublishPreview(p,actor);
+  if(!preview.ready)fail(409,"pack_not_ready",preview.issues.join(", "));
+  return db().$transaction(async tx=>{
+    const pack=await tx.quizPack.findFirst({where:{id:p.id,authorId:user.id},
+      include:{items:{orderBy:{position:"asc"}}}});
+    if(!pack)fail(404,"not_found","Pack no longer exists");
+    const ids=pack.items.map(i=>i.quizId);
+    if(ids.length!==preview.questionCount || new Set(ids).size!==ids.length)
+      fail(409,"pack_changed","Pack membership changed; preview again");
+    const questions=await tx.quiz.findMany({where:{id:{in:ids}}});
+    const draftIds=questions.filter(q=>q.publication!=="PUBLISHED").map(q=>q.id);
+    if(draftIds.length!==preview.draftCount || draftIds.some(id=>!preview.draftIds.includes(id)))
+      fail(409,"pack_changed","Pack questions changed; preview again");
+    for(const q of questions){
+      if(q.safetyStatus==="RESTRICTED")fail(409,"restricted_quiz","A pack question is restricted");
+      if(q.publication!=="PUBLISHED"){
+        if(q.authorId!==user.id || q.sourceLocale!==pack.sourceLocale)
+          fail(403,"unowned_draft","Only owned original-language drafts can be published");
+        const changed=await tx.quiz.updateMany({where:{id:q.id,publication:q.publication,currentVersion:q.currentVersion},
+          data:{publication:"PUBLISHED",kidsEligible:false,safetyStatus:"PENDING"}});
+        if(changed.count!==1)fail(409,"quiz_changed","Quiz changed while publishing");
+        await tx.quizLocalization.updateMany({where:{quizId:q.id,locale:pack.sourceLocale},
+          data:{status:"PUBLISHED",publishedVersion:q.currentVersion}});
+        await tx.auditLog.create({data:{actorId:user.id,action:"pack.quiz.publish",objectId:q.id,
+          detail:{packId:pack.id}}});
+      }
+    }
+    const changed=await tx.quizPack.updateMany({where:{id:pack.id,authorId:user.id,
+      publication:pack.publication,updatedAt:pack.updatedAt},data:{publication:"PUBLISHED"}});
+    if(changed.count!==1)fail(409,"pack_changed","Pack changed during publication");
+    await tx.quizPackLocalization.updateMany({where:{packId:pack.id,locale:pack.sourceLocale},
+      data:{status:"PUBLISHED"}});
+    await tx.auditLog.create({data:{actorId:user.id,action:"pack.publish",objectId:pack.id,
+      detail:{quizCount:ids.length,draftCount:draftIds.length,confirmed:true}}});
+    return {id:pack.id,publication:"PUBLISHED",quizCount:ids.length,
+      publishedDraftCount:draftIds.length,kidsEligibility:"INDEPENDENT_REVIEW_REQUIRED"};
+  });
 }
