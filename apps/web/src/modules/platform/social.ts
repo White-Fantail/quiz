@@ -341,3 +341,25 @@ export async function packPublish(p:Record<string,any>,actor:Actor|null){
       publishedDraftCount:draftIds.length,kidsEligibility:"INDEPENDENT_REVIEW_REQUIRED"};
   });
 }
+
+/** Public spoiler-safe pack details. The full pack must be playable in the requested locale. */
+export async function packGet(p:Record<string,any>,actor:Actor|null){
+  const locale=p.locale as "en"|"ko";
+  const pack=await db().quizPack.findFirst({
+    where:{id:p.id,publication:"PUBLISHED",
+      localizations:{some:{locale,status:"PUBLISHED"}}},
+    include:{author:{select:{id:true,displayName:true}},
+      localizations:{where:{locale,status:"PUBLISHED"},select:{title:true,description:true}},
+      items:{orderBy:{position:"asc"},select:{quizId:true}}}
+  });
+  if(!pack||!pack.items.length||!pack.localizations[0])
+    fail(404,"not_found","Published quiz pack is unavailable");
+  const eligible=await db().quiz.count({where:{id:{in:pack.items.map(item=>item.quizId)},
+    ...playableQuizWhere(locale)}});
+  if(eligible!==pack.items.length)
+    fail(404,"pack_unavailable","A pack question is unavailable in this language");
+  return {id:pack.id,title:pack.localizations[0].title,
+    description:pack.localizations[0].description,author:pack.author,
+    questionCount:pack.items.length,locale,publication:pack.publication,
+    currentVersion:pack.currentVersion};
+}
