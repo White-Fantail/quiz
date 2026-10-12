@@ -10,7 +10,7 @@ export function Screen({title,subtitle,headerAction,children}:PropsWithChildren<
       <View style={styles.body}>
         <View style={styles.headerRow}>
           <Text accessibilityRole="header" numberOfLines={2}
-            style={[styles.title,{fontSize:width>=700?36:29},headerAction&&styles.titleWithAction]}>{title}</Text>
+            style={[styles.title,{fontSize:width>=700?36:29},headerAction?styles.titleWithAction:undefined]}>{title}</Text>
           {headerAction?<View style={styles.headerAction}>{headerAction}</View>:null}
         </View>
         {subtitle?<Text style={styles.subtitle}>{subtitle}</Text>:null}
