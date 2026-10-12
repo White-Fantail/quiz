@@ -12,7 +12,7 @@ export default async function QuizReviewPage(){
   const actor=await actorFor(new Request("http://localhost/admin/quiz-review",{headers:requestHeaders}));
   if(!actor||actor.role!=="ADMIN")return <main className="container inner-page management-page"><h1>{msg("Access denied.","접근 권한이 없어요.")}</h1></main>;
   return <main className="container inner-page management-page">
-    <ManagementHeader eyebrow="QUIZDIP ADMIN · SAFETY" title={msg("Quiz and child safety review","문제 및 어린이 안전성 심사")} description={msg("Review published quizzes and their media, then independently assess general and child safety eligibility.","공개 문제와 사용된 이미지·음원을 실제로 확인하고, 일반용 또는 어린이용 안전 여부를 독립적으로 승인해요.")}/>
+    <ManagementHeader eyebrow="QUIZDIP ADMIN · SAFETY" title={msg("Safety review queue","안전성 심사")} description={msg("Find a published quiz and open its dedicated review page.","게시된 문제를 찾아 별도의 상세 심사 화면에서 확인하세요.")}/>
     <QuizReviewConsole/>
   </main>;
 }
