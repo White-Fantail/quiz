@@ -16,7 +16,7 @@ test("native child play data is private and deletes with its owning profile",()=
 test("native child endpoints only allow game actions and authenticated device",()=>{
   const route=file("app/api/kids/native/play/route.ts");
   assert.match(route,/nativeKidFromHeaders\(request.headers\)/);
-  assert.match(route,/z\.enum\(\["RANDOM_FIVE","WEEKLY"\]\)/);
+  assert.match(route,/z\.literal\(\"RANDOM_FIVE\"\)/);
   assert.match(route,/run_start/);
   assert.match(route,/single_start/);
   assert.match(route,/single_current/);
