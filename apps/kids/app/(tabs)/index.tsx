@@ -16,13 +16,13 @@ const journeys=[
 
 export default function KidsHome(){
  const router=useRouter(),{width}=useWindowDimensions();
- const {t}=useKidsLocale();
+ const {locale,t}=useKidsLocale();
  const kid=useKidsSession();
  return <Screen title={t("kids.welcome")} subtitle={t("kids.subtitle")}>
   <Banner emoji="✨" title="QuizDip Kids" detail={t("native.choose")}/>
   <View style={styles.locale}>
    <Text style={styles.smallTitle}>{t("native.session.profile")}: {kid.status==="active"?kid.session.profile.nickname:""}</Text>
-   <Text style={styles.note}>{t("native.session.pinned")}</Text>
+   <Text style={styles.note}>{t("native.session.pinned")} ({locale==="ko"?"한국어":"English"})</Text>
    <Pressable accessibilityRole="button" onPress={()=>router.push("/parent")}>
      <Text style={styles.retry}>🔒 {t("native.guardian.open")}</Text>
    </Pressable>

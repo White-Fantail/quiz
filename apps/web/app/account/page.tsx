@@ -29,6 +29,7 @@ export default async function AccountPage() {
       <h1>{msg("account.title")}</h1>
       <p role="alert" className="feedback">{msg("account.unavailable")}</p>
       <p className="muted">{msg("account.unavailableHelp")}</p>
+      <Link className="btn btn-outline" href={localizeHref("/account/settings",locale)}>{msg("account.settings")}</Link>
       <a className="btn btn-outline" href={localizeHref("/account", locale)}>{msg("account.retry")}</a>
     </main>;
   }
@@ -40,6 +41,11 @@ export default async function AccountPage() {
         <SignInActions google={availableProviders.google} apple={availableProviders.apple} returnTo="/account" />
       </div>
       <p className="muted">{msg("account.afterSignIn")}</p>
+      <div className="placeholder-panel">
+        <h2>{msg("account.settings")}</h2>
+        <p className="muted">{msg("account.settingsHelp")}</p>
+        <Link className="btn btn-outline" href={localizeHref("/account/settings",locale)}>{msg("account.openSettings")}</Link>
+      </div>
       <Link className="text-button" href={localizeHref("/", locale)}>{msg("account.home")}</Link>
     </main>;
   }
@@ -61,6 +67,11 @@ export default async function AccountPage() {
     {isAdmin && <div className="actions">
       <Link href={localizeHref("/admin", locale)} className="btn btn-primary">{msg("account.admin")}</Link>
     </div>}
+    <div className="placeholder-panel">
+      <h2>{msg("account.settings")}</h2>
+      <p className="muted">{msg("account.settingsHelp")}</p>
+      <Link className="btn btn-outline" href={localizeHref("/account/settings",locale)}>{msg("account.openSettings")}</Link>
+    </div>
     <div className="placeholder-panel">
       <h2>{msg("kids.guardian.title")}</h2>
       <p className="muted">{msg("kids.native.pairHelp")}</p>

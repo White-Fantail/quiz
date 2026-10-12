@@ -370,6 +370,10 @@ a.feature-card:hover { border-color:#B4AEF7; transform:translateY(-3px); }
 .language-selector select { border:1px solid var(--border); border-radius:12px; padding:7px 10px; background:white; color:var(--ink); }
 @media(max-width:780px) { .header-inner { gap:10px; } .language-selector { margin-bottom:4px; } }
 
+.account-settings .language-selector { justify-content:space-between; gap:16px; font-size:1rem; color:var(--ink); max-width:460px; }
+.account-settings .language-selector select { min-width:155px; padding:11px 14px; font-size:1rem; }
+.account-settings .placeholder-panel { margin-top:26px; }
+
 /* Localized revision editor */
 .translation-manager {display:grid;gap:15px;min-width:0}
 .translation-locale-summary {display:flex;gap:9px;flex-wrap:wrap}

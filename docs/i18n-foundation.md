@@ -67,3 +67,8 @@ Apply `npm run db:migrate` in a correctly configured staging database before ser
 - `quiz_stats` accepts `locale` and optional language-local `version`, pinning counts to immutable revision ID.
 - Weekly challenge host/admin can fetch privacy-preserving aggregate per-language statistics via `weekly_insights`; only adult verified opt-in public ranking remains published, and separate per-locale weekly leaderboard logic is unchanged.
 - Apply this migration before activating Phase 4 in production; CI typechecks/builds but does not prove DB-backed integration or migrations ran.
+
+## Language selection entry points (October 2026)
+- General web: language selection lives in **My Account → Settings** (`/en/account/settings` or `/ko/account/settings`), not the global header. The setting is accessible to guests via locale cookie, and also persists to the existing authenticated `locale_update` operation when a session exists.
+- Kids: language belongs to each **child profile**, independently of the adult website locale. The guardian chooses it in **My Account → Kids settings** or in the app's PIN-protected **Parents** area. After pairing, the native child interface shows its assigned language but does not offer an unprotected switch. A child profile change may require pairing again.
+- These are UI entry-point changes only: no new REST paths, MCP tools, or locale persistence contracts.
