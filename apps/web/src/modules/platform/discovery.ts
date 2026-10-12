@@ -10,7 +10,7 @@ export type DiscoveryCard={
   questionCount:number;orderMode?:string;ratings:RatingSummary;started:number;completed:number;
   difficultyPercent:number|null;createdAt:string;
 };
-export type DiscoverySection={key:"trending"|"popular"|"highly_rated"|"difficult"|"new";
+export type DiscoverySection={key:"popular_packs"|"new_packs"|"trending"|"popular"|"highly_rated"|"difficult"|"new";
   items:DiscoveryCard[];basis:string};
 
 /** Lower bound for a positive/negative rating distribution; neutral to tiny samples. */
@@ -24,12 +24,12 @@ export function packDifficulty(solved:number,failed:number):number|null {
   const total=solved+failed;
   return total>0?Math.round(100*failed/total):null;
 }
-function takeDiverse(rows:Array<{card:DiscoveryCard;score:number}>,limit=6) {
+function takeDiverse(rows:Array<{card:DiscoveryCard;score:number}>,limit=6,maxPerAuthor=2) {
   const selected:DiscoveryCard[]=[], authors=new Map<string,number>();
   rows.sort((a,b)=>b.score-a.score||a.card.id.localeCompare(b.card.id));
   for(const entry of rows) {
     const count=authors.get(entry.card.creator)??0;
-    if(count>=2)continue;
+    if(count>=maxPerAuthor)continue;
     selected.push(entry.card);authors.set(entry.card.creator,count+1);
     if(selected.length===limit)break;
   }
@@ -176,7 +176,16 @@ export async function discoverSections(p:Record<string,any>) {
       hardSample:score?.players??0});
   }
   const featured=rows.filter(r=>!r.bad);
+  // Dedicated pack lanes keep packs visible above individual questions on Discover.
+  // Popularity always requires verified unique players; new_packs is an
+  // explicitly unranked fallback when a newly launched catalog has no activity.
+  const packRows=featured.filter(r=>r.card.type==="PACK");
   const sections:DiscoverySection[]=[
+    {key:"popular_packs",basis:"Verified distinct adult players and completions, last 30 days; minimum three players",
+      items:takeDiverse(packRows.filter(r=>r.card.started>=3)
+        .map(r=>({card:r.card,score:r.card.started+1.5*r.card.completed})),6,3)},
+    {key:"new_packs",basis:"Eligible published packs, ordered by creation time; not a popularity ranking",
+      items:takeDiverse(packRows.map(r=>({card:r.card,score:Date.parse(r.card.createdAt)})),6,3)},
     {key:"trending",basis:"Growth in distinct signed-in players, last 7 days versus previous 7",
       items:takeDiverse(featured.filter(r=>{
         const recent=count(r.recent,r.card.id,"starts"),prior=count(r.prior,r.card.id,"starts");
