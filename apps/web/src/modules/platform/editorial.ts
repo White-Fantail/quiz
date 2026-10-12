@@ -174,14 +174,17 @@ export async function adminPackReportsList(p:Record<string,any>,actor:Actor|null
   const where={OR:[{reports:{some:{status:"OPEN"}}},{safetyStatus:"RESTRICTED"}]};
   const [packs,total]=await Promise.all([
     db().quizPack.findMany({where,orderBy:[{updatedAt:"desc"},{id:"desc"}],
-      skip:p.offset,take:p.limit,select:{id:true,title:true,currentVersion:true,
-        safetyStatus:true,publication:true,reports:{where:{status:"OPEN"},
-          select:{reason:true,createdAt:true}}}}),
+      skip:p.offset,take:p.limit,select:{id:true,title:true,description:true,currentVersion:true,
+        safetyStatus:true,publication:true,items:{select:{quizId:true}},
+        reports:{where:{status:"OPEN"},orderBy:{createdAt:"desc"},take:5,
+          select:{reason:true,detail:true,createdAt:true}}}}),
     db().quizPack.count({where})
   ]);
   return {items:packs.map(pack=>({id:pack.id,title:pack.title,
+    description:pack.description,quizCount:pack.items.length,
     publication:pack.publication,currentVersion:pack.currentVersion,
     safetyStatus:pack.safetyStatus,openReports:pack.reports.length,
+    reportSamples:pack.reports.map(report=>({reason:report.reason,detail:report.detail})),
     reasons:[...new Set(pack.reports.map(r=>r.reason))]})),total,
     offset:p.offset,limit:p.limit};
 }
