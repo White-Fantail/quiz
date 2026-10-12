@@ -3,6 +3,7 @@ import {useEffect,useState} from "react";
 import {useLocale} from "../../../../src/i18n/provider";
 type Pack={id:string;title:string;description:string;publication:string;orderMode:"CREATOR"|"RANDOM";quizIds:string[]};
 type Quiz={id:string;title:string;publication:string};
+type PackInsights={runs:number;completed:number;averageSolved:number|null;averageFailed:number|null;ratings:{positive:number;negative:number};reportCounts:{reason:string;count:number}[]};
 async function api(path:string,method="GET",body?:object){
  const r=await fetch("/api/v1"+path,{method,credentials:"same-origin",cache:"no-store",
   headers:body?{"Content-Type":"application/json"}:{},body:body?JSON.stringify(body):undefined});
@@ -14,12 +15,20 @@ export default function PackWorkspace(){
  const [selected,setSelected]=useState(""),[title,setTitle]=useState(""),[description,setDescription]=useState("");
  const [members,setMembers]=useState<string[]>([]),[language,setLanguage]=useState<"en"|"ko">(locale),[orderMode,setOrderMode]=useState<"CREATOR"|"RANDOM">("CREATOR");
  const [message,setMessage]=useState(""),[busy,setBusy]=useState(false),[preview,setPreview]=useState<{ready:boolean;issues:string[];draftCount:number;questionCount:number}|null>(null);
+ const [insights,setInsights]=useState<PackInsights|null>(null);
  async function refresh(){
   const [p,q]=await Promise.all([api("/packs?mine=true&locale="+locale+"&limit=100"),api("/me/quizzes?limit=100&offset=0&publication=all&safety=all&sort=newest")]);
   setPacks(p.items||[]);setQuizzes(q.items||[]);
  }
  useEffect(()=>{void refresh().catch(e=>setMessage(String(e)));},[locale]);
  function choose(p:Pack){setSelected(p.id);setTitle(p.title);setDescription(p.description||"");setMembers([...p.quizIds]);setOrderMode(p.orderMode||"CREATOR");setPreview(null);setMessage("");}
+ useEffect(()=>{
+  if(!selected){setInsights(null);return;}
+  let active=true;
+  void api("/me/packs/"+selected+"/insights?locale=all").then(v=>{if(active)setInsights(v);})
+    .catch(()=>{if(active)setInsights(null);});
+  return ()=>{active=false};
+ },[selected,refresh]);
  async function act(fn:()=>Promise<void>){setBusy(true);setMessage("");try{await fn();await refresh();}catch(e){setMessage(e instanceof Error?e.message:String(e));}finally{setBusy(false);}}
  async function save(){
   if(!title.trim()||!members.length){setMessage(ko?"제목과 최소 한 문제를 선택하세요.":"Choose a title and at least one quiz.");return;}
@@ -36,7 +45,7 @@ export default function PackWorkspace(){
  }
  return <section className="studio-workspace">
   <div className="studio-section-head"><h2>{ko?"내 퀴즈팩":"My packs"}</h2><button className="btn btn-outline" onClick={()=>{setSelected("");setTitle("");setDescription("");setMembers([]);setOrderMode("CREATOR");setPreview(null);}}>{ko?"새 팩":"New pack"}</button></div>
-  <div className="studio-list">{packs.map(p=><button key={p.id} type="button" className="btn btn-outline" onClick={()=>choose(p)}>{p.title} · {p.quizIds.length} · {p.publication}</button>)}</div>
+  <div className="studio-list">{packs.map(p=><button key={p.id} type="button" className="btn btn-outline" onClick={()=>choose(p)}>{p.title} · {p.quizIds.length} · {p.publication} · {p.orderMode==="RANDOM"?(ko?"랜덤 순서":"Random order"):(ko?"등록 순서":"Creator order")}</button>)}</div>
   <div className="studio-filters"><label>{ko?"제목":"Title"}<input value={title} maxLength={180} onChange={e=>{setTitle(e.target.value);setPreview(null);}}/></label>
   <label>{ko?"설명":"Description"}<textarea value={description} maxLength={2000} onChange={e=>{setDescription(e.target.value);setPreview(null);}}/></label>
   {!selected&&<label>{ko?"원본 언어":"Original language"}<select value={language} onChange={e=>setLanguage(e.target.value as "en"|"ko")}><option value="en">English</option><option value="ko">한국어</option></select></label>}
@@ -59,6 +68,22 @@ export default function PackWorkspace(){
   <div className="actions"><button className="btn btn-primary" disabled={busy} onClick={()=>void save()}>{ko?"팩 저장":"Save pack"}</button>
   <button className="btn btn-outline" disabled={!selected||busy} onClick={()=>void validate()}>{ko?"공개 전 검증":"Check readiness"}</button>
   <button className="btn btn-primary" disabled={!selected||busy||!preview?.ready} onClick={()=>void publish()}>{ko?"전체 공개":"Publish all"}</button></div>
+  {selected&&insights&&<section className="feature-card" aria-label={ko?"팩 분석":"Pack insights"}>
+    <h3>{ko?"퀴즈팩 통계":"Pack performance"}</h3>
+    <div className="studio-figures">
+      <span><strong>{insights.runs}</strong> {ko?"전체 플레이":"starts"}</span>
+      <span><strong>{insights.completed}</strong> {ko?"완료":"completed"}</span>
+      <span><strong>{insights.ratings.positive}</strong> 👍</span>
+      <span><strong>{insights.ratings.negative}</strong> 👎</span>
+    </div>
+    {insights.averageSolved!==null&&<p className="muted">
+      {ko?"완료된 플레이의 평균 정답 수":"Average solved questions in completed runs"}: {insights.averageSolved.toFixed(1)}
+    </p>}
+    {!!insights.reportCounts.length&&<p className="muted">{ko?"신고 현황":"Report counts"}:
+      {" "}{insights.reportCounts.map(r=>r.reason+" "+r.count).join(", ")}
+    </p>}
+    <p className="muted">{ko?"개인별 이용 기록은 공개하지 않아요.":"Player identities and individual activity are not exposed."}</p>
+  </section>}
   {preview&&<div role="status"><p>{preview.ready?(ko?"공개 준비 완료":"Ready to publish"):(ko?"수정 필요":"Needs attention")} · {preview.questionCount} questions · {preview.draftCount} drafts</p>{preview.issues.map(x=><p key={x}>{x}</p>)}</div>}
   {message&&<p role="status">{message}</p>}
  </section>;
