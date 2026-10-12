@@ -115,7 +115,11 @@ export async function discoverSections(p:Record<string,any>) {
   const validQuizzes=quizzes.filter(q=>safeRevisions.has(q.id));
   const validPacks=packs.filter(pack=>pack.items.every(item=>safeRevisions.has(item.quizId)));
   const qids=validQuizzes.map(q=>q.id), pids=validPacks.map(pack=>pack.id);
-  const qwhere={quizId:{in:qids},locale,userId:{not:null},startedAt:{gte:last30}};
+  // Never use child-device activity as public adult ranking evidence, even if
+  // a guardian's account id is attached to a child-scoped session.
+  const qwhere={quizId:{in:qids},locale,userId:{not:null},
+    kidSingle:{is:null},OR:[{runId:null},{run:{lane:"GENERAL"}}],
+    startedAt:{gte:last30}};
   const pwhere={packId:{in:pids},locale,userId:{not:null},mode:"PACK",lane:"GENERAL",startedAt:{gte:last30}};
   const [q30,p30,pFinished,qReport,pReport,qRatings,pRatings]=await Promise.all([
     db().playSession.groupBy({by:["quizId","userId","status"],where:qwhere,_count:{_all:true}}),
