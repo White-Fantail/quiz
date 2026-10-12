@@ -29,6 +29,18 @@ export default async function AdminPage() {
           <p>{msg("Review quizzes and media for general and child-safe visibility.","문제와 미디어를 확인하고 일반용·어린이용 노출 적합성을 관리해요.")}</p>
           <span className="card-link">{msg("Open review tools →","심사 도구 열기 →")}</span>
         </Link>
+        <Link href={localizeHref("/admin/features",locale)} className="feature-card">
+          <span className="symbol yellow" aria-hidden="true">✦</span>
+          <h2>{msg("Editorial recommendations","운영자 추천 콘텐츠")}</h2>
+          <p>{msg("Schedule and manage featured questions and quiz packs independently of popular rankings.","문제·퀴즈팩 추천을 언어·대상·기간별로 편성하고 관리해요.")}</p>
+          <span className="card-link">{msg("Manage Editor's Picks →","추천 콘텐츠 관리 →")}</span>
+        </Link>
+        <Link href={localizeHref("/admin/packs-review",locale)} className="feature-card">
+          <span className="symbol mint" aria-hidden="true">🛡️</span>
+          <h2>{msg("Kids quiz pack approval","퀴즈팩 어린이 안전 심사")}</h2>
+          <p>{msg("Review complete packs independently before native Kids devices can discover them.","팩 자체의 내용과 전체 문제·미디어 안전성을 심사한 뒤 어린이용으로 승인해요.")}</p>
+          <span className="card-link">{msg("Review packs →","퀴즈팩 심사 →")}</span>
+        </Link>
       </div>
     </section>
   );
