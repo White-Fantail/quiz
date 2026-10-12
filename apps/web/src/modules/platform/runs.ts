@@ -11,6 +11,9 @@ import type { Locale } from "../../i18n/core";
 export type Lane = "GENERAL" | "KIDS";
 export type RunMode = "WEEKLY" | "RANDOM_FIVE" | "INFINITE";
 const weekMs = WEEK_MS;
+// Do not allow any new Weekly Five activity after the discovery-first cutover.
+// Legacy plays, immutable revisions and historical reports remain readable.
+const WEEKLY_RETIREMENT_AT = Date.UTC(2026, 9, 12);
 export function validateWeek(start: string, now = new Date()): {start: Date; end: Date} {
   const date = new Date(start + "T00:00:00.000Z");
   if (Number.isNaN(date.getTime()) || date.toISOString().slice(0,10) !== start ||
@@ -117,7 +120,7 @@ export async function weeklyCurrent(p:Record<string,any>) {
 }
 export async function weeklySubmit(p:Record<string,any>,actor:Actor|null) {
   const user=requireActor(actor);
-  fail(410,"weekly_retired","Weekly challenges have been retired. Create or publish a quiz pack instead.");
+  if(Date.now()>=WEEKLY_RETIREMENT_AT) fail(410,"weekly_retired","Weekly challenges have been retired. Create or publish a quiz pack instead.");
   const {start,end}=validateWeek(p.weekStart);
   if (new Date().getTime() >= start.getTime())
     fail(409,"week_started","Please submit before the weekly edition begins");
@@ -142,7 +145,7 @@ export async function weeklySubmit(p:Record<string,any>,actor:Actor|null) {
 export async function weeklyPublish(p:Record<string,any>,actor:Actor|null) {
   const user=requireActor(actor);
   if(user.role!=="ADMIN") fail(403,"admin_required","Weekly scheduling requires trusted admin authority");
-  fail(410,"weekly_retired","New weekly challenge scheduling is retired.");
+  if(Date.now()>=WEEKLY_RETIREMENT_AT) fail(410,"weekly_retired","New weekly challenge scheduling is retired.");
   const item=await db().weeklyChallenge.findUnique({
     where:{id:p.challengeId},include:{host:{select:{displayName:true}},questions:{orderBy:{position:"asc"},include:{quiz:true,revision:true}}},
   });
@@ -233,7 +236,8 @@ async function randomChoices(lane:Lane,locale:Locale,count:number,avoid:string[]
 }
 export async function runStart(p:Record<string,any>,actor:Actor|null) {
   const mode=p.mode as RunMode, lane=p.lane as Lane, locale=p.locale as Locale;
-  if(mode==="WEEKLY") fail(410,"weekly_retired","Weekly challenges are retired. Choose random play or explore quiz packs.");
+  if(mode==="WEEKLY" && Date.now()>=WEEKLY_RETIREMENT_AT)
+    fail(410,"weekly_retired","Weekly challenges are retired. Choose random play or explore quiz packs.");
   const edition=mode==="WEEKLY"?await currentEdition(lane):null;
   if(mode==="WEEKLY" && (!edition || !await editionAvailable(edition,locale)))
     fail(409,"weekly_unavailable","이번 주의 공식 챌린지가 아직 공개되지 않았어요");
