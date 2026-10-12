@@ -11,21 +11,21 @@
 **Editorial behavior:** Admin picks have exclusive QUIZ/PACK FKs, locale, audience (GENERAL/KIDS), HERO/ROW placement, priority, label/copy and UTC start/end window. Both REST and MCP use the same validation and audit paths; public reads recheck publication, locale, media, Kids approval, and timing. Headline text cannot confer a verified creator identity. The UI presents an explicit "Editor's Pick" label, not an algorithmic popularity claim.
 
 
-- **Phase 1:** retired new Weekly Five entry points, preserved legacy runs, introduced per-run `targetCount`.
+- **Phase 1:** retired proposed Weekly Five entry points, introduced per-run `targetCount`.
 - **Phase 2:** Studio pack management and publish preflight/confirmation, shared REST/MCP.
 - **Phase 3:** localized, immutable `PACK` runs with authenticated resume, pack listing/details and full-length web play.
 - **Phase 4:** per-pack order mode and one-time per-run randomized snapshot, independent `PackReview`/`PackReport`, server-verified reactions, pack owner insights, social share metadata/buttons, and Discover evidence-backed sections/tabs. Ranking is limited to a bounded recently updated eligible catalog, signed-in adult metrics, and sample floors; no claim of global all-time ranking.
-- **Phase 5 (source implemented on dev):** ADMIN editorial picks and schedules (independent from organic rankings), eligible candidate search, pause/reorder/remove with audit, separate pack-level Kids moderation, and native Kids pack catalog/play/resume and curated recommendations. Legacy Weekly Five records and old compatibility endpoints remain read-only/sunset-oriented pending a retention audit; no historical deletes.
+- **Phase 5 (source implemented on dev):** ADMIN editorial picks and schedules (independent from organic rankings), eligible candidate search, pause/reorder/remove with audit, separate pack-level Kids moderation, and native Kids pack catalog/play/resume and curated recommendations. Weekly Five code and DB models were removed once confirmed unused; the clean-up migration refuses to run if historical weekly data is discovered.
 - **Creator credentials intentionally not automated:** an Editor's Pick is never a verified celebrity/expert badge. Identity verification needs evidence, consent and a separate moderation workflow before any such badge can be introduced.
 
-**Production rollout prerequisites:** apply and review the new Prisma migration `20261013030000_editorial_and_kids_packs` after all prior dev migrations; verify the migration against a copy of real data, check active legacy weekly reservations, and perform authenticated Admin/Studio and paired native Kids device tests. The deployment still requires explicit main-branch approval. CI is source validation, not operational proof. Creator-order is the backward-compatible default for existing packs.
+**Production rollout prerequisites:** apply all ordered Prisma migrations, including `20261013030000_editorial_and_kids_packs` and `20261013040000_remove_unused_weekly_challenges`, after checking the removal precondition against real data. Validate on a staging copy, and perform authenticated Admin/Studio and paired native Kids device tests. The deployment still requires explicit main-branch approval. CI is source validation, not operational proof. Creator-order is the backward-compatible default for existing packs.
 
 ## Product decisions
 
 1. **Discover** is the primary experience; include questions and quiz packs as equal content types. Promote what people actually enjoy and find challenging, not a mandated five-question event.
 2. **Quiz packs** have creator-controlled ordered members and an explicit `orderMode=CREATOR|RANDOM` (default `CREATOR`). `RANDOM` is shuffled exactly once when a new run starts, with the resulting permutation and revision IDs pinned; resuming never reshuffles. Each pack has its own public URL, cover/title/description, reviews, statistics and resumable full-pack play regardless of pack size. One quiz may appear in multiple packs without duplicating quiz revisions or quiz feedback.
 3. **Random play** is always accessible as an endless stream, avoiding already-seen questions. "Random five" is only a gentle quick-start tutorial/preset for visitors who want a short game. After five, offer "five more" or "keep going"; never manufacture an author-owned pack from random items.
-4. **Retire Weekly Five**: no recurring celebrity challenge, exactly-five editorial constraint, first-attempt weekly leaderboard, weekly proposal/schedule, or exclusive reservation after sunset. Retain historical records and compatibility through the transition.
+4. **No Weekly Five**: no recurring celebrity challenge, exactly-five editorial constraint, weekly leaderboard, proposal/schedule, or reserved questions. An unused Weekly Five schema is removed with an explicit data-emptiness guard.
 5. **Editorial promotion** is available to ADMIN for any qualifying question or pack, without claiming the item is organically popular. A verified celebrity/expert badge is independent of being featured.
 
 ## Discover homepage / dashboard
@@ -80,17 +80,11 @@ Retain existing `Quiz`, `QuizRevision`, `QuizPack`, `PackQuestion`, `QuizPackLoc
 
 Studio enables single question and full-pack creation, editing, ordering, no-record test play and a single confirmed transactional **publish pack + eligible owned drafts** operation, honoring existing 100 newly published quizzes per rolling 24 hours for non-admins, and the ADMIN exemption. General publication never implies Kids approval. Public sharing uses permanent localized non-spoiler Quiz and Pack URLs with safe Open Graph metadata.
 
-## Weekly Five retirement / technical impact
+## Weekly Five clean removal / technical impact
 
-Current code genuinely contains `WeeklyChallenge`, `WeeklyQuestion`, `WeeklyQuestionLocalization`, `PlayRun.weeklyId`, `WEEKLY` mode, host proposal, scheduling, standings, fixed-five finish checks, reserved-question exclusions, Admin/Studio weekly pages, public Play weekly tile, native Kids weekly entry and matching REST/MCP operations.
+The proposed weekly challenge never launched and had no challenge rows or linked runs according to the product owner. The `dev` branch now removes all weekly schema models, API/MCP operations, weekly-only views and reservation logic; the three supported play modes are `RANDOM_FIVE`, `INFINITE` and `PACK`.
 
-Migration order:
-1. Inventory scheduled/live editions, token and pin expiries, storage references and all frontend/native/backend/MCP consumers. Stop accepting **new** weekly proposals and schedules.
-2. Allow any active edition to expire or explicitly terminate with an auditable safe status. Do not break ongoing scoring, remove question reservations during a live edition, erase historical results, or convert a historic weekly run into an ordinary pack.
-3. Remove weekly-only navigation/tiles/weekly admin editing, proposals, standings and native entry points; redirect old shared weekly links to Discover or a clear retirement page. Legacy new-attempt endpoints return a stable retired response during deprecation; update MCP and REST together.
-4. After remaining editions end, remove weekly question reservations from random/individual/pack availability. Refactor `currentIndex===4` and response totals to use `targetCount` except historical legacy cases.
-5. Retain historical run/score/audit rows and pinned revisions for archive access; do not drop Weekly DB tables/relations until a backup, migration and retention audit permits it. The separate existing opt-in **player** leaderboard is not the new content discovery ranking; do not surface it as a main dashboard module and review its retirement separately.
-6. Update `AGENTS.md`, `docs/play-modes.md`, `docs/product-principles.md`, `docs/roadmap.md`, help pages, REST schemas, `operations.ts`, MCP listings, Tests and Kids app **as implementation proceeds**, so implementation docs continue to accurately describe shipped behavior during transition.
+`prisma/migrations/20261013040000_remove_unused_weekly_challenges/migration.sql` explicitly checks `WeeklyChallenge`, `WeeklyQuestion`, `WeeklyQuestionLocalization` and all weekly-linked `PlayRun` records. It refuses to drop any weekly objects unless all of those checks are empty. It then removes the unused weekly tables/columns and updates `PlayRun_mode_check` to accept `PACK` and reject `WEEKLY`. Prior migration files remain intact as an immutable migration ledger. Ordinary quiz sessions, random/pack runs, child ownership, media and reviews are left untouched.
 
 ## REST/MCP parity
 
@@ -101,7 +95,7 @@ Every new feature uses one shared authorized service behind both REST and MCP:
 - New `GET/POST/DELETE /packs/:id/reviews` → pack-review MCP list/upsert/remove; new pack reports and owner-safe insights receive matching operations.
 - Admin `GET/POST /admin/features`, `PATCH/DELETE /admin/features/:id` → `quizdip_admin_feature_list/create/update/remove` with ADMIN enforcement, explicit confirmation, audit and eligibility checks.
 - Sharing is a browser-native copy/share of the canonical URL, not a privileged or server-only social action.
-- Retired weekly endpoints/tools must have coordinated deprecation and no undocumented parity exceptions.
+- Weekly endpoints/tools are entirely removed from both REST and MCP; any unknown weekly path must return 404 and cannot reach dropped tables.
 
 ## Delivery order
 
@@ -119,7 +113,7 @@ Every phase requires migrations/review of existing data, tests, typecheck, build
 - Discover promotes a mix of *verified* high-rated, popular, difficult, newly published and editorial content with honest sample caveats and separate quiz-vs-pack sentiment.
 - Editor can feature a verified eligible quiz or pack at any time; no weekly calendar or requirement to produce precisely five questions; a featured author is not falsely declared a celebrity.
 - A newly published low-traffic pack has a path to discovery; abuse cannot easily boost popularity by repetitive session starts.
-- No new weekly edition is available. Existing weekly history is preserved; after cutover its former reserved questions become available in ordinary play.
+- No weekly edition or archived weekly history exists. Previously unreserved quizzes remain available for ordinary practice and pack play.
 - Kids, language, moderated media, creator ownership, public answer privacy and guest review prevention remain server-enforced across every discovery and play route.
 - Every newly exposed UI, REST and MCP function has policy-consistent parity with regression coverage.
 
