@@ -1,3 +1,9 @@
+# QuizDip play-mode transition notice (2026-10-12)
+
+**Weekly Five is retired for new submissions, scheduling and starts.** The earlier mechanics below are retained for historic behavior and compatibility only. Follow [Discovery-first platform design](discovery-first-platform-design.md). Old weekly rows and already-started sessions are preserved while the retirement is completed; five random questions and continuous practice remain available.
+
+---
+
 # QuizDip PLAY — weekly spotlight and practice
 
 ## Product structure
