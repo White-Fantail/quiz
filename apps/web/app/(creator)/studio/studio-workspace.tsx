@@ -5,6 +5,7 @@ import { useLocale } from "../../../src/i18n/provider";
 import { localizeHref } from "../../../src/i18n/core";
 import { bilingual } from "../../../src/i18n/view-copy";
 import { useEffect, useState } from "react";
+import {listHref,listPageIndex,useListUrlState} from "../../../src/lib/list-url-state";
 
 type QuizSummary = {
   id: string; title: string; prompt: string; version: number;
@@ -25,12 +26,20 @@ function date(locale:"en"|"ko",value:string) { return new Date(value).toLocaleDa
 export default function StudioWorkspace() {
   const locale=useLocale();
   const msg=(en:string,ko:string)=>bilingual(locale,en,ko);
-  const [query,setQuery] = useState("");
+  const defaults={q:"",publication:"all",safety:"all",sort:"newest",page:"1"};
+  const [listing,updateListing,ready]=useListUrlState(defaults);
+  const query=listing.q;
+  const publication=(["all","DRAFT","PUBLISHED","HIDDEN"].includes(listing.publication)?listing.publication:"all") as Publication;
+  const safety=(["all","ACTIVE","RESTRICTED"].includes(listing.safety)?listing.safety:"all") as Safety;
+  const sort=(["newest","oldest"].includes(listing.sort)?listing.sort:"newest") as Sort;
+  const page=listPageIndex(listing.page);
+  const setQuery=(value:string)=>updateListing({q:value});
+  const setPublication=(value:Publication)=>updateListing({publication:value});
+  const setSafety=(value:Safety)=>updateListing({safety:value});
+  const setSort=(value:Sort)=>updateListing({sort:value});
+  const setPage=(value:number)=>updateListing({page:String(value+1)});
+  const detailHref=(path:string)=>listHref(localizeHref(path,locale),listing,defaults);
   const [search,setSearch] = useState("");
-  const [publication,setPublication] = useState<Publication>("all");
-  const [safety,setSafety] = useState<Safety>("all");
-  const [sort,setSort] = useState<Sort>("newest");
-  const [page,setPage] = useState(0);
   const [items,setItems] = useState<QuizSummary[]>([]);
   const [total,setTotal] = useState(0);
   const [loading,setLoading] = useState(true);
@@ -42,6 +51,7 @@ export default function StudioWorkspace() {
     return ()=>clearTimeout(timer);
   },[query]);
   useEffect(()=>{
+    if(!ready)return;
     const controller = new AbortController();
     const params = new URLSearchParams({
       limit:String(PAGE_SIZE),offset:String(page*PAGE_SIZE),search,publication,safety,sort
@@ -59,7 +69,7 @@ export default function StudioWorkspace() {
       if(!controller.signal.aborted) setError(e instanceof Error?e.message:msg("Could not load quizzes.","문제를 가져오지 못했어요."));
     }).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
     return ()=>controller.abort();
-  },[page,search,publication,safety,sort,refresh]);
+  },[ready,page,search,publication,safety,sort,refresh]);
 
   function changeFilter(fn:()=>void){setPage(0);fn();}
   const pages = Math.max(1,Math.ceil(total/PAGE_SIZE));
@@ -112,7 +122,7 @@ export default function StudioWorkspace() {
             <span className={"media-state-chip "+(item.safetyStatus==="RESTRICTED"?"media-blocked":"media-ok")}>{label(locale,item.safetyStatus,safetyNames)}</span>
             {item.kidsEligible?<span className="media-state-chip media-ok">{msg("Kids approved","Kids 승인")}</span>:item.kidsReviewStatus==="REQUESTED"?<span className="media-state-chip media-wait">{msg("Kids requested","Kids 심사 신청")}</span>:item.kidsReviewStatus==="REJECTED"?<span className="media-state-chip media-wait">{msg("Kids rejected","Kids 반려")}</span>:null}
           </div>
-          <h3><Link href={localizeHref("/studio/quizzes/"+item.id,locale)}>{item.title}</Link></h3>
+          <h3><Link href={detailHref("/studio/quizzes/"+item.id)}>{item.title}</Link></h3>
           <p>{item.prompt}</p>
           <div className="studio-tags">
             <span>{item.answerType}</span>{item.topics.slice(0,3).map(t=><span key={t.name}>{t.name}{t.isSpoiler?msg(" · Hidden tag"," · 비공개 태그"):""}</span>)}
@@ -122,17 +132,17 @@ export default function StudioWorkspace() {
           <div className="studio-figures"><span><b>{item.plays.toLocaleString(locale==="ko"?"ko-KR":"en-NZ")}</b>{msg(" starts","시작")}</span><span><b>{item.reviews.toLocaleString(locale==="ko"?"ko-KR":"en-NZ")}</b>{msg(" reviews","리뷰")}</span></div>
           <small>v{item.version} · {date(locale,item.updatedAt)}{msg(" updated"," 수정")}</small>
           <div className="studio-quiz-row-actions">
-            <Link href={localizeHref("/studio/quizzes/"+item.id+"/edit",locale)} className="btn btn-primary">{msg("Edit quiz","문제 수정")}</Link>
-            <Link href={localizeHref("/studio/quizzes/"+item.id+"/preview",locale)} className="btn btn-outline">{msg("Test play","테스트 플레이")}</Link>
-            <Link href={localizeHref("/studio/quizzes/"+item.id,locale)} className="btn btn-outline">{msg("Manage and view results","관리 및 결과 보기")}</Link>
+            <Link href={detailHref("/studio/quizzes/"+item.id+"/edit")} className="btn btn-primary">{msg("Edit quiz","문제 수정")}</Link>
+            <Link href={detailHref("/studio/quizzes/"+item.id+"/preview")} className="btn btn-outline">{msg("Test play","테스트 플레이")}</Link>
+            <Link href={detailHref("/studio/quizzes/"+item.id)} className="btn btn-outline">{msg("Manage and view results","관리 및 결과 보기")}</Link>
           </div>
         </div>
       </article>)}
     </div>}
     {!error && !loading && total>PAGE_SIZE && <nav className="media-pagination" aria-label={msg("Quiz list pages","문제 목록 페이지")}>
-      <button type="button" className="btn btn-outline" disabled={page===0} onClick={()=>setPage(n=>n-1)}>{msg("Previous","이전")}</button>
+      <button type="button" className="btn btn-outline" disabled={page===0} onClick={()=>setPage(Math.max(0,page-1))}>{msg("Previous","이전")}</button>
       <span aria-live="polite">{page+1} / {pages}{msg(" pages · "," 페이지 · ")}{page*PAGE_SIZE+1}–{Math.min(total,(page+1)*PAGE_SIZE)}{msg(" shown","개 표시")}</span>
-      <button type="button" className="btn btn-outline" disabled={page+1>=pages} onClick={()=>setPage(n=>n+1)}>{msg("Next","다음")}</button>
+      <button type="button" className="btn btn-outline" disabled={page+1>=pages} onClick={()=>setPage(page+1)}>{msg("Next","다음")}</button>
     </nav>}
   </section>;
 }
