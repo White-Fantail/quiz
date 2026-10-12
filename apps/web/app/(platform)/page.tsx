@@ -2,6 +2,7 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { localizeHref, resolveLocale } from "../../src/i18n/core";
 import { t } from "../../src/i18n/messages";
+import LeaderboardSpotlight from "../../src/components/leaderboard-spotlight";
 
 export default async function HomePage() {
   const locale = resolveLocale((await headers()).get("x-quizdip-locale"));
@@ -19,7 +20,7 @@ export default async function HomePage() {
         </div>
         <div className="hero-stickers" aria-hidden="true"><span>?</span><span>✦</span><span>!</span></div>
       </section>
-      <section className="section"><div className="note-strip"><b>{msg("home.weekly")}</b><Link href={url("/play")}>{msg("home.weeklyLink")}</Link></div>
+      <section className="section">
         <h2>{msg("home.heading")}</h2>
         <p className="muted">{msg("home.intro")}</p>
         <div className="cards">
@@ -28,6 +29,7 @@ export default async function HomePage() {
           <Link href={url("/studio")} className="feature-card"><span className="symbol coral">✎</span><h3>Studio</h3><p>{msg("home.studioText")}</p><span className="card-link">{msg("home.studioAction")}</span></Link>
         </div>
       </section>
+      <LeaderboardSpotlight />
       <section className="note-strip"><b>Create it. Play it. Share it.</b><span>{msg("home.tagline")}</span></section>
     </div>
   );

@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import { availableProviders } from "../../src/lib/auth-providers";
 import SignInActions from "../sign-in/sign-in-actions";
 import AccountActions from "./account-actions";
+import MyStatsPanel from "./my-stats-panel";
 
 export const dynamic = "force-dynamic";
 
@@ -64,6 +65,7 @@ export default async function AccountPage() {
     <h1>{msg("account.title")}</h1>
     <p>{msg("account.greeting")} <b>{session.user.name}</b>!</p>
     <p className="muted">{msg("account.identity")}</p>
+    <MyStatsPanel />
     {isAdmin && <div className="actions">
       <Link href={localizeHref("/admin", locale)} className="btn btn-primary">{msg("account.admin")}</Link>
     </div>}

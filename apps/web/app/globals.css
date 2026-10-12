@@ -800,3 +800,56 @@ a.feature-card:hover { border-color:#B4AEF7; transform:translateY(-3px); }
   .discover-pack-card { min-height:0;padding:20px; }
   .discover-pack-loading { min-height:190px; }
 }
+
+
+/* General leaderboard and private player records */
+.rankings-page { max-width:980px; }
+.rankings-page .lead { max-width:800px; }
+.ranking-periods { display:flex;flex-wrap:wrap;gap:6px;background:#EEEBFB;padding:6px;border-radius:16px;width:fit-content;margin:28px 0 20px; }
+.ranking-periods button { padding:10px 18px;border:0;border-radius:12px;background:transparent;font-weight:750;color:#565475; }
+.ranking-periods button.active { background:#fff;color:#5140D6;box-shadow:0 3px 10px #25264214; }
+.ranking-categories { display:flex;flex-wrap:wrap;gap:8px;margin:18px 0 28px; }
+.ranking-categories button { border:1px solid var(--border);border-radius:13px;padding:10px 15px;background:#fff;font-weight:750;color:var(--ink); }
+.ranking-categories button.active { border-color:var(--purple);background:#EEEAFE;color:#4B3FC5; }
+.ranking-board { background:#fff;border:1px solid var(--border);border-radius:26px;padding:clamp(18px,4vw,35px);box-shadow:0 12px 40px #25264208; }
+.ranking-board-head { display:flex;align-items:start;justify-content:space-between;gap:18px; }
+.ranking-board-head h2 { font-size:1.6rem;margin:0 0 10px; }
+.ranking-board-head p { margin:0 0 23px; }
+.ranking-entries { margin:0;padding:0;list-style:none;display:grid; }
+.ranking-entry { display:flex;align-items:center;gap:16px;padding:16px 4px;border-top:1px solid var(--border); }
+.ranking-medal { min-width:43px;text-align:center;font-size:1.35rem;font-weight:850;color:var(--purple); }
+.ranking-player { flex:1;min-width:0;font-weight:750;overflow-wrap:anywhere; }
+.ranking-value { white-space:nowrap;text-align:right;font-size:1.2rem;color:var(--purple); }
+.ranking-value small { color:var(--muted);font-size:.75rem;font-weight:600; }
+.ranking-empty { text-align:center;padding:30px 12px; }
+.ranking-empty>span { font-size:2.5rem; }
+.ranking-empty p { max-width:550px;margin:14px auto 20px; }
+.ranking-pages { display:flex;align-items:center;justify-content:center;gap:16px;margin-top:25px; }
+.ranking-pages .btn { min-height:40px;padding:7px 14px; }
+.ranking-footnote { font-size:.89rem;margin:28px 0 12px; }
+.ranking-home { padding-top:6px; }
+.ranking-home-head,.account-records-head { display:flex;align-items:end;justify-content:space-between;gap:15px;flex-wrap:wrap; }
+.ranking-home-head h2 { margin:6px 0 10px; }
+.ranking-home-grid { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:15px;margin:24px 0; }
+.ranking-home-card { padding:24px; }
+.ranking-home-emoji { display:block;font-size:2rem;margin-bottom:10px; }
+.ranking-home-card h3 { margin:15px 0 4px;overflow-wrap:anywhere; }
+.ranking-home-card p { min-height:0;margin:0; }
+.ranking-home-empty { border:1px dashed #BBB5E6;border-radius:21px;background:#F1EEFD;padding:30px;text-align:center;margin-top:22px; }
+.account-records { margin-top:28px; }
+.account-records h2 { margin:6px 0; }
+.account-periods { margin:22px 0; }
+.account-stat-grid { display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px; }
+.account-stat-grid>div { border:1px solid var(--border);border-radius:16px;padding:15px 8px;text-align:center;display:grid;gap:3px; }
+.account-stat-grid strong { color:#5140D6;font-size:clamp(1.15rem,3vw,1.8rem);font-variant-numeric:tabular-nums; }
+.account-stat-grid span { color:var(--muted);font-size:.8rem; }
+.account-records p { margin:15px 0 0; }
+.account-stat-detail b { color:var(--ink); }
+.account-ranking-position { background:#EEEAFE;border-radius:14px;padding:12px 16px;font-weight:700; }
+@media(max-width:680px) {
+  .ranking-home-grid { grid-template-columns:1fr; }
+  .account-stat-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .ranking-board-head { align-items:start; }
+  .ranking-entry { gap:8px; }
+  .ranking-periods button { padding:9px 12px; }
+}
