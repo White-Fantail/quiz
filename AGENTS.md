@@ -95,7 +95,7 @@ MCP is a full QuizDip product interface, **not just an authoring connector**. Ev
 
 ## Moderator play safety release requirement
 - The Kids manual review console is /admin/quiz-review. Its read operations quiz_review_get and media_review_get deliberately return sensitive answers and signed unapproved media **only** to authenticated ADMIN; all other public tool routes must keep staged answers and media secret.
-- A Kids approval requires all media preapproved, currentVersion optimistic concurrency and auditable reason; creators cannot approve themselves or override RESTRICTED.
+- A Kids approval requires all media preapproved, currentVersion optimistic concurrency, explicit confirmation and an auditable decision (written approval notes optional); restricting content requires a substantive reason. Creators cannot approve themselves or override RESTRICTED.
 
 ## QuizDip transition safeguards
 
