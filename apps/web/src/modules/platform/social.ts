@@ -140,7 +140,7 @@ export async function packList(p: Record<string, any>, actor: Actor | null) {
   const locale = p.locale as "en" | "ko";
   // PostgreSQL enforces whole-pack language coverage before pagination.
   const where: any = p.mine ? { authorId: actor!.id } : {
-    publication: "PUBLISHED",
+    publication: "PUBLISHED",safetyStatus:{not:"RESTRICTED"},
     localizations: { some: { locale, status: "PUBLISHED" } },
     items: { some: {}, every: { quiz: playableQuizWhere(locale) } }
   };
@@ -238,7 +238,7 @@ export async function packUpdate(p: Record<string, any>, actor: Actor | null) {
       data:{
         currentVersion:{increment:1},
         // Any author edit invalidates independent Kids approval.
-        safetyStatus:"PENDING",kidsEligible:false,
+        safetyStatus:old.safetyStatus==="RESTRICTED"?"RESTRICTED":"PENDING",kidsEligible:false,
         ...(p.title !== undefined ? {title:p.title}:{}),
         ...(p.description !== undefined ? {description:p.description}:{}),
         ...(p.orderMode !== undefined ? {orderMode:p.orderMode}:{}),
@@ -309,6 +309,8 @@ export async function packPublish(p:Record<string,any>,actor:Actor|null){
   const user=requireActor(actor);
   if(p.confirm!==true)fail(400,"confirmation_required","Confirm bulk publication");
   const preview=await packPublishPreview(p,actor);
+  const restricted=await db().quizPack.findFirst({where:{id:p.id,authorId:user.id,safetyStatus:"RESTRICTED"},select:{id:true}});
+  if(restricted)fail(409,"restricted_pack","A restricted pack cannot be republished without moderator review");
   if(!preview.ready)fail(409,"pack_not_ready",preview.issues.join(", "));
   return db().$transaction(async tx=>{
     const pack=await tx.quizPack.findFirst({where:{id:p.id,authorId:user.id},
@@ -336,7 +338,7 @@ export async function packPublish(p:Record<string,any>,actor:Actor|null){
       }
     }
     const changed=await tx.quizPack.updateMany({where:{id:pack.id,authorId:user.id,
-      publication:pack.publication,updatedAt:pack.updatedAt},data:{publication:"PUBLISHED",safetyStatus:"PENDING",kidsEligible:false}});
+      publication:pack.publication,updatedAt:pack.updatedAt,safetyStatus:{not:"RESTRICTED"}},data:{publication:"PUBLISHED",safetyStatus:"PENDING",kidsEligible:false}});
     if(changed.count!==1)fail(409,"pack_changed","Pack changed during publication");
     await tx.quizPackLocalization.updateMany({where:{packId:pack.id,locale:pack.sourceLocale},
       data:{status:"PUBLISHED"}});
@@ -351,7 +353,7 @@ export async function packPublish(p:Record<string,any>,actor:Actor|null){
 export async function packGet(p:Record<string,any>,actor:Actor|null){
   const locale=p.locale as "en"|"ko";
   const pack=await db().quizPack.findFirst({
-    where:{id:p.id,publication:"PUBLISHED",
+    where:{id:p.id,publication:"PUBLISHED",safetyStatus:{not:"RESTRICTED"},
       localizations:{some:{locale,status:"PUBLISHED"}}},
     include:{author:{select:{id:true,displayName:true}},
       localizations:{where:{locale,status:"PUBLISHED"},select:{title:true,description:true}},
