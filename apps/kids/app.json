@@ -32,7 +32,12 @@
     },
     "platforms": [
       "ios",
-      "android"
-    ]
+      "android",
+      "web"
+    ],
+    "web": {
+      "bundler": "metro",
+      "name": "QuizDip Kids Preview"
+    }
   }
 }

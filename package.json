@@ -21,7 +21,8 @@
     "kids:dev": "npm run start --workspace @quizdip/kids",
     "kids:typecheck": "npm run typecheck --workspace @quizdip/kids",
     "kids:bundle:ios": "npm run bundle:ios --workspace @quizdip/kids",
-    "kids:bundle:android": "npm run bundle:android --workspace @quizdip/kids"
+    "kids:bundle:android": "npm run bundle:android --workspace @quizdip/kids",
+    "kids:bundle:web": "npm run bundle:web --workspace @quizdip/kids"
   },
   "devDependencies": {
     "prisma": "7.10.0",

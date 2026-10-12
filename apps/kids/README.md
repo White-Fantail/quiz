@@ -13,24 +13,13 @@ cp apps/kids/.env.example apps/kids/.env
 npm run kids:dev
 ```
 
-## Starting the native app (iPad/iPhone/Android)
+## Launch native app or local browser UI preview
 
-QuizDip Kids is deliberately **iOS/Android-only** (`app.json` explicitly sets `platforms: ["ios","android"]`). It does not run in a desktop browser; opening `http://localhost:8081` or pressing `w` is not a supported way to preview Kids. The QuizDip website remains a separate Next.js app with parental account settings only.
+The `apps/kids` Expo app supports **iOS, Android and a development-only browser preview**. Web renders responsive Kids UI using shared Expo/React Native components and English/Korean strings. It is intentionally **sample-data-only**: no child login or pairing, guardian PIN, device bearer, server quiz, private media or actual activity is accessed, and no browser storage is used. This is not a restored public web Kids product; main QuizDip web continues to expose only adult Kids account settings.
 
-On a physical iPad, install a **compatible Expo Go** app, keep the iPad and Mac on the same Wi-Fi, run `npm run kids:dev` at the repository root, and scan the QR code **inside Expo Go**. The `exp://...` address is for Expo Go, not Safari. Expo Go SDK compatibility depends on the installed Expo Go version. Production testing still requires native development/TestFlight builds.
+From repository root run `npm install` and `npm run kids:dev`. Press **w** for the interactive browser preview at `http://localhost:8081` (local machine only). Preview home, explore, challenge, sample clues/answers, treasures and language switching. To test the real Kids app, scan the QR code **with Expo Go on your iPad/phone** on the same Wi-Fi. The real app still requires guardian pairing and OS SecureStore.
 
-After updating the source:
-
-```sh
-cd ~/Projects/quizdip
-git switch dev
-git pull --ff-only origin dev
-npm install
-cd apps/kids
-npx expo start --clear
-```
-
-A Metro message saying `Bundler cache is empty, rebuilding` after `--clear` is expected. If you still see **Web Bundling failed**, confirm `apps/kids/app.json` contains `"platforms": ["ios", "android"]`; do not load localhost:8081 in a web browser. Check `npx expo config --type public` in `apps/kids` and ensure you are running the updated checkout. Native iOS/Android bundles and device validation are separate from browser bundling.
+When updating local dependencies: `git pull --ff-only origin dev`, `npm install` in the root, then `cd apps/kids && npx expo start --clear`. The cache-empty warning after a clean start is normal. To validate web bundling run `npm run kids:bundle:web`; exported preview assets **must not be deployed** to the public website. iOS/Android and physical-device tests are independent, and Expo export is not a signed device build.
 
 Start an iOS Simulator, Android emulator, or Expo Go on a device from the Expo CLI. A parent signs in using the **external system browser** to QuizDip's existing Better Auth Google/Apple web login. In `/en/account/kids` or `/ko/account/kids`, the parent creates a profile and a six-digit PIN, chooses the profile, enters the PIN, and generates a high-entropy one-time pairing code. The code expires in five minutes. The Kids native app accepts that code and a device name, obtains a **child-only credential**, stores it in OS SecureStore, and validates it on startup and foreground before opening Kids screens. The parent may revoke the device in the same web parent panel. The app's Parent Gate needs the same guardian PIN to revoke the local device session and return to setup.
 

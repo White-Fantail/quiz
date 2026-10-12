@@ -24,3 +24,4 @@ jobs:
       - run: npm run build
       - run: npm run kids:bundle:ios
       - run: npm run kids:bundle:android
+      - run: npm run kids:bundle:web

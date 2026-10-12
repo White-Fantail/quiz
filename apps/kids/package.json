@@ -9,7 +9,8 @@
     "android": "expo start --android",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "bundle:ios": "expo export --platform ios --output-dir ../../.expo-kids-export/ios",
-    "bundle:android": "expo export --platform android --output-dir ../../.expo-kids-export/android"
+    "bundle:android": "expo export --platform android --output-dir ../../.expo-kids-export/android",
+    "bundle:web": "expo export --platform web --output-dir ../../.expo-kids-export/web"
   },
   "dependencies": {
     "@quizdip/domain": "*",
@@ -30,7 +31,10 @@
     "expo-secure-store": "~57.0.4",
     "expo-image": "~57.0.5",
     "expo-audio": "~57.0.5",
-    "expo-video": "~57.0.5"
+    "expo-video": "~57.0.5",
+    "react-dom": "19.2.3",
+    "react-native-web": "~0.21.0",
+    "@expo/metro-runtime": "~57.0.15"
   },
   "devDependencies": {
     "@types/react": "~19.2.2"
