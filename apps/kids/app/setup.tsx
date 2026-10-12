@@ -1,83 +1,100 @@
-import { useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { useEffect, useState } from "react";
+import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { Redirect } from "expo-router";
-import { ApiError } from "@quizdip/api-client";
-import { Screen, Banner } from "../src/components/Screen";
+import QRCode from "react-native-qrcode-svg";
+import { ApiError, type NativePairStart } from "@quizdip/api-client";
+import { Screen } from "../src/components/Screen";
 import { useKidsLocale } from "../src/state/locale";
 import { useKidsSession } from "../src/state/session";
-import { publicApi } from "../src/services/api";
+import { kidsApi, publicApi } from "../src/services/api";
 import { theme } from "../src/theme";
 
 export default function SetupScreen(){
- const session=useKidsSession(),{locale,chooseLocale,t}=useKidsLocale();
- const [code,setCode]=useState(""),[deviceName,setDeviceName]=useState("My iPad");
- const [error,setError]=useState(""),[busy,setBusy]=useState(false);
+ const session=useKidsSession();
+ const {locale}=useKidsLocale();
+ const ko=locale==="ko";
+ const [request,setRequest]=useState<NativePairStart|null>(null);
+ const [error,setError]=useState("");
+ const [renew,setRenew]=useState(0);
+ const [expired,setExpired]=useState(false);
+
+ useEffect(()=>{
+   if(session.status!=="unpaired"||!kidsApi)return;
+   let cancelled=false;
+   setRequest(null);setError("");setExpired(false);
+   void kidsApi.beginPair(Platform.OS==="ios"?"Kids iPad":"Kids device")
+     .then(next=>{if(!cancelled)setRequest(next);})
+     .catch(()=>{if(!cancelled)setError(ko?"연결 코드를 만들 수 없어요. 다시 시도해 주세요.":"Could not create a connection. Try again.");});
+   return ()=>{cancelled=true;};
+ },[session.status,renew]);
+
+ useEffect(()=>{
+   if(!request || session.status!=="unpaired")return;
+   let stopped=false,inFlight=false;
+   const poll=async()=>{
+     if(stopped||inFlight)return;
+     if(Date.now()>=Date.parse(request.expiresAt)){
+       setExpired(true);return;
+     }
+     inFlight=true;
+     try{
+       await session.claimPair(request.deviceSecret);
+     }catch(e){
+       if(e instanceof ApiError && ["pair_expired","pair_claimed"].includes(e.code))setExpired(true);
+       else setError(ko?"연결을 확인하지 못했어요. 다시 시도해 주세요.":"Could not confirm the connection. Try again.");
+     }finally{inFlight=false;}
+   };
+   const timer=setInterval(()=>void poll(),3000);
+   return ()=>{stopped=true;clearInterval(timer);};
+ },[request,session.status,session.claimPair,ko]);
+
  if(session.status==="active")return <Redirect href="/" />;
- const parentUrl=publicApi?publicApi.origin+"/"+locale+"/account/kids":null;
- const redeem=async()=>{
-   if(busy)return;
-   setError("");setBusy(true);
-   try{await session.pair(code.toUpperCase().trim(),deviceName.trim());}
-   catch(e){
-     setError(e instanceof ApiError && ["pair_unavailable","invalid_pair_code"].includes(e.code)
-       ?t("native.pair.expired"):t("native.pair.error"));
-   }finally{setBusy(false);}
- };
  if(session.status==="checking")return <Screen title="QuizDip Kids">
    <ActivityIndicator size="large" color={theme.colors.accent}/>
-   <Text style={styles.note}>{t("native.session.checking")}</Text>
  </Screen>;
- if(session.status==="unavailable")return <Screen title={t("native.session.unavailable")}>
-   <Pressable style={styles.button} accessibilityRole="button" onPress={()=>void session.reload()}>
-     <Text style={styles.buttonText}>{t("native.session.retry")}</Text>
+ if(session.status==="unavailable")return <Screen title={ko?"연결할 수 없어요":"Connection unavailable"}>
+   <Pressable accessibilityRole="button" style={styles.button} onPress={()=>void session.reload()}>
+     <Text style={styles.buttonText}>{ko?"다시 시도":"Try again"}</Text>
    </Pressable>
  </Screen>;
- return <Screen title={t("native.pair.title")} subtitle={t("native.pair.detail")}>
-   <Banner emoji="🔐" title="QuizDip Kids" detail={t("native.pair.detail")}/>
-   <View style={styles.switcher}>
-     {(["en","ko"] as const).map(lang=><Pressable key={lang} accessibilityRole="button"
-       accessibilityState={{selected:locale===lang}} onPress={()=>chooseLocale(lang)}
-       style={[styles.lang,locale===lang&&styles.langSelected]}>
-       <Text style={locale===lang?styles.langTextSelected:styles.langText}>{lang==="en"?"English":"한국어"}</Text>
-     </Pressable>)}
-   </View>
-   <View style={styles.outline}>
-     <Text style={styles.outlineText}>🔒 {t("native.pair.open")}</Text>
-     <Text selectable style={styles.parentUrl}>{parentUrl??t("native.notConfigured")}</Text>
-   </View>
+
+ const link=request?publicApi.origin+"/"+locale+"/account/kids/connect?token="+encodeURIComponent(request.qrToken):"";
+ return <Screen title={ko?"부모님과 연결하기":"Connect with a parent"}
+   subtitle={ko?"부모님 휴대폰으로 연결해 주세요.":"Ask a parent to connect your device."}>
    <View style={styles.panel}>
-     <Text style={styles.label}>{t("native.pair.code")}</Text>
-     <TextInput value={code} onChangeText={setCode} autoCapitalize="characters"
-       autoCorrect={false} maxLength={32} placeholder="XXXXXX-XXXXXX-XXXXXX-XXXXXX"
-       accessibilityLabel={t("native.pair.code")} style={styles.field}/>
-     <Text style={styles.label}>{t("native.pair.device")}</Text>
-     <TextInput value={deviceName} onChangeText={setDeviceName} maxLength={50}
-       autoCorrect={false} accessibilityLabel={t("native.pair.device")}
-       placeholder={t("native.pair.deviceExample")} style={styles.field}/>
+     <Text style={styles.heading}>{ko?"부모님 휴대폰으로 QR을 스캔해 주세요":"Scan this QR with a parent's phone"}</Text>
+     {!request&&!error?<ActivityIndicator size="large" color={theme.colors.accent}/>:null}
+     {request&&!expired?<View style={styles.qr}>
+       <QRCode value={link} size={210} ecl="M" backgroundColor="#FFFFFF" color="#111111"/>
+     </View>:null}
+     {request&&!expired?<Text style={styles.note}>{ko?"부모님이 로그인하고 연결을 승인하면 자동으로 시작해요.":"Sign in and approve on the parent's phone. This iPad connects automatically."}</Text>:null}
+     {request&&!expired?<View style={styles.fallback}>
+       <Text style={styles.label}>{ko?"QR이 어렵다면 이 6자리 코드를 사용하세요":"Or enter this six-digit code on the parent's phone"}</Text>
+       <Text style={styles.code} selectable accessibilityLabel={request.shortCode}>
+         {request.shortCode.slice(0,3)+" "+request.shortCode.slice(3)}
+       </Text>
+       <Text style={styles.url} selectable>{publicApi.origin+"/"+locale+"/account/kids"}</Text>
+       <Text style={styles.note}>{ko?"코드는 5분 후 만료돼요.":"Code expires in 5 minutes."}</Text>
+     </View>:null}
      {error?<Text accessibilityRole="alert" style={styles.error}>{error}</Text>:null}
-     <Pressable accessibilityRole="button" disabled={busy||!code.trim()||!deviceName.trim()||!publicApi}
-       onPress={()=>void redeem()} style={[styles.button,(busy||!code.trim()||!deviceName.trim())&&styles.disabled]}>
-       <Text style={styles.buttonText}>{busy?t("native.session.checking"):t("native.pair.connect")}</Text>
+     {expired?<Text accessibilityRole="alert" style={styles.error}>{ko?"코드가 만료됐어요. 새로 발급해 주세요.":"Code expired. Generate a new one."}</Text>:null}
+     <Pressable accessibilityRole="button" style={styles.button}
+       onPress={()=>setRenew(n=>n+1)}>
+       <Text style={styles.buttonText}>{ko?"새 QR·코드 받기":"Get a new QR and code"}</Text>
      </Pressable>
    </View>
  </Screen>;
 }
 const styles=StyleSheet.create({
- note:{color:theme.colors.muted,fontSize:16},
- panel:{backgroundColor:theme.colors.card,padding:20,borderRadius:20,gap:11},
- switcher:{flexDirection:"row",gap:10},
- lang:{backgroundColor:theme.colors.card,padding:12,borderRadius:12},
- langSelected:{backgroundColor:theme.colors.accent},
- langText:{color:theme.colors.ink,fontWeight:"700"},
- langTextSelected:{color:"#FFFFFF",fontWeight:"700"},
- label:{color:theme.colors.ink,fontSize:15,fontWeight:"800"},
- field:{borderWidth:1,borderColor:theme.colors.outline,borderRadius:14,
-   padding:14,fontSize:17,color:theme.colors.ink,backgroundColor:theme.colors.background},
- button:{backgroundColor:theme.colors.accent,padding:16,borderRadius:15,alignItems:"center"},
+ panel:{backgroundColor:theme.colors.card,padding:20,borderRadius:20,alignItems:"center",gap:14},
+ heading:{color:theme.colors.ink,fontSize:19,fontWeight:"800",textAlign:"center"},
+ qr:{padding:16,backgroundColor:"#FFFFFF",borderRadius:16},
+ note:{color:theme.colors.muted,fontSize:14,textAlign:"center"},
+ fallback:{borderTopWidth:1,borderColor:theme.colors.outline,alignItems:"center",paddingTop:16,gap:9,width:"100%"},
+ label:{color:theme.colors.ink,fontWeight:"700",fontSize:15,textAlign:"center"},
+ code:{color:theme.colors.accent,fontSize:38,fontWeight:"900",letterSpacing:4},
+ url:{color:theme.colors.ink,fontSize:13,textAlign:"center"},
+ button:{backgroundColor:theme.colors.accent,padding:16,borderRadius:15,alignItems:"center",width:"100%"},
  buttonText:{color:"#FFFFFF",fontWeight:"800",fontSize:16},
- disabled:{opacity:0.5},
- outline:{borderWidth:2,borderColor:theme.colors.accent,borderRadius:15,padding:16},
- outlineText:{textAlign:"center",color:theme.colors.accent,fontWeight:"800"},
- parentUrl:{textAlign:"center",marginTop:10,color:theme.colors.ink,fontSize:13},
- error:{color:theme.colors.error,fontSize:14}
+ error:{color:theme.colors.error,fontSize:14,textAlign:"center"}
 });

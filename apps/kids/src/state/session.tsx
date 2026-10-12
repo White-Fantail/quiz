@@ -11,6 +11,7 @@ type SessionState =
 type SessionContextValue = SessionState & {
   reload:()=>Promise<void>;
   pair:(code:string,deviceName:string)=>Promise<void>;
+  claimPair:(deviceSecret:string)=>Promise<boolean>;
   unlock:(pin:string)=>Promise<void>;
 };
 const Context=createContext<SessionContextValue|null>(null);
@@ -56,13 +57,25 @@ export function KidsSessionProvider({children}:PropsWithChildren){
      throw e;
    }
  },[]);
+ const claimPair=useCallback(async(deviceSecret:string)=>{
+   if(!kidsApi)throw new ApiError("missing_api_origin");
+   const result=await kidsApi.claimPair(deviceSecret);
+   if(!result)return false;
+   await SecureStore.setItemAsync(STORAGE_KEY,result.token,{
+     keychainAccessible:SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY
+   });
+   setState({status:"active",token:result.token,session:{
+     active:true,profile:result.profile,expiresAt:result.expiresAt
+   }});
+   return true;
+ },[]);
  const unlock=useCallback(async(pin:string)=>{
    if(state.status!=="active"||!kidsApi)throw new ApiError("native_session_invalid",401);
    await kidsApi.unlock(state.token,pin);
    await SecureStore.deleteItemAsync(STORAGE_KEY);
    setState({status:"unpaired"});
  },[state]);
- const value=useMemo<SessionContextValue>(()=>({...state,reload,pair,unlock}),[state,reload,pair,unlock]);
+ const value=useMemo<SessionContextValue>(()=>({...state,reload,pair,claimPair,unlock}),[state,reload,pair,claimPair,unlock]);
  return <Context.Provider value={value}>{children}</Context.Provider>;
 }
 export function useKidsSession():SessionContextValue {

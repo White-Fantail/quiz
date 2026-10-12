@@ -107,6 +107,8 @@ export type ParentElevation = {parentToken:string;expiresAt:string};
 export type NativeKidProfile = {nickname:string;ageBand:"EARLY"|"MIDDLE"|"OLDER";locale:Locale};
 export type NativeKidSession = {active:true;profile:NativeKidProfile;expiresAt:string};
 export type NativePairResult = NativeKidSession & {token:string};
+export type NativePairStart={deviceSecret:string;qrToken:string;shortCode:string;expiresAt:string};
+
 export class QuizDipKidsDeviceApi {
   readonly origin:string;
   private readonly transport:typeof fetch;
@@ -138,6 +140,37 @@ export class QuizDipKidsDeviceApi {
       typeof data.expiresAt!=="string" || !Number.isFinite(Date.parse(data.expiresAt)))
       throw new ApiError("invalid_session_response");
     return {active:true,profile:{nickname:p.nickname,ageBand:p.ageBand,locale:p.locale},expiresAt:data.expiresAt};
+  }
+  private async pairRequest(body:object):Promise<any> {
+    let response:Response;
+    try {
+      response=await this.transport(this.origin+"/api/kids/native/pair",{
+        method:"POST",credentials:"omit",cache:"no-store",redirect:"error",
+        headers:{"Accept":"application/json","Content-Type":"application/json"},
+        body:JSON.stringify(body)
+      });
+    }catch{throw new ApiError("network_unavailable");}
+    let result:any;
+    try{result=await response.json();}catch{throw new ApiError("invalid_response",response.status);}
+    if(!response.ok)throw new ApiError(typeof result?.error==="string"?result.error:"http_error",response.status);
+    if(!result?.data || typeof result.data!=="object")throw new ApiError("invalid_response");
+    return result.data;
+  }
+  async beginPair(deviceName:string):Promise<NativePairStart> {
+    const data=await this.pairRequest({action:"start",deviceName});
+    if(typeof data.deviceSecret!=="string" || !/^[A-Za-z0-9_-]{40,90}$/.test(data.deviceSecret) ||
+      typeof data.qrToken!=="string" || !/^[A-Za-z0-9_-]{24}$/.test(data.qrToken) ||
+      typeof data.shortCode!=="string" || !/^[0-9]{6}$/.test(data.shortCode) ||
+      typeof data.expiresAt!=="string" || !Number.isFinite(Date.parse(data.expiresAt)))
+      throw new ApiError("invalid_pair_response");
+    return data as NativePairStart;
+  }
+  async claimPair(deviceSecret:string):Promise<NativePairResult|null> {
+    const data=await this.pairRequest({action:"claim",deviceSecret});
+    if(data.status==="pending")return null;
+    if(data.status!=="paired" || typeof data.token!=="string" ||
+      !/^[A-Za-z0-9_-]{40,90}$/.test(data.token))throw new ApiError("invalid_pair_response");
+    return {...this.sessionData({...data,active:true}),token:data.token};
   }
   async pair(code:string,deviceName:string):Promise<NativePairResult> {
     const data=await this.request("POST","",undefined,{action:"pair",code,deviceName});

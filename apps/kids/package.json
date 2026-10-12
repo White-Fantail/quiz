@@ -34,7 +34,9 @@
     "expo-video": "~57.0.5",
     "react-dom": "19.2.3",
     "react-native-web": "^0.21.2",
-    "@expo/metro-runtime": "~57.0.15"
+    "@expo/metro-runtime": "~57.0.15",
+    "react-native-qrcode-svg": "^6.3.24",
+    "react-native-svg": "~15.15.4"
   },
   "devDependencies": {
     "@types/react": "~19.2.2"
