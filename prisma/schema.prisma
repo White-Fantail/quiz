@@ -353,7 +353,7 @@ model PlayRun {
   weeklyId    String?
   weekly      WeeklyChallenge? @relation(fields: [weeklyId], references: [id])
   packId      String?
-  pack        QuizPack? @relation(fields: [packId], references: [id], onDelete: SetNull)
+  pack        QuizPack? @relation(fields: [packId], references: [id], onDelete: Restrict)
   packVersion Int?
   officialEligible Boolean @default(false)
   tokenHash   String
