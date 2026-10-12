@@ -12,8 +12,8 @@ test("parent Kids settings share scoped, responsive form styling", () => {
 
   assert.match(page, /className="container inner-page kids-settings-page"/);
   assert.match(family, /className="kids-settings-stack"/);
-  assert.match(family, /className="kids-settings-card kids-pin-card"/);
-  assert.match(pair, /className="kids-settings-card kids-pair-card"/);
+  assert.match(family, /className="placeholder-panel kids-settings-card kids-pin-card"/);
+  assert.match(pair, /className="placeholder-panel kids-settings-card kids-pair-card"/);
   assert.match(css, /\.kids-settings-page \.kids-form-field input,/);
   assert.match(css, /\.kids-settings-page \.kids-form-field select/);
   assert.match(css, /\.kids-settings-list-row/);
