@@ -57,9 +57,9 @@ export async function myStats(p: Record<string, any>, actor: Actor | null) {
     db().playSession.count({ where: { userId: user.id, status: "SOLVED" } }),
     db().playSession.count({ where: { userId: user.id, status: "FAILED" } }),
     db().playSession.groupBy({ by: ["quizId"], where: { userId: user.id, status: "SOLVED" }, _max: { score: true } }),
-    user.leaderboardEligible && user.leaderboardOptIn ? leaderboard({ limit: 100000, offset: 0, period:"all",category:"solved" }) : Promise.resolve(null),
+    user.leaderboardEligible && user.leaderboardOptIn ? leaderboard({ limit: 100000, offset: 0, period:"all",category:"solved" }).catch(()=>null) : Promise.resolve(null),
     personalRankingPeriods(user.id),
-    user.leaderboardEligible && user.leaderboardOptIn ? leaderboard({limit:100000,offset:0,period:"week",category:"solved"}) : Promise.resolve(null)
+    user.leaderboardEligible && user.leaderboardOptIn ? leaderboard({limit:100000,offset:0,period:"week",category:"solved"}).catch(()=>null) : Promise.resolve(null)
   ]);
   const totalBestScore = best.reduce((sum, row) => sum + (row._max.score ?? 0), 0);
   return { started, finished: solved + failed, solved, failed, successRate: solved + failed ? solved / (solved + failed) : null,

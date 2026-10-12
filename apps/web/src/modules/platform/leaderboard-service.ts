@@ -25,7 +25,7 @@ async function qualifyingAttempts(options:{
   if(options.quizId)where.quizId=options.quizId;
   if(options.quizIds)where.quizId={in:options.quizIds};
   const attempts:RankingAttempt[]=[];
-  let cursor:string|undefined;
+  let cursor:string|undefined,scanned=0;
   for(;;){
     const rows=await db().playSession.findMany({
       where,orderBy:[{finishedAt:"asc"},{id:"asc"}],
@@ -39,6 +39,9 @@ async function qualifyingAttempts(options:{
         }}
       }
     });
+    scanned+=rows.length;
+    if(scanned>MAX_SESSIONS)
+      fail(503,"ranking_over_capacity","Ranking data exceeds the live aggregation limit; try again later.");
     for(const row of rows){
       if(!row.userId||!row.finishedAt||row.quiz.authorId===row.userId)continue;
       attempts.push({
@@ -51,8 +54,6 @@ async function qualifyingAttempts(options:{
       });
     }
     if(rows.length<PAGE_SIZE)break;
-    if(attempts.length>=MAX_SESSIONS)
-      fail(503,"ranking_over_capacity","Ranking data exceeds the live aggregation limit; try again later.");
     cursor=rows[rows.length-1].id;
   }
   return attempts;
