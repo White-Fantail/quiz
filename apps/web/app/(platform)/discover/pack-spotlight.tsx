@@ -7,6 +7,7 @@ import { localizeHref } from "../../../src/i18n/core";
 
 type PackCard = {
   id: string;
+  type?: "QUIZ" | "PACK";
   title: string;
   subtitle: string;
   creator: string;
@@ -76,7 +77,7 @@ export default function PackSpotlight({ onBrowsePacks }: { onBrowsePacks: () => 
         if (selected.length === 3) break;
       }
       setItems(selected);
-    }).finally(() => { if (live) setLoading(false); });
+    }).catch(() => { if (live) setFailed(true); }).finally(() => { if (live) setLoading(false); });
     return () => { live = false; };
   }, [locale]);
 
