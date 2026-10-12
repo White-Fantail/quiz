@@ -19,9 +19,10 @@ jobs:
       # Initial scaffold does not have a lockfile yet.
       # After generating and committing package-lock.json, switch to npm ci.
       - run: npm install --no-audit --no-fund
+      # Validate Expo's browser target even if unrelated web-app tests fail later.
+      - run: npm run kids:bundle:web
       - run: npm run test
       - run: npm run typecheck
       - run: npm run build
       - run: npm run kids:bundle:ios
       - run: npm run kids:bundle:android
-      - run: npm run kids:bundle:web
