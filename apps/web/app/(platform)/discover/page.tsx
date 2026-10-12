@@ -10,6 +10,7 @@ import {listPageIndex,useListUrlState} from "../../../src/lib/list-url-state";
 import DiscoverySections from "./discovery-sections";
 import EditorialHighlights from "./editorial-highlights";
 import PackBrowser from "./pack-browser";
+import PackSpotlight from "./pack-spotlight";
 import {
   ANSWER_TYPES, audienceAgeLabel, difficultyLabel, discoverQuery, modeLabel,
   publicTopics, type DiscoverQuiz
@@ -85,9 +86,9 @@ export default function DiscoverPage() {
       <span className="eyebrow">QUIZDIP DISCOVER</span>
       <h1>{t("discover.heading")}</h1>
       <p className="lead">{t("discover.lead")}</p>
-      {!kids&&<p><Link href={localizeHref("/packs",locale)} className="btn btn-primary">{bilingual(locale,"Browse quiz packs →","퀴즈팩 둘러보기 →")}</Link></p>}
+      {!kids && <PackSpotlight onBrowsePacks={() => updateListing({view:"PACK",packPage:"1"})} />}
 
-      <div className="actions" role="group" aria-label={locale==="ko"?"탐색 콘텐츠 유형":"Discover content type"}>
+      <div id="discover-content" className="actions discover-view-switch" role="group" aria-label={locale==="ko"?"탐색 콘텐츠 유형":"Discover content type"}>
         {(["ALL","PACK","QUIZ"] as const).map(view=><button key={view} type="button"
           className={"btn "+(contentView===view?"btn-primary":"btn-outline")} aria-pressed={contentView===view}
           onClick={()=>updateListing({view})}>
