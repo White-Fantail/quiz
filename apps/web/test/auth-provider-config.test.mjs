@@ -30,5 +30,5 @@ test("account errors do not masquerade as logout, both sign-in providers have ex
   assert.match(account, /<SignInActions /);
   assert.match(signin, /disabled=\{!google \|\| busy !== null\}/);
   assert.match(signin, /disabled=\{!apple \|\| busy !== null\}/);
-  assert.match(accountActions, /provider === "apple" \? "준비 중"/);
+  assert.match(accountActions, /provider === "apple" \? msg\("Coming soon","준비 중"\)/);
 });
