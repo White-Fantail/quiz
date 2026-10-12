@@ -6,8 +6,6 @@ import { actorByIdentity, PlatformError, type Actor } from "../../../src/modules
 import { execute } from "../../../src/modules/platform/operations";
 import { operations, type Operation } from "../../../src/modules/platform/contracts";
 import { isAllowedMcpOrigin } from "../../../src/lib/mcp-origin";
-import { describeMcpAuthFailure } from "../../../src/lib/mcp-auth-diagnostics";
-import { mcpOAuthTraceEnabled, summarizeMcpBearer } from "../../../src/lib/mcp-oauth-trace";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -70,22 +68,4 @@ const authenticatedPost = requireMcpAuth(auth, async (request, claims) => {
   challengeScopes: ["mcp:tools", "offline_access"],
 });
 
-/**
- * Observe the Better Auth boundary, including failures that happen BEFORE
- * the inner MCP handler runs. Responses are forwarded unchanged to clients.
- */
-export async function POST(request: Request) {
-  const response = await authenticatedPost(request);
-  if (response.status === 401 || response.status === 403) {
-    console.warn("MCP OAuth rejection", describeMcpAuthFailure(request, response, mcpResource));
-    if (mcpOAuthTraceEnabled()) {
-      // This fingerprint can be compared to the token issuance fingerprint.
-      // It expires automatically and contains no credential or user identity.
-      console.warn("[mcp-oauth-trace] MCP token rejected", {
-        status: response.status,
-        ...summarizeMcpBearer(request, mcpResource, siteOrigin),
-      });
-    }
-  }
-  return response;
-}
+export const POST = authenticatedPost;
