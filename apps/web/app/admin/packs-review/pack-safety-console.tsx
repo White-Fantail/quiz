@@ -3,6 +3,7 @@ import {useEffect,useState} from "react";
 import Link from "next/link";
 import {useLocale} from "../../../src/i18n/provider";
 import {localizeHref} from "../../../src/i18n/core";
+import {listPageIndex,useListUrlState} from "../../../src/lib/list-url-state";
 
 type KidsPack={id:string;title:string;sourceLocale:string;currentVersion:number;
   questionCount:number;safetyStatus:string;kidsReviewStatus:string;
@@ -21,7 +22,10 @@ async function api(path:string,method="GET",body?:unknown){
 export default function PackSafetyConsole(){
   const locale=useLocale(),ko=locale==="ko";
   const [kids,setKids]=useState<KidsPack[]>([]),[flagged,setFlagged]=useState<FlaggedPack[]>([]);
-  const [kidsPage,setKidsPage]=useState(0),[reportsPage,setReportsPage]=useState(0);
+  const [listing,updateListing,ready]=useListUrlState({kidsPage:"1",reportsPage:"1"});
+  const kidsPage=listPageIndex(listing.kidsPage),reportsPage=listPageIndex(listing.reportsPage);
+  const setKidsPage=(page:number)=>updateListing({kidsPage:String(page+1)});
+  const setReportsPage=(page:number)=>updateListing({reportsPage:String(page+1)});
   const [kidsTotal,setKidsTotal]=useState(0),[reportsTotal,setReportsTotal]=useState(0);
   const [reasons,setReasons]=useState<Record<string,string>>({});
   const [busy,setBusy]=useState(false),[error,setError]=useState(""),[notice,setNotice]=useState("");
@@ -33,18 +37,18 @@ export default function PackSafetyConsole(){
     const result=await api("/admin/packs/reports?limit=20&offset="+reportsPage*20);
     setFlagged(result.items??[]);setReportsTotal(result.total??0);
   };
-  useEffect(()=>{let alive=true;
+  useEffect(()=>{if(!ready)return;let alive=true;
     void api("/admin/packs/safety?limit=20&offset="+kidsPage*20).then(data=>{
       if(alive){setKids(data.items??[]);setKidsTotal(data.total??0);}
     }).catch(e=>{if(alive)setError(String(e))});
     return ()=>{alive=false};
-  },[kidsPage]);
-  useEffect(()=>{let alive=true;
+  },[ready,kidsPage]);
+  useEffect(()=>{if(!ready)return;let alive=true;
     void api("/admin/packs/reports?limit=20&offset="+reportsPage*20).then(data=>{
       if(alive){setFlagged(data.items??[]);setReportsTotal(data.total??0);}
     }).catch(e=>{if(alive)setError(String(e))});
     return ()=>{alive=false};
-  },[reportsPage]);
+  },[ready,reportsPage]);
   async function review(id:string,version:number,verdict:"APPROVED"|"REJECTED"|"RESTRICTED"|"RESTORED"){
     const reason=(reasons[id]??"").trim();
     if(["RESTRICTED","REJECTED"].includes(verdict)&&reason.length<8){
@@ -88,10 +92,10 @@ export default function PackSafetyConsole(){
       </article>)}</div>
       <nav className="discover-pagination">
         <button type="button" className="btn btn-outline" disabled={busy||kidsPage===0}
-          onClick={()=>setKidsPage(p=>p-1)}>{ko?"이전":"Previous"}</button>
+          onClick={()=>setKidsPage(Math.max(0,kidsPage-1))}>{ko?"이전":"Previous"}</button>
         <span>{kidsPage+1} / {Math.max(1,Math.ceil(kidsTotal/20))}</span>
         <button type="button" className="btn btn-outline" disabled={busy||(kidsPage+1)*20>=kidsTotal}
-          onClick={()=>setKidsPage(p=>p+1)}>{ko?"다음":"Next"}</button>
+          onClick={()=>setKidsPage(kidsPage+1)}>{ko?"다음":"Next"}</button>
       </nav>
     </section>
     <section className="feature-card">
@@ -116,10 +120,10 @@ export default function PackSafetyConsole(){
       </article>)}</div>
       <nav className="discover-pagination">
         <button type="button" className="btn btn-outline" disabled={busy||reportsPage===0}
-          onClick={()=>setReportsPage(p=>p-1)}>{ko?"이전":"Previous"}</button>
+          onClick={()=>setReportsPage(Math.max(0,reportsPage-1))}>{ko?"이전":"Previous"}</button>
         <span>{reportsPage+1} / {Math.max(1,Math.ceil(reportsTotal/20))}</span>
         <button type="button" className="btn btn-outline" disabled={busy||(reportsPage+1)*20>=reportsTotal}
-          onClick={()=>setReportsPage(p=>p+1)}>{ko?"다음":"Next"}</button>
+          onClick={()=>setReportsPage(reportsPage+1)}>{ko?"다음":"Next"}</button>
       </nav>
     </section>
     {notice&&<p role="status">{notice}</p>}
