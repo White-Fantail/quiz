@@ -49,8 +49,8 @@ export async function quizList(p: Record<string, any>, actor: Actor | null) {
       topics: p.mine ? topicSummaries(quiz.topicLinks, true) : localizedTopicSummaries(quiz.topicLinks),
       clueCount: (r.clues as any[]).length,
       version: r.version, publication: quiz.publication, safetyStatus: quiz.safetyStatus,
-      recommendedAudience: quiz.recommendedAudience, ratings: summaries.get(quiz.id),
-      kidsEligible: quiz.kidsEligible && quiz.safetyStatus === "APPROVED" };
+      recommendedAudience: quiz.recommendedAudience, kidsReviewStatus:quiz.kidsReviewStatus, ratings: summaries.get(quiz.id),
+      kidsEligible: quiz.kidsEligible && quiz.safetyStatus !== "RESTRICTED" };
   });
   return { items, locale, offset: p.offset, limit: p.limit };
 }
@@ -73,7 +73,8 @@ export async function quizGet(id: string, actor: Actor | null, locale: Locale = 
     version: r.version, publication: quiz.publication,
     creatorIntent: owned ? quiz.creatorIntent : undefined,
     recommendedAudience: quiz.recommendedAudience, ratings, safetyStatus: quiz.safetyStatus,
-    kidsEligible: quiz.kidsEligible && quiz.safetyStatus === "APPROVED",
+    kidsReviewStatus:quiz.kidsReviewStatus,
+    kidsEligible: quiz.kidsEligible && quiz.safetyStatus !== "RESTRICTED",
     ...(owned ? { answer: r.answer, clues: r.clues, authorId: quiz.authorId } : {}) };
 }
 export async function quizCreate(p: Record<string, any>, actor: Actor | null) {
@@ -84,6 +85,7 @@ export async function quizCreate(p: Record<string, any>, actor: Actor | null) {
   const quiz = await db().$transaction(async tx => {
     const created = await tx.quiz.create({ data: {
       authorId: user.id, mode: p.mode, answerType: p.answerType, sourceLocale: locale,
+      safetyStatus:"ACTIVE",kidsReviewStatus:p.kidsRequested?"REQUESTED":"NOT_REQUESTED",
       ...(p.creatorIntent ? { creatorIntent: p.creatorIntent } : {}),
       ...(p.recommendedAudience ? { recommendedAudience: p.recommendedAudience } : {}),
     } });
@@ -117,7 +119,9 @@ export async function quizUpdate(p: Record<string, any>, actor: Actor | null) {
   await db().$transaction(async tx => {
     const changed = await tx.quiz.updateMany({
       where: { id: old.id, authorId: user.id, currentVersion: p.expectedVersion },
-      data: { currentVersion: { increment: 1 }, safetyStatus: "PENDING", kidsEligible: false,
+      data: { currentVersion: { increment: 1 }, kidsEligible: false,
+        kidsReviewStatus:p.kidsRequested===false?"NOT_REQUESTED":p.kidsRequested===true?"REQUESTED":
+          old.kidsReviewStatus==="NOT_REQUESTED"?"NOT_REQUESTED":"REQUESTED",
         ...(p.mode !== undefined ? { mode: p.mode } : {}),
         ...(p.answerType !== undefined ? { answerType: p.answerType } : {}),
         ...(p.creatorIntent !== undefined ? { creatorIntent: p.creatorIntent } : {}),
@@ -156,11 +160,32 @@ export async function quizPublish(p: Record<string, any>, actor: Actor | null) {
     if (recent >= 100) fail(429, "rate_limit", "Daily publication limit reached");
   }
   await db().$transaction(async tx => {
-    await tx.quiz.update({ where: { id: old.id }, data: { publication: "PUBLISHED", kidsEligible: false, safetyStatus: "PENDING" } });
+    await tx.quiz.update({ where: { id: old.id }, data: { publication: "PUBLISHED", kidsEligible: false, safetyStatus: "ACTIVE",
+        kidsReviewStatus:old.kidsReviewStatus==="NOT_REQUESTED"?"NOT_REQUESTED":"REQUESTED" } });
     await tx.quizLocalization.updateMany({where:{quizId:old.id,locale:old.sourceLocale},data:{status:"PUBLISHED",publishedVersion:old.currentVersion}});
     await tx.auditLog.create({ data: { actorId: user.id, action: "quiz.publish", objectId: old.id } });
   });
-  return { id: old.id, publication: "PUBLISHED", kidsEligibility: "PENDING_REVIEW" };
+  return { id: old.id, publication: "PUBLISHED", kidsReviewStatus:old.kidsReviewStatus==="NOT_REQUESTED"?"NOT_REQUESTED":"REQUESTED" };
+}
+
+/** Creator intent alone never grants child access; staff must approve the request. */
+export async function quizKidsRequest(p:Record<string,any>,actor:Actor|null) {
+  const user=requireActor(actor);
+  const quiz=await db().quiz.findFirst({where:{id:p.id,authorId:user.id}});
+  if(!quiz)fail(404,"not_found","Quiz not found");
+  if(p.requested && quiz.safetyStatus==="RESTRICTED")
+    fail(409,"restricted_quiz","Restricted quizzes cannot request Kids exposure");
+  const status=p.requested
+    ? quiz.kidsReviewStatus==="APPROVED"?"APPROVED":"REQUESTED"
+    : "NOT_REQUESTED";
+  await db().$transaction(async tx=>{
+    const updated=await tx.quiz.updateMany({where:{id:quiz.id,authorId:user.id,currentVersion:quiz.currentVersion},
+      data:{kidsReviewStatus:status,kidsEligible:status==="APPROVED"}});
+    if(updated.count!==1)fail(409,"version_conflict","Quiz changed while requesting Kids review");
+    await tx.auditLog.create({data:{actorId:user.id,action:p.requested?"quiz.kids.request":"quiz.kids.withdraw",
+      objectId:quiz.id,detail:{version:quiz.currentVersion,status}}});
+  });
+  return {id:quiz.id,kidsReviewStatus:status,kidsEligible:status==="APPROVED"};
 }
 
 /** Explicitly classify a legacy original, never auto-translate or silently relabel. */
@@ -193,74 +218,137 @@ export async function quizLanguageSet(p: Record<string, any>, actor: Actor | nul
   });
   return result;
 }
-/** Moderation queue is independent of public discovery; restricted quizzes stay inspectable by ADMIN. */
-export async function adminQuizReviewList(p:Record<string,any>,actor:Actor|null){
+/** Post-publication review queue: only attention signals or explicit Kids requests.
+ * Reports are deduplicated by reporter. Votes are deduplicated by player across locales.
+ * Review checkpoints suppress old signals but never suppress later reports or votes.
+ */
+export async function adminQuizReviewList(p:Record<string,any>,actor:Actor|null) {
   const admin=requireActor(actor);
   if(admin.role!=="ADMIN")fail(403,"admin_required","Only trusted moderators may list quizzes");
-  const where:any={publication:"PUBLISHED"};
-  if(p.safety!=="ALL")where.safetyStatus=p.safety;
-  if(p.search)where.revisions={some:{
-    title:{contains:p.search,mode:"insensitive"},
-    localization:{origin:{in:["ORIGINAL","LEGACY"]}}
-  }};
-  const [total,rows]=await Promise.all([
-    db().quiz.count({where}),
-    db().quiz.findMany({where,orderBy:[{updatedAt:"desc"},{id:"desc"}],skip:p.offset,take:p.limit,
-      select:{id:true,currentVersion:true,safetyStatus:true,kidsEligible:true,publication:true,mode:true}})
-  ]);
-  const original=rows.length?await db().quizRevision.findMany({where:{OR:rows.map(q=>({
-    quizId:q.id,version:q.currentVersion,localization:{origin:{in:["ORIGINAL","LEGACY"]}}
-  }))},select:{quizId:true,title:true}}):[];
-  const titles=new Map(original.map(r=>[r.quizId,r.title]));
-  return {items:rows.map(q=>({
-    id:q.id,title:titles.get(q.id)??"(Unavailable original revision)",version:q.currentVersion,
-    publication:q.publication,safetyStatus:q.safetyStatus,kidsEligible:q.kidsEligible,mode:q.mode
-  })),total,limit:p.limit,offset:p.offset};
+  type QueueRow={id:string;title:string;mode:string;version:number;publication:string;
+    safetyStatus:string;kidsEligible:boolean;kidsReviewStatus:string;
+    reportCount:number;seriousReportCount:number;ratingCount:number;
+    negativeCount:number;newNegativeCount:number;ratingFlag:boolean;total:number};
+  const rows=await db().$queryRaw<QueueRow[]>`
+    WITH signals AS (
+      SELECT q."id",q."mode",q."currentVersion" AS "version",q."publication",
+        q."safetyStatus",q."kidsEligible",q."kidsReviewStatus",q."updatedAt",
+        COALESCE(rev."title",'(Unavailable original revision)') AS "title",
+        (SELECT COUNT(DISTINCT r."reporterId")::int FROM "Report" r
+          WHERE r."quizId"=q."id" AND r."status"='OPEN'
+            AND (q."moderationReviewedAt" IS NULL OR r."createdAt">q."moderationReviewedAt")) AS "reportCount",
+        (SELECT COUNT(DISTINCT r."reporterId")::int FROM "Report" r
+          WHERE r."quizId"=q."id" AND r."status"='OPEN'
+            AND r."reason" IN ('UNSAFE','COPYRIGHT','PRIVACY')
+            AND (q."moderationReviewedAt" IS NULL OR r."createdAt">q."moderationReviewedAt")) AS "seriousReportCount",
+        (SELECT COUNT(DISTINCT r."authorId")::int FROM "Review" r
+          WHERE r."quizId"=q."id" AND r."kind"='QUIZ') AS "ratingCount",
+        (SELECT COUNT(DISTINCT r."authorId")::int FROM "Review" r
+          WHERE r."quizId"=q."id" AND r."kind"='QUIZ' AND r."rating"=-1) AS "negativeCount",
+        (SELECT COUNT(DISTINCT r."authorId")::int FROM "Review" r
+          WHERE r."quizId"=q."id" AND r."kind"='QUIZ' AND r."rating"=-1
+            AND (q."moderationReviewedAt" IS NULL OR r."updatedAt">q."moderationReviewedAt")) AS "newNegativeCount"
+      FROM "Quiz" q
+      LEFT JOIN LATERAL (
+        SELECT r."title" FROM "QuizRevision" r
+        JOIN "QuizLocalization" l ON l."id"=r."localizationId"
+        WHERE r."quizId"=q."id" AND r."version"=q."currentVersion"
+          AND l."origin" IN ('ORIGINAL','LEGACY') LIMIT 1
+      ) rev ON true
+      WHERE q."publication"='PUBLISHED'
+        AND (${p.search}='' OR EXISTS (
+          SELECT 1 FROM "QuizRevision" r
+          JOIN "QuizLocalization" l ON l."id"=r."localizationId"
+          WHERE r."quizId"=q."id" AND l."origin" IN ('ORIGINAL','LEGACY')
+            AND r."title" ILIKE '%' || ${p.search} || '%'
+        ))
+    ), flagged AS (
+      SELECT *, ("ratingCount">=20 AND "negativeCount">=14
+        AND "negativeCount"*100>=70*"ratingCount"
+        AND "newNegativeCount">=5) AS "ratingFlag"
+      FROM signals
+    )
+    SELECT "id","title","mode","version","publication","safetyStatus",
+      "kidsEligible","kidsReviewStatus","reportCount","seriousReportCount",
+      "ratingCount","negativeCount","newNegativeCount","ratingFlag",
+      COUNT(*) OVER()::int AS "total"
+    FROM flagged
+    WHERE (${p.queue}='ALL'
+      OR (${p.queue}='RESTRICTED' AND "safetyStatus"='RESTRICTED')
+      OR (${p.queue}='KIDS' AND "safetyStatus"<>'RESTRICTED' AND "kidsReviewStatus"='REQUESTED')
+      OR (${p.queue}='REPORTS' AND "safetyStatus"<>'RESTRICTED' AND "reportCount">0)
+      OR (${p.queue}='RATINGS' AND "safetyStatus"<>'RESTRICTED' AND "ratingFlag")
+      OR (${p.queue}='ATTENTION' AND "safetyStatus"<>'RESTRICTED'
+        AND ("reportCount">0 OR "ratingFlag" OR "kidsReviewStatus"='REQUESTED')))
+    ORDER BY ("seriousReportCount">0) DESC,"reportCount" DESC,
+      "ratingFlag" DESC,("kidsReviewStatus"='REQUESTED') DESC,"updatedAt" DESC,"id" DESC
+    LIMIT ${p.limit} OFFSET ${p.offset}
+  `;
+  return {items:rows.map(({total,...row})=>row),total:rows[0]?.total??0,
+    limit:p.limit,offset:p.offset,threshold:{minRatings:20,minNegatives:14,negativePercent:70,newNegatives:5}};
 }
 
-/** Trusted moderator action. Creators cannot change safety or Kids eligibility. */
-export async function quizReview(p: Record<string,any>,actor:Actor|null) {
+/** Review is not a gate to adult publication. Kids approval is strictly opt-in. */
+export async function quizReview(p:Record<string,any>,actor:Actor|null) {
   const admin=requireActor(actor);
-  if(admin.role!=="ADMIN") fail(403,"admin_required","Only trusted staff can review a quiz");
+  if(admin.role!=="ADMIN")fail(403,"admin_required","Only trusted staff can review a quiz");
   const quiz=await db().quiz.findUnique({where:{id:p.id}});
-  if(!quiz) fail(404,"not_found","Quiz was not found");
-  if(p.kidsEligible && p.verdict!=="APPROVED")
-    fail(422,"invalid_safety","Kids eligibility requires an APPROVED safety verdict");
-  if(p.verdict==="APPROVED" || p.kidsEligible) {
-    const revision=await db().quizRevision.findFirst({where:{quizId:quiz.id,version:quiz.currentVersion,localization:{origin:{in:["ORIGINAL","LEGACY"]}}}});
-    if(!revision) fail(409,"invalid_revision","Quiz revision missing");
-    await validateMediaReferences(quiz.authorId,revision.promptMediaIds as string[],revision.clues as any[],true);
+  if(!quiz)fail(404,"not_found","Quiz was not found");
+  if(quiz.publication!=="PUBLISHED")fail(409,"not_published","Only published quizzes can be moderated");
+  if(p.verdict==="KIDS_APPROVED"){
+    if(quiz.safetyStatus==="RESTRICTED")fail(409,"restricted_quiz","Restricted quiz cannot enter Kids");
+    if(quiz.kidsReviewStatus!=="REQUESTED")
+      fail(409,"kids_not_requested","Only creator-requested quizzes can receive Kids approval");
+    const rev=await revision(quiz.id,quiz.currentVersion);
+    await validateMediaReferences(quiz.authorId,rev.promptMediaIds as string[],rev.clues as any[],true);
   }
-  const updated=await db().$transaction(async tx=>{
-    // Do not approve an unseen newer revision if its creator edits concurrently.
-    const changed=await tx.quiz.updateMany({where:{id:quiz.id,currentVersion:quiz.currentVersion},
-      data:{safetyStatus:p.verdict,kidsEligible:p.verdict==="APPROVED"&&p.kidsEligible}});
-    if(changed.count!==1) fail(409,"revision_conflict","Quiz changed during moderation. Review again");
+  if(p.verdict==="KIDS_REJECTED"&&quiz.kidsReviewStatus!=="REQUESTED")
+    fail(409,"kids_not_requested","Kids review is not pending");
+  if(p.verdict==="RESTORED"&&quiz.safetyStatus!=="RESTRICTED")
+    fail(409,"not_restricted","Quiz is not restricted");
+  const data:Record<string,any>={};
+  if(p.verdict==="CLEARED")data.moderationReviewedAt=new Date();
+  if(p.verdict==="RESTRICTED"){
+    data.safetyStatus="RESTRICTED";data.kidsEligible=false;data.moderationReviewedAt=new Date();
+    if(quiz.kidsReviewStatus!=="NOT_REQUESTED")data.kidsReviewStatus="REJECTED";
+  }
+  if(p.verdict==="RESTORED"){data.safetyStatus="ACTIVE";data.moderationReviewedAt=new Date();}
+  if(p.verdict==="KIDS_APPROVED"){data.kidsEligible=true;data.kidsReviewStatus="APPROVED";}
+  if(p.verdict==="KIDS_REJECTED"){data.kidsEligible=false;data.kidsReviewStatus="REJECTED";}
+  await db().$transaction(async tx=>{
+    const updated=await tx.quiz.updateMany({where:{
+      id:quiz.id,currentVersion:quiz.currentVersion,safetyStatus:quiz.safetyStatus,
+      kidsReviewStatus:quiz.kidsReviewStatus
+    },data});
+    if(updated.count!==1)fail(409,"review_conflict","Quiz changed during moderation. Refresh and retry");
     await tx.auditLog.create({data:{actorId:admin.id,action:"quiz.review",objectId:quiz.id,
-      detail:{verdict:p.verdict,kidsEligible:p.kidsEligible,reason:p.reason,version:quiz.currentVersion}}});
-    return {id:quiz.id,safetyStatus:p.verdict,kidsEligible:p.verdict==="APPROVED"&&p.kidsEligible,
-      currentVersion:quiz.currentVersion};
+      detail:{verdict:p.verdict,reason:p.reason,version:quiz.currentVersion}}});
   });
-  return {id:updated.id,safetyStatus:updated.safetyStatus,kidsEligible:updated.kidsEligible,
-    version:updated.currentVersion};
+  return {id:quiz.id,verdict:p.verdict,version:quiz.currentVersion};
 }
 
 export async function quizReviewGet(p:Record<string,any>,actor:Actor|null) {
   const admin=requireActor(actor);
-  if(admin.role!=="ADMIN") fail(403,"admin_required","Quiz review details require administrator authority");
-  const item=await db().quiz.findUnique({where:{id:p.id},include:{topicLinks:{include:{topic:true},orderBy:{position:"asc"}}}});
-  if(!item) fail(404,"not_found","Quiz not found");
-  const current=await db().quizRevision.findFirst({where:{quizId:item.id,version:item.currentVersion,localization:{origin:{in:["ORIGINAL","LEGACY"]}}}});
-  if(!current) fail(409,"invalid_revision","Quiz revision unavailable");
-  // Moderator-only aggregate, deliberately never return private child identities.
-  const childReportCounts=await db().kidSafetyReport.groupBy({
-    by:["reason"],where:{quizId:item.id},_count:{_all:true}
-  });
+  if(admin.role!=="ADMIN")fail(403,"admin_required","Quiz review details require administrator authority");
+  const item=await db().quiz.findUnique({where:{id:p.id},
+    include:{topicLinks:{include:{topic:true},orderBy:{position:"asc"}}}});
+  if(!item)fail(404,"not_found","Quiz not found");
+  const current=await revision(item.id,item.currentVersion);
+  const [childReportCounts,reports,reviewCounts]=await Promise.all([
+    db().kidSafetyReport.groupBy({by:["reason"],where:{quizId:item.id},_count:{_all:true}}),
+    db().report.findMany({where:{quizId:item.id,status:"OPEN",
+      ...(item.moderationReviewedAt?{createdAt:{gt:item.moderationReviewedAt}}:{})},
+      orderBy:{createdAt:"desc"},take:30,select:{reason:true,detail:true,createdAt:true}}),
+    db().review.groupBy({by:["rating"],where:{quizId:item.id,kind:"QUIZ"},_count:{_all:true}})
+  ]);
   return {childSafetySignals:childReportCounts.map(row=>({reason:row.reason,count:row._count._all})),
+    reports,reviews:{positive:reviewCounts.find(x=>x.rating===1)?._count._all??0,
+      negative:reviewCounts.find(x=>x.rating===-1)?._count._all??0},
     id:item.id,authorId:item.authorId,version:item.currentVersion,
     title:current.title,prompt:current.prompt,mode:current.mode,answerType:current.answerType,
     topics:topicSummaries(item.topicLinks,true),answer:current.answer,
     clues:current.clues,promptMediaIds:current.promptMediaIds,creatorIntent:item.creatorIntent,
     recommendedAudience:item.recommendedAudience,
-    safetyStatus:item.safetyStatus,kidsEligible:item.kidsEligible,publication:item.publication};
+    safetyStatus:item.safetyStatus,kidsReviewStatus:item.kidsReviewStatus,
+    kidsEligible:item.kidsEligible,publication:item.publication};
 }
