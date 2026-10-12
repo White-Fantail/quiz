@@ -383,3 +383,20 @@ a.feature-card:hover { border-color:#B4AEF7; transform:translateY(-3px); }
 .translation-clue textarea {width:100%}
 .translation-check {display:flex;gap:10px;align-items:flex-start}
 .translation-check input {margin-top:4px}
+
+
+/* Creator test-play reuses the exact public play panel and clue/media components. */
+.studio-quiz-row-actions {display:flex;flex-direction:column;gap:8px;}
+.studio-quiz-row-actions .btn {text-align:center;}
+.studio-quiz-preview {max-width:950px;}
+.studio-preview-toolbar {display:flex;justify-content:space-between;align-items:center;gap:18px;flex-wrap:wrap;margin-top:4px;}
+.studio-preview-toolbar .card-link {display:block;margin-bottom:16px;}
+.studio-preview-toolbar h1 {margin:8px 0 0;}
+.studio-preview-notice {background:#f4f2ff;border:1px solid var(--border);border-radius:16px;padding:18px 22px;margin-top:20px;}
+.studio-preview-notice p {margin:4px 0 0;color:var(--muted);}
+.studio-preview-version {margin-top:10px;margin-bottom:12px;font-size:.85rem;}
+.studio-preview-answer-action {margin-top:18px;}
+@media (max-width:700px) {
+  .studio-quiz-preview .play-panel {padding:20px;}
+  .studio-preview-toolbar {align-items:start;}
+}
