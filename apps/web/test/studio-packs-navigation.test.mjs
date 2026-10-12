@@ -4,21 +4,31 @@ import {readFileSync} from "node:fs";
 import {parseOperation,operations} from "../src/modules/platform/contracts.ts";
 
 const read=path=>readFileSync(new URL("../"+path,import.meta.url),"utf8");
-test("packs management has separate browse/create/edit routes with direct links",()=>{
+test("packs have separate list, create, read-only detail and edit routes",()=>{
   const list=read("app/(creator)/studio/packs/pack-workspace.tsx");
   const create=read("app/(creator)/studio/packs/new/page.tsx");
-  const edit=read("app/(creator)/studio/packs/[packId]/page.tsx");
+  const detail=read("app/(creator)/studio/packs/[packId]/page.tsx");
+  const edit=read("app/(creator)/studio/packs/[packId]/edit/page.tsx");
+  const view=read("app/(creator)/studio/packs/pack-detail.tsx");
   const editor=read("app/(creator)/studio/packs/pack-editor.tsx");
   assert.match(list,/\/studio\/packs\/new/);
   assert.match(list,/\/studio\/packs\/"\+pack\.id/);
+  assert.match(list,/\/studio\/packs\/"\+pack\.id\+"\/edit"/);
   assert.doesNotMatch(list,/onClick=\{\(\)=>choose/);
   assert.match(create,/<PackEditor\/>/);
-  assert.match(edit,/<PackEditor packId=\{packId\}\/>/);
-  assert.match(editor,/\/me\/packs\/"\+packId/);
-  assert.match(editor,/router\.replace/);
-  assert.match(editor,/dirty\|\|!preview\?\.ready/);
+  assert.match(detail,/<PackDetail packId=\{packId\}/);
+  assert.doesNotMatch(detail,/<PackEditor/);
+  assert.match(edit,/<PackEditor packId=\{packId\} detailHref=\{detailHref\}\/>/);
+  assert.match(editor,/\/me\/packs\/"\+encodeURIComponent\(packId\)/);
+  assert.match(editor,/router\.replace\(destination\)/);
+  assert.doesNotMatch(editor,/publish-preview|\/kids-request|\/insights\?locale=all/);
+  assert.match(view,/\/publish-preview/);
+  assert.match(view,/\/kids-request/);
+  assert.match(view,/\/insights\?locale=all/);
+  assert.match(view,/\/studio\/quizzes\//);
+  assert.match(view,/preview\?\.ready/);
 });
-test("owner pack detail is private and fetched by ID without listing limit",()=>{
+test("owner pack detail is private, preserves list pagination and reads members by ID",()=>{
   const id="94f0792a-18e6-40c0-a480-0be6d46dbb37";
   assert.equal(operations.my_pack_get.public,false);
   assert.deepEqual(parseOperation("my_pack_get",{id}),{id});
@@ -28,7 +38,11 @@ test("owner pack detail is private and fetched by ID without listing limit",()=>
   assert.match(social,/export async function myPackGet/);
   assert.match(social,/where:\{id:p\.id,authorId:owner\.id\}/);
   assert.match(social,/pack\.items\.map\(item=>item\.quizId\)/);
+  assert.match(social,/ownedByCreator:quizDetails\.get\(id\)\?\.authorId===owner\.id/);
   assert.match(social,/db\(\)\.quizPack\.count\(\{where\}\)/);
+  const detail=read("app/(creator)/studio/packs/[packId]/page.tsx");
+  assert.match(detail,/listBackHref/);
+  assert.match(detail,/editHref/);
   const list=read("app/(creator)/studio/packs/pack-workspace.tsx");
   assert.match(list,/PAGE_SIZE=20/);
   assert.match(list,/AbortController/);

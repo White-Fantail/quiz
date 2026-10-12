@@ -152,6 +152,10 @@ export async function myPackGet(p:Record<string,any>,actor:Actor|null) {
   }):[];
   const titles=new Map<string,string>();
   for(const revision of revisions)if(!titles.has(revision.quizId))titles.set(revision.quizId,revision.title);
+  const quizzes=ids.length?await db().quiz.findMany({
+    where:{id:{in:ids}},select:{id:true,authorId:true,publication:true,safetyStatus:true}
+  }):[];
+  const quizDetails=new Map(quizzes.map(quiz=>[quiz.id,quiz]));
   let kidsReady=false,kidsIssue="",excludedCount=0;
   if(pack.publication==="PUBLISHED"&&["en","ko"].includes(pack.sourceLocale)){
     if(pack.safetyStatus!=="RESTRICTED"){
@@ -161,11 +165,16 @@ export async function myPackGet(p:Record<string,any>,actor:Actor|null) {
     try{await safePack(pack.id,pack.sourceLocale as "en"|"ko","KIDS",{skipPackApproval:true});kidsReady=true;}
     catch(error){kidsIssue=error instanceof Error?error.message:"Kids review prerequisites are not met";}
   }
-  return {id:pack.id,title:pack.title,description:pack.description,
+  return {id:pack.id,title:pack.title,description:pack.description,currentVersion:pack.currentVersion,
     publication:pack.publication,sourceLocale:pack.sourceLocale,orderMode:pack.orderMode,
     safetyStatus:pack.safetyStatus,kidsEligible:pack.kidsEligible,
     kidsReviewStatus:pack.kidsReviewStatus,kidsReady,kidsIssue,excludedCount,
-    quizIds:ids,members:ids.map(id=>({id,title:titles.get(id)??id}))};
+    quizIds:ids,members:ids.map(id=>({
+      id,title:titles.get(id)??id,
+      publication:quizDetails.get(id)?.publication??"HIDDEN",
+      safetyStatus:quizDetails.get(id)?.safetyStatus??"RESTRICTED",
+      ownedByCreator:quizDetails.get(id)?.authorId===owner.id
+    }))};
 }
 export async function packList(p: Record<string, any>, actor: Actor | null) {
   if (p.mine) requireActor(actor);

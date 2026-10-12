@@ -40,7 +40,7 @@ export default function PackWorkspace(){
   const pages=Math.max(1,Math.ceil(total/PAGE_SIZE));
   return <section className="studio-workspace" aria-label={ko?"내 퀴즈팩":"My quiz packs"}>
     <div className="studio-section-head">
-      <div><h2>{ko?"내 퀴즈팩":"My packs"}</h2><p className="muted">{ko?"팩을 선택하면 별도의 편집 페이지로 이동합니다.":"Select a pack to open its own editing page."}</p></div>
+      <div><h2>{ko?"내 퀴즈팩":"My packs"}</h2><p className="muted">{ko?"팩을 선택하면 상세 정보를 볼 수 있고, 별도 페이지에서 수정할 수 있습니다.":"Open a pack for details, or use the separate editing page."}</p></div>
       <Link className="btn btn-primary" href={localizeHref("/studio/packs/new",locale)}>{ko?"+ 새 팩 만들기":"+ Create pack"}</Link>
     </div>
     {!error&&<p className="muted" aria-live="polite">{loading?(ko?"불러오는 중…":"Loading…"):ko?("전체 "+total+"개"):total+" packs"}</p>}
@@ -66,7 +66,8 @@ export default function PackWorkspace(){
           {pack.description&&<p>{pack.description}</p>}
         </div>
         <div className="studio-list-side">
-          <Link href={detailHref("/studio/packs/"+pack.id)} className="btn btn-outline">{ko?"팩 편집 →":"Edit pack →"}</Link>
+          <Link href={detailHref("/studio/packs/"+pack.id)} className="btn btn-outline">{ko?"상세 보기 →":"View details →"}</Link>
+          <Link href={detailHref("/studio/packs/"+pack.id+"/edit")} className="btn btn-outline">{ko?"편집":"Edit"}</Link>
         </div>
       </article>)}
     </div>}
