@@ -7,7 +7,7 @@ import { quizList, quizGet, quizCreate, quizUpdate, quizPublish, quizLanguageSet
 import { playStart, playClue, playGuess } from "./play";
 import { weeklyCurrent,weeklySubmit,weeklyPublish,weeklyProposals,weeklySuspend,weeklyStandings,weeklyInsights,
   runStart,runCurrent,runFinish,runHistory,runFeedback } from "./runs";
-import { reviewsList, reviewUpsert, reviewRemove, reportCreate, reportsMine, packCreate, packList, packPreflight, packUpdate, packLanguageSet, packLanguages, packTranslationUpsert, packPublishPreview, packPublish } from "./social";
+import { reviewsList, reviewUpsert, reviewRemove, reportCreate, reportsMine, packCreate, packList, packGet, packPreflight, packUpdate, packLanguageSet, packLanguages, packTranslationUpsert, packPublishPreview, packPublish } from "./social";
 import { quizStats, myStats, me, leaderboard, rankingOptin, adultVerify } from "./analytics";
 import { userGet, creatorReviewsList, creatorReviewUpsert } from "./creators";
 import { myQuizzes, myQuizInsights } from "./studio";
@@ -44,6 +44,7 @@ export async function execute(name: Operation, raw: unknown, actor: Actor | null
     case "quiz_translation_hide": return quizTranslationHide(p,actor);
     case "quiz_review_get": return quizReviewGet(p,actor);
     case "quiz_review": return quizReview(p, actor);
+    case "pack_get": return packGet(p,actor);
     case "pack_list": return packList(p, actor);
     case "pack_preflight": return packPreflight(p,actor);
     case "pack_create": return packCreate(p, actor);
