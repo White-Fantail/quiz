@@ -38,6 +38,7 @@ model User {
   kidPairRequests       KidPairRequest[]
   kidParentAccess       KidParentAccess[]
   @@unique([issuer, subject])
+  @@index([leaderboardEligible, leaderboardOptIn])
 }
 
 model Quiz {
@@ -278,6 +279,8 @@ model PlaySession {
   @@unique([runId, roundIndex])
   @@index([quizId, revisionId, status])
   @@index([userId, status, score])
+  @@index([userId, status, finishedAt])
+  @@index([status, finishedAt])
 }
 
 model Review {
