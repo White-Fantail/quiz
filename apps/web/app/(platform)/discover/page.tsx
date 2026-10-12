@@ -6,6 +6,7 @@ import { localizeHref } from "../../../src/i18n/core";
 import { bilingual } from "../../../src/i18n/view-copy";
 import { RatingBadge } from "../../../src/components/quiz-ratings";
 import { useEffect, useState } from "react";
+import {listPageIndex,useListUrlState} from "../../../src/lib/list-url-state";
 import DiscoverySections from "./discovery-sections";
 import EditorialHighlights from "./editorial-highlights";
 import PackBrowser from "./pack-browser";
@@ -28,11 +29,13 @@ export default function DiscoverPage() {
   const locale = useLocale();
   const t = useTranslation();
   const typeLabelsEn: Record<string, string> = { animal:"Animal", person:"Person", place:"Place", thing:"Thing", event:"Event", concept:"Concept", other:"Other" };
-  const [contentView,setContentView]=useState<"ALL"|"PACK"|"QUIZ">("ALL");
-  const [answerType, setAnswerType] = useState("");
-  const [topic, setTopic] = useState("");
-  const [kids, setKids] = useState(false);
-  const [page, setPage] = useState(0);
+  const [listing,updateListing,ready]=useListUrlState({
+    view:"ALL",answerType:"",topic:"",kids:"false",page:"1",packPage:"1"
+  });
+  const contentView=(["ALL","PACK","QUIZ"].includes(listing.view)?listing.view:"ALL") as "ALL"|"PACK"|"QUIZ";
+  const answerType=listing.answerType,topic=listing.topic,kids=listing.kids==="true";
+  const page=listPageIndex(listing.page);
+  const setPage=(value:number)=>updateListing({page:String(value+1)});
   const [topics, setTopics] = useState<Topic[]>([]);
   const [quizzes, setQuizzes] = useState<DiscoverQuiz[]>([]);
   const [hasMore, setHasMore] = useState(false);
@@ -52,6 +55,7 @@ export default function DiscoverPage() {
   }, [kids,locale]);
 
   useEffect(() => {
+    if(!ready)return;
     let active = true;
     setLoading(true);
     setError("");
@@ -68,11 +72,12 @@ export default function DiscoverPage() {
       setError(e instanceof Error ? e.message : "퀴즈를 불러오지 못했어요.");
     }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [answerType, topic, kids, page, retry, locale]);
+  }, [ready,answerType, topic, kids, page, retry, locale]);
 
-  function changeType(value: string) { setAnswerType(value); setPage(0); }
-  function changeTopic(value: string) { setTopic(value); setPage(0); }
-  function changeKids(value: boolean) { setKids(value); setTopic(""); setPage(0); }
+  function changeType(value: string) { updateListing({answerType:value,page:"1"}); }
+  function changeTopic(value: string) { updateListing({topic:value,page:"1"}); }
+  function changeKids(value: boolean) { updateListing({kids:String(value),topic:"",page:"1"}); }
+  function clearFilters(){updateListing({answerType:"",topic:"",kids:"false",page:"1"});}
   const activeFilters = Boolean(answerType || topic || kids);
 
   return (
@@ -85,12 +90,13 @@ export default function DiscoverPage() {
       <div className="actions" role="group" aria-label={locale==="ko"?"탐색 콘텐츠 유형":"Discover content type"}>
         {(["ALL","PACK","QUIZ"] as const).map(view=><button key={view} type="button"
           className={"btn "+(contentView===view?"btn-primary":"btn-outline")} aria-pressed={contentView===view}
-          onClick={()=>setContentView(view)}>
+          onClick={()=>updateListing({view})}>
           {view==="ALL"?(locale==="ko"?"전체":"All"):view==="PACK"?(locale==="ko"?"퀴즈팩":"Quiz packs"):(locale==="ko"?"개별 문제":"Questions")}
         </button>)}
       </div>
       {contentView==="ALL"&&!kids&&<><EditorialHighlights/><DiscoverySections/></>}
-      {contentView==="PACK"&&<PackBrowser/>}
+      {contentView==="PACK"&&<PackBrowser page={listPageIndex(listing.packPage)}
+        onPageChange={next=>updateListing({packPage:String(next+1)})} ready={ready}/>}
       {contentView!=="PACK"&&<>
       <section className="discover-filters" aria-label={t("discover.filters")}>
         <label>
@@ -117,7 +123,7 @@ export default function DiscoverPage() {
         </label>
         {activeFilters &&
           <button className="text-button" type="button" onClick={() => {
-            setAnswerType(""); setTopic(""); setKids(false); setPage(0);
+            clearFilters();
           }}>{t("discover.clearFilters")}</button>}
       </section>
 
@@ -135,7 +141,7 @@ export default function DiscoverPage() {
             ? t("discover.emptyKids")
             : t("discover.emptyGeneral")}</p>
           {activeFilters && <button className="btn btn-outline" onClick={() => {
-            setAnswerType(""); setTopic(""); setKids(false); setPage(0);
+            clearFilters();
           }}>{t("discover.viewAll")}</button>}
         </div>}
       {loading && <p className="muted" role="status">{t("discover.searching")}</p>}
@@ -175,10 +181,10 @@ export default function DiscoverPage() {
       {!loading && !error && (page > 0 || hasMore) &&
         <nav className="discover-pagination" aria-label={t("discover.pagination")}>
           <button type="button" className="btn btn-outline" disabled={page === 0}
-            onClick={() => setPage(v => Math.max(0, v - 1))}>{t("discover.previous")}</button>
+            onClick={() => setPage(Math.max(0, page - 1))}>{t("discover.previous")}</button>
           <span>{page + 1} {t("discover.page")}</span>
           <button type="button" className="btn btn-outline" disabled={!hasMore}
-            onClick={() => setPage(v => v + 1)}>{t("discover.next")}</button>
+            onClick={() => setPage(page + 1)}>{t("discover.next")}</button>
         </nav>}
       <p className="muted discover-explainer">{t("discover.explainer")}</p>
       </>}
