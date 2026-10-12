@@ -36,6 +36,11 @@ export async function getPlaySession(p: Record<string, any>, actor: Actor | null
     if (!run || run.status!=="ACTIVE" || run.currentIndex!==session.roundIndex ||
         (run.mode==="WEEKLY" && run.weekly?.status!=="SCHEDULED"))
       fail(409,"run_not_active","This run's active round has changed");
+    if(run.mode==="PACK" && (!run.packId || !await db().quizPack.findFirst({
+      where:{id:run.packId,publication:"PUBLISHED",
+        localizations:{some:{locale:run.locale,status:"PUBLISHED"}}},
+      select:{id:true}
+    })))fail(409,"pack_unavailable","This pack has been withdrawn");
     const quiz=await db().quiz.findUnique({where:{id:session.quizId}});
     if (!quiz || quiz.publication!=="PUBLISHED" || quiz.safetyStatus==="RESTRICTED" ||
       (run.lane==="KIDS" && !(quiz.safetyStatus==="APPROVED"&&quiz.kidsEligible)))
