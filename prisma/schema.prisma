@@ -152,8 +152,9 @@ model QuizPack {
   id                    String        @id @default(uuid())
   currentVersion        Int           @default(1)
   orderMode             String        @default("CREATOR")
-  safetyStatus          String        @default("PENDING")
+  safetyStatus          String        @default("ACTIVE")
   kidsEligible          Boolean       @default(false)
+  kidsReviewStatus      String        @default("NOT_REQUESTED")
   editorialFeatures     EditorialFeature[]
   authorId              String
   author                User          @relation(fields: [authorId], references: [id])
