@@ -193,6 +193,31 @@ export async function quizLanguageSet(p: Record<string, any>, actor: Actor | nul
   });
   return result;
 }
+/** Moderation queue is independent of public discovery; restricted quizzes stay inspectable by ADMIN. */
+export async function adminQuizReviewList(p:Record<string,any>,actor:Actor|null){
+  const admin=requireActor(actor);
+  if(admin.role!=="ADMIN")fail(403,"admin_required","Only trusted moderators may list quizzes");
+  const where:any={publication:"PUBLISHED"};
+  if(p.safety!=="ALL")where.safetyStatus=p.safety;
+  if(p.search)where.revisions={some:{
+    title:{contains:p.search,mode:"insensitive"},
+    localization:{origin:{in:["ORIGINAL","LEGACY"]}}
+  }};
+  const [total,rows]=await Promise.all([
+    db().quiz.count({where}),
+    db().quiz.findMany({where,orderBy:[{updatedAt:"desc"},{id:"desc"}],skip:p.offset,take:p.limit,
+      select:{id:true,currentVersion:true,safetyStatus:true,kidsEligible:true,publication:true,mode:true}})
+  ]);
+  const original=rows.length?await db().quizRevision.findMany({where:{OR:rows.map(q=>({
+    quizId:q.id,version:q.currentVersion,localization:{origin:{in:["ORIGINAL","LEGACY"]}}
+  }))},select:{quizId:true,title:true}}):[];
+  const titles=new Map(original.map(r=>[r.quizId,r.title]));
+  return {items:rows.map(q=>({
+    id:q.id,title:titles.get(q.id)??"(Unavailable original revision)",version:q.currentVersion,
+    publication:q.publication,safetyStatus:q.safetyStatus,kidsEligible:q.kidsEligible,mode:q.mode
+  })),total,limit:p.limit,offset:p.offset};
+}
+
 /** Trusted moderator action. Creators cannot change safety or Kids eligibility. */
 export async function quizReview(p: Record<string,any>,actor:Actor|null) {
   const admin=requireActor(actor);
