@@ -109,7 +109,14 @@ export const operations = {
     id: mediaId, partCount: z.number().int().min(1).max(128).optional()
   }) },
   media_import: { public: false, description: "Import HTTPS media from a server-approved host into private storage", schema: z.object({
-    url: z.url().max(2000), kind: mediaKinds, filename: z.string().min(1).max(200), ...mediaMetadata
+    url: z.url().max(2000).refine(value => {
+      try {
+        const source = new URL(value);
+        return source.protocol === "https:" && !source.username && !source.password &&
+          (!source.port || source.port === "443");
+      } catch { return false; }
+    }, { message: "Import requires a direct HTTPS URL without credentials or custom ports" }),
+    kind: mediaKinds, filename: z.string().min(1).max(200), ...mediaMetadata
   }) },
   media_list: { public: false, description: "Search and paginate my media, including optional usage filtering", schema: z.object({
     ...paging, search: z.string().trim().max(120).default(""),
