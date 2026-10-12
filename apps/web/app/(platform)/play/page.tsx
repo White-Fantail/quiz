@@ -10,18 +10,15 @@ import type { RatingSummary } from "../../../src/modules/quiz/rating-metadata";
 import { useCallback, useEffect, useState } from "react";
 
 type Lane = "GENERAL" | "KIDS";
-type Mode = "WEEKLY" | "RANDOM_FIVE" | "INFINITE";
+type Mode = "RANDOM_FIVE" | "INFINITE";
 type Clue = { id?: string; type: "text"|"image"|"image-reveal"|"audio"|"video"|"map";
   text?: string; mediaId?: string; reveal?:RevealSettings; map?: {latitude:number;longitude:number;zoom?:number} };
-type Edition = { available:boolean; id?:string; title?:string; description?:string;
-  startsAt?:string; endsAt?:string; message?:string; host?:{id:string;name:string;verified:boolean};questionCount?:number };
-type RunInfo = {runId:string;runToken:string;mode:Mode;lane:Lane;weekly?:Edition|null;
+type RunInfo = {runId:string;runToken:string;mode:Mode;lane:Lane;
   completed:number;score:number;status:"ACTIVE"|"FINISHED";total:number|null;official?:boolean;
   solved?:number;failed?:number;exhausted?:boolean;message?:string};
 type Round = RunInfo & {sessionId:string;sessionToken:string;round:number;quizId:string;title:string;
   prompt:string;promptMediaIds:string[];clues:Clue[];clueIndex:number;clueCount:number;
   sessionStatus:string;canGuess?:boolean;ratings?:RatingSummary;myRating?:number|null;ratingAccess?:RatingAccess};
-type Ranking = {rank:number;displayName:string;score:number;solved:number};
 type FeedbackItem = {quizId:string;round:number;title:string;ratings:RatingSummary;myRating:number|null;ratingAccess:RatingAccess;isTranslation?:boolean;myTranslationRating?:number|null};
 type MediaPreview = {url:string;kind:string;mimeType:string;mediaId:string};
 
@@ -34,7 +31,6 @@ async function api(path:string, method:"GET"|"POST"="GET",body?:unknown,locale:"
   const data=await response.json().catch(()=>({}));
   if(!response.ok) {
     const code=data.error;
-    if(code==="weekly_unavailable") throw new Error(bilingual(locale,"This week's official five questions are not ready.","이번 주의 공식 5문제가 아직 준비되지 않았어요."));
     if(code==="not_enough_questions") throw new Error(data.message||bilingual(locale,"There aren't enough unseen quizzes. Come back when new ones are published.","새로운 문제가 충분하지 않아요. 새 퀴즈가 공개되면 다시 즐겨 주세요."));
     if(code==="question_suspended") throw new Error(bilingual(locale,"Play is temporarily paused while this question is reviewed.","문제 안전성 검토로 플레이가 잠시 중단됐어요."));
     if(code==="run_expired"||code==="week_closed") throw new Error(bilingual(locale,"This challenge has ended. Start a new one.","진행 기간이 끝났어요. 새 도전을 시작해 주세요."));
@@ -55,11 +51,6 @@ function rememberQuiz(id:string) {
   try {localStorage.setItem(SEEN_KEY,JSON.stringify([...new Set([...rememberedQuizzes(),id])].slice(-1000)));}
   catch { /* Device-only fallback; signed-in histories remain server-authoritative. */ }
 }
-function displayedDate(v?:string) {
-  if(!v) return "";
-  return new Date(v).toLocaleDateString("ko-KR",{month:"long",day:"numeric",timeZone:"UTC"});
-}
-
 function MediaPart({item,reveal}:{item:MediaPreview;reveal?:RevealSettings}) {
   const locale=useLocale();
   if(item.kind==="image") return reveal ?
@@ -75,7 +66,6 @@ export default function PlayPage() {
   const msg=(en:string,ko:string)=>bilingual(locale,en,ko);
   const request=(path:string,method:"GET"|"POST"="GET",body?:unknown)=>api(path,method,body,locale);
   const [lane,setLane]=useState<Lane>("GENERAL");
-  const [edition,setEdition]=useState<Edition|null>(null);
   const [run,setRun]=useState<RunInfo|null>(null);
   const [round,setRound]=useState<Round|null>(null);
   const [guess,setGuess]=useState("");
@@ -86,8 +76,6 @@ export default function PlayPage() {
   const [roundScore,setRoundScore]=useState(0);
   const [mustReveal,setMustReveal]=useState(false);
   const [media,setMedia]=useState<Record<string,MediaPreview>>({});
-  const [ranking,setRanking]=useState<Ranking[]>([]);
-  const [rankingAvailable,setRankingAvailable]=useState(false);
   const [myHistory,setMyHistory]=useState<RunInfo[]>([]);
   const [mode,setMode]=useState<Mode>("RANDOM_FIVE");
   const [questionsToRate,setQuestionsToRate]=useState<FeedbackItem[]>([]);
@@ -101,21 +89,10 @@ export default function PlayPage() {
 
   useEffect(()=>{
     let alive=true;
-    setEdition(null);setRun(null);setRound(null);setError("");setFeedback("");setMedia({});
-    void request("/weekly/current?lane="+lane+"&locale="+locale).then((v:Edition)=>{if(alive)setEdition(v)})
-      .catch(e=>{if(alive)setError(e instanceof Error?e.message:msg("Could not load this week's challenge.","이번 주 정보를 불러오지 못했어요."))});
+    setRun(null);setRound(null);setError("");setFeedback("");setMedia({});
     void request("/runs?limit=5").then(value=>{if(alive)setMyHistory(value.items||[])}).catch(()=>{});
     return ()=>{alive=false;};
   },[lane,locale]);
-
-  useEffect(()=>{
-    let alive=true;
-    if(lane!=="GENERAL"||!edition?.available||!edition.id){setRanking([]);setRankingAvailable(false);return;}
-    void request("/weekly/"+edition.id+"/standings?limit=10&locale="+locale).then(data=>{
-      if(alive){setRanking(data.items||[]);setRankingAvailable(true);}
-    }).catch(()=>{if(alive){setRanking([]);setRankingAvailable(false);}});
-    return ()=>{alive=false;};
-  },[lane,edition?.available,edition?.id,round?.sessionStatus,run?.status]);
 
   useEffect(()=>{
     if(!run||run.status!=="FINISHED"||round)return;
@@ -184,7 +161,7 @@ export default function PlayPage() {
         setRun(previous=>previous?{
           ...previous,completed:previous.completed+1,score:previous.score+(result.score||0),
           solved:(previous.solved||0)+(result.correct?1:0),failed:(previous.failed||0)+(result.correct?0:1),
-          status:previous.mode!=="INFINITE"&&previous.completed+1>=5?"FINISHED":"ACTIVE"
+          status:previous.total!==null&&previous.completed+1>=previous.total?"FINISHED":"ACTIVE"
         }:null);
       }
     }catch(e){setError(e instanceof Error?e.message:msg("Could not check your answer.","정답을 확인하지 못했어요."));}
@@ -212,8 +189,8 @@ export default function PlayPage() {
   return <main className="container inner-page play-experience">
     <div className="play-intro">
       <span className="eyebrow">QUIZDIP · PLAY</span>
-      <h1>{msg("Five quizzes. Plenty to discover.","다섯 문제로 가볍게, 단서를 따라 발견해 봐.")}</h1>
-      <p className="lead">{msg("Start with five random questions, play five more if you like, or join this week's shared challenge.","랜덤 5문제로 시작하고, 재미있으면 또 다섯 문제! 이번 주의 공통 챌린지도 즐길 수 있어요.")}</p>
+      <h1>{msg("Discover and play at your pace.","흥미로운 퀴즈를 발견하고 자유롭게 플레이하세요.")}</h1>
+      <p className="lead">{msg("Try five quick questions, keep exploring at random, or find quiz packs in Discover.","가볍게 랜덤 5문제로 시작하거나 계속 풀어보세요. Discover에서 다양한 퀴즈팩을 탐색할 수도 있어요.")}</p>
     </div>
 
     <div className="lane-picker" role="group" aria-label={msg("Play audience","플레이 대상 선택")}>
@@ -228,42 +205,24 @@ export default function PlayPage() {
         <h2>{msg("Free play","자유 플레이")}</h2>
         <div className="cards">
           <article className="feature-card">
-            <span className="symbol mint">5</span><h3>{msg("Five random quizzes","랜덤 5문제")}</h3>
+            <span className="symbol mint">5</span><h3>{msg("Quick start · five questions","가볍게 시작 · 랜덤 5문제")}</h3>
             <p>{msg("Choose five quizzes you haven't seen. Finish and unlock five more.","아직 보지 않은 다섯 문제를 골라요. 완료하면 새로운 다섯 문제를 더 즐길 수 있어요.")}</p>
             <button className="btn btn-primary" disabled={busy} onClick={()=>void start("RANDOM_FIVE")}>{msg("Start five quizzes →","5문제 시작하기 →")}</button>
           </article>
           <article className="feature-card">
-            <span className="symbol yellow">∞</span><h3>{msg("Continuous play (optional)","연속 플레이 (선택)")}</h3>
+            <span className="symbol yellow">∞</span><h3>{msg("Continuous random play","랜덤 연속 플레이")}</h3>
             <p>{msg("Keep playing until you run out of new questions, with no repeats.","원한다면 계속 풀 수 있어요. 새로운 문제가 소진되면 반복 없이 끝나요.")}</p>
             <button className="btn btn-outline" disabled={busy} onClick={()=>void start("INFINITE")}>{msg("Continue playing","이어 풀기")}</button>
           </article>
         </div>
       </section>
-      <section className="weekly-spotlight">
-        <div className="weekly-star" aria-hidden="true">✦</div>
-        <span className="small-tag">{msg("WEEKLY FIVE · This week's featured challenge","WEEKLY FIVE · 이번 주의 특별 챌린지")}</span>
-        {edition?.available? <>
-          <h2>{edition.title}</h2>
-          <p className="weekly-host">{msg("This week's host · ","이번 주 출제자 · ")}<strong>{edition.host?.name||msg("QuizDip creator","QuizDip 제작자")}</strong>
-            {edition.host?.verified&&<span className="host-verified">{msg("✓ Verified creator","✓ 인증된 출제자")}</span>}</p>
-          <p>{edition.description||msg("Five questions by one creator, in the same order for everyone.","한 명의 출제자가 준비한 다섯 문제. 모두에게 같은 순서로 공개돼요.")}</p>
-          <p className="weekly-dates">{displayedDate(edition.startsAt)} – {displayedDate(edition.endsAt)} {msg("(UTC) · 5 quizzes","(UTC 기준) · 5문제")}</p>
-          <button className="btn btn-primary" disabled={busy} onClick={()=>void start("WEEKLY")}>
-            {busy?msg("Loading…","불러오는 중…"):msg("Play this week's five →","이번 주 5문제 도전하기 →")}</button>
-          <p className="weekly-footnote">{msg("Only your first attempt counts for the leaderboard. Previously seen questions are excluded.","첫 도전만 공식 기록으로 인정해요. 전에 이 문제를 본 사용자는 순위에 포함되지 않아요.")}</p>
-          <Link href={localizeHref("/sign-in?callbackURL=%2Fplay", locale)} className="text-button">{msg("Sign in for an official score","공식 기록을 위해 로그인하기")}</Link>
-        </>:<>
-          <h2>{lane==="KIDS"?msg("Preparing this week's Kids challenge","이번 주 어린이 챌린지를 준비하고 있어요"):msg("Waiting for this week's host","이번 주 출제자를 기다리고 있어요")}</h2>
-          <p>{edition?.available?edition.message:msg("This week's five questions are not available yet.","이번 주의 다섯 문제는 아직 공개되지 않았어요.")}</p>
-          <p>{msg("Once this week's official five quizzes are scheduled, everyone can play them here.","운영자가 이번 주의 공식 5문제를 확정하면 여기에서 모두가 함께 풀 수 있어요.")}</p>
-        </>}
-      </section>
+      <p className="play-discover-link"><Link href={localizeHref("/discover", locale)}>{msg("Explore questions and quiz packs →","문제와 퀴즈팩 둘러보기 →")}</Link></p>
 
       {myHistory.length>0&&<section className="play-recent">
         <h2>{msg("My recent games","최근 내 기록")}</h2>
         <div className="recent-results">
           {myHistory.map(item=><p key={item.runId}>
-            {item.mode==="WEEKLY"?msg("Weekly five","주간 5문제"):item.mode==="INFINITE"?msg("Continuous play","무한 플레이"):msg("Five random quizzes","랜덤 5문제")}
+            {item.mode==="WEEKLY"?msg("Past weekly game","이전 주간 플레이"):item.mode==="INFINITE"?msg("Continuous play","연속 플레이"):msg("Quick five","랜덤 5문제")}
             {" · "}{item.score}{msg(" pts · ","점 · ")}{item.completed}{msg(" quizzes · ","문제 ")}{item.status==="FINISHED"?msg("Finished","완료"):msg("In progress","진행 중")}
           </p>)}
         </div>
@@ -272,7 +231,7 @@ export default function PlayPage() {
 
     {run&&<section className="play-panel play-live" aria-live="polite">
       <div className="play-top">
-        <span className="small-tag">{mode==="WEEKLY"?msg("This week's five","이번 주의 5문제"):mode==="RANDOM_FIVE"?msg("Five random quizzes","랜덤 5문제"):msg("Continuous play","무한 플레이")}</span>
+        <span className="small-tag">{mode==="RANDOM_FIVE"?msg("Quick five","랜덤 5문제"):msg("Continuous play","연속 플레이")}</span>
         <span className="clue-count">{run.completed}{msg(" quizzes finished · ","문제 완료 · ")}{run.score}{msg(" pts","점")}</span>
       </div>
       {round?<>
@@ -318,8 +277,6 @@ export default function PlayPage() {
           <div className="round-finish-symbol">✦</div>
           <h2>{msg("Challenge complete!","이번 도전 완료!")}</h2>
           <p>{msg("Total ","총 ")}<strong>{run.score}{msg(" pts","점")}</strong> · {run.completed}{msg(" quizzes · ","문제 · ")}{msg("Correct ","정답 ")}{run.solved||0}</p>
-          {run.mode==="WEEKLY"&&<p>{msg("Everyone played the same five quizzes. Compare your result with this week's challengers.","모두에게 같은 다섯 문제였어요. 이번 주의 다른 도전자들과 결과를 비교해 보세요.")}</p>}
-          {run.mode==="WEEKLY"&&!run.official&&<p>{msg("Guest attempts and previously seen questions don't count toward the official rankings.","비로그인 또는 이전에 본 문제가 있는 기록은 공식 순위에 포함되지 않아요.")}</p>}
           {run.exhausted&&<p>{msg("You've finished all available new questions. Come back for more.","새로운 문제를 모두 풀었어요. 새 퀴즈가 등록되면 다시 즐겨 주세요.")}</p>}
           <div className="run-rating-review">
             <h3>{msg("How were those quizzes?","방금 풀었던 문제는 어땠나요?")}</h3>
@@ -354,18 +311,7 @@ export default function PlayPage() {
 
     {error&&<p className="feedback" role="alert">{error}</p>}
 
-    {lane==="GENERAL"&&edition?.available&&rankingAvailable&&
-      <section className="weekly-ranking">
-        <div className="play-top"><h2>{msg("This week's challengers","이번 주 도전자들")}</h2><span className="small-tag">{msg("Official scores","공식 기록")}</span></div>
-        {ranking.length? <ol className="ranking-list">
-          {ranking.map((person,index)=><li key={index}>
-            <span className="ranking-place">{msg("Rank ","")}{person.rank}{msg("","위")}</span>
-            <span>{person.displayName}</span><strong>{person.score}{msg(" pts","점")}</strong>
-          </li>)}
-        </ol> : <p className="muted">{msg("No official scores yet. Be the first to play.","아직 공개된 공식 기록이 없어요. 첫 도전자가 되어 보세요.")}</p>}
-        <p className="muted">{msg("Only verified adults who opt in appear on the leaderboard. Ties share the same rank.","참여 자격이 확인되고 순위 공개에 동의한 성인만 표시돼요. 동점자는 공동 순위예요.")}</p>
-      </section>}
     {lane==="KIDS"&&<p className="muted">{msg("Kids play only includes safety-approved questions and never displays public individual rankings.","어린이 모드는 플랫폼에서 안전성을 확인한 문제만 제공하고, 공개 개인 순위는 표시하지 않아요.")}</p>}
-    <div className="play-bottom"><Link href={localizeHref("/discover", locale)}>{msg("Discover more quizzes →","다른 퀴즈 둘러보기 →")}</Link><Link href={localizeHref("/studio/weekly", locale)}>{msg("Become a weekly creator →","출제자로 참여하기 →")}</Link></div>
+    <div className="play-bottom"><Link href={localizeHref("/discover", locale)}>{msg("Discover more quizzes →","다른 퀴즈 둘러보기 →")}</Link><Link href={localizeHref("/studio", locale)}>{msg("Create your own quiz →","퀴즈 만들기 →")}</Link></div>
   </main>;
 }
