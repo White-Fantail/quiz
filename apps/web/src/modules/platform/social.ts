@@ -358,9 +358,14 @@ export async function packPublishPreview(p:Record<string,any>,actor:Actor|null) 
 export async function packPublish(p:Record<string,any>,actor:Actor|null){
   const user=requireActor(actor);
   if(p.confirm!==true)fail(400,"confirmation_required","Confirm bulk publication");
+  const existing=await db().quizPack.findFirst({where:{id:p.id,authorId:user.id}});
+  if(!existing)fail(404,"not_found","Owned pack not found");
+  if(existing.safetyStatus==="RESTRICTED")
+    fail(409,"restricted_pack","A restricted pack cannot be republished without moderator review");
+  if(existing.publication==="PUBLISHED")
+    return {id:existing.id,publication:"PUBLISHED",alreadyPublished:true,
+      kidsReviewStatus:existing.kidsReviewStatus};
   const preview=await packPublishPreview(p,actor);
-  const restricted=await db().quizPack.findFirst({where:{id:p.id,authorId:user.id,safetyStatus:"RESTRICTED"},select:{id:true}});
-  if(restricted)fail(409,"restricted_pack","A restricted pack cannot be republished without moderator review");
   if(!preview.ready)fail(409,"pack_not_ready",preview.issues.join(", "));
   return db().$transaction(async tx=>{
     const pack=await tx.quizPack.findFirst({where:{id:p.id,authorId:user.id},
@@ -379,7 +384,7 @@ export async function packPublish(p:Record<string,any>,actor:Actor|null){
         if(q.authorId!==user.id || q.sourceLocale!==pack.sourceLocale)
           fail(403,"unowned_draft","Only owned original-language drafts can be published");
         const changed=await tx.quiz.updateMany({where:{id:q.id,publication:q.publication,currentVersion:q.currentVersion},
-          data:{publication:"PUBLISHED",kidsEligible:false,safetyStatus:"PENDING"}});
+          data:{publication:"PUBLISHED",kidsEligible:false,safetyStatus:"ACTIVE",kidsReviewStatus:"NOT_REQUESTED"}});
         if(changed.count!==1)fail(409,"quiz_changed","Quiz changed while publishing");
         await tx.quizLocalization.updateMany({where:{quizId:q.id,locale:pack.sourceLocale},
           data:{status:"PUBLISHED",publishedVersion:q.currentVersion}});
