@@ -117,13 +117,9 @@ export async function discoverSections(p:Record<string,any>) {
   const qids=validQuizzes.map(q=>q.id), pids=validPacks.map(pack=>pack.id);
   const qwhere={quizId:{in:qids},locale,userId:{not:null},startedAt:{gte:last30}};
   const pwhere={packId:{in:pids},locale,userId:{not:null},mode:"PACK",lane:"GENERAL",startedAt:{gte:last30}};
-  const [q30,q14,p30,p14,pFinished,qReport,pReport,qRatings,pRatings]=await Promise.all([
+  const [q30,p30,pFinished,qReport,pReport,qRatings,pRatings]=await Promise.all([
     db().playSession.groupBy({by:["quizId","userId","status"],where:qwhere,_count:{_all:true}}),
-    db().playSession.groupBy({by:["quizId","userId","status"],where:{...qwhere,startedAt:{gte:last14}},
-      _count:{_all:true}}),
     db().playRun.groupBy({by:["packId","userId","status"],where:pwhere,_count:{_all:true}}),
-    db().playRun.groupBy({by:["packId","userId","status"],where:{...pwhere,startedAt:{gte:last14}},
-      _count:{_all:true}}),
     db().playRun.groupBy({by:["packId","userId"],where:{...pwhere,status:"FINISHED"},
       _avg:{solved:true,failed:true,targetCount:true}}),
     db().report.groupBy({by:["quizId"],where:{quizId:{in:qids},status:"OPEN",createdAt:{gte:last90}},
@@ -134,10 +130,6 @@ export async function discoverSections(p:Record<string,any>) {
     packRatingsFor(pids,locale)
   ]);
   const qCounts=metricMap(q30),pCounts=metricMap(p30);
-  const qRecent=metricMap(q14.filter(x=>{
-    // grouped at 14 days is sufficient for recent activity, not event timing
-    return x.userId!==null;
-  })),pRecent=metricMap(p14);
   // Split 14-day window exactly for honest 7-day growth, without extrapolation.
   const [q7,qPrev,p7,pPrev]=await Promise.all([
     db().playSession.groupBy({by:["quizId","userId","status"],where:{...qwhere,startedAt:{gte:last7}},_count:{_all:true}}),
