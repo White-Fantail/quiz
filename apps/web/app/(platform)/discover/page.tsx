@@ -6,6 +6,8 @@ import { localizeHref } from "../../../src/i18n/core";
 import { bilingual } from "../../../src/i18n/view-copy";
 import { RatingBadge } from "../../../src/components/quiz-ratings";
 import { useEffect, useState } from "react";
+import DiscoverySections from "./discovery-sections";
+import PackBrowser from "./pack-browser";
 import {
   ANSWER_TYPES, audienceAgeLabel, difficultyLabel, discoverQuery, modeLabel,
   publicTopics, type DiscoverQuiz
@@ -25,6 +27,7 @@ export default function DiscoverPage() {
   const locale = useLocale();
   const t = useTranslation();
   const typeLabelsEn: Record<string, string> = { animal:"Animal", person:"Person", place:"Place", thing:"Thing", event:"Event", concept:"Concept", other:"Other" };
+  const [contentView,setContentView]=useState<"ALL"|"PACK"|"QUIZ">("ALL");
   const [answerType, setAnswerType] = useState("");
   const [topic, setTopic] = useState("");
   const [kids, setKids] = useState(false);
@@ -78,6 +81,16 @@ export default function DiscoverPage() {
       <p className="lead">{t("discover.lead")}</p>
       {!kids&&<p><Link href={localizeHref("/packs",locale)} className="btn btn-primary">{bilingual(locale,"Browse quiz packs →","퀴즈팩 둘러보기 →")}</Link></p>}
 
+      <div className="actions" role="group" aria-label={locale==="ko"?"탐색 콘텐츠 유형":"Discover content type"}>
+        {(["ALL","PACK","QUIZ"] as const).map(view=><button key={view} type="button"
+          className={"btn "+(contentView===view?"btn-primary":"btn-outline")} aria-pressed={contentView===view}
+          onClick={()=>setContentView(view)}>
+          {view==="ALL"?(locale==="ko"?"전체":"All"):view==="PACK"?(locale==="ko"?"퀴즈팩":"Quiz packs"):(locale==="ko"?"개별 문제":"Questions")}
+        </button>)}
+      </div>
+      {contentView==="ALL"&&<DiscoverySections/>}
+      {contentView==="PACK"&&<PackBrowser/>}
+      {contentView!=="PACK"&&<>
       <section className="discover-filters" aria-label={t("discover.filters")}>
         <label>
           <span>{t("discover.answerType")}</span>
@@ -167,6 +180,7 @@ export default function DiscoverPage() {
             onClick={() => setPage(v => v + 1)}>{t("discover.next")}</button>
         </nav>}
       <p className="muted discover-explainer">{t("discover.explainer")}</p>
+      </>}
     </main>
   );
 }
