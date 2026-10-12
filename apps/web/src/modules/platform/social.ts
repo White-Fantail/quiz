@@ -135,6 +135,25 @@ export async function packCreate(p: Record<string, any>, actor: Actor | null) {
   });
   return pack;
 }
+/** Editable owner-only pack details, including drafts and every ordered question. */
+export async function myPackGet(p:Record<string,any>,actor:Actor|null) {
+  const owner=requireActor(actor);
+  const pack=await db().quizPack.findFirst({
+    where:{id:p.id,authorId:owner.id},
+    include:{items:{orderBy:{position:"asc"}}}
+  });
+  if(!pack)fail(404,"not_found","Owned pack not found");
+  const ids=pack.items.map(item=>item.quizId);
+  const revisions=ids.length?await db().quizRevision.findMany({
+    where:{quizId:{in:ids},localization:{origin:{in:["ORIGINAL","LEGACY"]}}},
+    select:{quizId:true,title:true,version:true},orderBy:{version:"desc"}
+  }):[];
+  const titles=new Map<string,string>();
+  for(const revision of revisions)if(!titles.has(revision.quizId))titles.set(revision.quizId,revision.title);
+  return {id:pack.id,title:pack.title,description:pack.description,
+    publication:pack.publication,sourceLocale:pack.sourceLocale,orderMode:pack.orderMode,
+    quizIds:ids,members:ids.map(id=>({id,title:titles.get(id)??id}))};
+}
 export async function packList(p: Record<string, any>, actor: Actor | null) {
   if (p.mine) requireActor(actor);
   const locale = p.locale as "en" | "ko";
@@ -144,12 +163,15 @@ export async function packList(p: Record<string, any>, actor: Actor | null) {
     localizations: { some: { locale, status: "PUBLISHED" } },
     items: { some: {}, every: { quiz: playableQuizWhere(locale) } }
   };
-  const packs = await db().quizPack.findMany({
-    where, orderBy: { updatedAt: "desc" }, skip: p.offset, take: p.limit,
-    include: { localizations: { where: { locale } }, items: { orderBy: { position: "asc" } } }
-  });
+  const [packs,total] = await Promise.all([
+    db().quizPack.findMany({
+      where, orderBy: { updatedAt: "desc" }, skip: p.offset, take: p.limit,
+      include: { localizations: { where: { locale } }, items: { orderBy: { position: "asc" } } }
+    }),
+    db().quizPack.count({where})
+  ]);
   const ratingMap=p.mine?new Map():await packRatingsFor(packs.map(pack=>pack.id),locale);
-  return { locale, items: packs.map(pack => {
+  return { locale,total,hasMore:p.offset+packs.length<total,items: packs.map(pack => {
     const l = pack.localizations[0];
     return { id:pack.id, title: p.mine ? pack.title : l?.title,
       description: p.mine ? pack.description : l?.description,

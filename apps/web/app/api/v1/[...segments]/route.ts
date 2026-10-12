@@ -51,6 +51,8 @@ function route(method: string, segments: string[]): Match | null {
   if(a==="admin" && b==="packs" && c && d==="safety-review" && !e && method==="POST")
     return {op:"admin_pack_safety_review",args:{id:c}};
 
+  if(a==="me" && b==="packs" && c && !d && method==="GET")
+    return {op:"my_pack_get",args:{id:c}};
   if(a==="me" && b==="packs" && c && d==="insights" && !e && method==="GET")
     return {op:"my_pack_insights",args:{id:c}};
   if (a === "packs" && !b) {

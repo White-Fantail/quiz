@@ -6,7 +6,7 @@ import { fail, requireActor, type Actor } from "./auth";
 import { quizList, quizGet, quizCreate, quizUpdate, quizPublish, quizLanguageSet, quizReview, quizReviewGet, adminQuizReviewList } from "./quiz";
 import { playStart, playClue, playGuess } from "./play";
 import { runStart,runCurrent,runFinish,runHistory,runFeedback } from "./runs";
-import { reviewsList, reviewUpsert, reviewRemove, reportCreate, reportsMine, packCreate, packList, packGet, packPreflight, packUpdate, packLanguageSet, packLanguages, packTranslationUpsert, packPublishPreview, packPublish } from "./social";
+import { reviewsList, reviewUpsert, reviewRemove, reportCreate, reportsMine, packCreate, packList, packGet, myPackGet, packPreflight, packUpdate, packLanguageSet, packLanguages, packTranslationUpsert, packPublishPreview, packPublish } from "./social";
 import { quizStats, myStats, me, leaderboard, rankingOptin, adultVerify } from "./analytics";
 import { packReviewsList, packReviewUpsert, packReviewRemove, packReportCreate, packInsightsMine } from "./pack-social";
 import { discoverSections } from "./discovery";
@@ -49,6 +49,7 @@ export async function execute(name: Operation, raw: unknown, actor: Actor | null
     case "quiz_review_get": return quizReviewGet(p,actor);
     case "quiz_review": return quizReview(p, actor);
     case "pack_get": return packGet(p,actor);
+    case "my_pack_get": return myPackGet(p,actor);
     case "pack_list": return packList(p, actor);
     case "pack_preflight": return packPreflight(p,actor);
     case "pack_create": return packCreate(p, actor);
