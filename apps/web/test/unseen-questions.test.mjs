@@ -31,7 +31,7 @@ test("UI offers optional quick five, continuous random play and Discover instead
   const code=readFileSync(new URL("../app/(platform)/play/page.tsx",import.meta.url),"utf8");
   assert.match(code,/play-practice/);
   assert.doesNotMatch(code,/weekly-spotlight/);
-  assert.match(code,/문제와 퀴즈팩 둘러보기/);
+  assert.match(code,/퀴즈팩 전체 플레이/);
   assert.match(code,/새로운 5문제 더 풀기/);
   assert.ok(code.includes("rememberQuiz(next.quizId)"));
 });
