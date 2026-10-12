@@ -8,7 +8,7 @@ test("admin landing page checks the real web session and domain role", () => {
   const page = source("app/admin/page.tsx");
   assert.match(page, /export const dynamic\s*=\s*"force-dynamic"/);
   assert.match(page, /await actorFor\(/);
-  assert.match(page, /if \(!actor\) redirect\("\/sign-in\?callbackURL=%2Fadmin"\)/);
+  assert.match(page, /if \(!actor\) redirect\(localizeHref\("\/sign-in\?callbackURL=%2Fadmin",locale\)\)/);
   assert.match(page, /if \(actor\.role !== "ADMIN"\) notFound\(\)/);
   assert.match(page, /href="\/admin\/quiz-review"/);
   assert.match(page, /href="\/admin\/weekly"/);

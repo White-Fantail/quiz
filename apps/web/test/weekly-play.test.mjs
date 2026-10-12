@@ -87,7 +87,7 @@ test("kids weekly eligibility excludes pending and restricted questions and neve
 
 test("web play is wired to server-authoritative gameplay and media playback",()=>{
   const view=load("app/(platform)/play/page.tsx");
-  assert.match(view,/api\("\/runs"/);
+  assert.match(view,/request\("\/runs"/);
   assert.match(view,/\/current","POST"/);
   assert.match(view,/\/guess","POST"/);
   assert.match(view,/\/clue","POST"/);

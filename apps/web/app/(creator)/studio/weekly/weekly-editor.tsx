@@ -85,18 +85,18 @@ export default function WeeklyEditor(){
       </div>
     </section>}
     <div className="media-editor">
-      <label>대상 모드
+      <label>{msg("Audience","대상 모드")}
         <select value={lane} onChange={e=>setLane(e.target.value as Lane)}>
           <option value="GENERAL">{msg("General challenge","일반 챌린지")}</option><option value="KIDS">{msg("Kids challenge (approved quizzes only)","어린이 챌린지 (승인된 문제만)")}</option>
         </select>
       </label>
-      <label>출제할 주의 월요일 (UTC)
+      <label>{msg("Monday of proposed week (UTC)","출제할 주의 월요일 (UTC)")}
         <input type="date" value={week} onChange={e=>setWeek(e.target.value)} required/>
       </label>
-      <label>특집 제목
+      <label>{msg("Featured title","특집 제목")}
         <input value={title} onChange={e=>setTitle(e.target.value)} placeholder={msg("e.g. Hidden animals in the city","예: 도시 속 숨겨진 동물들")} maxLength={180} required/>
       </label>
-      <label>출제자 한마디
+      <label>{msg("Note from the host","출제자 한마디")}
         <textarea value={description} onChange={e=>setDescription(e.target.value)} placeholder={msg("A note for the participants","참가자들에게 한마디!")} maxLength={1000} rows={3}/>
       </label>
     </div>

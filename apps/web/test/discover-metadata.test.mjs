@@ -46,7 +46,7 @@ test("Discover fetches public quizzes, supports topic and audience filters and l
   assert.match(page,/\/play\/"/);
   assert.doesNotMatch(page,/준비 중<\/span>/);
   const play = readFileSync(new URL("../app/(platform)/play/[quizId]/page.tsx",import.meta.url),"utf8");
-  assert.match(play,/api\("\/play"/);
+  assert.match(play,/request\("\/play"/);
   assert.match(play,/sessionToken/);
   assert.match(play,/\/clue"/);
   assert.match(play,/\/guess"/);
