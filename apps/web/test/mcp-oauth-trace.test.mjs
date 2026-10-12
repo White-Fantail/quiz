@@ -11,15 +11,6 @@ import {
 const resource = "https://quizdip.vercel.app/api/mcp";
 const issuer = "https://quizdip.vercel.app";
 
-function withSecret(fn) {
-  const before = process.env.BETTER_AUTH_SECRET;
-  process.env.BETTER_AUTH_SECRET = "a-long-test-secret-never-used-in-production";
-  try { return fn(); } finally {
-    if (before === undefined) delete process.env.BETTER_AUTH_SECRET;
-    else process.env.BETTER_AUTH_SECRET = before;
-  }
-}
-
 test("diagnostic code has a hard expiry and a runtime kill switch", () => {
   assert.equal(MCP_OAUTH_TRACE_END, "2026-10-16T00:00:00.000Z");
   assert.equal(mcpOAuthTraceEnabled(Date.parse("2026-10-15T23:59:59Z")), true);
@@ -57,7 +48,7 @@ test("token tracing leaves the original POST body usable and never logs code, PK
     client_secret: "private-client-secret", scope: "mcp:tools", resource,
   });
   const request = new Request(url, {
-    method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" },
+    method: "POST", headers: { "content-type": "application/x-www-form-urlencoded", "content-length": String(form.toString().length) },
     body: form.toString(),
   });
   const trace = await summarizeOAuthRequest(request, "token", resource);
@@ -70,7 +61,6 @@ test("token tracing leaves the original POST body usable and never logs code, PK
 });
 
 test("issued access token and MCP rejection produce matching opaque fingerprints", async () => {
-  await withSecret(async () => {});
   const oldSecret = process.env.BETTER_AUTH_SECRET;
   process.env.BETTER_AUTH_SECRET = "test-secret-32-characters-minimum-value";
   try {
@@ -126,7 +116,7 @@ test("JWT trace reports only verification hints; never trusts or logs claims", a
 
 test("malformed or oversized token grant payload never becomes a log entry", async () => {
   const request = new Request(issuer + "/api/auth/oauth2/token", {
-    method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" },
+    method: "POST", headers: { "content-type": "application/x-www-form-urlencoded", "content-length": "20040" },
     body: "grant_type=refresh_token&refresh_token=" + "A".repeat(20_000),
   });
   const trace = await summarizeOAuthRequest(request, "token", resource);

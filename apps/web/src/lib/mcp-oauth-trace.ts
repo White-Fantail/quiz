@@ -110,8 +110,10 @@ export async function summarizeOAuthRequest(
     // OAuth token exchanges contain credentials; inspect only small encoded
     // bodies, and never emit their contents.
     const contentType = request.headers.get("content-type") || "";
-    const size = Number(request.headers.get("content-length") || "0");
-    if (contentType.includes("application/x-www-form-urlencoded") && size <= 16_384) {
+    const announcedLength = request.headers.get("content-length");
+    const size = announcedLength === null ? NaN : Number(announcedLength);
+    // Do not read an unbounded/streaming request just to produce diagnostics.
+    if (contentType.includes("application/x-www-form-urlencoded") && size > 0 && size <= 16_384) {
       try {
         const raw = await request.clone().text();
         if (raw.length <= 16_384) {
