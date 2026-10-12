@@ -11,6 +11,8 @@ import { reviewsList, reviewUpsert, reviewRemove, reportCreate, reportsMine, pac
 import { quizStats, myStats, me, leaderboard, rankingOptin, adultVerify } from "./analytics";
 import { packReviewsList, packReviewUpsert, packReviewRemove, packReportCreate, packInsightsMine } from "./pack-social";
 import { discoverSections } from "./discovery";
+import { editorialFeaturesList,adminFeatureList,adminFeatureCandidates,adminFeatureCreate,
+  adminFeatureUpdate,adminFeatureRemove,adminPackSafetyList,adminPackSafetyReview } from "./editorial";
 import { userGet, creatorReviewsList, creatorReviewUpsert } from "./creators";
 import { myQuizzes, myQuizInsights } from "./studio";
 import { mediaUpload, mediaChunk, mediaComplete, mediaImport, mediaList, mediaGet, mediaUpdate,
@@ -28,7 +30,7 @@ export async function execute(name: Operation, raw: unknown, actor: Actor | null
       userAdjustable: ["answerType", "topics", "creatorIntent", "recommendedAudience", "clues", "answer"],
       platformControlled: ["safetyStatus", "kidsEligible"],
       playModes: ["RANDOM_FIVE","INFINITE","PACK"], audiences: ["GENERAL","KIDS"],
-      quickStartQuestions: 5, weeklyChallenge: "RETIRED", editorialPicks: "PLANNED", packOrderModes: ["CREATOR","RANDOM"],
+      quickStartQuestions: 5, weeklyChallenge: "RETIRED", editorialPicks: "ACTIVE", packOrderModes: ["CREATOR","RANDOM"],
       version: "v2", format: "progressive-clues" };
     case "topic_list": return topicList(p);
     case "quiz_list": return quizList(p, actor);
@@ -62,6 +64,14 @@ export async function execute(name: Operation, raw: unknown, actor: Actor | null
     case "pack_report_create": return packReportCreate(p,actor);
     case "my_pack_insights": return packInsightsMine(p,actor);
     case "discover_sections": return discoverSections(p);
+    case "editorial_features": return editorialFeaturesList(p,actor);
+    case "admin_feature_list": return adminFeatureList(p,actor);
+    case "admin_feature_candidates": return adminFeatureCandidates(p,actor);
+    case "admin_feature_create": return adminFeatureCreate(p,actor);
+    case "admin_feature_update": return adminFeatureUpdate(p,actor);
+    case "admin_feature_remove": return adminFeatureRemove(p,actor);
+    case "admin_pack_safety_list": return adminPackSafetyList(p,actor);
+    case "admin_pack_safety_review": return adminPackSafetyReview(p,actor);
     case "play_start": return playStart(p, actor);
     case "play_clue": return playClue(p, actor);
     case "play_guess": return playGuess(p, actor);
