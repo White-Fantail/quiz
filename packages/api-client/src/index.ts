@@ -208,7 +208,7 @@ export class QuizDipKidsDeviceApi {
   async packs(token:string,offset=0,limit=8):Promise<KidsPackCatalog> {
     if(!Number.isInteger(offset)||offset<0||offset>100000||
       !Number.isInteger(limit)||limit<1||limit>20)throw new ApiError("invalid_pagination");
-    const params=new URLSearchParams({view:"packs",offset:String(offset),limit:String(limit+1)});
+    const params=new URLSearchParams({view:"packs",offset:String(offset),limit:String(limit)});
     const data=await this.request("GET","?"+params,token);
     if(!Array.isArray(data?.items))throw new ApiError("invalid_response");
     const safe=data.items.filter((x:any):x is KidPackItem=>
