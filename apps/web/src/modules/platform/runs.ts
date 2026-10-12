@@ -6,6 +6,7 @@ import { selectUnseen } from "./unseen-questions";
 import { runTargetCount } from "./run-length";
 import { orderPackQuestions } from "./pack-order";
 import { playableQuizWhere } from "./content-locale";
+import { safePack } from "./feature-eligibility";
 import type { Locale } from "../../i18n/core";
 
 export type Lane = "GENERAL" | "KIDS";
@@ -103,6 +104,7 @@ async function startPackRun(p:Record<string,any>,actor:Actor|null) {
     fail(403,"pack_kids_unavailable","Pack play is not yet enabled for child devices");
   if(!p.packId)fail(400,"pack_required","Choose a quiz pack");
   const locale=p.locale as Locale;
+  const safe=await safePack(p.packId,locale,"GENERAL");
   // A signed-in player can resume on any device: their run capability is
   // deterministically derived server-side, never obtained from a public URL.
   const current=await db().quizPack.findFirst({
@@ -124,19 +126,21 @@ async function startPackRun(p:Record<string,any>,actor:Actor|null) {
   const expiry=new Date(Date.now()+30*86400000);
   return db().$transaction(async tx=>{
     const pack=await tx.quizPack.findFirst({
-      where:{id:p.packId,publication:"PUBLISHED",
+      where:{id:p.packId,publication:"PUBLISHED",safetyStatus:{not:"RESTRICTED"},
+        currentVersion:safe.packVersion,
         localizations:{some:{locale,status:"PUBLISHED"}}},
       include:{items:{orderBy:{position:"asc"},select:{quizId:true,position:true}}}
     });
     if(!pack||!pack.items.length||pack.items.length>100)
       fail(409,"pack_unavailable","Quiz pack has no playable questions");
-    const ids=pack.items.map(item=>item.quizId);
+    // Snapshot only the currently safe members. Keep the stored composition unchanged.
+    const ids=safe.items.map(item=>item.quizId);
     if(new Set(ids).size!==ids.length)
       fail(409,"pack_invalid","Quiz pack contains duplicate questions");
     const playable=await tx.quiz.findMany({where:{id:{in:ids},...playableQuizWhere(locale)},
       select:{id:true}});
     if(playable.length!==ids.length)
-      fail(409,"pack_unavailable","One or more pack questions are no longer public");
+      fail(409,"pack_unavailable","Pack membership changed during start; retry");
     const localizations=await tx.quizLocalization.findMany({
       where:{quizId:{in:ids},locale,status:"PUBLISHED"},
       select:{id:true,quizId:true,publishedVersion:true,
@@ -171,7 +175,8 @@ async function startPackRun(p:Record<string,any>,actor:Actor|null) {
     }
     // Shuffle exactly once when the run is created; persistence pins this order.
     // Creator order remains the default for every existing pack.
-    const orderedItems=orderPackQuestions(pack.items,pack.orderMode as "CREATOR"|"RANDOM");
+    const orderedItems=orderPackQuestions(pack.items.filter(item=>ids.includes(item.quizId)),
+      pack.orderMode as "CREATOR"|"RANDOM");
     const run=await tx.playRun.create({data:{
       id,mode:"PACK",lane:"GENERAL",locale,userId:actor?.id,
       packId:pack.id,packVersion:pack.currentVersion,targetCount:ids.length,
@@ -209,7 +214,17 @@ function runSummary(run:any) {
     score:run.score,solved:run.solved,failed:run.failed,
     completedAt:run.completedAt};
 }
-export async function runCurrent(p:Record<string,any>,actor:Actor|null) {
+/** Advance a general pack past a quiz withdrawn mid-run, without awarding a failure.
+ * Its frozen total represents slots at start; restrictions do not reveal answers.
+ */
+async function skipWithdrawnPackRound(run:any,p:Record<string,any>,actor:Actor|null):Promise<any>{
+  const last=run.currentIndex+1>=runTargetCount(run);
+  await db().playRun.updateMany({where:{id:run.id,mode:"PACK",lane:"GENERAL",
+    status:"ACTIVE",currentIndex:run.currentIndex},
+    data:{currentIndex:{increment:1},...(last?{status:"FINISHED",completedAt:new Date()}:{})}});
+  return runCurrent(p,actor);
+}
+export async function runCurrent(p:Record<string,any>,actor:Actor|null):Promise<any> {
   const run=await checkedRun(p.runId,p.runToken,actor);
   if (p.locale && run.locale!==p.locale) fail(409,"locale_mismatch","Run language cannot be changed mid-game");
   if(run.status==="FINISHED") return runSummary(run);
@@ -239,17 +254,31 @@ export async function runCurrent(p:Record<string,any>,actor:Actor|null) {
       round=await db().playRunQuestion.findUnique({where:{runId_position:{runId:run.id,position:run.currentIndex}}});
     }
   }
-  if(!round) fail(409,"no_more_questions","No further questions in this run");
+  if(!round){
+    if(run.mode==="PACK"&&run.currentIndex>=runTargetCount(run)){
+      await db().playRun.updateMany({where:{id:run.id,status:"ACTIVE"},
+        data:{status:"FINISHED",completedAt:new Date()}});
+      return runSummary(await db().playRun.findUniqueOrThrow({where:{id:run.id}}));
+    }
+    fail(409,"no_more_questions","No further questions in this run");
+  }
   const quiz=await db().quiz.findUnique({where:{id:round.quizId}});
   if(!quiz || quiz.publication!=="PUBLISHED" || quiz.safetyStatus==="RESTRICTED" ||
-    (run.lane==="KIDS" && !(quiz.safetyStatus!=="RESTRICTED"&&quiz.kidsEligible&&quiz.kidsReviewStatus==="APPROVED")))
+    (run.lane==="KIDS" && !(quiz.safetyStatus!=="RESTRICTED"&&quiz.kidsEligible&&quiz.kidsReviewStatus==="APPROVED"))){
+    if(run.mode==="PACK"&&run.lane==="GENERAL")return skipWithdrawnPackRound(run,p,actor);
     fail(409,"question_suspended","This question is temporarily unavailable for safety review");
+  }
   const revision=await db().quizRevision.findUnique({where:{id:round.revisionId},include:{localization:true}});
   if(!revision || revision.localization?.locale!==run.locale ||
-    revision.localization.status!=="PUBLISHED" || !(revision.clues as unknown[]).length)
+    revision.localization.status!=="PUBLISHED" ||
+    !Array.isArray(revision.clues)||!revision.clues.length){
+    if(run.mode==="PACK"&&run.lane==="GENERAL")return skipWithdrawnPackRound(run,p,actor);
     fail(409,"invalid_question","The pinned question version is unavailable");
-  if(!await pinnedMediaApproved([revision]))
+  }
+  if(!await pinnedMediaApproved([revision])){
+    if(run.mode==="PACK"&&run.lane==="GENERAL")return skipWithdrawnPackRound(run,p,actor);
     fail(409,"question_suspended","This pinned question contains unapproved or restricted media");
+  }
   const token=sessionToken(p.runToken,run.id,run.currentIndex);
   let session=await db().playSession.findUnique({where:{runId_roundIndex:{runId:run.id,roundIndex:run.currentIndex}}});
   if(!session) {
