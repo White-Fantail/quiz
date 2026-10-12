@@ -7,9 +7,9 @@ import { discoverQuery } from "../src/modules/quiz/discover-metadata.ts";
 const read = path => readFileSync(new URL("../"+path,import.meta.url),"utf8");
 const id="94f0792a-18e6-40c0-a480-0be6d46dbb37";
 test("catalog and gameplay validate supported locale and refuse unsupported values",()=>{
-  for(const name of ["quiz_list","quiz_get","topic_list","pack_list","play_start","weekly_current","weekly_standings","run_start"]){
+  for(const name of ["quiz_list","quiz_get","topic_list","pack_list","play_start","run_start"]){
     const obj = name==="quiz_get" ? {id} : name==="play_start" ? {quizId:id}
-      : name==="weekly_standings" ? {challengeId:id} : name==="run_start" ? {mode:"RANDOM_FIVE"} : {};
+      : name==="run_start" ? {mode:"RANDOM_FIVE"} : {};
     assert.equal(parseOperation(name,obj).locale,"en",name);
     assert.equal(parseOperation(name,{...obj,locale:"ko"}).locale,"ko",name);
     assert.throws(()=>parseOperation(name,{...obj,locale:"ja"}),name);
@@ -50,7 +50,7 @@ test("server-scoped catalog queries and paging enforce published localization be
   assert.match(topic,/isSpoiler:false/);
   assert.match(social,/items: \{ some: \{\}, every: \{ quiz: playableQuizWhere\(locale\) \} \}/);
 });
-test("play sessions and weekly snapshots pin matching locale and never substitute original revisions",()=>{
+test("play sessions and random/pack snapshots pin matching locale and revisions",()=>{
   const play=read("src/modules/platform/play.ts");
   const runs=read("src/modules/platform/runs.ts");
   const schema=read("../../prisma/schema.prisma");
@@ -59,12 +59,11 @@ test("play sessions and weekly snapshots pin matching locale and never substitut
   assert.match(play,/revision.localization\?\.locale !== session.locale/);
   assert.match(runs,/randomChoices\(run.lane as Lane,run.locale as Locale/);
   assert.match(runs,/playableQuizWhere\(locale,lane\)/);
-  assert.match(runs,/weeklySnapshots\(edition!,locale\)/);
-  assert.match(runs,/weeklyQuestionLocalization.createMany/);
-  assert.match(runs,/weekly_locale_locked/);
+  assert.match(runs,/packId:pack.id,packVersion:pack.currentVersion/);
+  assert.match(runs,/publishedVersion/);
   assert.match(runs,/run.locale!==p.locale/);
   assert.match(runs,/revision.localization\?\.locale!==run.locale/);
-  assert.match(schema,/model WeeklyQuestionLocalization/);
+  assert.doesNotMatch(schema,/model WeeklyChallenge|model WeeklyQuestion/);
   assert.match(migration,/ALTER TABLE "PlayRun" ADD COLUMN "locale"/);
   assert.match(migration,/ALTER TABLE "PlaySession" ADD COLUMN "locale"/);
   assert.doesNotMatch(migration,/DROP TABLE/);
