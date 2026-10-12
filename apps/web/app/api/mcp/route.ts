@@ -44,4 +44,10 @@ export const POST = requireMcpAuth(auth, async (request, claims) => {
   const actor = await actorByIdentity(claims.sub);
   const handler = createMcpHandler(() => createServer(actor), { legacy: "reject" });
   return handler.fetch(request);
-}, { resource: mcpResource, requiredScopes: ["mcp:tools"] });
+}, {
+  resource: mcpResource,
+  requiredScopes: ["mcp:tools"],
+  // Advise OAuth clients to request refresh-token eligibility at initial authorization.
+  // This is only a 401 challenge hint; access still requires mcp:tools and user consent.
+  challengeScopes: ["mcp:tools", "offline_access"],
+});
