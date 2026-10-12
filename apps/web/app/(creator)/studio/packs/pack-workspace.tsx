@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { useLocale } from "../../../../src/i18n/provider";
 import { localizeHref } from "../../../../src/i18n/core";
 
-type Pack={id:string;title:string;description:string;publication:string;orderMode:"CREATOR"|"RANDOM";quizIds:string[]};
+type Pack={id:string;title:string;description:string;publication:string;orderMode:"CREATOR"|"RANDOM";quizIds:string[];kidsReviewStatus:string;excludedCount:number;safetyStatus:string};
 type PackPage={items:Pack[];total:number;hasMore:boolean};
 const PAGE_SIZE=20;
 export default function PackWorkspace(){
@@ -52,6 +52,10 @@ export default function PackWorkspace(){
             <span className={"media-state-chip "+(pack.publication==="PUBLISHED"?"media-ok":"media-wait")}>{pack.publication==="PUBLISHED"?(ko?"공개":"Published"):pack.publication==="HIDDEN"?(ko?"숨김":"Hidden"):(ko?"초안":"Draft")}</span>
             <span className="media-state-chip media-wait">{pack.quizIds.length}{ko?"문제":" questions"}</span>
             <span className="media-state-chip media-wait">{pack.orderMode==="RANDOM"?(ko?"랜덤 순서":"Random order"):(ko?"등록 순서":"Creator order")}</span>
+            {pack.kidsReviewStatus==="APPROVED"&&<span className="media-state-chip media-ok">{ko?"어린이용 승인":"Kids approved"}</span>}
+            {pack.kidsReviewStatus==="PENDING"&&<span className="media-state-chip media-wait">{ko?"어린이 심사 대기":"Kids review pending"}</span>}
+            {pack.kidsReviewStatus==="REJECTED"&&<span className="media-state-chip media-wait">{ko?"어린이 신청 거절":"Kids review rejected"}</span>}
+            {pack.safetyStatus==="RESTRICTED"&&<span className="media-state-chip media-wait">{ko?"팩 제한됨":"Pack restricted"}</span>}
           </div>
           <h3><Link href={localizeHref("/studio/packs/"+pack.id,locale)}>{pack.title}</Link></h3>
           {pack.description&&<p>{pack.description}</p>}
