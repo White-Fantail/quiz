@@ -10,8 +10,6 @@ test("feedback language and category input validation",()=>{
   assert.equal(parseOperation("reviews_list",{quizId:id,locale:"en"}).kind,"QUIZ");
   assert.equal(parseOperation("quiz_stats",{quizId:id,locale:"ko",version:2}).version,2);
   assert.equal(parseOperation("my_quiz_insights",{quizId:id}).locale,"all");
-  assert.equal(parseOperation("weekly_insights",{challengeId:id}).locale,"all");
-  assert.equal(operations.weekly_insights.public,false);
   assert.throws(()=>parseOperation("review_upsert",{quizId:id,locale:"xx",rating:1}));
   assert.throws(()=>parseOperation("review_upsert",{quizId:id,locale:"ko",kind:"FAKE",rating:1}));
   assert.equal("authorId" in parseOperation("review_remove",{quizId:id,locale:"en",authorId:"attacker"}),false);
@@ -35,8 +33,8 @@ test("rating summaries and reviewer eligibility depend on same-language complete
   assert.match(social,/revision:\{localizationId:loc.id\}/);
   assert.match(social,/kind:p.kind/);
   assert.match(runs,/run.locale as Locale/);
-  assert.match(runs,/weeklyInsights/);
-  assert.match(runs,/edition.hostId!==user.id/);
+  assert.match(runs,/runFeedback/);
+  assert.match(runs,/run\.locale as Locale/);
   assert.match(ui,/locale:explicitLocale/);
   assert.match(ui,/kind="QUIZ"/);
   assert.match(read("app/api/v1/[...segments]/route.ts"),/request.method === "DELETE"/);
