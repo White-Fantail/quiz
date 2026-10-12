@@ -74,6 +74,7 @@ export const operations = {
   pack_languages: { public:false, description:"List owned pack localization and complete-language coverage", schema:z.object({id:uuid}) },
   pack_translation_upsert: { public:false, description:"Save or publish localized pack metadata after checking full question coverage", schema:z.object({id:uuid,locale:localeCode,title:z.string().trim().min(1).max(180),description:z.string().max(2000).default(""),status:z.enum(["DRAFT","PUBLISHED","HIDDEN"]).default("DRAFT"),confirm:z.boolean().default(false)}) },
   pack_language_set: { public: false, description: "Confirm original language of an unclassified legacy pack", schema: z.object({ id: uuid, locale: localeCode, confirm: z.literal(true) }) },
+  pack_get: { public:true, description:"Get a published localized quiz pack without revealing answers", schema:z.object({id:uuid,locale:optionalLocale}) },
   pack_list: { public: true, description: "List published packs or my packs", schema: z.object({ ...paging, mine: z.boolean().default(false), locale: optionalLocale }) },
   pack_preflight: { public:false, description:"Check my pack readiness and quota without publishing", schema:z.object({id:uuid}) },
   pack_create: { public: false, description: "Create a new ordered quiz pack", schema: z.object({ title: z.string().min(1).max(180), description: z.string().max(2000).default(""), quizIds: z.array(uuid).min(1).max(100), locale: z.enum(["en", "ko", "und"]).default("und") }) },
@@ -167,8 +168,8 @@ export const operations = {
   weekly_standings: { public: true, description: "LEGACY: archived weekly standings only; not part of Discover", schema: z.object({
     challengeId: uuid, locale: optionalLocale, ...paging
   }) },
-  run_start: { public: true, description: "Begin quick-five or continuous random play. WEEKLY input is recognized only to return an explicit retirement error", schema: z.object({
-    mode: z.enum(["WEEKLY","RANDOM_FIVE","INFINITE"]), lane: z.enum(["GENERAL","KIDS"]).default("GENERAL"),
+  run_start: { public: true, description: "Start or resume a pack, quick-five or continuous random play; weekly creation retired", schema: z.object({
+    mode: z.enum(["WEEKLY","RANDOM_FIVE","INFINITE","PACK"]), packId:uuid.optional(), restart:z.boolean().default(false), lane: z.enum(["GENERAL","KIDS"]).default("GENERAL"),
     avoidQuizIds: z.array(uuid).max(1000).default([]), locale: optionalLocale
   }) },
   run_current: { public: true, description: "Get or resume the current server-side question of a run without revealing later clues", schema: z.object({
