@@ -9,6 +9,7 @@
 - MCP transport: stateless POST with the 2026-07-28 MCP profile. The original 25 authorized tools still call the same shared `execute()` services as REST.
 - REST cookie authorization: secure Better Auth session lookup, same-origin check for mutations. REST does not accept unscoped Google tokens or pretend a browser cookie is an MCP token.
 - OAuth consent UI: `/consent`; clients need users' consent. Token refresh, client metadata and authorization are Better Auth-managed.
+- MCP refresh eligibility: `mcp()` supports `offline_access` and keeps 1-hour access tokens. The protected MCP route includes `challengeScopes: ["mcp:tools", "offline_access"]` in unauthenticated `WWW-Authenticate` challenges so OAuth clients can request refresh-token access. This is a *hint*, not an automatic grant: the client must request and receive `offline_access` during consent. Existing connections may need reauthorization or recreation to gain this scope.
 
 This does not deploy provider secrets, automatically enroll Apple Developer credentials, migrate a live DB, or prove end-to-end ChatGPT connectivity.
 
@@ -64,7 +65,7 @@ Run against **dev** DB first. Review migrations, take backup before prod, and us
 2. In `/account`, click **이 계정에 연결** for Apple, complete Apple authentication, and return to the same Better Auth user ID. Verify `/api/v1/me` and existing created quizzes are unchanged after either sign-in.
 3. With a separate browser session, use ChatGPT's MCP connection flow for `https://YOUR_DOMAIN/api/mcp`. OAuth discovers authorization metadata and CIMD client identity; sign in with Google or Apple, consent, call `quizdip_me`, `quizdip_my_quizzes`, then create a test quiz. It must return the **same QuizDip ID** as web.
 4. Invalid access token, wrong `aud`, expired token, missing `mcp:tools`, cross-origin web mutation, other user's draft, and an unrelated Google/Apple account must be rejected.
-5. Deny consent and confirm the client has no authorized MCP access. Test refresh and revocation. Verify all 25 MCP tools remain registered, and source-level REST/MCP parity.
+5. Deny consent and confirm the client has no authorized MCP access. Confirm unauthenticated `/api/mcp` responds with a `WWW-Authenticate` scope hint containing both `mcp:tools` and `offline_access`, and confirm ChatGPT actually requests `offline_access` and receives a refresh token. Test refresh after 1 hour and revocation; reconnect an existing client if its earlier grant omitted `offline_access`. Verify MCP tools remain registered and source-level REST/MCP parity.
 6. If an older MCP client cannot use CIMD, consider setting `MCP_ENABLE_DCR=true` **only with front-door rate limiting, monitoring and anti-abuse rules**. CIMD is the recommended default for modern MCP.
 
 ## Routing
