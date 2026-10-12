@@ -79,7 +79,7 @@ function MediaThumbnail({ item }: { item: Media }) {
   return <div ref={node} className="media-thumb">
     {src ? <img src={src} alt={item.alt || item.originalName} loading="lazy"
       onError={() => {setSrc("");setFailed(true);}}/> :
-      <span className="media-thumb-fallback" aria-label={failed ? "미리보기를 불러오지 못했어요" : "미리보기 불러오는 중"}>
+      <span className="media-thumb-fallback" aria-label={failed?msg("Preview failed to load","미리보기를 불러오지 못했어요"):msg("Loading preview","미리보기 불러오는 중")}>
         {failed ? msg("Image unavailable","이미지를 볼 수 없어요") : "🖼️"}
       </span>}
   </div>;

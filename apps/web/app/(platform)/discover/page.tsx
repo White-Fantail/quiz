@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useLocale, useTranslation } from "../../../src/i18n/provider";
 import { localizeHref } from "../../../src/i18n/core";
+import { bilingual } from "../../../src/i18n/view-copy";
 import { RatingBadge } from "../../../src/components/quiz-ratings";
 import { useEffect, useState } from "react";
 import {
@@ -13,10 +14,10 @@ import {
 const PAGE_SIZE = 12;
 type Topic = { id: string; name: string; key: string };
 
-async function getData(path: string): Promise<any> {
+async function getData(path: string,locale:"en"|"ko"="en"): Promise<any> {
   const response = await fetch("/api/v1" + path, { cache: "no-store" });
   const body = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(body.message || "퀴즈를 불러오지 못했어요.");
+  if (!response.ok) throw new Error(body.message || bilingual(locale,"Could not load quizzes.","퀴즈를 불러오지 못했어요."));
   return body.data;
 }
 
@@ -38,7 +39,7 @@ export default function DiscoverPage() {
   useEffect(() => {
     let active = true;
     setTopics([]);
-    void getData("/topics?limit=100" + "&locale=" + locale + (kids ? "&kids=true" : "")).then(data => {
+    void getData("/topics?limit=100" + "&locale=" + locale + (kids ? "&kids=true" : ""),locale).then(data => {
       if (active) setTopics(data.items ?? []);
     }).catch(() => {
       // Quiz listings still work if the optional topic suggestions fail.
@@ -51,7 +52,7 @@ export default function DiscoverPage() {
     setLoading(true);
     setError("");
     const query = discoverQuery({ answerType, topic, kids, locale, offset: page * PAGE_SIZE, limit: PAGE_SIZE + 1 });
-    void getData("/quizzes?" + query).then(data => {
+    void getData("/quizzes?" + query,locale).then(data => {
       if (!active) return;
       const all = (data.items ?? []) as DiscoverQuiz[];
       setQuizzes(all.slice(0, PAGE_SIZE));

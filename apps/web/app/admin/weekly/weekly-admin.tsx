@@ -31,7 +31,7 @@ export default function WeeklyAdmin(){
     if(!window.confirm(p.title+msg(" — Schedule this creator's five quizzes as the official weekly set?"," — 이 제작자의 다섯 문제를 이번 주 공식 세트로 편성할까요?")))return;
     setBusy(true);setError("");setNotice("");
     try{
-      const verifiedHost=window.confirm("출제자의 실명/셀러브리티 신원을 독립적으로 검증했나요?\n확인하지 않았다면 취소를 누르세요.");
+      const verifiedHost=window.confirm(msg("Have you independently verified the host's identity? Select Cancel if not verified.","출제자의 실명/셀러브리티 신원을 독립적으로 검증했나요?\n확인하지 않았다면 취소를 누르세요."));
       await request("/weekly/"+p.id+"/publish","POST",{confirm:true,verifiedHost});
       setNotice(msg("Official challenge scheduled. Everyone will receive the same questions starting UTC Monday.","공식 편성을 완료했어요. 지정된 UTC 월요일부터 모든 참가자에게 같은 문제를 제공해요."));
       await refresh();
