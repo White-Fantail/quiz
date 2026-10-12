@@ -4,11 +4,14 @@ import { headers } from "next/headers";
 import { auth } from "../../../../../../src/lib/auth";
 import { db } from "../../../../../../src/modules/platform/db";
 import StudioQuizPreview from "./studio-quiz-preview";
+import {resolveLocale,localizeHref} from "../../../../../../src/i18n/core";
+import {listBackHref} from "../../../../../../src/lib/list-back-href";
 
 export const dynamic = "force-dynamic";
 
-export default async function StudioQuizPreviewPage({params}: {
-  params: Promise<{ quizId: string }>
+export default async function StudioQuizPreviewPage({params,searchParams}: {
+  params: Promise<{ quizId: string }>;
+  searchParams: Promise<Record<string,string|string[]|undefined>>;
 }) {
   const {quizId}=await params;
   const session=await auth.api.getSession({headers:await headers()});
@@ -27,5 +30,7 @@ export default async function StudioQuizPreviewPage({params}: {
     select:{id:true}
   });
   if(!owned) notFound();
-  return <StudioQuizPreview quizId={owned.id}/>;
+  const locale=resolveLocale((await headers()).get("x-quizdip-locale"));
+  const detailHref=listBackHref(localizeHref("/studio/quizzes/"+quizId,locale),await searchParams,["q","publication","safety","sort","page"]);
+  return <StudioQuizPreview quizId={owned.id} detailHref={detailHref}/>;
 }
