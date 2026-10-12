@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useLocale } from "../../../src/i18n/provider";
 import { localizeHref } from "../../../src/i18n/core";
+import { bilingual } from "../../../src/i18n/view-copy";
 import { RatingBadge, RatingButtons, RatingSignIn, type RatingAccess } from "../../../src/components/quiz-ratings";
 import type { RatingSummary } from "../../../src/modules/quiz/rating-metadata";
 import { useCallback, useEffect, useState } from "react";
@@ -23,7 +24,7 @@ type Ranking = {rank:number;displayName:string;score:number;solved:number};
 type FeedbackItem = {quizId:string;round:number;title:string;ratings:RatingSummary;myRating:number|null;ratingAccess:RatingAccess;isTranslation?:boolean;myTranslationRating?:number|null};
 type MediaPreview = {url:string;kind:string;mimeType:string;mediaId:string};
 
-async function api(path:string, method:"GET"|"POST"="GET",body?:unknown):Promise<any> {
+async function api(path:string, method:"GET"|"POST"="GET",body?:unknown,locale:"en"|"ko"="en"):Promise<any> {
   const response=await fetch("/api/v1"+path,{
     method,credentials:"same-origin",cache:"no-store",
     headers:body!==undefined?{"Content-Type":"application/json"}:undefined,
@@ -32,11 +33,11 @@ async function api(path:string, method:"GET"|"POST"="GET",body?:unknown):Promise
   const data=await response.json().catch(()=>({}));
   if(!response.ok) {
     const code=data.error;
-    if(code==="weekly_unavailable") throw new Error("이번 주의 공식 5문제가 아직 준비되지 않았어요.");
-    if(code==="not_enough_questions") throw new Error(data.message||"새로운 문제가 충분하지 않아요. 새 퀴즈가 공개되면 다시 즐겨 주세요.");
-    if(code==="question_suspended") throw new Error("문제 안전성 검토로 플레이가 잠시 중단됐어요.");
-    if(code==="run_expired"||code==="week_closed") throw new Error("진행 기간이 끝났어요. 새 도전을 시작해 주세요.");
-    throw new Error(data.message || code || "요청을 처리하지 못했어요.");
+    if(code==="weekly_unavailable") throw new Error(bilingual(locale,"This week's official five questions are not ready.","이번 주의 공식 5문제가 아직 준비되지 않았어요."));
+    if(code==="not_enough_questions") throw new Error(data.message||bilingual(locale,"There aren't enough unseen quizzes. Come back when new ones are published.","새로운 문제가 충분하지 않아요. 새 퀴즈가 공개되면 다시 즐겨 주세요."));
+    if(code==="question_suspended") throw new Error(bilingual(locale,"Play is temporarily paused while this question is reviewed.","문제 안전성 검토로 플레이가 잠시 중단됐어요."));
+    if(code==="run_expired"||code==="week_closed") throw new Error(bilingual(locale,"This challenge has ended. Start a new one.","진행 기간이 끝났어요. 새 도전을 시작해 주세요."));
+    throw new Error(data.message || code || bilingual(locale,"Something went wrong. Please try again.","요청을 처리하지 못했어요."));
   }
   return data.data;
 }
@@ -59,7 +60,8 @@ function displayedDate(v?:string) {
 }
 
 function MediaPart({item}:{item:MediaPreview}) {
-  if(item.kind==="image") return <img className="round-media" src={item.url} alt="공개된 단서 이미지"/>;
+  const locale=useLocale();
+  if(item.kind==="image") return <img className="round-media" src={item.url} alt={bilingual(locale,"Published quiz clue image","공개된 단서 이미지")}/>;
   if(item.kind==="audio") return <audio controls src={item.url} preload="none" className="round-audio"/>;
   if(item.kind==="video") return <video controls src={item.url} preload="metadata" className="round-media"/>;
   return null;
@@ -67,6 +69,8 @@ function MediaPart({item}:{item:MediaPreview}) {
 
 export default function PlayPage() {
   const locale = useLocale();
+  const msg=(en:string,ko:string)=>bilingual(locale,en,ko);
+  const request=(path:string,method:"GET"|"POST"="GET",body?:unknown)=>request(path,method,body,locale);
   const [lane,setLane]=useState<Lane>("GENERAL");
   const [edition,setEdition]=useState<Edition|null>(null);
   const [run,setRun]=useState<RunInfo|null>(null);
@@ -95,16 +99,16 @@ export default function PlayPage() {
   useEffect(()=>{
     let alive=true;
     setEdition(null);setRun(null);setRound(null);setError("");setFeedback("");setMedia({});
-    void api("/weekly/current?lane="+lane+"&locale="+locale).then((v:Edition)=>{if(alive)setEdition(v)})
-      .catch(e=>{if(alive)setError(e instanceof Error?e.message:"이번 주 정보를 불러오지 못했어요.")});
-    void api("/runs?limit=5").then(value=>{if(alive)setMyHistory(value.items||[])}).catch(()=>{});
+    void request("/weekly/current?lane="+lane+"&locale="+locale).then((v:Edition)=>{if(alive)setEdition(v)})
+      .catch(e=>{if(alive)setError(e instanceof Error?e.message:msg("Could not load this week's challenge.","이번 주 정보를 불러오지 못했어요."))});
+    void request("/runs?limit=5").then(value=>{if(alive)setMyHistory(value.items||[])}).catch(()=>{});
     return ()=>{alive=false;};
   },[lane,locale]);
 
   useEffect(()=>{
     let alive=true;
     if(lane!=="GENERAL"||!edition?.available||!edition.id){setRanking([]);setRankingAvailable(false);return;}
-    void api("/weekly/"+edition.id+"/standings?limit=10&locale="+locale).then(data=>{
+    void request("/weekly/"+edition.id+"/standings?limit=10&locale="+locale).then(data=>{
       if(alive){setRanking(data.items||[]);setRankingAvailable(true);}
     }).catch(()=>{if(alive){setRanking([]);setRankingAvailable(false);}});
     return ()=>{alive=false;};
@@ -114,15 +118,15 @@ export default function PlayPage() {
     if(!run||run.status!=="FINISHED"||round)return;
     let alive=true;
     setRatingBusy(true);setRatingError("");
-    void api("/runs/"+run.runId+"/feedback","POST",{runToken:run.runToken})
+    void request("/runs/"+run.runId+"/feedback","POST",{runToken:run.runToken})
       .then(data=>{if(alive)setQuestionsToRate(data.items??[]);})
-      .catch(e=>{if(alive)setRatingError(e instanceof Error?e.message:"평가할 문제를 불러오지 못했어요.");})
+      .catch(e=>{if(alive)setRatingError(e instanceof Error?e.message:msg("Could not load the questions for review.","평가할 문제를 불러오지 못했어요."));})
       .finally(()=>{if(alive)setRatingBusy(false);});
     return ()=>{alive=false;};
   },[run?.runId,run?.status,round]);
 
   const showRound=useCallback(async (r:RunInfo) => {
-    const data=await api("/runs/"+r.runId+"/current","POST",{runToken:r.runToken,avoidQuizIds:rememberedQuizzes(),locale});
+    const data=await request("/runs/"+r.runId+"/current","POST",{runToken:r.runToken,avoidQuizIds:rememberedQuizzes(),locale});
     if(data.status==="FINISHED" && !data.sessionId){
       setRun({...r,...data});setRound(null);setFeedback("");setMedia({});
       return;
@@ -135,7 +139,7 @@ export default function PlayPage() {
     const ids=[...(next.promptMediaIds||[]),...next.clues.map(c=>c.mediaId).filter((x):x is string=>!!x)];
     await Promise.all([...new Set(ids)].map(async mediaId=>{
       try{
-        const asset=await api("/play/"+next.sessionId+"/media","POST",{sessionToken:next.sessionToken,mediaId});
+        const asset=await request("/play/"+next.sessionId+"/media","POST",{sessionToken:next.sessionToken,mediaId});
         setMedia(previous=>({...previous,[mediaId]:asset}));
       }catch{/* Missing or revoked media is shown as unavailable, never expose a storage key. */}
     }));
@@ -144,10 +148,10 @@ export default function PlayPage() {
   async function start(nextMode:Mode) {
     setBusy(true);setError("");setFeedback("");setQuestionsToRate([]);setRatingError("");
     try{
-      const value=await api("/runs","POST",{mode:nextMode,lane,avoidQuizIds:rememberedQuizzes(),locale});
+      const value=await request("/runs","POST",{mode:nextMode,lane,avoidQuizIds:rememberedQuizzes(),locale});
       setMode(nextMode);setRun(value);
       await showRound(value);
-    }catch(e){setError(e instanceof Error?e.message:"시작할 수 없어요.");}
+    }catch(e){setError(e instanceof Error?e.message:msg("Could not start the challenge.","시작할 수 없어요."));}
     finally{setBusy(false);}
   }
 
@@ -155,9 +159,9 @@ export default function PlayPage() {
     if(!round)return;
     setBusy(true);setError("");
     try{
-      await api("/play/"+round.sessionId+"/clue","POST",{sessionToken:round.sessionToken});
+      await request("/play/"+round.sessionId+"/clue","POST",{sessionToken:round.sessionToken});
       await showRound(run!);setMustReveal(false);
-    }catch(e){setError(e instanceof Error?e.message:"다음 단서를 열지 못했어요.");}
+    }catch(e){setError(e instanceof Error?e.message:msg("Could not reveal the next clue.","다음 단서를 열지 못했어요."));}
     finally{setBusy(false);}
   }
   async function check(event:React.FormEvent<HTMLFormElement>) {
@@ -165,13 +169,13 @@ export default function PlayPage() {
     if(!round||!guess.trim())return;
     setBusy(true);setError("");
     try{
-      const result=await api("/play/"+round.sessionId+"/guess","POST",
+      const result=await request("/play/"+round.sessionId+"/guess","POST",
         {sessionToken:round.sessionToken,guess:guess.trim()});
       if(result.status==="ACTIVE"){
-        setFeedback("아쉬워요. 다음 단서를 열어서 다시 맞혀 보세요.");
+        setFeedback(msg("Not quite. Reveal the next clue and try again.","아쉬워요. 다음 단서를 열어서 다시 맞혀 보세요."));
         setMustReveal(true);
       }else{
-        setFeedback(result.correct?"정답이에요! 🎉":"아쉽지만 이번 문제는 여기까지예요.");
+        setFeedback(result.correct?msg("Correct! 🎉","정답이에요! 🎉"):msg("That's the end of this question.","아쉽지만 이번 문제는 여기까지예요."));
         setAnswer(result.answer||"");setRoundScore(result.score||0);
         setRound({...round,sessionStatus:result.status});
         setRun(previous=>previous?{
@@ -180,23 +184,23 @@ export default function PlayPage() {
           status:previous.mode!=="INFINITE"&&previous.completed+1>=5?"FINISHED":"ACTIVE"
         }:null);
       }
-    }catch(e){setError(e instanceof Error?e.message:"정답을 확인하지 못했어요.");}
+    }catch(e){setError(e instanceof Error?e.message:msg("Could not check your answer.","정답을 확인하지 못했어요."));}
     finally{setBusy(false);}
   }
   async function nextRound(){
     if(!run)return;
     setBusy(true);setError("");
     try{await showRound(run);}
-    catch(e){setError(e instanceof Error?e.message:"다음 문제를 불러오지 못했어요.");}
+    catch(e){setError(e instanceof Error?e.message:msg("Could not load the next question.","다음 문제를 불러오지 못했어요."));}
     finally{setBusy(false);}
   }
   async function finishInfinite(){
     if(!run)return;
     setBusy(true);setError("");
     try{
-      const result=await api("/runs/"+run.runId+"/finish","POST",{runToken:run.runToken,confirm:true});
+      const result=await request("/runs/"+run.runId+"/finish","POST",{runToken:run.runToken,confirm:true});
       setRun({...run,...result});setRound(null);
-    }catch(e){setError(e instanceof Error?e.message:"종료할 수 없어요.");}
+    }catch(e){setError(e instanceof Error?e.message:msg("Could not finish your game.","종료할 수 없어요."));}
     finally{setBusy(false);}
   }
 
@@ -205,59 +209,59 @@ export default function PlayPage() {
   return <main className="container inner-page play-experience">
     <div className="play-intro">
       <span className="eyebrow">QUIZDIP · PLAY</span>
-      <h1>다섯 문제로 가볍게, 단서를 따라 발견해 봐.</h1>
-      <p className="lead">랜덤 5문제로 시작하고, 재미있으면 또 다섯 문제! 이번 주의 공통 챌린지도 즐길 수 있어요.</p>
+      <h1>{msg("Five quizzes. Plenty to discover.","다섯 문제로 가볍게, 단서를 따라 발견해 봐.")}</h1>
+      <p className="lead">{msg("Start with five random questions, play five more if you like, or join this week's shared challenge.","랜덤 5문제로 시작하고, 재미있으면 또 다섯 문제! 이번 주의 공통 챌린지도 즐길 수 있어요.")}</p>
     </div>
 
-    <div className="lane-picker" role="group" aria-label="플레이 대상 선택">
+    <div className="lane-picker" role="group" aria-label={msg("Play audience","플레이 대상 선택")}>
       <button type="button" disabled={busy} aria-pressed={lane==="GENERAL"}
-        className={"lane-choice "+(lane==="GENERAL"?"active":"")} onClick={()=>setLane("GENERAL")}>일반 플레이</button>
+        className={"lane-choice "+(lane==="GENERAL"?"active":"")} onClick={()=>setLane("GENERAL")}>{msg("General play","일반 플레이")}</button>
       <button type="button" disabled={busy} aria-pressed={lane==="KIDS"}
-        className={"lane-choice "+(lane==="KIDS"?"active":"")} onClick={()=>setLane("KIDS")}>어린이 플레이</button>
+        className={"lane-choice "+(lane==="KIDS"?"active":"")} onClick={()=>setLane("KIDS")}>{msg("Kids play","어린이 플레이")}</button>
     </div>
 
     {!run && <>
       <section className="play-practice">
-        <h2>자유 플레이</h2>
+        <h2>{msg("Free play","자유 플레이")}</h2>
         <div className="cards">
           <article className="feature-card">
-            <span className="symbol mint">5</span><h3>랜덤 5문제</h3>
-            <p>아직 보지 않은 다섯 문제를 골라요. 완료하면 새로운 다섯 문제를 더 즐길 수 있어요.</p>
-            <button className="btn btn-primary" disabled={busy} onClick={()=>void start("RANDOM_FIVE")}>5문제 시작하기 →</button>
+            <span className="symbol mint">5</span><h3>{msg("Five random quizzes","랜덤 5문제")}</h3>
+            <p>{msg("Choose five quizzes you haven't seen. Finish and unlock five more.","아직 보지 않은 다섯 문제를 골라요. 완료하면 새로운 다섯 문제를 더 즐길 수 있어요.")}</p>
+            <button className="btn btn-primary" disabled={busy} onClick={()=>void start("RANDOM_FIVE")}>{msg("Start five quizzes →","5문제 시작하기 →")}</button>
           </article>
           <article className="feature-card">
-            <span className="symbol yellow">∞</span><h3>연속 플레이 (선택)</h3>
-            <p>원한다면 계속 풀 수 있어요. 새로운 문제가 소진되면 반복 없이 끝나요.</p>
-            <button className="btn btn-outline" disabled={busy} onClick={()=>void start("INFINITE")}>이어 풀기</button>
+            <span className="symbol yellow">∞</span><h3>{msg("Continuous play (optional)","연속 플레이 (선택)")}</h3>
+            <p>{msg("Keep playing until you run out of new questions, with no repeats.","원한다면 계속 풀 수 있어요. 새로운 문제가 소진되면 반복 없이 끝나요.")}</p>
+            <button className="btn btn-outline" disabled={busy} onClick={()=>void start("INFINITE")}>{msg("Continue playing","이어 풀기")}</button>
           </article>
         </div>
       </section>
       <section className="weekly-spotlight">
         <div className="weekly-star" aria-hidden="true">✦</div>
-        <span className="small-tag">WEEKLY FIVE · 이번 주의 특별 챌린지</span>
+        <span className="small-tag">{msg("WEEKLY FIVE · This week's featured challenge","WEEKLY FIVE · 이번 주의 특별 챌린지")}</span>
         {edition?.available? <>
           <h2>{edition.title}</h2>
-          <p className="weekly-host">이번 주 출제자 · <strong>{edition.host?.name||"QuizDip 제작자"}</strong>
-            {edition.host?.verified&&<span className="host-verified">✓ 인증된 출제자</span>}</p>
-          <p>{edition.description||"한 명의 출제자가 준비한 다섯 문제. 모두에게 같은 순서로 공개돼요."}</p>
-          <p className="weekly-dates">{displayedDate(edition.startsAt)} – {displayedDate(edition.endsAt)} (UTC 기준) · 5문제</p>
+          <p className="weekly-host">{msg("This week's host · ","이번 주 출제자 · ")}<strong>{edition.host?.name||msg("QuizDip creator","QuizDip 제작자")}</strong>
+            {edition.host?.verified&&<span className="host-verified">{msg("✓ Verified creator","✓ 인증된 출제자")}</span>}</p>
+          <p>{edition.description||msg("Five questions by one creator, in the same order for everyone.","한 명의 출제자가 준비한 다섯 문제. 모두에게 같은 순서로 공개돼요.")}</p>
+          <p className="weekly-dates">{displayedDate(edition.startsAt)} – {displayedDate(edition.endsAt)} {msg("(UTC) · 5 quizzes","(UTC 기준) · 5문제")}</p>
           <button className="btn btn-primary" disabled={busy} onClick={()=>void start("WEEKLY")}>
-            {busy?"불러오는 중…":"이번 주 5문제 도전하기 →"}</button>
-          <p className="weekly-footnote">첫 도전만 공식 기록으로 인정해요. 전에 이 문제를 본 사용자는 순위에 포함되지 않아요.</p>
-          <Link href={localizeHref("/sign-in?callbackURL=%2Fplay", locale)} className="text-button">공식 기록을 위해 로그인하기</Link>
+            {busy?msg("Loading…","불러오는 중…"):msg("Play this week's five →","이번 주 5문제 도전하기 →")}</button>
+          <p className="weekly-footnote">{msg("Only your first attempt counts for the leaderboard. Previously seen questions are excluded.","첫 도전만 공식 기록으로 인정해요. 전에 이 문제를 본 사용자는 순위에 포함되지 않아요.")}</p>
+          <Link href={localizeHref("/sign-in?callbackURL=%2Fplay", locale)} className="text-button">{msg("Sign in for an official score","공식 기록을 위해 로그인하기")}</Link>
         </>:<>
-          <h2>{lane==="KIDS"?"이번 주 어린이 챌린지를 준비하고 있어요":"이번 주 출제자를 기다리고 있어요"}</h2>
-          <p>{edition?.message||"주간 문제 정보를 확인하고 있어요."}</p>
-          <p>운영자가 이번 주의 공식 5문제를 확정하면 여기에서 모두가 함께 풀 수 있어요.</p>
+          <h2>{lane==="KIDS"?msg("Preparing this week's Kids challenge","이번 주 어린이 챌린지를 준비하고 있어요"):msg("Waiting for this week's host","이번 주 출제자를 기다리고 있어요")}</h2>
+          <p>{edition?.available?edition.message:msg("This week's five questions are not available yet.","이번 주의 다섯 문제는 아직 공개되지 않았어요.")}</p>
+          <p>{msg("Once this week's official five quizzes are scheduled, everyone can play them here.","운영자가 이번 주의 공식 5문제를 확정하면 여기에서 모두가 함께 풀 수 있어요.")}</p>
         </>}
       </section>
 
       {myHistory.length>0&&<section className="play-recent">
-        <h2>최근 내 기록</h2>
+        <h2>{msg("My recent games","최근 내 기록")}</h2>
         <div className="recent-results">
           {myHistory.map(item=><p key={item.runId}>
-            {item.mode==="WEEKLY"?"주간 5문제":item.mode==="INFINITE"?"무한 플레이":"랜덤 5문제"}
-            {" · "}{item.score}점 · {item.completed}문제 {item.status==="FINISHED"?"완료":"진행 중"}
+            {item.mode==="WEEKLY"?msg("Weekly five","주간 5문제"):item.mode==="INFINITE"?msg("Continuous play","무한 플레이"):msg("Five random quizzes","랜덤 5문제")}
+            {" · "}{item.score}{msg(" pts · ","점 · ")}{item.completed}{msg(" quizzes · ","문제 ")}{item.status==="FINISHED"?msg("Finished","완료"):msg("In progress","진행 중")}
           </p>)}
         </div>
       </section>}
@@ -265,61 +269,61 @@ export default function PlayPage() {
 
     {run&&<section className="play-panel play-live" aria-live="polite">
       <div className="play-top">
-        <span className="small-tag">{mode==="WEEKLY"?"이번 주의 5문제":mode==="RANDOM_FIVE"?"랜덤 5문제":"무한 플레이"}</span>
-        <span className="clue-count">{run.completed}문제 완료 · {run.score}점</span>
+        <span className="small-tag">{mode==="WEEKLY"?msg("This week's five","이번 주의 5문제"):mode==="RANDOM_FIVE"?msg("Five random quizzes","랜덤 5문제"):msg("Continuous play","무한 플레이")}</span>
+        <span className="clue-count">{run.completed}{msg(" quizzes finished · ","문제 완료 · ")}{run.score}{msg(" pts","점")}</span>
       </div>
       {round?<>
-        <div className="round-progress"><span>문제 {round.round}{run.total?" / "+run.total:""} </span>
-          <span>단서 {round.clueIndex} / {round.clueCount}</span></div>
+        <div className="round-progress"><span>{msg("Question ","문제 ")}{round.round}{run.total?" / "+run.total:""} </span>
+          <span>{msg("Clue ","단서 ")}{round.clueIndex} / {round.clueCount}</span></div>
         <RatingBadge ratings={round.ratings}/>
         <h2>{round.prompt}</h2>
         {!!round.promptMediaIds?.length&&<div className="clue-media-list">
-          {round.promptMediaIds.map(id=><div key={id}>{media[id]?<MediaPart item={media[id]}/>:<p className="muted">미디어를 불러올 수 없어요.</p>}</div>)}
+          {round.promptMediaIds.map(id=><div key={id}>{media[id]?<MediaPart item={media[id]}/>:<p className="muted">{msg("Couldn't load the media.","미디어를 불러올 수 없어요.")}</p>}</div>)}
         </div>}
         <ol className="clue-list">
           {round.clues.map((clue,i)=><li key={clue.id||i}>
             {clue.text&&<p>{clue.text}</p>}
             {clue.type==="map"&&clue.map&&<div className="map-clue">
-              <span>지도 단서 · 위도 {clue.map.latitude}, 경도 {clue.map.longitude}</span>
+              <span>{msg("Map clue · latitude ","지도 단서 · 위도 ")}{clue.map.latitude}{msg(", longitude ",", 경도 ")}{clue.map.longitude}</span>
               <a href={`https://www.openstreetmap.org/?mlat=${clue.map.latitude}&mlon=${clue.map.longitude}#map=${clue.map.zoom||8}/${clue.map.latitude}/${clue.map.longitude}`}
-                target="_blank" rel="noopener noreferrer">지도에서 보기 ↗</a>
+                target="_blank" rel="noopener noreferrer">{msg("View map ↗","지도에서 보기 ↗")}</a>
             </div>}
-            {clue.mediaId&&(media[clue.mediaId]?<MediaPart item={media[clue.mediaId]}/>:<p className="muted">미디어가 제공되지 않았어요.</p>)}
+            {clue.mediaId&&(media[clue.mediaId]?<MediaPart item={media[clue.mediaId]}/>:<p className="muted">{msg("Media is unavailable.","미디어가 제공되지 않았어요.")}</p>)}
           </li>)}
         </ol>
         {!isDone&&round.clueIndex<round.clueCount&&
           <button type="button" className="btn btn-outline" disabled={busy} onClick={()=>void reveal()}>
             단서 하나 더 보기</button>}
         {!isDone&&<form className="guess-form" onSubmit={e=>void check(e)}>
-          <label htmlFor="quizdip-answer">정답은 무엇일까요?</label>
+          <label htmlFor="quizdip-answer">{msg("What's your answer?","정답은 무엇일까요?")}</label>
           <div className="guess-row">
             <input id="quizdip-answer" value={guess} onChange={e=>setGuess(e.target.value)}
-              autoComplete="off" placeholder="정답을 입력해 보세요" maxLength={200}
+              autoComplete="off" placeholder={msg("Enter your answer","정답을 입력해 보세요")} maxLength={200}
               disabled={busy||mustReveal}/>
             <button type="submit" className="btn btn-primary" disabled={busy||mustReveal||!guess.trim()}>
               정답 확인</button>
           </div>
         </form>}
         {feedback&&<div className={"feedback "+(answer&&roundScore>0?"success":"")} role="status">
-          {feedback}{answer&&<p>정답: <strong>{answer}</strong> · {roundScore}점</p>}
+          {feedback}{answer&&<p>{msg("Answer: ","정답: ")}<strong>{answer}</strong> · {roundScore}{msg(" pts","점")}</p>}
         </div>}
         {isDone&&<button type="button" className="btn btn-primary" disabled={busy} onClick={()=>void nextRound()}>
-          {endReached?"최종 결과 보기 →":"다음 문제 →"}
+          {endReached?msg("View final results →","최종 결과 보기 →"):msg("Next question →","다음 문제 →")}
         </button>}
       </>:<>
         <div className="round-finish">
           <div className="round-finish-symbol">✦</div>
-          <h2>이번 도전 완료!</h2>
-          <p>총 <strong>{run.score}점</strong> · {run.completed}문제 · 정답 {run.solved||0}개</p>
-          {run.mode==="WEEKLY"&&<p>모두에게 같은 다섯 문제였어요. 이번 주의 다른 도전자들과 결과를 비교해 보세요.</p>}
-          {run.mode==="WEEKLY"&&!run.official&&<p>비로그인 또는 이전에 본 문제가 있는 기록은 공식 순위에 포함되지 않아요.</p>}
-          {run.exhausted&&<p>{run.message||"새로운 문제를 모두 풀었어요. 새 퀴즈가 등록되면 다시 즐겨 주세요."}</p>}
+          <h2>{msg("Challenge complete!","이번 도전 완료!")}</h2>
+          <p>{msg("Total ","총 ")}<strong>{run.score}{msg(" pts","점")}</strong> · {run.completed}{msg(" quizzes · ","문제 · ")}{msg("Correct ","정답 ")}{run.solved||0}</p>
+          {run.mode==="WEEKLY"&&<p>{msg("Everyone played the same five quizzes. Compare your result with this week's challengers.","모두에게 같은 다섯 문제였어요. 이번 주의 다른 도전자들과 결과를 비교해 보세요.")}</p>}
+          {run.mode==="WEEKLY"&&!run.official&&<p>{msg("Guest attempts and previously seen questions don't count toward the official rankings.","비로그인 또는 이전에 본 문제가 있는 기록은 공식 순위에 포함되지 않아요.")}</p>}
+          {run.exhausted&&<p>{msg("You've finished all available new questions. Come back for more.","새로운 문제를 모두 풀었어요. 새 퀴즈가 등록되면 다시 즐겨 주세요.")}</p>}
           <div className="run-rating-review">
-            <h3>방금 풀었던 문제는 어땠나요?</h3>
-            <p className="muted">흐름을 끊지 않도록 게임이 끝난 뒤 모았어요. 평가는 선택 사항이에요.</p>
-            {ratingBusy&&<p role="status">평가할 문제를 불러오는 중…</p>}
+            <h3>{msg("How were those quizzes?","방금 풀었던 문제는 어땠나요?")}</h3>
+            <p className="muted">{msg("Rate the quizzes after the game to keep the flow uninterrupted. Feedback is optional.","흐름을 끊지 않도록 게임이 끝난 뒤 모았어요. 평가는 선택 사항이에요.")}</p>
+            {ratingBusy&&<p role="status">{msg("Loading questions to rate…","평가할 문제를 불러오는 중…")}</p>}
             {ratingError&&<p className="feedback" role="alert">{ratingError}</p>}
-            {!ratingBusy&&!ratingError&&questionsToRate.length===0&&<p className="muted">평가할 완료 문제가 없어요.</p>}
+            {!ratingBusy&&!ratingError&&questionsToRate.length===0&&<p className="muted">{msg("No completed questions to rate yet.","평가할 완료 문제가 없어요.")}</p>}
             {questionsToRate.map(q=><div className="run-rating-row" key={q.quizId}>
               <div className="run-rating-question"><strong>{q.round}. {q.title}</strong>
                 <RatingBadge ratings={q.ratings}/></div>
@@ -335,13 +339,13 @@ export default function PlayPage() {
             {questionsToRate.some(q=>q.ratingAccess==="SIGN_IN")&&<RatingSignIn destination={localizeHref("/play", locale)}/>}
           </div>
           {run.mode==="RANDOM_FIVE"&&<button type="button" className="btn btn-primary"
-            disabled={busy} onClick={()=>void start("RANDOM_FIVE")}>새로운 5문제 더 풀기 →</button>}
+            disabled={busy} onClick={()=>void start("RANDOM_FIVE")}>{msg("Play five more →","새로운 5문제 더 풀기 →")}</button>}
         </div>
       </>}
       <div className="play-bottom">
         {run.mode==="INFINITE"&&!endReached&&
-          <button type="button" className="text-button" disabled={busy} onClick={()=>void finishInfinite()}>무한 플레이 끝내기</button>}
-        <button type="button" className="text-button" onClick={()=>{setRun(null);setRound(null);setFeedback("");setError("");}}>모드 선택으로 돌아가기</button>
+          <button type="button" className="text-button" disabled={busy} onClick={()=>void finishInfinite()}>{msg("End continuous play","무한 플레이 끝내기")}</button>}
+        <button type="button" className="text-button" onClick={()=>{setRun(null);setRound(null);setFeedback("");setError("");}}>{msg("Back to game modes","모드 선택으로 돌아가기")}</button>
       </div>
     </section>}
 
@@ -349,16 +353,16 @@ export default function PlayPage() {
 
     {lane==="GENERAL"&&edition?.available&&rankingAvailable&&
       <section className="weekly-ranking">
-        <div className="play-top"><h2>이번 주 도전자들</h2><span className="small-tag">공식 기록</span></div>
+        <div className="play-top"><h2>{msg("This week's challengers","이번 주 도전자들")}</h2><span className="small-tag">{msg("Official scores","공식 기록")}</span></div>
         {ranking.length? <ol className="ranking-list">
           {ranking.map((person,index)=><li key={index}>
-            <span className="ranking-place">{person.rank}위</span>
-            <span>{person.displayName}</span><strong>{person.score}점</strong>
+            <span className="ranking-place">{msg("Rank ","")}{person.rank}{msg("","위")}</span>
+            <span>{person.displayName}</span><strong>{person.score}{msg(" pts","점")}</strong>
           </li>)}
-        </ol> : <p className="muted">아직 공개된 공식 기록이 없어요. 첫 도전자가 되어 보세요.</p>}
-        <p className="muted">참여 자격이 확인되고 순위 공개에 동의한 성인만 표시돼요. 동점자는 공동 순위예요.</p>
+        </ol> : <p className="muted">{msg("No official scores yet. Be the first to play.","아직 공개된 공식 기록이 없어요. 첫 도전자가 되어 보세요.")}</p>}
+        <p className="muted">{msg("Only verified adults who opt in appear on the leaderboard. Ties share the same rank.","참여 자격이 확인되고 순위 공개에 동의한 성인만 표시돼요. 동점자는 공동 순위예요.")}</p>
       </section>}
-    {lane==="KIDS"&&<p className="muted">어린이 모드는 플랫폼에서 안전성을 확인한 문제만 제공하고, 공개 개인 순위는 표시하지 않아요.</p>}
-    <div className="play-bottom"><Link href={localizeHref("/discover", locale)}>다른 퀴즈 둘러보기 →</Link><Link href={localizeHref("/studio/weekly", locale)}>출제자로 참여하기 →</Link></div>
+    {lane==="KIDS"&&<p className="muted">{msg("Kids play only includes safety-approved questions and never displays public individual rankings.","어린이 모드는 플랫폼에서 안전성을 확인한 문제만 제공하고, 공개 개인 순위는 표시하지 않아요.")}</p>}
+    <div className="play-bottom"><Link href={localizeHref("/discover", locale)}>{msg("Discover more quizzes →","다른 퀴즈 둘러보기 →")}</Link><Link href={localizeHref("/studio/weekly", locale)}>{msg("Become a weekly creator →","출제자로 참여하기 →")}</Link></div>
   </main>;
 }
