@@ -21,6 +21,8 @@ model User {
   updatedAt             DateTime      @updatedAt
   quizzes               Quiz[]
   packs                 QuizPack[]
+  packReviews           PackReview[]
+  packReports           PackReport[]
   sessions              PlaySession[]
   reviews               Review[]
   reports               Report[]
@@ -161,6 +163,8 @@ model QuizPack {
   updatedAt             DateTime      @updatedAt
   items                 PackQuestion[]
   runs                  PlayRun[]
+  reviews               PackReview[]
+  reports               PackReport[]
 }
 
 model QuizPackLocalization {
@@ -175,6 +179,38 @@ model QuizPackLocalization {
   updatedAt   DateTime @updatedAt
   @@unique([packId, locale])
   @@index([locale, status])
+}
+
+model PackReview {
+  id                    String   @id @default(uuid())
+  packId                String
+  pack                  QuizPack @relation(fields: [packId], references: [id], onDelete: Restrict)
+  authorId              String
+  author                User     @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  locale                String   @default("und")
+  rating                Int
+  comment               String   @default("")
+  packVersionAtReview   Int
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  @@unique([packId, authorId, locale])
+  @@index([packId, locale, rating])
+}
+
+model PackReport {
+  id                    String   @id @default(uuid())
+  packId                String
+  pack                  QuizPack @relation(fields: [packId], references: [id], onDelete: Restrict)
+  reporterId            String
+  reporter              User     @relation(fields: [reporterId], references: [id], onDelete: Restrict)
+  locale                String   @default("und")
+  reason                String
+  detail                String   @default("")
+  status                String   @default("OPEN")
+  createdAt             DateTime @default(now())
+  @@index([packId, status])
+  @@index([packId, locale, reason])
+  @@index([reporterId, createdAt])
 }
 
 model PackQuestion {
