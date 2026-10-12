@@ -1,107 +1,36 @@
-# QuizDip play-mode transition notice (2026-10-12)
+# QuizDip play modes (current)
 
-**Weekly Five is retired for new submissions, scheduling and starts.** The earlier mechanics below are retained for historic behavior and compatibility only. Follow [Discovery-first platform design](discovery-first-platform-design.md). Old weekly rows and already-started sessions are preserved while the retirement is completed; five random questions and continuous practice remain available.
+**Source of truth:** [Discovery-first platform design](discovery-first-platform-design.md).
 
----
+QuizDip has three first-class run modes:
 
-# QuizDip PLAY — weekly spotlight and practice
+| Mode | Content | Completion | Resume |
+| --- | --- | --- | --- |
+| `RANDOM_FIVE` | Five previously unseen eligible questions chosen from the requested locale | After five completed rounds | Server run capability; signed-in progress |
+| `INFINITE` | Consecutive eligible questions without repeating already-seen content | When stopped or the unseen pool is exhausted | Server run capability; signed-in progress |
+| `PACK` | Every eligible member of a creator-authored quiz pack, with pinned localized published revisions | After its final member (variable length) | Signed-in across devices, guest same-tab capability |
 
-## Product structure
+Creators can set a pack's `orderMode` to `CREATOR` (default) or `RANDOM`. Random packs shuffle **once** per new run and store that complete permutation with immutable revision IDs. Resuming never reshuffles. Pack creation, editing, preview and publication happen through Studio and shared REST/MCP services.
 
-The primary product is **fresh random five-question free play**. The featured creator's globally shared five-question weekly challenge is a recurring competitive event, not the default play mode. The same five items, immutable revisions and ordering are shared by everyone around the world, with **one edition per UTC week and audience lane**. A featured human creator is the actual owner of the five questions, not a display-name string typed by staff. Creators may propose editions through Studio or MCP; only an authenticated ADMIN can publish a proposed schedule and independently mark a host as verified. A verified badge is never an automatic claim of celebrity status.
+## Eligibility and safety
 
-Both free-play modes use the single published question bank:
-- `RANDOM_FIVE`: the default; five fresh eligible questions per run, with "five more" offered after completion
-- `INFINITE`: a secondary opt-in, revealing one new question at a time and ending clearly when the unseen pool is exhausted
-- Signed-in users' previous `PlaySession` exposures and allocated `PlayRunQuestion` IDs are excluded across modes. Guests submit a best-effort same-browser `avoidQuizIds` history (up to 1,000 IDs); cleared storage or switching devices cannot be reconciled without login.
-- All three modes have `GENERAL` and `KIDS` lanes. Kids uses **only** `publication=PUBLISHED, safetyStatus=APPROVED, kidsEligible=true`. General excludes restricted questions. Separate weekly editions are independently curated. Kids has **no public player standings**.
+- The public `GENERAL` lane accepts only published, localized, non-restricted questions with playable media. It rechecks moderation and publication before each server-authoritative round, clue and guess.
+- Native Kids requires a parent-approved device and a guardian-pinned child profile. Every question, version, media item and entire pack must pass Kids safety eligibility. Child progress never participates in public ratings or leaderboards.
+- `PlayRun`, `PlayRunQuestion` and `PlaySession` are the authoritative server records. Never trust client-submitted scores, quiz order or unlock progress.
+- Children cannot access general audience features by passing a different lane; adult REST/MCP endpoints never accept native Kids bearer tokens.
 
-### Edition timing
+## Feedback and discovery
 
-- Weeks begin **Monday 00:00 UTC** and end the following Monday 00:00 UTC. These are universal boundaries; local times may differ.
-- Creators submit *before* the start. Up to three proposals per creator/week/lane; multiple creators may propose the same week.
-- Only one `SCHEDULED` edition may exist per lane/week (Postgres partial unique index).
-- An ADMIN schedules one submitted edition, fixing **exactly five original, published, eligible quizzes and their revision IDs**. The question order is preserved from the creator's submission. It is never reordered or personalized per player.
-- Revision pinning ensures later author edits cannot change the five answers or clue sequences. Server publication/eligibility checks are re-evaluated before each round. Unsafe/depublished items suspend that round rather than silently replacing a question.
-- `weekly_suspend` halts an unsafe or withdrawn edition with audit logging. Recovery/replacement of a suspended live edition requires a separately reviewed editorial policy; the current code does not silently replace it.
+- After a completed five-question run, rate questions on the result screen. One-off Discover questions can be rated as soon as they finish.
+- Full packs have separate completion-gated pack feedback, reports and creator performance analytics, independently of question reviews.
+- Discover highlights evidence-based popularity, quality and difficulty separately from explicit, ADMIN-selected `Editor's Pick` placements.
 
-### Official play & fairness
+## Removed Weekly Five
 
-- `PlayRun` tracks lane, mode, current round, accumulated score, solved/failed, and end time. `PlayRunQuestion` stores the exact selected `quizId`/`revisionId` per index. The existing `PlaySession` tracks each question's unlocked clues and guesses, with one round session per run/index.
-- `play_guess` updates its round and the parent run **in one transaction**. Replayed requests or parallel guesses do not score twice. Client code never validates answers locally.
-- A signed-in QuizDip user is limited to **one official first attempt per weekly edition** by a partial unique DB index. Reopening the mode resumes that same attempt, never creates a new ranked score. Authentication is optional for play, but guests are not in official standings.
-- Weekly public rankings are only for **GENERAL**, and only for separately verified, explicitly opted-in adult users. Kids players are never listed. Ties on the same cumulative score share the same place; elapsed time is not a tiebreaker. Scores are accumulated from server-graded questions and cannot be supplied by the client.
-- Weekly-challenge questions are temporarily reserved from free play and standalone `play_start` while a scheduled edition has not ended. No second question bank is created.
-- A previously viewed weekly question disqualifies the signed-in player's first weekly attempt from the official ranking; `PlayRun.officialEligible` freezes this check at creation. Players may still enjoy the same five questions informally. Official rankings require this flag as well as trusted adult verification and opt-in.
-- Never recycle known questions when the free-play bank runs out. If fewer than five eligible unseen questions remain, starting a new five-round run gives a clear shortage message; the optional continuous mode ends with an exhausted result instead of repeating old questions.
-- Scheduled-weekly reservation does not erase exposures occurring before the editor scheduled it. Guest/device-crossing and answer-sharing protections have unavoidable limits; official rankings are reserved for signed-in eligible users.
-- The run credential is a 256-bit secret; signed-in run tokens derive from `PLAY_RUN_SECRET` and the canonical QuizDip account ID so a run can resume on another browser after sign-in. Anonymous run tokens are random capabilities, not eligible for official standings. Per-round play capabilities are derived from the run token and indexed question. Never log or include these in public rankings.
-- The run `expiresAt` is the edition's deadline for WEEKLY. Practice runs expire in 2 days (five) or 7 days (infinite). Rejected/expired attempts never create extra score. Running out of safe questions returns a clear error.
+The previously proposed recurring weekly challenge **was never launched**. The challenge proposal/schedule, special standings, associated routes and MCP operations are removed. Migration `20261013040000_remove_unused_weekly_challenges` drops the unused weekly tables, `PlayRun.weeklyId`, and `PlayRun.officialEligible`, with a fail-closed guard that refuses to drop those objects if any weekly records or runs exist.
 
-### Host and celebrity participation
+Do not reintroduce weekly modes, weekly reservations, fixed-five editorial constraints, or user-visible weekly competition pages without a new product decision.
 
-1. Creator logs in with Google or Apple, creates and publishes **five original quizzes** using the shared REST/MCP interface (including multimodal media if approved).
-2. Creator opens `/studio/weekly`, chooses lane and an upcoming UTC Monday, clicks five questions **in exact intended order**, writes a featured title and message, and submits. MCP callers can use `quizdip_weekly_submit` with the same data.
-3. Staff opens `/admin/weekly` or calls `quizdip_weekly_proposals` to review proposals, consent and identity, then calls `quizdip_weekly_publish` with explicit confirmation and `verifiedHost`. The verification badge must reflect a genuine independent identity check. The author's current QuizDip display name is displayed as host; avoid impersonation in event promotion.
-4. At the scheduled UTC boundary the **same** edition appears for everyone in that lane. Players take the five rounds and see the overall score; eligible verified adults may see the weekly leaderboard.
+## Rollout
 
-## REST / MCP operations
-
-| Function | REST | MCP |
-|---|---|---|
-| This week's edition + real author | GET /api/v1/weekly/current?lane=GENERAL/KIDS | `quizdip_weekly_current` |
-| Submit five owned questions to staff | POST /api/v1/weekly/submit | `quizdip_weekly_submit` |
-| List host proposals (ADMIN) | GET /api/v1/weekly/proposals | `quizdip_weekly_proposals` |
-| Schedule fixed edition (ADMIN) | POST /api/v1/weekly/:id/publish | `quizdip_weekly_publish` |
-| Suspend (ADMIN) | POST /api/v1/weekly/:id/suspend | `quizdip_weekly_suspend` |
-| Weekly ranked adult standings | GET /api/v1/weekly/:id/standings | `quizdip_weekly_standings` |
-| Begin or resume a multi-round run (`avoidQuizIds` optional) | POST /api/v1/runs | `quizdip_run_start` |
-| Get current pinned question & unlocked clues (`avoidQuizIds` optional) | POST /api/v1/runs/:id/current | `quizdip_run_current` |
-| Finish infinite practice voluntarily | POST /api/v1/runs/:id/finish | `quizdip_run_finish` |
-| My recent runs | GET /api/v1/runs | `quizdip_run_history` |
-| Player-owned opt-in for public ranking | PATCH /api/v1/me/ranking | `quizdip_ranking_optin` |
-| ADMIN-only adult verification | POST /api/v1/admin/verify-adult | `quizdip_adult_verify` |
-
-Existing question actions remain unchanged:
-- `quizdip_play_clue`: `POST /api/v1/play/:sessionId/clue`
-- `quizdip_play_guess`: `POST /api/v1/play/:sessionId/guess`
-- `quizdip_play_media`: `POST /api/v1/play/:sessionId/media` for **already revealed** media only.
-
-The weekly tools and browser UIs use `execute()` and share the same owner, audience, session and moderation protections. No duplicated grading rules exist in the client.
-
-## Configuration and deployment
-
-- Apply the Prisma migrations `20261011120000_weekly_play` and `20261011123000_ranking_optin` **after** the existing user/media migrations.
-- Set `PLAY_RUN_SECRET` to an independent randomly generated **32+ character** secret in **each** deployment environment. Do not rotate it mid-run without an explicit token-version migration (existing authenticated run tokens would change).
-- Configure actual Better Auth and PostgreSQL, R2 if using media clues, and Google/Apple OAuth as documented in `docs/auth-sso-mcp.md` and `docs/media-r2.md`.
-- Run `npm run test`, `npm run typecheck`, `npm run build`. Unit/parity tests do not replace an actual migrated Postgres + logged-in full weekly challenge test.
-- Before launch: test simultaneous first weekly attempt across devices, correct/incorrect scores, resume across devices, 5 round completion, safe media playback, zero questions, editorial UTC week rollover, author edits during a live week, admin restriction, Kids denied content, and public rankings. Add distributed play rate limiting, moderation workflows, Verified Adult opt-in management, analytics scalability and account age controls. These release gates are **not** implied complete by CI.
-
-No celebrity is enrolled and no real week is populated automatically by this code. Until an author submits five published quizzes and an admin schedules one, the weekly tile intentionally shows a no-edition state instead of inventing questions or authors.
-
-## Ranking privacy
-
-Official General weekly standings are **opt-in only**, for adults independently verified by trusted administrators. The user sets `leaderboardOptIn` in `/account` or `quizdip_ranking_optin`; a trusted administrator sets `leaderboardEligible` using `quizdip_adult_verify`. Both start false and both must be true. Staff must have independently substantiated age, not self-attestation. A weekly author cannot enter their own public scoreboard. Kids public rankings do not exist.
-
-## Child-safety moderation
-
-Kids is **not** a creator-selected age label. An independent platform moderator inspects the complete answer, all clues and media and explicitly grants safetyStatus=APPROVED and kidsEligible=true. The moderator UI is /admin/quiz-review, with ADMIN-only quiz_review_get and media_review_get inspection followed by quiz_review and media_review audited decisions. A creator cannot override a restriction. Approval updates are revision-pinned with currentVersion optimistic concurrency, so the moderator cannot inadvertently approve newly edited clues they did not inspect.
-
-This is a trusted human review workflow; AI classifiers, child-account eligibility and production abuse protection remain future release gates.
-
-The names above use the QuizDip MCP prefix (`quizdip_*`). The run-token namespace remains unchanged so in-progress play continues to work.
-
-
-## Operational direction and limitations
-
-The default Play and homepage action is a fresh random five. The weekly identical-five competition is a visible but secondary recurring event. Daily challenges are deferred until publishing and retention metrics establish reliable supply. After finishing five, the player may actively choose another five; infinite remains an opt-in rather than automatic loop.
-
-The MVP currently collects all eligible quiz IDs and signed-in users' exposed/allocated IDs before filtering and shuffling. This can become slow with very large catalogs and should be replaced with an indexed anti-join/paginated random selection. Concurrent run starts can still race and allocate the same unseen question to the same user; a DB-enforced reservation/transactional user lock is a prerequisite for a strict concurrent guarantee. If a not-yet-opened random question is scheduled for weekly after the run is created, preallocation may conflict and should be handled before production high-stakes rankings. The content pool is finite: the product must not claim infinite supply.
-
-## Reactions and discovery quality
-
-- Individual Discover plays offer optional 👍/👎 reactions immediately after a server-confirmed SOLVED/FAILED outcome.
-- Random and weekly five-question runs collect optional per-question reactions together only after the run finishes; infinite runs display the last five completed questions when finished.
-- One review per signed-in player/quiz, with completion required, cannot review your own quiz; repeat the selected reaction to remove it or choose the other to change it. Guest completions cannot later be attributed automatically to a new signed-in session.
-- Public Discover and play show aggregate positive sentiment only once at least five ratings exist, to avoid misleading samples. Success rate and popularity are independent; player sentiment does not override safety or Kids approval.
-- Studio shows all-time reaction totals and two recent seven-day windows by latest review update, without exposing private reports. This is not a time-series snapshot.
+New production migrations are run by the main-branch deployment build plan, not automatically by development CI. Before main deployment, confirm migration order and apply migrations against a staging database snapshot; manually test complete `RANDOM_FIVE`, `INFINITE`, `PACK`, and child-device playback with real published revisions and approved media.
