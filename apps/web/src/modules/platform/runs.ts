@@ -272,6 +272,12 @@ async function startPackRun(p:Record<string,any>,actor:Actor|null) {
     const ids=pack.items.map(item=>item.quizId);
     if(new Set(ids).size!==ids.length)
       fail(409,"pack_invalid","Quiz pack contains duplicate questions");
+    // Until already-scheduled legacy editions expire, never bypass their
+    // first-exposure protection through the new pack play path.
+    const reserved=await tx.weeklyQuestion.count({where:{
+      quizId:{in:ids},challenge:{status:"SCHEDULED",weekEnd:{gt:new Date()}}
+    }});
+    if(reserved)fail(409,"weekly_reserved","A pack member is temporarily reserved for an existing event");
     const playable=await tx.quiz.findMany({where:{id:{in:ids},...playableQuizWhere(locale)},
       select:{id:true}});
     if(playable.length!==ids.length)
