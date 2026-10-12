@@ -77,6 +77,10 @@ QuizDip is a friendly quiz playground centered on progressive clues and the joy 
 6. Never claim planned or untested functionality exists.
 
 
+## Quiz pack moderation
+
+Follow [quiz pack policy](docs/pack-moderation-policy.md): General packs publish immediately and automatically skip unavailable members without deleting membership; only creator-requested packs enter Kids approval, where every quiz and asset must be approved. Creator edits cannot undo independent whole-pack ADMIN restrictions. Pack Kids review and general restrictions are separate. REST/MCP parity, audit trail and migration are mandatory.
+
 ## REQUIRED: API + MCP feature parity for every future change
 MCP is a full QuizDip product interface, **not just an authoring connector**. Every new capability available through REST, Studio, Play, Discover, user profiles, community, analytics, moderation-status or rankings **MUST also have an appropriately authorized MCP tool**.
 - When adding or modifying a feature, update **together**: Prisma schema and migration (when needed), shared service operation, input validation in `apps/web/src/modules/platform/contracts.ts`, REST route mapping, MCP tool exposed by `apps/web/app/api/mcp/route.ts`, `docs/api-mcp.md`, plus relevant unit/integration/parity tests.
