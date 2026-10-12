@@ -7,6 +7,7 @@ import {
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { fileTypeFromBuffer } from "file-type";
 import { fail } from "./auth";
+import { mediaImportHostAllowed } from "./import-hosts";
 
 export const LIMITS: Record<string, number> = {
   image: 12 * 1024 * 1024,
@@ -155,10 +156,11 @@ function blockedIp(ip: string): boolean {
 }
 
 /** Explicit host allowlist, DNS pinned to a checked public IP, TLS verified, no redirects. */
-export async function importExternal(input: string, limit: number): Promise<{ bytes: Buffer; mime: string }> {
+export async function importExternal(input: string, limit: number, kind: "image" | "audio" | "video"): Promise<{ bytes: Buffer; mime: string }> {
   const url = new URL(input);
-  const allowed = (process.env.MEDIA_IMPORT_HOSTS || "").split(",").map(v => v.trim().toLowerCase()).filter(Boolean);
-  if (url.protocol !== "https:" || !allowed.includes(url.hostname.toLowerCase()) ||
+  // Known public image CDN hosts are allowed by exact name; extra hosts are explicit config.
+  // Media from other hosts must be downloaded by the creator and uploaded via signed R2 PUT.
+  if (url.protocol !== "https:" || !mediaImportHostAllowed(url.hostname, kind) ||
     url.username || url.password || (url.port && url.port !== "443") || isIP(url.hostname))
     fail(403, "import_forbidden", "HTTPS source hostname is not on the import allowlist");
   const addresses = await lookup(url.hostname, { all: true });
