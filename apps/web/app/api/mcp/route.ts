@@ -42,7 +42,9 @@ export const POST = requireMcpAuth(auth, async (request, claims) => {
   if (typeof claims.sub !== "string" || !claims.sub)
     return Response.json({ error: "invalid_identity" }, { status: 401 });
   const actor = await actorByIdentity(claims.sub);
-  const handler = createMcpHandler(() => createServer(actor), { legacy: "reject" });
+  // Serve both 2025-era stateless MCP clients (including Claude connector probes)
+  // and 2026-07-28 per-request MCP clients without changing OAuth protection.
+  const handler = createMcpHandler(() => createServer(actor), { legacy: "stateless" });
   return handler.fetch(request);
 }, {
   resource: mcpResource,
