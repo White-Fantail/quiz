@@ -68,6 +68,7 @@ export default function StudioWorkspace() {
       <div><h2>{msg("My quizzes","내가 등록한 문제")}</h2><p className="muted">{msg("Find and manage your quizzes, even when you have a long list.","문제가 많아도 필요한 항목만 찾아볼 수 있어요.")}</p></div>
       <div className="actions"><Link className="btn btn-primary" href={localizeHref("/studio/quizzes/new",locale)}>{msg("+ Create quiz","+ 새 문제 만들기")}</Link>
       <strong aria-live="polite">{loading?msg("Loading…","불러오는 중…"):total.toLocaleString(locale==="ko"?"ko-KR":"en-NZ")+msg(" quizzes","개")}</strong>
+      </div>
     </div>
     <div className="studio-filters" role="search" aria-label={msg("My quiz search and filters","내 문제 검색과 필터")}>
       <label className="studio-search">{msg("Search","검색")}
