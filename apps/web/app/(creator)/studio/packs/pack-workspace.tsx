@@ -4,19 +4,24 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useLocale } from "../../../../src/i18n/provider";
 import { localizeHref } from "../../../../src/i18n/core";
+import {listHref,listPageIndex,useListUrlState} from "../../../../src/lib/list-url-state";
 
 type Pack={id:string;title:string;description:string;publication:string;orderMode:"CREATOR"|"RANDOM";quizIds:string[];kidsReviewStatus:string;excludedCount:number;safetyStatus:string};
 type PackPage={items:Pack[];total:number;hasMore:boolean};
 const PAGE_SIZE=20;
 export default function PackWorkspace(){
   const locale=useLocale(),ko=locale==="ko";
-  const [page,setPage]=useState(0);
+  const defaults={page:"1"};
+  const [listing,updateListing,ready]=useListUrlState(defaults);
+  const page=listPageIndex(listing.page);
+  const detailHref=(path:string)=>listHref(localizeHref(path,locale),listing,defaults);
   const [items,setItems]=useState<Pack[]>([]);
   const [total,setTotal]=useState(0);
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState("");
   const [retry,setRetry]=useState(0);
   useEffect(()=>{
+    if(!ready)return;
     const controller=new AbortController();
     setLoading(true);setError("");
     void fetch("/api/v1/packs?mine=true&locale="+locale+"&limit="+PAGE_SIZE+"&offset="+page*PAGE_SIZE,{
@@ -31,7 +36,7 @@ export default function PackWorkspace(){
       if(!controller.signal.aborted)setError(e instanceof Error?e.message:String(e));
     }).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
     return ()=>controller.abort();
-  },[page,locale,retry]);
+  },[ready,page,locale,retry]);
   const pages=Math.max(1,Math.ceil(total/PAGE_SIZE));
   return <section className="studio-workspace" aria-label={ko?"내 퀴즈팩":"My quiz packs"}>
     <div className="studio-section-head">
@@ -57,18 +62,18 @@ export default function PackWorkspace(){
             {pack.kidsReviewStatus==="REJECTED"&&<span className="media-state-chip media-wait">{ko?"어린이 신청 거절":"Kids review rejected"}</span>}
             {pack.safetyStatus==="RESTRICTED"&&<span className="media-state-chip media-wait">{ko?"팩 제한됨":"Pack restricted"}</span>}
           </div>
-          <h3><Link href={localizeHref("/studio/packs/"+pack.id,locale)}>{pack.title}</Link></h3>
+          <h3><Link href={detailHref("/studio/packs/"+pack.id)}>{pack.title}</Link></h3>
           {pack.description&&<p>{pack.description}</p>}
         </div>
         <div className="studio-list-side">
-          <Link href={localizeHref("/studio/packs/"+pack.id,locale)} className="btn btn-outline">{ko?"팩 편집 →":"Edit pack →"}</Link>
+          <Link href={detailHref("/studio/packs/"+pack.id)} className="btn btn-outline">{ko?"팩 편집 →":"Edit pack →"}</Link>
         </div>
       </article>)}
     </div>}
     {!error&&!loading&&total>PAGE_SIZE&&<nav className="media-pagination" aria-label={ko?"팩 목록 페이지":"Pack pages"}>
-      <button type="button" className="btn btn-outline" disabled={page===0} onClick={()=>setPage(n=>n-1)}>{ko?"이전":"Previous"}</button>
+      <button type="button" className="btn btn-outline" disabled={page===0} onClick={()=>updateListing({page:String(Math.max(1,page))})}>{ko?"이전":"Previous"}</button>
       <span aria-live="polite">{page+1} / {pages}</span>
-      <button type="button" className="btn btn-outline" disabled={page+1>=pages} onClick={()=>setPage(n=>n+1)}>{ko?"다음":"Next"}</button>
+      <button type="button" className="btn btn-outline" disabled={page+1>=pages} onClick={()=>updateListing({page:String(page+2)})}>{ko?"다음":"Next"}</button>
     </nav>}
   </section>;
 }
