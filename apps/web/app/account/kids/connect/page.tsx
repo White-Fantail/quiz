@@ -17,13 +17,13 @@ export default async function ConnectPage({searchParams}:{
  try{signedIn=!!(await auth.api.getSession({headers:await headers()}))?.user?.id;}
  catch{unavailable=true;}
  const here=localizeHref("/account/kids/connect?token="+encodeURIComponent(token),locale);
- return <main className="container inner-page">
-   <span className="small-tag">QuizDip Kids</span>
-   {!token?<section className="placeholder-panel">
+ return <main className="container inner-page kids-settings-page kids-connect-page">
+   <header className="kids-page-header"><span className="small-tag">QuizDip Kids</span></header>
+   {!token?<section className="placeholder-panel kids-settings-card">
      <h1>{locale==="ko"?"QR 코드가 올바르지 않아요":"Invalid QR code"}</h1>
      <Link href={localizeHref("/account/kids",locale)}>{locale==="ko"?"키즈 설정":"Kids settings"}</Link>
    </section>:unavailable?<p role="alert">Account sign-in is temporarily unavailable.</p>:
-   !signedIn?<section className="placeholder-panel">
+   !signedIn?<section className="placeholder-panel kids-settings-card">
      <h1>{locale==="ko"?"부모님 로그인":"Parent sign-in"}</h1>
      <p>{locale==="ko"?"아이패드를 연결하려면 먼저 부모님 계정으로 로그인해 주세요.":"Sign in to your parent account to approve this iPad."}</p>
      <Link className="btn btn-primary"
