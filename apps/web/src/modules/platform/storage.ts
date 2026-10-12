@@ -8,6 +8,7 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { fileTypeFromBuffer } from "file-type";
 import { fail } from "./auth";
 import { mediaImportHostAllowed } from "./import-hosts";
+import { pinnedLookup } from "./pinned-lookup";
 
 export const LIMITS: Record<string, number> = {
   image: 12 * 1024 * 1024,
@@ -167,10 +168,13 @@ export async function importExternal(input: string, limit: number, kind: "image"
   if (!addresses.length || addresses.some(a => blockedIp(a.address)))
     fail(403, "import_forbidden", "Import source resolves to a non-public address");
   const chosen = addresses[0];
+  if (chosen.family !== 4 && chosen.family !== 6)
+    fail(403, "import_forbidden", "Import source returned an invalid address family");
   return await new Promise((resolve,reject) => {
     const req = httpsRequest(url, {
       method: "GET", timeout: 20000,
-      lookup: (_host, _opts, cb) => cb(null, chosen.address, chosen.family),
+      // Preserve DNS pinning and TLS hostname verification for both Node lookup forms.
+      lookup: pinnedLookup({ address: chosen.address, family: chosen.family }),
       headers: { "accept": "image/*, audio/*, video/*", "user-agent": "QuizDip-MediaImport/1.0" },
     }, async res => {
       if (res.statusCode !== 200 || (res.headers.location)) {
