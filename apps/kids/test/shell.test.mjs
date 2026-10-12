@@ -10,8 +10,8 @@ test("Kids is a real native Expo app, not a webview shell",()=>{
  assert.deepEqual(cfg.expo.platforms,["ios","android","web"]);
  assert.equal(cfg.expo.web.bundler,"metro");
  assert.equal(pkg.dependencies["react-dom"],pkg.dependencies.react);
- assert.match(pkg.dependencies["react-native-web"],/^~0\\.21\\./);
- assert.match(pkg.dependencies["@expo/metro-runtime"],/^~57\\./);
+ assert.match(pkg.dependencies["react-native-web"],/^~0\.21\./);
+ assert.match(pkg.dependencies["@expo/metro-runtime"],/^~57\./);
  assert.equal(cfg.expo.ios.supportsTablet,true);
  assert.ok(cfg.expo.android.package);
  for(const page of ["index","explore","challenge","treasures"]) assert.match(source("app/(tabs)/"+page+".tsx"),/Screen/);
@@ -40,7 +40,7 @@ test("browser-only preview never imports child credentials or live backend",()=>
  assert.match(source("app/_layout.web.tsx"),/Slot/);
  assert.match(source("app/(tabs)/_layout.web.tsx"),/Slot/);
  assert.match(preview,/BROWSER PREVIEW|브라우저 미리보기/);
- assert.doesNotMatch(preview,/SecureStore|localStorage|sessionStorage|fetch\\(|kidsApi|parentApi|EXPO_PUBLIC_|Authorization/);
+ assert.doesNotMatch(preview,/SecureStore|localStorage|sessionStorage|fetch\(|kidsApi|parentApi|EXPO_PUBLIC_|Authorization/);
  assert.match(source("app/_layout.tsx"),/KidsSessionProvider/);
  for(const page of ["setup","game","parent","guardian","time-up"])
    assert.match(source("app/"+page+".web.tsx"),/Preview/);
