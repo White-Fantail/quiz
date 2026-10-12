@@ -113,8 +113,9 @@ const clueTypes: {type:ClueType;en:string;ko:string}[]=[
   {type:"image-reveal",en:"Image reveal",ko:"이미지 단계별 공개"},{type:"map",en:"Map",ko:"지도"}];
 const answerTypes:AnswerType[]=["person","animal","place","thing","event","concept","other"];
 
-export default function QuizEditor({quizId}:{quizId?:string}) {
+export default function QuizEditor({quizId,backHref}:{quizId?:string;backHref?:string}) {
   const locale=useLocale(),router=useRouter();
+  const withList=(path:string)=>{const query=backHref?.split("?")[1];return localizeHref(path,locale)+(query?"?"+query:"");};
   const msg=(en:string,ko:string)=>bilingual(locale,en,ko);
   const [form,setForm]=useState<Form>(()=>blankForm(locale));
   const [original,setOriginal]=useState<Quiz|null>(null);
@@ -203,8 +204,8 @@ export default function QuizEditor({quizId}:{quizId?:string}) {
     <div className="studio-quiz-editor-actions">
       <span className="media-state-chip media-wait">{original?("v"+original.version+" · "+original.publication):msg("New draft","새 초안")}</span>
       {original&&<>
-        <Link className="btn btn-outline" href={localizeHref("/studio/quizzes/"+original.id+"/preview",locale)}>{msg("Test play","테스트 플레이")}</Link>
-        <Link className="btn btn-outline" href={localizeHref("/studio/quizzes/"+original.id,locale)}>{msg("Results · Kids review","통계 · Kids 심사")}</Link>
+        <Link className="btn btn-outline" href={withList("/studio/quizzes/"+original.id+"/preview")}>{msg("Test play","테스트 플레이")}</Link>
+        <Link className="btn btn-outline" href={withList("/studio/quizzes/"+original.id)}>{msg("Results · Kids review","통계 · Kids 심사")}</Link>
       </>}
     </div>
     <section className="placeholder-panel">
@@ -367,7 +368,7 @@ export default function QuizEditor({quizId}:{quizId?:string}) {
         "수정하면 새 버전이 생성됩니다. 일반 공개는 유지되고 Kids 승인은 재심사가 필요합니다."):
         msg("Save your draft first, then test it and publish when ready.","먼저 초안으로 저장하고 테스트한 뒤 원하는 때 공개하세요.")}</p>
       <div className="actions">
-        <Link className="btn btn-outline" href={localizeHref("/studio",locale)}
+        <Link className="btn btn-outline" href={backHref??localizeHref("/studio",locale)}
           onClick={e=>{if(dirty&&!window.confirm(msg("Discard unsaved changes?","저장하지 않은 변경 사항을 버릴까요?")))e.preventDefault();}}>
           {msg("Back to list","목록으로")}
         </Link>
