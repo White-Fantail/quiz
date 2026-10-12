@@ -85,6 +85,28 @@ export const operations = {
   pack_review_remove: { public:false, description:"Remove my quiz pack reaction", schema:z.object({id:uuid,locale:optionalLocale}) },
   pack_report_create: { public:false, description:"Report a quality or safety problem with an entire pack", schema:z.object({id:uuid,locale:optionalLocale,reason:z.enum(["WRONG_ANSWER","WRONG_CLUE","UNSAFE","COPYRIGHT","PRIVACY","SPAM","DUPLICATE"]),detail:z.string().trim().min(5).max(2000)}) },
   my_pack_insights: { public:false, description:"Aggregate owner-only pack completion and feedback insights", schema:z.object({id:uuid,locale:z.enum(["en","ko","all"]).default("all")}) },
+  editorial_features: { public:true, description:"Read explicitly labeled active general editorial picks, after live safety validation", schema:z.object({locale:optionalLocale,lane:z.literal("GENERAL").default("GENERAL"),limit:z.number().int().min(1).max(20).default(10)}) },
+  admin_feature_list: { public:false, description:"ADMIN: list planned, paused and live editorial placements", schema:z.object({...paging,locale:localeCode.optional(),lane:z.enum(["GENERAL","KIDS"]).optional(),status:z.enum(["ACTIVE","PAUSED"]).optional()}) },
+  admin_feature_candidates: { public:false, description:"ADMIN: discover eligible quizzes or packs for manual highlighting", schema:z.object({type:z.enum(["QUIZ","PACK"]),locale:optionalLocale,lane:z.enum(["GENERAL","KIDS"]).default("GENERAL"),search:z.string().trim().max(100).default(""),limit:z.number().int().min(1).max(20).default(12)}) },
+  admin_feature_create: { public:false, description:"ADMIN: explicitly schedule an editorial quiz/pack placement", schema:z.object({
+    targetType:z.enum(["QUIZ","PACK"]),targetId:uuid,locale:optionalLocale,
+    lane:z.enum(["GENERAL","KIDS"]).default("GENERAL"),placement:z.enum(["HERO","ROW"]).default("ROW"),
+    priority:z.number().int().min(-100).max(100).default(0),
+    headline:z.string().trim().max(180).default(""),description:z.string().trim().max(500).default(""),
+    startAt:z.iso.datetime(),endAt:z.iso.datetime(),confirm:z.literal(true)
+  }) },
+  admin_feature_update: { public:false, description:"ADMIN: pause, reschedule, relabel or reorder an audited feature", schema:z.object({
+    id:uuid,status:z.enum(["ACTIVE","PAUSED"]).optional(),placement:z.enum(["HERO","ROW"]).optional(),
+    priority:z.number().int().min(-100).max(100).optional(),
+    headline:z.string().trim().max(180).optional(),description:z.string().trim().max(500).optional(),
+    startAt:z.iso.datetime().optional(),endAt:z.iso.datetime().optional(),confirm:z.literal(true)
+  }) },
+  admin_feature_remove: { public:false, description:"ADMIN: explicitly remove an audited editorial placement", schema:z.object({id:uuid,confirm:z.literal(true)}) },
+  admin_pack_safety_list: { public:false, description:"ADMIN: review independent whole-pack Kids safety readiness", schema:z.object(paging) },
+  admin_pack_safety_review: { public:false, description:"ADMIN: independently approve, hold or restrict a pack for Kids", schema:z.object({
+    id:uuid,expectedVersion:z.number().int().positive(),verdict:z.enum(["APPROVED","PENDING","RESTRICTED"]),
+    reason:z.string().trim().min(8).max(1000),confirm:z.literal(true)
+  }) },
   discover_sections: { public:true, description:"Explore organic trending, popular, rated, difficult and new quiz/pack content", schema:z.object({locale:optionalLocale}) },
   pack_update: { public: false, description: "Edit or publish an owned quiz pack", schema: z.object({ id: uuid, title: z.string().min(1).max(180).optional(), description: z.string().max(2000).optional(), quizIds: z.array(uuid).min(1).max(100).optional(), orderMode:z.enum(["CREATOR","RANDOM"]).optional(), publication: z.enum(["DRAFT", "PUBLISHED", "HIDDEN"]).optional(), confirm: z.boolean().optional() }) },
   play_start: { public: true, description: "Start a playable session and see first clue", schema: z.object({ quizId: uuid, kids: z.boolean().default(false), locale: optionalLocale }) },
