@@ -13,7 +13,7 @@ import { kidsApi } from "../src/services/api";
 import { theme } from "../src/theme";
 
 const SAVED="quizdip-kids-active-game-v1";
-type Ref= {kind:"run";runId:string;runToken:string;mode:"RANDOM_FIVE"|"WEEKLY"} |
+type Ref= {kind:"run";runId:string;runToken:string;mode:"RANDOM_FIVE"|"WEEKLY"|"PACK"} |
           {kind:"single";sessionId:string;sessionToken:string};
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function finished(v:KidQuestion|KidRunResult):v is KidRunResult {
@@ -31,7 +31,7 @@ async function read():Promise<Ref|null>{
   if(!raw)return null;
   const v=JSON.parse(raw);
   if(v?.kind==="run" && uuid.test(v.runId) && /^[\w-]{32,200}$/.test(v.runToken) &&
-   ["RANDOM_FIVE","WEEKLY"].includes(v.mode))return v as Ref;
+   ["RANDOM_FIVE","WEEKLY","PACK"].includes(v.mode))return v as Ref;
   if(v?.kind==="single" && uuid.test(v.sessionId) && /^[\w-]{32,200}$/.test(v.sessionToken))
    return v as Ref;
  }catch{/* Unknown state is not trusted. */}
@@ -39,7 +39,7 @@ async function read():Promise<Ref|null>{
  return null;
 }
 export default function KidGameScreen(){
- const params=useLocalSearchParams<{quizId?:string;mode?:string}>();
+ const params=useLocalSearchParams<{quizId?:string;packId?:string;mode?:string}>();
  const kid=useKidsSession(),{t}=useKidsLocale(),router=useRouter();
  const time=useKidsTime();
  const [reference,setReference]=useState<Ref|null>(null);
@@ -65,7 +65,7 @@ export default function KidGameScreen(){
  },[]);
  useEffect(()=>{
   if(!token || !kidsApi)return;
-  const key=token+":"+(params.quizId??"")+":"+(params.mode??"");
+  const key=token+":"+(params.quizId??"")+":"+(params.packId??"")+":"+(params.mode??"");
   if(boot.current===key)return;
   boot.current=key;
   let active=true;
@@ -73,7 +73,11 @@ export default function KidGameScreen(){
   void (async()=>{
    try{
     let ref:Ref|null=null;
-    if(params.quizId && uuid.test(params.quizId)){
+    if(params.packId&&uuid.test(params.packId)){
+      const started=await kidsApi!.startPack(token,params.packId);
+      ref={kind:"run",runId:started.runId,runToken:started.runToken,mode:"PACK"};
+      await save(ref);
+    }else if(params.quizId && uuid.test(params.quizId)){
       const started=await kidsApi!.startSingle(token,params.quizId);
       ref={kind:"single",sessionId:started.sessionId,sessionToken:started.sessionToken};
       await save(ref);
@@ -94,14 +98,14 @@ export default function KidGameScreen(){
    }finally{if(active)setLoading(false);}
   })();
   return ()=>{active=false;};
- },[token,params.quizId,params.mode,retrieve,t]);
+ },[token,params.quizId,params.packId,params.mode,retrieve,t]);
  const guarded=async(task:()=>Promise<void>)=>{
   if(pending)return;
   setPending(true);setError("");
   try{await task();}
   catch(e){
     const withdrawn=e instanceof ApiError &&
-      ["kid_content_withdrawn","kid_media_withdrawn","question_suspended"].includes(e.code);
+      ["kid_content_withdrawn","kid_media_withdrawn","question_suspended","pack_unavailable","kid_pack_changed","kid_pack_locale"].includes(e.code);
     if(withdrawn){await save(null);setQuestion(null);setSummary(null);setReference(null);}
     if(e instanceof ApiError && [401,403].includes(e.status??0))void kid.reload();
     setError(withdrawn?t("native.play.withdrawn"):t("native.play.error"));
@@ -162,12 +166,12 @@ export default function KidGameScreen(){
    <Pressable accessibilityRole="button" onPress={()=>router.replace("/treasures")} style={styles.button}>
      <Text style={styles.buttonText}>⭐ {t("kids.nav.treasures")}</Text>
    </Pressable>
-   <Pressable accessibilityRole="button" onPress={()=>router.replace("/challenge")} style={styles.secondary}>
+   <Pressable accessibilityRole="button" onPress={()=>router.replace(reference?.kind==="run"&&reference.mode==="PACK"?"/packs":"/challenge")} style={styles.secondary}>
      <Text style={styles.secondaryText}>{t("native.play.back")}</Text>
    </Pressable>
  </Screen>;
  if(!question)return <Screen title={t("native.play.noActive")}>
-   <Pressable accessibilityRole="button" onPress={()=>router.replace("/challenge")} style={styles.button}>
+   <Pressable accessibilityRole="button" onPress={()=>router.replace(reference?.kind==="run"&&reference.mode==="PACK"?"/packs":"/challenge")} style={styles.button}>
      <Text style={styles.buttonText}>{t("native.play.back")}</Text>
    </Pressable>
  </Screen>;
