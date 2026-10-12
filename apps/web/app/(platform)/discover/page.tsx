@@ -76,6 +76,7 @@ export default function DiscoverPage() {
       <span className="eyebrow">QUIZDIP DISCOVER</span>
       <h1>{t("discover.heading")}</h1>
       <p className="lead">{t("discover.lead")}</p>
+      {!kids&&<p><Link href={localizeHref("/packs",locale)} className="btn btn-primary">{bilingual(locale,"Browse quiz packs →","퀴즈팩 둘러보기 →")}</Link></p>}
 
       <section className="discover-filters" aria-label={t("discover.filters")}>
         <label>
