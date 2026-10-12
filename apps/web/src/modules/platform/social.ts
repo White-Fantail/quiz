@@ -1,6 +1,7 @@
 import { db } from "./db";
 import { validateMediaReferences } from "./media";
 import { ratingsForQuiz } from "./ratings";
+import { packRatingFor, packRatingsFor } from "./pack-social";
 import { currentPlayableRevision } from "./content-locale";
 import { fail, requireActor, type Actor } from "./auth";
 import { playableQuizWhere } from "./content-locale";
@@ -147,11 +148,12 @@ export async function packList(p: Record<string, any>, actor: Actor | null) {
     where, orderBy: { updatedAt: "desc" }, skip: p.offset, take: p.limit,
     include: { localizations: { where: { locale } }, items: { orderBy: { position: "asc" } } }
   });
+  const ratingMap=p.mine?new Map():await packRatingsFor(packs.map(pack=>pack.id),locale);
   return { locale, items: packs.map(pack => {
     const l = pack.localizations[0];
     return { id:pack.id, title: p.mine ? pack.title : l?.title,
       description: p.mine ? pack.description : l?.description,
-      publication:pack.publication,orderMode:pack.orderMode, quizIds:pack.items.map(item=>item.quizId) };
+      publication:pack.publication,orderMode:pack.orderMode,ratings:ratingMap.get(pack.id)??null, quizIds:pack.items.map(item=>item.quizId) };
   }) };
 }
 /** Author confirmation of a legacy pack's ORIGINAL language, never an automatic translation. */
@@ -361,6 +363,6 @@ export async function packGet(p:Record<string,any>,actor:Actor|null){
     fail(404,"pack_unavailable","A pack question is unavailable in this language");
   return {id:pack.id,title:pack.localizations[0].title,
     description:pack.localizations[0].description,author:pack.author,
-    questionCount:pack.items.length,orderMode:pack.orderMode,locale,publication:pack.publication,
+    questionCount:pack.items.length,orderMode:pack.orderMode,ratings:await packRatingFor(pack.id,locale),locale,publication:pack.publication,
     currentVersion:pack.currentVersion};
 }
