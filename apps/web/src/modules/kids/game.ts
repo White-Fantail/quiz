@@ -11,7 +11,7 @@ import { safePack } from "../platform/feature-eligibility";
 import type { nativeKidFromHeaders } from "./service";
 
 type Kid = Awaited<ReturnType<typeof nativeKidFromHeaders>>;
-type Mode = "RANDOM_FIVE"|"WEEKLY";
+type Mode = "RANDOM_FIVE";
 const approvedOrigins=["ORIGINAL","LEGACY"];
 
 function owner(kid:Kid){return {profileId:kid.profileId,deviceId:kid.id};}
