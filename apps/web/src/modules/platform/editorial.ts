@@ -171,7 +171,7 @@ export async function adminPackSafetyList(p:Record<string,any>,actor:Actor|null)
 /** Only packs with OPEN user reports need ordinary content moderation. */
 export async function adminPackReportsList(p:Record<string,any>,actor:Actor|null){
   admin(actor);
-  const where={reports:{some:{status:"OPEN"}}};
+  const where={OR:[{reports:{some:{status:"OPEN"}}},{safetyStatus:"RESTRICTED"}]};
   const [packs,total]=await Promise.all([
     db().quizPack.findMany({where,orderBy:[{updatedAt:"desc"},{id:"desc"}],
       skip:p.offset,take:p.limit,select:{id:true,title:true,currentVersion:true,
