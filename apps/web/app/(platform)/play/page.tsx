@@ -14,7 +14,7 @@ type Lane = "GENERAL" | "KIDS";
 type Mode = "RANDOM_FIVE" | "INFINITE" | "PACK";
 type Clue = { id?: string; type: "text"|"image"|"image-reveal"|"audio"|"video"|"map";
   text?: string; mediaId?: string; reveal?:RevealSettings; map?: {latitude:number;longitude:number;zoom?:number} };
-type RunInfo = {runId:string;runToken:string;mode:Mode|"WEEKLY";lane:Lane;packId?:string|null;packVersion?:number|null;
+type RunInfo = {runId:string;runToken:string;mode:Mode;lane:Lane;packId?:string|null;packVersion?:number|null;
   completed:number;score:number;status:"ACTIVE"|"FINISHED";total:number|null;official?:boolean;
   solved?:number;failed?:number;exhausted?:boolean;message?:string};
 type Round = RunInfo & {sessionId:string;sessionToken:string;round:number;quizId:string;title:string;
@@ -258,7 +258,7 @@ export default function PlayPage({packId}:{packId?:string}={}) {
         <h2>{msg("My recent games","최근 내 기록")}</h2>
         <div className="recent-results">
           {myHistory.map(item=><p key={item.runId}>
-            {item.mode==="WEEKLY"?msg("Past weekly game","이전 주간 플레이"):item.mode==="PACK"?msg("Quiz pack","퀴즈팩"):item.mode==="INFINITE"?msg("Continuous play","연속 플레이"):msg("Quick five","랜덤 5문제")}
+            {item.mode==="PACK"?msg("Quiz pack","퀴즈팩"):item.mode==="INFINITE"?msg("Continuous play","연속 플레이"):msg("Quick five","랜덤 5문제")}
             {" · "}{item.score}{msg(" pts · ","점 · ")}{item.completed}{msg(" quizzes · ","문제 ")}{item.status==="FINISHED"?msg("Finished","완료"):msg("In progress","진행 중")}
             {item.mode==="PACK"&&item.packId&&<> · <Link href={localizeHref("/packs/"+item.packId+"/play",locale)}>{msg("Resume pack →","퀴즈팩 이어 풀기 →")}</Link></>}
           </p>)}
