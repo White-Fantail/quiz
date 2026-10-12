@@ -207,7 +207,7 @@ export default function PackEditor({packId}:{packId?:string}){
     </div>
     <div className="pack-editor-footer">
       <div className="actions">
-        <button type="button" className="btn btn-primary" disabled={busy} onClick={()=>void save()}>{busy?(ko?"처리 중…":"Working…"):(ko?"팩 저장":"Save pack")}</button>
+        <button type="button" className="btn btn-primary" disabled={busy||(!!packId&&!dirty)} onClick={()=>void save()}>{busy?(ko?"처리 중…":"Working…"):(ko?"팩 저장":"Save pack")}</button>
         {packId&&<button type="button" className="btn btn-outline" disabled={busy||dirty} onClick={()=>void validate()}>{ko?"공개 전 검증":"Check readiness"}</button>}
         {packId&&<button type="button" className="btn btn-primary" disabled={busy||dirty||!preview?.ready} onClick={()=>void publish()}>{ko?"전체 공개":"Publish all"}</button>}
       </div>
