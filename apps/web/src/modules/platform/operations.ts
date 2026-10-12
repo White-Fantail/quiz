@@ -3,7 +3,7 @@ import { quizLanguages,quizTranslationGet,quizTranslationGenerate,quizTranslatio
 import { localeGet, localeUpdate } from "./locale";
 import { topicList } from "./topics";
 import { fail, requireActor, type Actor } from "./auth";
-import { quizList, quizGet, quizCreate, quizUpdate, quizPublish, quizLanguageSet, quizReview, quizReviewGet, adminQuizReviewList } from "./quiz";
+import { quizList, quizGet, quizCreate, quizUpdate, quizPublish, quizKidsRequest, quizLanguageSet, quizReview, quizReviewGet, adminQuizReviewList } from "./quiz";
 import { playStart, playClue, playGuess } from "./play";
 import { runStart,runCurrent,runFinish,runHistory,runFeedback } from "./runs";
 import { reviewsList, reviewUpsert, reviewRemove, reportCreate, reportsMine, packCreate, packList, packGet, myPackGet, packPreflight, packUpdate, packLanguageSet, packLanguages, packTranslationUpsert, packPublishPreview, packPublish } from "./social";
@@ -27,7 +27,7 @@ export async function execute(name: Operation, raw: unknown, actor: Actor | null
       clueTypes: ["text", "image", "image-reveal", "audio", "video", "map"], mediaReference: "mediaId", promptMediaIds: true,
       mediaLimitsBytes: { image: 12582912, audio: 26214400, video: 67108864 }, minClues: 1, maxClues: 15,
       userAdjustable: ["answerType", "topics", "creatorIntent", "recommendedAudience", "clues", "answer"],
-      platformControlled: ["safetyStatus", "kidsEligible"],
+      platformControlled: ["safetyStatus", "kidsEligible", "kidsReviewStatus"],
       playModes: ["RANDOM_FIVE","INFINITE","PACK"], audiences: ["GENERAL","KIDS"],
       quickStartQuestions: 5, editorialPicks: "ACTIVE", packOrderModes: ["CREATOR","RANDOM"],
       version: "v2", format: "progressive-clues" };
@@ -38,6 +38,7 @@ export async function execute(name: Operation, raw: unknown, actor: Actor | null
     case "quiz_update": return quizUpdate(p, actor);
     case "clues_replace": return quizUpdate({ id: p.id, expectedVersion: p.expectedVersion, clues: p.clues }, actor);
     case "quiz_publish": return quizPublish(p, actor);
+    case "quiz_kids_request": return quizKidsRequest(p, actor);
     case "quiz_language_set": return quizLanguageSet(p, actor);
     case "quiz_languages": return quizLanguages(p,actor);
     case "quiz_translation_get": return quizTranslationGet(p,actor);

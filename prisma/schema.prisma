@@ -49,8 +49,10 @@ model Quiz {
   localizations         QuizLocalization[]
   kidSafetyReports      KidSafetyReport[]
   publication           String        @default("DRAFT")
-  safetyStatus          String        @default("PENDING")
+  safetyStatus          String        @default("ACTIVE")
   kidsEligible          Boolean       @default(false)
+  kidsReviewStatus      String        @default("NOT_REQUESTED")
+  moderationReviewedAt  DateTime?
   creatorIntent         Json?
   recommendedAudience   Json?
   mode                  String        @default("progressive-clues")
@@ -292,6 +294,7 @@ model Review {
   updatedAt             DateTime      @updatedAt
   @@unique([quizId, authorId, locale, kind])
   @@index([quizId, locale, kind, rating])
+  @@index([quizId, kind, rating, updatedAt])
   @@index([quizId, createdAt])
 }
 
@@ -309,6 +312,7 @@ model Report {
   status                String        @default("OPEN")
   createdAt             DateTime      @default(now())
   @@index([quizId, status])
+  @@index([quizId, status, createdAt])
   @@index([quizId, locale, reason])
 }
 

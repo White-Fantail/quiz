@@ -9,7 +9,7 @@ export function publishedLocalization(locale: Locale) {
 export function playableQuizWhere(locale: Locale, lane: "GENERAL" | "KIDS" = "GENERAL") {
   return {
     publication: "PUBLISHED",
-    ...(lane === "KIDS" ? { safetyStatus: "APPROVED", kidsEligible: true }
+    ...(lane === "KIDS" ? { safetyStatus: { not:"RESTRICTED" }, kidsEligible: true, kidsReviewStatus:"APPROVED" }
       : { safetyStatus: { not: "RESTRICTED" } }),
     localizations: {some:{locale,status:"PUBLISHED",
       ...(lane==="KIDS"?{origin:{in:["ORIGINAL","LEGACY"]}}:{})}}

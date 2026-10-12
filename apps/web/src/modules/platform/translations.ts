@@ -151,11 +151,11 @@ export async function quizTranslationPublish(p: Record<string,any>, actor:Actor|
       data:{publishedVersion:p.expectedVersion,status:"PUBLISHED"}
     });
     if(checked.count!==1) fail(409,"version_conflict","Language changed while publishing");
-    await tx.quiz.update({where:{id:quiz.id},data:{safetyStatus:"PENDING",kidsEligible:false}});
+    await tx.quiz.update({where:{id:quiz.id},data:{kidsEligible:false,kidsReviewStatus:quiz.kidsReviewStatus==="NOT_REQUESTED"?"NOT_REQUESTED":"REQUESTED"}});
     await tx.auditLog.create({data:{actorId:user.id,action:"quiz.translation.publish",objectId:quiz.id,
       detail:{locale:p.locale,version:p.expectedVersion,sourceRevisionId:source.id,reviewed:p.reviewed}}});
     return {quizId:quiz.id,locale:p.locale,version:p.expectedVersion,status:"PUBLISHED",
-      safetyStatus:"PENDING",kidsEligible:false};
+      kidsEligible:false,kidsReviewStatus:quiz.kidsReviewStatus==="NOT_REQUESTED"?"NOT_REQUESTED":"REQUESTED"};
   });
 }
 export async function quizTranslationHide(p:Record<string,any>,actor:Actor|null) {

@@ -18,6 +18,7 @@ function route(method: string, segments: string[]): Match | null {
     if (!b && method === "POST") return { op: "quiz_create", args: {} };
     if (b && !c && method === "GET") return { op: "quiz_get", args: { id: b } };
     if (b && !c && method === "PATCH") return { op: "quiz_update", args: { id: b } };
+    if (b && c === "kids-request" && !d && method === "POST") return {op:"quiz_kids_request",args:{id:b}};
     if (b && c === "review" && method === "GET") return { op: "quiz_review_get", args: { id:b } };
     if (b && c === "review" && method === "POST") return { op: "quiz_review", args: { id:b } };
     if (b && c === "languages" && !d && method === "GET") return {op: "quiz_languages",args:{id:b}};

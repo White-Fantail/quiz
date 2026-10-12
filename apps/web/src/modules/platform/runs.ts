@@ -12,7 +12,7 @@ export type Lane = "GENERAL" | "KIDS";
 export type RunMode = "RANDOM_FIVE" | "INFINITE" | "PACK";
 export function eligibleQuizWhere(lane: Lane): Record<string,unknown> {
   return { publication: "PUBLISHED", ...(lane === "KIDS"
-    ? { safetyStatus: "APPROVED", kidsEligible: true }
+    ? { safetyStatus: { not:"RESTRICTED" }, kidsEligible: true, kidsReviewStatus:"APPROVED" }
     : { safetyStatus: { not: "RESTRICTED" } }) };
 }
 function hash(token: string) { return createHash("sha256").update(token).digest("hex"); }
@@ -242,7 +242,7 @@ export async function runCurrent(p:Record<string,any>,actor:Actor|null) {
   if(!round) fail(409,"no_more_questions","No further questions in this run");
   const quiz=await db().quiz.findUnique({where:{id:round.quizId}});
   if(!quiz || quiz.publication!=="PUBLISHED" || quiz.safetyStatus==="RESTRICTED" ||
-    (run.lane==="KIDS" && !(quiz.safetyStatus==="APPROVED"&&quiz.kidsEligible)))
+    (run.lane==="KIDS" && !(quiz.safetyStatus!=="RESTRICTED"&&quiz.kidsEligible&&quiz.kidsReviewStatus==="APPROVED")))
     fail(409,"question_suspended","This question is temporarily unavailable for safety review");
   const revision=await db().quizRevision.findUnique({where:{id:round.revisionId},include:{localization:true}});
   if(!revision || revision.localization?.locale!==run.locale ||

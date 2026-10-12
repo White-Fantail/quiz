@@ -39,8 +39,8 @@ export async function myQuizzes(p: Record<string, any>, actor: Actor | null) {
       id: q.id, title: revisions.get(q.id)?.title ?? "(제목 없음)",
       prompt: revisions.get(q.id)?.prompt ?? "",
       version: q.currentVersion, publication: q.publication, safetyStatus: q.safetyStatus,
-      kidsEligible: q.kidsEligible && q.safetyStatus === "APPROVED",
-      answerType: q.answerType, topics: topicSummaries(q.topicLinks, true),
+      kidsEligible: q.kidsEligible && q.safetyStatus !== "RESTRICTED",
+      kidsReviewStatus:q.kidsReviewStatus, answerType: q.answerType, topics: topicSummaries(q.topicLinks, true),
       plays: q._count.sessions, reviews: q._count.reviews,
       createdAt: q.createdAt, updatedAt: q.updatedAt
     })),

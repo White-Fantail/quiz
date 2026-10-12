@@ -44,7 +44,8 @@ export const quizFields = z.object({
   promptMediaIds: z.array(mediaId).max(5).default([]),
   topics: z.array(topicInputSchema).max(12).optional(),
   recommendedAudience: z.object({ ageRange: ageRangeSchema.optional(), difficulty: z.enum(["easy","medium","hard"]).optional() }).optional(),
-  creatorIntent: z.object({ ageRange: ageRangeSchema.optional(), note: z.string().max(400).optional() }).optional()
+  creatorIntent: z.object({ ageRange: ageRangeSchema.optional(), note: z.string().max(400).optional() }).optional(),
+  kidsRequested: z.boolean().optional()
 });
 const localeCode = z.enum(["en", "ko"]);
 const optionalLocale = localeCode.default("en");
@@ -66,15 +67,17 @@ export const operations = {
   quiz_translation_hide: { public:false, description:"Hide a non-source translation with explicit confirmation", schema:z.object({id:uuid,locale:z.enum(["en","ko"]),confirm:z.literal(true)}) },
   quiz_language_set: { public: false, description: "Confirm the original language of a legacy unclassified quiz without translating it", schema: z.object({ id: uuid, locale: localeCode, confirm: z.literal(true) }) },
   quiz_publish: { public: false, description: "Publish my quiz; explicit user confirmation needed", schema: z.object({ id: uuid, confirm: z.literal(true) }) },
-  admin_quiz_review_list: { public: false, description: "ADMIN ONLY: search and paginate published quizzes for safety review, including restricted items", schema: z.object({
-    ...paging, search:z.string().trim().max(120).default(""), safety:z.enum(["ALL","PENDING","APPROVED","RESTRICTED"]).default("PENDING")
+  quiz_kids_request: { public:false, description:"Creator requests or withdraws Kids review without granting approval",schema:z.object({id:uuid,requested:z.boolean()}) },
+  admin_quiz_review_list: { public:false,description:"ADMIN: flagged reports, negative feedback, requested Kids reviews and restrictions",schema:z.object({
+    ...paging,search:z.string().trim().max(120).default(""),
+    queue:z.enum(["ATTENTION","REPORTS","RATINGS","KIDS","RESTRICTED","ALL"]).default("ATTENTION")
   }) },
-  quiz_review_get: { public: false, description: "ADMIN ONLY: inspect quiz questions and answers for safety", schema: z.object({id:uuid}) },
-  quiz_review: { public: false, description: "ADMIN ONLY: independently approve or restrict a quiz; Kids requires explicit safety approval", schema: z.object({
-    id: uuid, verdict: z.enum(["APPROVED","RESTRICTED","PENDING"]), kidsEligible: z.boolean().default(false),
-    reason: z.string().trim().max(1000).default(""), confirm: z.literal(true)
-  }).refine(p=>p.verdict!=="RESTRICTED"||p.reason.length>=5,{
-    path:["reason"],message:"A restriction requires a reason of at least 5 characters"
+  quiz_review_get: { public:false,description:"ADMIN: inspect a quiz and safety reports",schema:z.object({id:uuid}) },
+  quiz_review: { public:false,description:"ADMIN: clear alert, review requested Kids content, restrict or restore",schema:z.object({
+    id:uuid,verdict:z.enum(["CLEARED","KIDS_APPROVED","KIDS_REJECTED","RESTRICTED","RESTORED"]),
+    reason:z.string().trim().max(1000).default(""),confirm:z.literal(true)
+  }).refine(p=>!["RESTRICTED","KIDS_REJECTED"].includes(p.verdict)||p.reason.length>=5,{
+    path:["reason"],message:"Restrictions and Kids rejections require at least 5 characters"
   }) },
   pack_languages: { public:false, description:"List owned pack localization and complete-language coverage", schema:z.object({id:uuid}) },
   pack_translation_upsert: { public:false, description:"Save or publish localized pack metadata after checking full question coverage", schema:z.object({id:uuid,locale:localeCode,title:z.string().trim().min(1).max(180),description:z.string().max(2000).default(""),status:z.enum(["DRAFT","PUBLISHED","HIDDEN"]).default("DRAFT"),confirm:z.boolean().default(false)}) },
@@ -132,7 +135,7 @@ export const operations = {
   my_quizzes: { public: false, description: "Search, filter and paginate only my authored quizzes. Returns total count and lightweight feedback totals.", schema: z.object({
     ...paging, search: z.string().trim().max(120).default(""),
     publication: z.enum(["all","DRAFT","PUBLISHED","HIDDEN"]).default("all"),
-    safety: z.enum(["all","PENDING","APPROVED","RESTRICTED"]).default("all"),
+    safety: z.enum(["all","ACTIVE","RESTRICTED"]).default("all"),
     sort: z.enum(["newest","oldest"]).default("newest")
   }) },
   my_quiz_insights: { public: false, description: "Private owner-only play results, rating summary, anonymized report counts and paginated quiz feedback across revisions", schema: z.object({ quizId: uuid, locale: z.enum(["en","ko","und","all"]).default("all"), ...paging }) },

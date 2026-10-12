@@ -42,7 +42,7 @@ export async function getPlaySession(p: Record<string, any>, actor: Actor | null
     })))fail(409,"pack_unavailable","This pack has been withdrawn");
     const quiz=await db().quiz.findUnique({where:{id:session.quizId}});
     if (!quiz || quiz.publication!=="PUBLISHED" || quiz.safetyStatus==="RESTRICTED" ||
-      (run.lane==="KIDS" && !(quiz.safetyStatus==="APPROVED"&&quiz.kidsEligible)))
+      (run.lane==="KIDS" && !(quiz.safetyStatus!=="RESTRICTED"&&quiz.kidsEligible&&quiz.kidsReviewStatus==="APPROVED")))
       fail(409,"question_suspended","This quiz is unavailable for the chosen audience");
   }
   return session;
@@ -51,7 +51,7 @@ export async function playStart(p: Record<string, any>, actor: Actor | null) {
   const quiz = await db().quiz.findUnique({ where: { id: p.quizId } });
   if (!quiz || quiz.publication !== "PUBLISHED" || quiz.safetyStatus === "RESTRICTED")
     fail(404, "not_found", "Quiz unavailable");
-  if (p.kids && !(quiz.safetyStatus === "APPROVED" && quiz.kidsEligible))
+  if (p.kids && !(quiz.safetyStatus!=="RESTRICTED"&&quiz.kidsEligible&&quiz.kidsReviewStatus==="APPROVED"))
     fail(403, "not_for_kids", "Quiz has not passed Kids eligibility checks");
   const { revision, translation } = await currentPlayableRevision(quiz.id, p.locale);
   if(p.kids && !["ORIGINAL","LEGACY"].includes(translation.origin))
