@@ -5,6 +5,7 @@ import {useSearchParams} from "next/navigation";
 import {useLocale} from "../../../src/i18n/provider";
 import {localizeHref} from "../../../src/i18n/core";
 import {bilingual} from "../../../src/i18n/view-copy";
+import {listPageIndex,useListUrlState} from "../../../src/lib/list-url-state";
 
 type Summary={id:string;title:string;mode:string;version:number;publication:string;
   safetyStatus:string;kidsEligible:boolean;kidsReviewStatus:string;
@@ -16,10 +17,10 @@ const queues:Queue[]=["ATTENTION","REPORTS","RATINGS","KIDS","RESTRICTED","ALL"]
 export default function QuizReviewConsole(){
   const locale=useLocale(),params=useSearchParams();
   const msg=(en:string,ko:string)=>bilingual(locale,en,ko);
-  const initial=params.get("queue");
-  const [queue,setQueue]=useState<Queue>(queues.includes(initial as Queue)?initial as Queue:"ATTENTION");
-  const [query,setQuery]=useState(params.get("q")??"");
-  const [page,setPage]=useState(Math.max(1,Number(params.get("page"))||1));
+  const [listing,updateListing,ready]=useListUrlState({queue:"ATTENTION",q:"",page:"1"});
+  const queue=queues.includes(listing.queue as Queue)?listing.queue as Queue:"ATTENTION";
+  const query=listing.q;
+  const page=listPageIndex(listing.page)+1;
   const [quizzes,setQuizzes]=useState<Summary[]>([]);
   const [total,setTotal]=useState(0);
   const [loading,setLoading]=useState(true);
@@ -31,6 +32,7 @@ export default function QuizReviewConsole(){
     RESTRICTED:msg("Restricted","제한된 문제"),ALL:msg("All published","전체 공개")
   };
   useEffect(()=>{
+    if(!ready)return;
     let active=true;setLoading(true);setError("");
     const timer=setTimeout(async()=>{
       try{
@@ -43,7 +45,7 @@ export default function QuizReviewConsole(){
       finally{if(active)setLoading(false);}
     },200);
     return ()=>{active=false;clearTimeout(timer);};
-  },[queue,query,page]);
+  },[ready,queue,query,page]);
   const pages=Math.max(1,Math.ceil(total/PAGE_SIZE));
   function detailHref(id:string){
     const state=new URLSearchParams({queue,q:query,page:String(page)});
@@ -58,10 +60,10 @@ export default function QuizReviewConsole(){
     {outcome&&<p className="feedback success" role="status">{msg("Moderation decision saved.","심사 결과를 저장했습니다.")}</p>}
     <div className="review-list-controls">
       <label className="review-search-label">{msg("Search by title","제목 검색")}
-        <input type="search" value={query} onChange={e=>{setQuery(e.target.value);setPage(1);}} placeholder={msg("Search published quizzes","공개 문제 검색")}/>
+        <input type="search" value={query} onChange={e=>updateListing({q:e.target.value,page:"1"})} placeholder={msg("Search published quizzes","공개 문제 검색")}/>
       </label>
       <label className="review-filter-label">{msg("Review category","검토 분류")}
-        <select value={queue} onChange={e=>{setQueue(e.target.value as Queue);setPage(1);}}>
+        <select value={queue} onChange={e=>updateListing({queue:e.target.value,page:"1"})}>
           {queues.map(q=><option key={q} value={q}>{labels[q]}</option>)}
         </select>
       </label>
@@ -87,10 +89,10 @@ export default function QuizReviewConsole(){
     </div>
     {!loading&&pages>1&&<nav className="review-pagination" aria-label={msg("Queue pages","심사 목록 페이지")}>
       <button className="btn btn-outline" type="button" disabled={page===1}
-        onClick={()=>setPage(p=>Math.max(1,p-1))}>{msg("Previous","이전")}</button>
+        onClick={()=>updateListing({page:String(Math.max(1,page-1))})}>{msg("Previous","이전")}</button>
       <span>{page} / {pages}</span>
       <button className="btn btn-outline" type="button" disabled={page>=pages}
-        onClick={()=>setPage(p=>Math.min(pages,p+1))}>{msg("Next","다음")}</button>
+        onClick={()=>updateListing({page:String(Math.min(pages,page+1))})}>{msg("Next","다음")}</button>
     </nav>}
   </section>;
 }
