@@ -24,6 +24,6 @@ test("HTTPS import uses pinned lookup and rejects unsafe resolved IPs before con
   const source = readFileSync(new URL("../src/modules/platform/storage.ts", import.meta.url), "utf8");
   assert.match(source, /lookup\(url\.hostname, \{ all: true \}\)/);
   assert.match(source, /addresses\.some\(a => blockedIp\(a\.address\)\)/);
-  assert.match(source, /lookup: pinnedLookup\(\{ address: chosen\.address, family: chosen\.family \}\)/);
+  assert.match(source, /lookup: pinnedLookup\(\{ address: chosen\.address, family \}\)/);
   assert.match(source, /res\.headers\.location/);
 });
