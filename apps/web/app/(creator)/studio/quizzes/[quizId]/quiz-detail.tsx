@@ -54,7 +54,7 @@ function formFromQuiz(q:Quiz):FormValues{
     difficulty:q.recommendedAudience?.difficulty??""
   };
 }
-async function api(path:string,method="GET",body?:object):Promise<any>{
+async function api(path:string,method="GET",body?:object,locale:"en"|"ko"="en"):Promise<any>{
   const res=await fetch("/api/v1"+path,{method,credentials:"same-origin",cache:"no-store",
     headers:body?{"Content-Type":"application/json"}:undefined,body:body?JSON.stringify(body):undefined});
   const data=await res.json().catch(()=>({}));
@@ -76,6 +76,7 @@ function validateAge(min:string,max:string,locale:"en"|"ko"):AgeRange{
 export default function StudioQuizDetail({quizId}:{quizId:string}){
   const locale=useLocale();
   const msg=(en:string,ko:string)=>bilingual(locale,en,ko);
+  const request=(path:string,method="GET",body?:object)=>request(path,method,body,locale);
   const stateLabel=(names:Record<string,[string,string]>,value:string)=>names[value]?msg(...names[value]):value;
   const [quiz,setQuiz]=useState<Quiz|null>(null);
   const [form,setForm]=useState<FormValues|null>(null);
@@ -95,7 +96,7 @@ export default function StudioQuizDetail({quizId}:{quizId:string}){
   const [error,setError]=useState("");
   useEffect(()=>{
     let active=true;setLoading(true);setLoadError("");
-    void api("/quizzes/"+encodeURIComponent(quizId)).then((q:Quiz)=>{
+    void request("/quizzes/"+encodeURIComponent(quizId)).then((q:Quiz)=>{
       if(active){setQuiz(q);const values=formFromQuiz(q);setForm(values);setOriginal(values);}
     }).catch(e=>{if(active)setLoadError(e instanceof Error?e.message:msg("Could not load the quiz.","문제를 불러오지 못했어요."));})
       .finally(()=>{if(active)setLoading(false);});
@@ -104,7 +105,7 @@ export default function StudioQuizDetail({quizId}:{quizId:string}){
   useEffect(()=>{
     let active=true;setInsightsLoading(true);setInsightsError("");
     const params=new URLSearchParams({limit:String(REVIEW_PAGE_SIZE),offset:String(feedbackPage*REVIEW_PAGE_SIZE),locale:insightLocale});
-    void api("/me/quizzes/"+encodeURIComponent(quizId)+"/insights?"+params.toString())
+    void request("/me/quizzes/"+encodeURIComponent(quizId)+"/insights?"+params.toString())
       .then((data:Insights)=>{if(active)setInsights(data);})
       .catch(e=>{if(active)setInsightsError(e instanceof Error?e.message:msg("Could not load statistics and reviews.","통계와 리뷰를 가져오지 못했어요."));})
       .finally(()=>{if(active)setInsightsLoading(false);});
@@ -130,7 +131,7 @@ export default function StudioQuizDetail({quizId}:{quizId:string}){
         msg("Edit this published quiz? A new revision will be created, safety review will reset and Kids approval will be removed.","공개된 문제의 정보를 수정할까요? 새 버전이 생성되고 안전 검토는 대기로 돌아가며, 기존 Kids 승인은 해제됩니다.")
       ))return;
       setSaving(true);
-      const q:Quiz=await api("/quizzes/"+encodeURIComponent(quiz.id),"PATCH",{
+      const q:Quiz=await request("/quizzes/"+encodeURIComponent(quiz.id),"PATCH",{
         expectedVersion:quiz.version,
         title:form.title,prompt:form.prompt,answerType:form.answerType,topics,
         creatorIntent:{ageRange:creatorAge,note:form.creatorNote},
@@ -146,10 +147,10 @@ export default function StudioQuizDetail({quizId}:{quizId:string}){
   async function confirmOriginalLanguage(locale:"en"|"ko") {
     if (!quiz || quiz.locale!=="und" || saving) return;
     const label = locale==="en" ? "English" : "한국어";
-    if(!window.confirm(`이 문제의 질문, 정답, 단서가 실제로 ${label}로 작성되었는지 확인했나요? 번역은 하지 않고 원본 언어만 지정합니다.`)) return;
+    if(!window.confirm(msg("Have you verified the question, answer and clues were originally written in "+label+"? This only assigns a language; it does not translate.","이 문제의 질문, 정답, 단서가 실제로 "+label+"로 작성되었는지 확인했나요? 번역은 하지 않고 원본 언어만 지정합니다."))) return;
     setSaving(true);setError("");setNotice("");
     try {
-      await api("/quizzes/"+encodeURIComponent(quiz.id)+"/language","POST",{locale,confirm:true});
+      await request("/quizzes/"+encodeURIComponent(quiz.id)+"/language","POST",{locale,confirm:true});
       setNotice(msg("Original language confirmed. This quiz can now appear in the chosen language.","원본 언어를 확인했습니다. 선택한 언어의 퀴즈 목록에 표시될 수 있습니다."));
       setRefresh(v=>v+1);
     } catch(e) { setError(e instanceof Error?e.message:msg("Could not save the original language.","원본 언어를 저장하지 못했습니다.")); }
@@ -159,7 +160,7 @@ export default function StudioQuizDetail({quizId}:{quizId:string}){
     if(!quiz||saving||!window.confirm(msg("Publish this quiz? Kids visibility still requires a separate safety review.","이 퀴즈를 공개할까요? 공개 후에도 Kids 노출에는 별도 검토가 필요합니다.")))return;
     setSaving(true);setNotice("");setError("");
     try{
-      await api("/quizzes/"+encodeURIComponent(quiz.id)+"/publish","POST",{confirm:true});
+      await request("/quizzes/"+encodeURIComponent(quiz.id)+"/publish","POST",{confirm:true});
       setNotice(msg("Publish request applied. Kids visibility depends on platform safety review.","공개 요청이 반영됐어요. Kids 노출 여부는 플랫폼 안전 검토에 따라 결정됩니다."));
       setRefresh(n=>n+1);
     }catch(e){setError(e instanceof Error?e.message:msg("Could not publish the quiz.","공개하지 못했어요."));}
@@ -215,18 +216,18 @@ export default function StudioQuizDetail({quizId}:{quizId:string}){
       <section className="placeholder-panel">
         <h2>{msg("Basic information","기본 정보")}</h2>
         <div className="studio-form-grid">
-          <label className="studio-wide">퀴즈 제목
+          <label className="studio-wide">{msg("Quiz title","퀴즈 제목")}
             <input value={form.title} onChange={e=>change("title",e.target.value)} maxLength={180} required/>
           </label>
-          <label className="studio-wide">질문
+          <label className="studio-wide">{msg("Question","질문")}
             <textarea value={form.prompt} onChange={e=>change("prompt",e.target.value)} maxLength={2000} rows={3} required/>
           </label>
-          <label>정답 유형
+          <label>{msg("Answer type","정답 유형")}
             <select value={form.answerType} onChange={e=>change("answerType",e.target.value)}>
               {answerTypes.map(t=><option key={t} value={t}>{t}</option>)}
             </select>
           </label>
-          <label className="studio-wide">주제 · 쉼표로 구분
+          <label className="studio-wide">{msg("Topics · comma-separated","주제 · 쉼표로 구분")}
             <input value={form.topics} onChange={e=>change("topics",e.target.value)}
               placeholder={msg("e.g. New Zealand, Geography, Cities","예: New Zealand, Geography, Cities")}/>
           </label>
@@ -238,26 +239,26 @@ export default function StudioQuizDetail({quizId}:{quizId:string}){
         <p className="muted">{msg("You can change the recommended audience, but not the platform safety rating or Kids approval.","권장 대상은 수정할 수 있지만 플랫폼의 안전성 등급과 Kids 승인 상태는 바꿀 수 없어요.")}</p>
         <div className="studio-form-grid">
           <h3 className="studio-wide">{msg("Creator's intended audience","제작자가 생각하는 대상")}</h3>
-          <label>최소 나이
+          <label>{msg("Minimum age","최소 나이")}
             <input type="number" min={0} max={120} step={1} value={form.creatorMin} onChange={e=>change("creatorMin",e.target.value)} placeholder={msg("Optional","선택 사항")}/>
           </label>
-          <label>최대 나이
+          <label>{msg("Maximum age","최대 나이")}
             <input type="number" min={0} max={120} step={1} value={form.creatorMax} onChange={e=>change("creatorMax",e.target.value)} placeholder={msg("Optional","선택 사항")}/>
           </label>
-          <label className="studio-wide">제작자 메모
+          <label className="studio-wide">{msg("Creator note","제작자 메모")}
             <textarea rows={2} maxLength={400} value={form.creatorNote} onChange={e=>change("creatorNote",e.target.value)} placeholder={msg("Who is this quiz for?","이 문제를 누구에게 추천하고 싶나요?")}/>
           </label>
           <h3 className="studio-wide">{msg("Recommended audience · editable","추천 대상 · 수정 가능")}</h3>
-          <label>추천 최소 나이
+          <label>{msg("Recommended minimum age","추천 최소 나이")}
             <input type="number" min={0} max={120} step={1} value={form.suggestedMin} onChange={e=>change("suggestedMin",e.target.value)} placeholder={msg("Auto-recommended or enter your own","자동 추천 또는 직접 입력")}/>
           </label>
-          <label>추천 최대 나이
+          <label>{msg("Recommended maximum age","추천 최대 나이")}
             <input type="number" min={0} max={120} step={1} value={form.suggestedMax} onChange={e=>change("suggestedMax",e.target.value)} placeholder={msg("Optional","선택 사항")}/>
           </label>
-          <label>추천 난이도
+          <label>{msg("Recommended difficulty","추천 난이도")}
             <select value={form.difficulty} onChange={e=>change("difficulty",e.target.value)}>
-              <option value="">지정 안 함</option><option value="easy">쉬움</option>
-              <option value="medium">보통</option><option value="hard">어려움</option>
+              <option value="">{msg("Not specified","지정 안 함")}</option><option value="easy">{msg("Easy","쉬움")}</option>
+              <option value="medium">{msg("Medium","보통")}</option><option value="hard">{msg("Hard","어려움")}</option>
             </select>
           </label>
         </div>
@@ -307,7 +308,7 @@ export default function StudioQuizDetail({quizId}:{quizId:string}){
       <h3>{msg("Success rates by language","언어별 정답률")}</h3>
       <div className="studio-metric-grid">
         {insights.languages.map(row=><div key={row.locale}>
-          <small>{row.locale==="ko"?"한국어":row.locale==="en"?"English":"미분류 / Legacy"}</small>
+          <small>{row.locale==="ko"?"한국어":row.locale==="en"?"English":msg("Unclassified / Legacy","미분류 / Legacy")}</small>
           <strong>{formatPercent(row.successRate)}</strong>
           <small>{msg("Completed ","풀이 ")}{formatNumber(row.completed,locale)}{msg(" / Started ","회 / 시작 ")}{formatNumber(row.started,locale)}{msg("","회")}</small>
         </div>)}

@@ -69,23 +69,23 @@ export default function StudioWorkspace() {
       <strong aria-live="polite">{loading?msg("Loading…","불러오는 중…"):total.toLocaleString(locale==="ko"?"ko-KR":"en-NZ")+msg(" quizzes","개")}</strong>
     </div>
     <div className="studio-filters" role="search" aria-label={msg("My quiz search and filters","내 문제 검색과 필터")}>
-      <label className="studio-search">검색
+      <label className="studio-search">{msg("Search","검색")}
         <input type="search" value={query} onChange={e=>changeFilter(()=>setQuery(e.target.value))}
           placeholder={msg("Title or question","제목 또는 질문 내용")} maxLength={120}/>
       </label>
-      <label>공개 상태
+      <label>{msg("Publication","공개 상태")}
         <select value={publication} onChange={e=>changeFilter(()=>setPublication(e.target.value as Publication))}>
           <option value="all">{msg("All","전체")}</option><option value="PUBLISHED">{msg("Published","공개")}</option>
           <option value="DRAFT">{msg("Draft","초안")}</option><option value="HIDDEN">{msg("Hidden","숨김")}</option>
         </select>
       </label>
-      <label>안전 검토
+      <label>{msg("Safety review","안전 검토")}
         <select value={safety} onChange={e=>changeFilter(()=>setSafety(e.target.value as Safety))}>
           <option value="all">{msg("All","전체")}</option><option value="PENDING">{msg("Pending","대기")}</option>
           <option value="APPROVED">{msg("Approved","완료")}</option><option value="RESTRICTED">{msg("Restricted","제한")}</option>
         </select>
       </label>
-      <label>정렬
+      <label>{msg("Sort","정렬")}
         <select value={sort} onChange={e=>changeFilter(()=>setSort(e.target.value as Sort))}>
           <option value="newest">{msg("Recently updated","최근 수정 순")}</option><option value="oldest">{msg("Oldest first","오래된 등록 순")}</option>
         </select>
