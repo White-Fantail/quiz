@@ -21,6 +21,10 @@ Do not collapse these into a single creator-supplied minimum-age field. A hard q
 - Creators can edit, see review reasons, request reassessment and appeal. They cannot inject approved safety status via web form, REST or MCP.
 - Changes to content, answer or media must not silently inherit old trusted approval. Keep revision-specific moderation decisions and auditability.
 
+## Quiz pack policy
+
+General packs publish without preapproval. Unavailable individual questions are omitted without altering the stored pack, while all Kids questions must be independently approved. Only creator-requested Kids packs reach the Kids review queue. Admins may restrict whole packs for their own content policy violations. See [pack policy](pack-moderation-policy.md).
+
 ## Admin moderation decisions
 
 - Approval requires explicit administrator confirmation and all existing independent content/media safety checks, but a written note is optional.
