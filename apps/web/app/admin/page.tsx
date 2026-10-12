@@ -21,19 +21,13 @@ export default async function AdminPage() {
 
   return (
     <section className="container inner-page management-page">
-      <ManagementHeader eyebrow="QUIZDIP ADMIN" title={msg("Admin dashboard","관리자 대시보드")} description={msg("Manage content safety, weekly challenges and other platform operations.","콘텐츠 안전성과 주간 챌린지 등 플랫폼 운영 기능을 관리할 수 있어요.")}/>
+      <ManagementHeader eyebrow="QUIZDIP ADMIN" title={msg("Admin dashboard","관리자 대시보드")} description={msg("Manage content safety and platform operations.","콘텐츠 안전성과 플랫폼 운영 기능을 관리할 수 있어요.")}/>
       <div className="cards management-link-grid">
         <Link href={localizeHref("/admin/quiz-review",locale)} className="feature-card">
           <span className="symbol mint" aria-hidden="true">✓</span>
           <h2>{msg("Quiz and child safety review","문제 및 어린이 안전성 심사")}</h2>
           <p>{msg("Review quizzes and media for general and child-safe visibility.","문제와 미디어를 확인하고 일반용·어린이용 노출 적합성을 관리해요.")}</p>
           <span className="card-link">{msg("Open review tools →","심사 도구 열기 →")}</span>
-        </Link>
-        <Link href={localizeHref("/admin/weekly",locale)} className="feature-card">
-          <span className="symbol yellow" aria-hidden="true">★</span>
-          <h2>{msg("Manage weekly challenges","주간 챌린지 관리")}</h2>
-          <p>{msg("Review submitted quizzes and schedule the weekly challenge.","제작자가 제출한 문제를 확인하고 이번 주 챌린지를 편성해요.")}</p>
-          <span className="card-link">{msg("Open weekly scheduling →","주간 편성 열기 →")}</span>
         </Link>
       </div>
     </section>
