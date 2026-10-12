@@ -56,6 +56,14 @@ The web UI, REST API and MCP tools reuse `execute()` and the same policy layer. 
 
 Tool arguments are typed by Zod schemas in `apps/web/src/modules/platform/contracts.ts`, and validation also runs for REST. REST uses JSON response envelopes `{ data: ... }`; mutations accept a JSON object body. MCP uses Streamable HTTP at `/api/mcp` (SDK v2, stateless).
 
+## Pack review endpoint changes
+
+- POST /api/v1/packs/:id/kids-request: quizdip_pack_kids_request (creator only; confirm true).
+- GET /api/v1/admin/packs/safety: quizdip_admin_pack_safety_list (pending Kids applicants only).
+- GET /api/v1/admin/packs/reports: quizdip_admin_pack_reports_list (flagged and restricted packs).
+- POST /api/v1/admin/packs/:id/safety-review: quizdip_admin_pack_safety_review. APPROVED and REJECTED determine Kids eligibility; RESTRICTED and RESTORED determine separate general restriction. Reject/restrict require reasons.
+- General pack listing and play exclude unavailable questions; Kids requires all members. See [pack policy](pack-moderation-policy.md).
+
 ## Content and score semantics
 
 Clues are ordered and stored per immutable `QuizRevision`. Image, audio and video clues use `mediaId`; optional prompt media use `promptMediaIds`. All asset storage is private Cloudflare R2 and documented in [media design and setup](media-r2.md). Each session is pinned to the revision it started on. An authenticated creator can read their answers and complete clue sequence, but public metadata never returns answers; game sessions reveal **one clue at a time** after presenting the random session token.
