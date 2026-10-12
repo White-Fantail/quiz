@@ -19,8 +19,8 @@ function locked(request:Request,handler:(request:Request)=>Promise<Response>|Res
 
 /**
  * Trace the OAuth authorization and token endpoints only until 16 Oct 2026.
- * The Better Auth handler receives the unmodified request and its response is
- * returned unchanged. Logging is explicitly best-effort and non-blocking.
+ * Only the missing MCP resource may be added on explicit MCP authorization.
+ * The Better Auth response is returned unchanged; logging is best-effort.
  */
 async function handle(request:Request, handler:(request:Request)=>Promise<Response>|Response):Promise<Response> {
   // A narrowly scoped MCP compatibility default. Does not add any scopes,
