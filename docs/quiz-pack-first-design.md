@@ -1,6 +1,8 @@
-# QuizDip — First-Class Quiz Packs and Flexible Play (Design)
+# QuizDip — First-Class Quiz Packs and Flexible Play (Archived Initial Design)
 
-Status: **Design proposal only — not implemented**  
+> **Superseded by [Discovery-first Platform Design](discovery-first-platform-design.md) on 2026-10-12.** Weekly Five and its ongoing competitive format are *not* part of the approved future design. This document is retained for technical history (pack data model, snapshot gameplay and social features); follow the new document for current decisions.
+
+Status: **Archived design reference — not implemented**  
 Date: 2026-10-12  
 Target branch: `dev`  
 Scope: Public web Play/Discover, Studio, REST/MCP, analytics, and native Kids integration.  
