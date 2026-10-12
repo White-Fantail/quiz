@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useLocale } from "../i18n/provider";
 import { localizeHref } from "../i18n/core";
-import { RatingBadge } from "./quiz-ratings";
 import type { RatingSummary } from "../modules/quiz/rating-metadata";
 
 export function PackShare({path}:{path?:string}) {
@@ -42,7 +41,7 @@ export default function PackFeedback({packId}:{packId:string}){
   useEffect(()=>{
     let active=true;
     void fetch("/api/v1/packs/"+packId+"/reviews?locale="+locale+"&limit=3",{cache:"no-store"})
-      .then(r=>r.ok?r.json():null).then(v=>{if(active&&v?.data?.ratings)setRatings(v.data.ratings);})
+      .then(r=>r.ok?r.json():null).then(v=>{if(active&&v?.data){setRatings(v.data.ratings);setMine(v.data.myRating??null);setComment(v.data.myComment??"");}})
       .catch(()=>{});
     return ()=>{active=false};
   },[packId,locale]);
@@ -64,7 +63,9 @@ export default function PackFeedback({packId}:{packId:string}){
   return <section className="feature-card" aria-label={ko?"퀴즈팩 평가":"Quiz pack feedback"}>
     <h3>{ko?"퀴즈팩 전체는 어땠나요?":"How was the full quiz pack?"}</h3>
     <p className="muted">{ko?"팩 자체에 대한 평가이며 개별 문제 평가와 별도로 집계돼요.":"This rates the pack as a whole, independently of individual quiz ratings."}</p>
-    {ratings&&<RatingBadge ratings={ratings}/>}
+    {ratings&&<p className="muted">{ratings.positivePercent===null
+      ?(ko?`평가 ${ratings.total}명 · 더 많은 평가가 필요해요.`:`${ratings.total} votes · more ratings needed`)
+      :`👍 ${ratings.positivePercent}% · ${ratings.total} ${ko?"명 평가":"ratings"}`}</p>}
     <label>{ko?"평가 의견 (선택)":"Comment (optional)"}
       <textarea value={comment} maxLength={2000} onChange={e=>setComment(e.target.value)} rows={2}/>
     </label>
@@ -83,4 +84,40 @@ export default function PackFeedback({packId}:{packId:string}){
       </Link>}
     </p>}
   </section>;
+}
+
+/** Safety reports are separate from up/down votes and are not publicly ranked. */
+export function PackReport({packId}:{packId:string}){
+  const locale=useLocale(),ko=locale==="ko";
+  const [reason,setReason]=useState("UNSAFE"),[detail,setDetail]=useState("");
+  const [busy,setBusy]=useState(false),[notice,setNotice]=useState(""),[error,setError]=useState("");
+  async function report(){
+    if(detail.trim().length<5)return;
+    setBusy(true);setError("");setNotice("");
+    try{
+      const r=await fetch("/api/v1/packs/"+packId+"/reports",{method:"POST",credentials:"same-origin",
+        headers:{"Content-Type":"application/json"},body:JSON.stringify({locale,reason,detail:detail.trim()})});
+      const data=await r.json();
+      if(!r.ok)throw Error(data.message||data.error||"Report failed");
+      setNotice(ko?"신고가 접수됐어요.":"Report submitted.");setDetail("");
+    }catch(e){setError(e instanceof Error?e.message:String(e));}
+    finally{setBusy(false);}
+  }
+  return <details className="feature-card">
+    <summary>{ko?"이 퀴즈팩에 문제가 있나요?":"Report a problem with this pack"}</summary>
+    <label>{ko?"신고 유형":"Reason"}
+      <select value={reason} onChange={e=>setReason(e.target.value)}>
+        {(["UNSAFE","WRONG_ANSWER","WRONG_CLUE","COPYRIGHT","PRIVACY","SPAM","DUPLICATE"] as const).map(v=>
+          <option value={v} key={v}>{v.replaceAll("_"," ")}</option>)}
+      </select>
+    </label>
+    <label>{ko?"구체적인 내용":"Details"}
+      <textarea minLength={5} maxLength={2000} value={detail} rows={3}
+        onChange={e=>setDetail(e.target.value)}/>
+    </label>
+    <button type="button" className="btn btn-outline" disabled={busy||detail.trim().length<5}
+      onClick={()=>void report()}>{ko?"신고하기":"Submit report"}</button>
+    {notice&&<p role="status">{notice}</p>}
+    {error&&<p role="alert">{error}</p>}
+  </details>;
 }
