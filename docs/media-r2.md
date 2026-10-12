@@ -6,7 +6,7 @@ Media is a **first-class asset** referenced by ID from both the quiz prompt and 
 
 - Cloudflare **R2** private bucket (S3-compatible `@aws-sdk/client-s3`), no public read permissions.
 - Prisma `MediaAsset`: stable ID, owner, media kind/MIME, original size and SHA-256, immutable R2 key, optional parent (derived variant), source, attribution/license/alt/transcript, READY/UPLOADING/DELETED state and independent moderation PENDING/APPROVED/RESTRICTED.
-- Quiz revisions store `promptMediaIds: string[]` and ordered typed clues with `mediaId`. Text/map clues work without storage. Quiz revisions remain immutable; uploaded assets cannot be overwritten or deleted once referenced by **any** revision.
+- Quiz revisions store `promptMediaIds: string[]` and ordered typed clues with `mediaId`. Text/map clues work without storage. Quiz revisions remain immutable. Assets cannot be overwritten; historical-only references no longer block media deletion while current and playable references do.
 - `play_start` returns the first clue plus prompt media IDs. `play_clue` reveals further clues. `play_media` checks the actual session's revealed-clue count and returns a **60-second signed R2 GET** URL only for APPROVED media that was actually revealed (or is in the prompt).
 - Creator `media_get` returns a short-lived owner preview URL, including for assets pending safety moderation. Never return raw R2 credentials or object keys to callers.
 
@@ -21,7 +21,7 @@ Media is a **first-class asset** referenced by ID from both the quiz prompt and 
 | List own assets | GET /api/v1/media | `quizdip_media_list` |
 | Read own asset + signed preview | GET /api/v1/media/:id | `quizdip_media_get` |
 | Change accessible text / attribution (resets approval) | PATCH /api/v1/media/:id | `quizdip_media_update` |
-| Delete unreferenced asset, explicitly confirmed | DELETE /api/v1/media/:id | `quizdip_media_delete` |
+| Delete playback-unneeded asset, explicitly confirmed | DELETE /api/v1/media/:id | `quizdip_media_delete` |
 | Create private crop / blur / resized image variant | POST /api/v1/media/:id/transform | `quizdip_media_transform` |
 | ADMIN ONLY: approve or restrict asset (human moderation) | POST /api/v1/media/:id/review | `quizdip_media_review` |
 | Retrieve authorized playback URL for revealed media | POST /api/v1/play/:sessionId/media | `quizdip_play_media` |
@@ -91,9 +91,9 @@ File sizes auto-format in bytes, KB, MB or GB; small files are no longer present
 - Ready images render **automatically**, without an initial Preview button. An IntersectionObserver requests an owner-authorized thumbnail only when the card approaches the viewport. The server generates a **private** 320x240 WebP thumbnail on first request at `assets/<id>/thumbnail.webp`; subsequent requests reuse it. Only short-lived, 60-second signed R2 GET links are returned. If thumbnail generation fails, the owner can fall back to the original preview; there is no public bucket access. Thumbnail deletion is attempted when the original asset is deleted.
 - Audio and video cards display placeholders. Playback requires a deliberate click on **상세 · 미리보기**, followed by using the native player controls. Media never autoplays.
 - `GET /api/v1/media?limit=24&offset=0&search=...&kind=image&moderation=PENDING&status=READY&usage=used&sort=newest` supports validated **server-side** name/alt/attribution search, type, moderation, upload status, usage and sorting filters; it returns `{items,offset,limit,total,hasMore}`. `media_list` over OAuth MCP accepts the same filters. Use 24 records per Studio page and server-side paging, not a single fixed `limit=60` fetch.
-- The owner-only `GET /api/v1/media/:id` includes `usage.items` describing current/historical revisions, prompt usage and exact clue positions (capped to 50 plus `hasMore`). The view includes Copy Media ID / Copy Quiz ID actions for reuse in Studio or via the MCP. Referenced assets remain protected against deletion across **all** revisions.
+- The owner-only `GET /api/v1/media/:id` includes `usage.items` describing current/historical revisions, prompt usage and exact clue positions (capped to 50 plus `hasMore`). The view includes Copy Media ID / Copy Quiz ID actions for reuse in Studio or via the MCP. Only current or potentially playable revision references prevent deletion; older history remains in the database.
 - `GET /api/v1/media/:id?purpose=thumbnail` is a deliberately lightweight owner-authenticated lookup. It does not query quiz usage or disclose the original upload.
-- Media filtering by usage considers **all revisions**, not only the currently published revision, matching the existing deletion rule. At substantially larger scale, consider a normalized media-to-revision relation/index rather than extracting the historical reference ID set on each usage-filtered request.
+- Media usage filters distinguish active playback requirements from historical-only references and match deletion's revision-retention policy. At substantially larger scale, consider a normalized media-to-revision relation/index rather than extracting the historical reference ID set on each usage-filtered request.
 
 Upload expiration is currently **a derived display state**, not a persisted lifecycle transition. Background cleaning of stale records, explicit retry UX, and fully integrated quiz-editor media picking remain future improvements; this change provides asset IDs and usage information in the existing API/MCP workflows.
 
