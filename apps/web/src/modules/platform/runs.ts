@@ -251,7 +251,7 @@ async function startPackRun(p:Record<string,any>,actor:Actor|null) {
   if(!current)fail(404,"pack_unavailable","Quiz pack is not published in this language");
   if(actor && !p.restart){
     const active=await db().playRun.findFirst({where:{
-      packId:current.id,packVersion:current.currentVersion,userId:actor.id,
+      packId:current.id,userId:actor.id,
       lane:"GENERAL",locale,mode:"PACK",status:"ACTIVE",expiresAt:{gt:new Date()}
     },orderBy:{startedAt:"desc"}});
     if(active){
