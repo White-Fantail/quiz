@@ -7,8 +7,9 @@ import {localizeHref} from "../../../src/i18n/core";
 type KidsPack={id:string;title:string;sourceLocale:string;currentVersion:number;
   questionCount:number;safetyStatus:string;kidsReviewStatus:string;
   kidsEligible:boolean;ready:boolean;issue:string};
-type FlaggedPack={id:string;title:string;publication:string;currentVersion:number;
-  safetyStatus:string;openReports:number;reasons:string[]};
+type FlaggedPack={id:string;title:string;description:string;quizCount:number;
+  publication:string;currentVersion:number;safetyStatus:string;openReports:number;
+  reasons:string[];reportSamples:{reason:string;detail:string}[]};
 async function api(path:string,method="GET",body?:unknown){
   const response=await fetch("/api/v1"+path,{method,cache:"no-store",credentials:"same-origin",
     headers:body?{"Content-Type":"application/json"}:undefined,
@@ -100,8 +101,9 @@ export default function PackSafetyConsole(){
       <div className="studio-list">{flagged.map(pack=><article className="studio-list-row" key={pack.id}>
         <div className="studio-list-main">
           <h3>{pack.title}</h3>
-          <p className="muted">{pack.publication} · {ko?"미처리 신고":"Open reports"}: {pack.openReports} · {pack.safetyStatus}</p>
-          {!!pack.reasons.length&&<p className="muted">{pack.reasons.join(", ")}</p>}
+          {pack.description&&<p>{pack.description}</p>}
+          <p className="muted">{pack.publication} · {pack.quizCount} {ko?"문제":"questions"} · {ko?"미처리 신고":"Open reports"}: {pack.openReports} · {pack.safetyStatus}</p>
+          {pack.reportSamples.map((r,i)=><p key={i} className="muted">{r.reason}: {r.detail}</p>)}}
           {comment(pack.id,ko?"제한 사유 (8자 이상)":"Restriction reason (at least 8 characters)")}
           <div className="actions">
             {pack.safetyStatus!=="RESTRICTED"?
