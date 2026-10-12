@@ -35,7 +35,9 @@ test("Phase 2 only opens child routes with a validated native credential",()=>{
  assert.match(home,/router.push\("\/parent"\)/);
  assert.match(home,/native\.home\.hello/);
  assert.match(gate,/status!=="active"/);
- assert.match(setup,/session\.pair\(/);
+ assert.match(setup,/session\.claimPair\(/);
+ assert.match(setup,/QRCode/);
+ assert.match(setup,/request\.shortCode/);
 });
 
 test("browser-only preview never imports child credentials or live backend",()=>{

@@ -98,3 +98,9 @@ During a playable question, tap **Tell us about a problem** and select unsafe co
 ## Phase 5 deployment caution
 
 Apply `20261012230000_retire_web_kids_sessions` after prior Kids migrations; this revokes WEB-only sessions without changing NATIVE tokens. Native setup shows `/en/account/kids` or `/ko/account/kids`, never the deleted `/kids/parent`. Adult web device pairing is a **guardian account setting**, not a browser Kids mode. Read `docs/kids-native-phase5-cutover.md` for unverified production migration, real-device E2E and rollback gates. Do not claim App Store approval, installed iOS/Android builds or a live DB migration based solely on Expo exports.
+
+## QR and six-digit fallback enrollment
+
+New Expo/iPad installs show a *device-generated* QR plus six digits. The QR contains a short-lived 144-bit **approval token**, not the 256-bit device claim capability; the manual code can only be approved from a signed-in parent session with PIN and has an account-level five-attempt lockout. Parent confirmation requires a child profile. A separate device-held claimant polls `/api/kids/native/pair` until approval, then receives the child-only bearer exactly once and stores it in SecureStore. The old 24-hex-character flow stays available in API for older clients but is no longer the primary user interface.
+
+**Apply `20261012233000_kids_device_initiated_pairing` after the existing Kids migrations before testing this flow.** Run the source, test and bundle suite, then check iPad camera scan to parent login, Google/Apple return URL, numeric fallback, PIN lockout, expired/replayed requests, multi-device race, and a real QR scan on physical devices. Anonymous start endpoints need deployment-level abuse monitoring or throttling before public scale. Pairing and guardian PIN actions intentionally have no MCP equivalent because adult Kids enrollment is restricted to interactive browser authorization.
