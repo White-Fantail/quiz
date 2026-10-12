@@ -251,7 +251,7 @@ export default function PlayPage({packId}:{packId?:string}={}) {
           </article>
         </div>
       </section>
-      <p className="play-discover-link"><Link href={localizeHref("/discover", locale)}>{msg("Explore questions and quiz packs →","문제와 퀴즈팩 둘러보기 →")}</Link></p>
+      <p className="play-discover-link"><Link href={localizeHref("/packs", locale)}>{msg("Explore complete quiz packs →","퀴즈팩 전체 플레이 →")}</Link> · <Link href={localizeHref("/discover", locale)}>{msg("Explore individual quizzes →","개별 문제 둘러보기 →")}</Link></p>
 
       {myHistory.length>0&&<section className="play-recent">
         <h2>{msg("My recent games","최근 내 기록")}</h2>
