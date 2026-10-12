@@ -8,17 +8,17 @@ import { useEffect, useState } from "react";
 
 type QuizSummary = {
   id: string; title: string; prompt: string; version: number;
-  publication: string; safetyStatus: string; kidsEligible: boolean;
+  publication: string; safetyStatus: string; kidsEligible: boolean; kidsReviewStatus:string;
   answerType: string; topics: { name: string; isSpoiler?: boolean }[];
   plays: number; reviews: number; createdAt: string; updatedAt: string;
 };
 type ListResult = { items: QuizSummary[]; total: number; hasMore: boolean };
 type Publication = "all"|"DRAFT"|"PUBLISHED"|"HIDDEN";
-type Safety = "all"|"PENDING"|"APPROVED"|"RESTRICTED";
+type Safety = "all"|"ACTIVE"|"RESTRICTED";
 type Sort = "newest"|"oldest";
 const PAGE_SIZE = 20;
 const publicationNames: Record<string,[string,string]> = { DRAFT:["Draft","초안"],PUBLISHED:["Published","공개"],HIDDEN:["Hidden","숨김"] };
-const safetyNames: Record<string,[string,string]> = { PENDING:["Pending review","검토 대기"],APPROVED:["Approved","검토 완료"],RESTRICTED:["Restricted","제한됨"] };
+const safetyNames: Record<string,[string,string]> = { ACTIVE:["Active","정상 공개"],RESTRICTED:["Restricted","제한됨"] };
 function label(locale:"en"|"ko",value:string,names:Record<string,[string,string]>) { const translated=names[value];return translated?bilingual(locale,...translated):value; }
 function date(locale:"en"|"ko",value:string) { return new Date(value).toLocaleDateString(locale==="ko"?"ko-NZ":"en-NZ",{year:"numeric",month:"short",day:"numeric"}); }
 
@@ -79,10 +79,10 @@ export default function StudioWorkspace() {
           <option value="DRAFT">{msg("Draft","초안")}</option><option value="HIDDEN">{msg("Hidden","숨김")}</option>
         </select>
       </label>
-      <label>{msg("Safety review","안전 검토")}
+      <label>{msg("Visibility","노출 상태")}
         <select value={safety} onChange={e=>changeFilter(()=>setSafety(e.target.value as Safety))}>
-          <option value="all">{msg("All","전체")}</option><option value="PENDING">{msg("Pending","대기")}</option>
-          <option value="APPROVED">{msg("Approved","완료")}</option><option value="RESTRICTED">{msg("Restricted","제한")}</option>
+          <option value="all">{msg("All","전체")}</option><option value="ACTIVE">{msg("Active","정상")}</option>
+          <option value="RESTRICTED">{msg("Restricted","제한")}</option>
         </select>
       </label>
       <label>{msg("Sort","정렬")}
@@ -106,8 +106,8 @@ export default function StudioWorkspace() {
         <div className="studio-list-main">
           <div className="studio-chip-row">
             <span className={"media-state-chip "+(item.publication==="PUBLISHED"?"media-ok":"media-wait")}>{label(locale,item.publication,publicationNames)}</span>
-            <span className={"media-state-chip "+(item.safetyStatus==="RESTRICTED"?"media-blocked":item.safetyStatus==="APPROVED"?"media-ok":"media-wait")}>{label(locale,item.safetyStatus,safetyNames)}</span>
-            {item.kidsEligible&&<span className="media-state-chip media-ok">{msg("Kids eligible","Kids 노출 가능")}</span>}
+            <span className={"media-state-chip "+(item.safetyStatus==="RESTRICTED"?"media-blocked":"media-ok")}>{label(locale,item.safetyStatus,safetyNames)}</span>
+            {item.kidsEligible?<span className="media-state-chip media-ok">{msg("Kids approved","Kids 승인")}</span>:item.kidsReviewStatus==="REQUESTED"?<span className="media-state-chip media-wait">{msg("Kids requested","Kids 심사 신청")}</span>:item.kidsReviewStatus==="REJECTED"?<span className="media-state-chip media-wait">{msg("Kids rejected","Kids 반려")}</span>:null}
           </div>
           <h3><Link href={localizeHref("/studio/quizzes/"+item.id,locale)}>{item.title}</Link></h3>
           <p>{item.prompt}</p>
