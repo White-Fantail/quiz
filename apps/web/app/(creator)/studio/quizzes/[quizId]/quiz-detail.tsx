@@ -12,7 +12,7 @@ type VisualClue = {type:string;mediaId?:string;text?:string;reveal?:{effect:"blu
 type AgeRange = { minimum?:number; maximum?:number };
 type Quiz = {
   id:string;title:string;prompt:string;version:number;publication:string;locale?:string;
-  safetyStatus:string;kidsEligible:boolean;answerType:string;topics:Topic[];clues:VisualClue[];
+  safetyStatus:string;kidsEligible:boolean;kidsReviewStatus:string;answerType:string;topics:Topic[];clues:VisualClue[];
   creatorIntent?:{ageRange?:AgeRange;note?:string}|null;
   recommendedAudience?:{ageRange?:AgeRange;difficulty?:string}|null;
 };
@@ -36,7 +36,7 @@ type Tab = "metadata"|"visual"|"results"|"feedback"|"languages";
 const REVIEW_PAGE_SIZE=10;
 const answerTypes=["person","animal","place","thing","event","concept","other"];
 const publicationNames:Record<string,[string,string]>={DRAFT:["Draft","초안"],PUBLISHED:["Published","공개"],HIDDEN:["Hidden","숨김"]};
-const safetyNames:Record<string,[string,string]>={PENDING:["Pending review","검토 대기"],APPROVED:["Approved","검토 완료"],RESTRICTED:["Restricted","제한됨"]};
+const safetyNames:Record<string,[string,string]>={ACTIVE:["Active","정상 공개"],RESTRICTED:["Restricted","제한됨"]};
 const reportNames:Record<string,[string,string]>={
   WRONG_ANSWER:["Incorrect answer","정답 오류"],WRONG_CLUE:["Incorrect clue","단서 오류"],UNSAFE:["Unsafe content","부적절한 콘텐츠"],
   COPYRIGHT:["Copyright","저작권"],PRIVACY:["Privacy","개인정보"],SPAM:["Spam","스팸"],DUPLICATE:["Duplicate","중복"]
@@ -135,7 +135,7 @@ export default function StudioQuizDetail({quizId}:{quizId:string}){
       const oldTopics=new Map(quiz.topics.map(t=>[t.name.toLocaleLowerCase(),t.isSpoiler===true]));
       const topics=names.map(name=>({name,isSpoiler:oldTopics.get(name.toLocaleLowerCase())??false}));
       if(quiz.publication==="PUBLISHED"&&!window.confirm(
-        msg("Edit this published quiz? A new revision will be created, safety review will reset and Kids approval will be removed.","공개된 문제의 정보를 수정할까요? 새 버전이 생성되고 안전 검토는 대기로 돌아가며, 기존 Kids 승인은 해제됩니다.")
+        msg("Editing creates a new revision and requires Kids re-review; general publication remains active.","수정 시 새 버전이 생성되고 Kids 승인은 재심사가 필요하지만 일반 공개는 유지됩니다.")
       ))return;
       setSaving(true);
       const q:Quiz=await request("/quizzes/"+encodeURIComponent(quiz.id),"PATCH",{
@@ -145,7 +145,7 @@ export default function StudioQuizDetail({quizId}:{quizId:string}){
         recommendedAudience:{ageRange:suggestedAge,...(form.difficulty?{difficulty:form.difficulty}:{})}
       });
       setQuiz(q);const values=formFromQuiz(q);setForm(values);setOriginal(values);
-      setNotice(msg("Saved as a new revision. Please check its safety review status.","수정 내용을 새 버전으로 저장했습니다. 안전 검토 상태를 확인해 주세요."));
+      setNotice(msg("Saved as a new revision. General publication continues; Kids re-review may be needed.","새 버전으로 저장했습니다. 일반 공개는 유지되며 Kids 재심사가 필요할 수 있습니다."));
       setFeedbackPage(0);setFeedbackRefresh(n=>n+1);
     }catch(e){
       setError(e instanceof Error?e.message:msg("Could not save. Refresh to check the latest version.","저장하지 못했어요. 최신 버전을 확인해 주세요."));
@@ -188,6 +188,20 @@ export default function StudioQuizDetail({quizId}:{quizId:string}){
     } catch(e) { setError(e instanceof Error?e.message:msg("Could not save the original language.","원본 언어를 저장하지 못했습니다.")); }
     finally { setSaving(false); }
   }
+  async function requestKids(requested:boolean){
+    if(!quiz||saving)return;
+    if(!window.confirm(requested
+      ? msg("Request a Kids safety review? General visibility remains unchanged.","어린이용 안전 심사를 신청할까요? 일반 공개는 유지됩니다.")
+      : msg("Withdraw Kids visibility or application? General visibility remains unchanged.","어린이용 승인 또는 신청을 철회할까요? 일반 공개는 유지됩니다.")))return;
+    setSaving(true);setError("");setNotice("");
+    try{
+      const updated=await request("/quizzes/"+encodeURIComponent(quiz.id)+"/kids-request","POST",{requested});
+      setQuiz(old=>old?{...old,...updated}:old);
+      setNotice(requested?msg("Kids review requested; staff approval is required.","어린이용 심사를 신청했습니다. 관리자 승인 후 노출됩니다."):
+        msg("Kids request/approval withdrawn.","어린이용 신청 및 승인을 철회했습니다."));
+    }catch(e){setError(e instanceof Error?e.message:msg("Could not change Kids application.","어린이용 신청을 변경하지 못했습니다."));}
+    finally{setSaving(false);}
+  }
   async function publish(){
     if(!quiz||saving||!window.confirm(msg("Publish this quiz? Kids visibility still requires a separate safety review.","이 퀴즈를 공개할까요? 공개 후에도 Kids 노출에는 별도 검토가 필요합니다.")))return;
     setSaving(true);setNotice("");setError("");
@@ -218,8 +232,8 @@ export default function StudioQuizDetail({quizId}:{quizId:string}){
         </div>}
         <div className="studio-chip-row">
           <span className="media-state-chip media-wait">{stateLabel(publicationNames,quiz.publication)}</span>
-          <span className={"media-state-chip "+(quiz.safetyStatus==="RESTRICTED"?"media-blocked":quiz.safetyStatus==="APPROVED"?"media-ok":"media-wait")}>{stateLabel(safetyNames,quiz.safetyStatus)}</span>
-          <span className={"media-state-chip "+(quiz.kidsEligible?"media-ok":"media-wait")}>Kids {quiz.kidsEligible?msg("eligible","노출 가능"):msg("not approved","미승인")}</span>
+          <span className={"media-state-chip "+(quiz.safetyStatus==="RESTRICTED"?"media-blocked":"media-ok")}>{stateLabel(safetyNames,quiz.safetyStatus)}</span>
+          <span className={"media-state-chip "+(quiz.kidsEligible?"media-ok":"media-wait")}>Kids {quiz.kidsEligible?msg("approved","승인"):quiz.kidsReviewStatus==="REQUESTED"?msg("requested","신청 중"):quiz.kidsReviewStatus==="REJECTED"?msg("rejected","반려"):msg("not requested","미신청")}</span>
         </div>
       </div>
       <div className="actions">
@@ -251,6 +265,16 @@ export default function StudioQuizDetail({quizId}:{quizId:string}){
     </nav>
 
     {tab==="languages"&&<TranslationManager quizId={quizId}/>}
+    {tab==="metadata"&&<section className="placeholder-panel">
+      <h2>{msg("Kids app visibility · optional","Kids 앱 노출 · 선택 사항")}</h2>
+      <p className="muted">{msg("General quizzes need no approval. Only creator-requested quizzes enter the Kids review queue.","일반 문제는 승인이 필요하지 않습니다. 제작자가 신청한 문제만 Kids 심사에 들어갑니다.")}</p>
+      <p>{msg("Current Kids status","어린이용 상태")}: <strong>{quiz.kidsEligible?msg("Approved","승인됨"):quiz.kidsReviewStatus==="REQUESTED"?msg("Requested · waiting for staff","관리자 승인 대기"):quiz.kidsReviewStatus==="REJECTED"?msg("Rejected · may reapply","반려 · 재신청 가능"):msg("Not requested","미신청")}</strong></p>
+      {quiz.kidsReviewStatus!=="NOT_REQUESTED"&&<button className="btn btn-outline" type="button" disabled={saving}
+        onClick={()=>void requestKids(false)}>{msg("Withdraw Kids request / access","어린이용 신청 / 승인 철회")}</button>}
+      {(quiz.kidsReviewStatus==="NOT_REQUESTED"||quiz.kidsReviewStatus==="REJECTED")&&
+        <button className="btn btn-primary" type="button" disabled={saving||quiz.safetyStatus==="RESTRICTED"}
+          onClick={()=>void requestKids(true)}>{quiz.kidsReviewStatus==="REJECTED"?msg("Request review again","다시 심사 신청"):msg("Request Kids review","어린이용 심사 신청")}</button>}
+    </section>}
     {tab==="metadata"&&<form className="studio-meta-form" onSubmit={e=>void save(e)}>
       <section className="placeholder-panel">
         <h2>{msg("Basic information","기본 정보")}</h2>
@@ -275,7 +299,7 @@ export default function StudioQuizDetail({quizId}:{quizId:string}){
       </section>
       <section className="placeholder-panel">
         <h2>{msg("Audience and difficulty","대상과 난이도")}</h2>
-        <p className="muted">{msg("You can change the recommended audience, but not the platform safety rating or Kids approval.","권장 대상은 수정할 수 있지만 플랫폼의 안전성 등급과 Kids 승인 상태는 바꿀 수 없어요.")}</p>
+        <p className="muted">{msg("You can change your intended audience and request Kids review; only staff can approve Kids exposure.","권장 대상과 어린이용 심사 신청은 변경할 수 있지만 Kids 승인은 관리자만 할 수 있습니다.")}</p>
         <div className="studio-form-grid">
           <h3 className="studio-wide">{msg("Creator's intended audience","제작자가 생각하는 대상")}</h3>
           <label>{msg("Minimum age","최소 나이")}
@@ -303,7 +327,7 @@ export default function StudioQuizDetail({quizId}:{quizId:string}){
         </div>
       </section>
       <div className="studio-save-bar">
-        <p className="muted">{msg("Saving creates a new revision, resets safety review and removes Kids approval. Answer and clue editing is available via API/MCP.","저장 시 새 버전이 만들어지고 안전 검토는 대기로 돌아가며 Kids 승인은 해제됩니다. 정답과 단서 편집은 현재 API/MCP에서 지원해요.")}</p>
+        <p className="muted">{msg("Saving creates a new revision, requiring Kids re-review if previously approved. General visibility stays active. Answer and clue editing is available via API/MCP.","저장하면 새 버전이 생성되어 기존 Kids 승인은 재심사가 필요합니다. 일반 공개는 유지됩니다. 정답·단서는 API/MCP에서 편집할 수 있어요.")}</p>
         <div className="actions">
           <button type="button" className="btn btn-outline" disabled={!dirty||saving} onClick={()=>{if(original)setForm({...original});}}>{msg("Discard changes","변경 취소")}</button>
           <button className="btn btn-primary" type="submit" disabled={!dirty||saving}>{saving?msg("Saving…","저장 중…"):msg("Save changes","변경사항 저장")}</button>
