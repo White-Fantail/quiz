@@ -40,6 +40,7 @@ function route(method: string, segments: string[]): Match | null {
     if (method === "GET") return { op: "pack_list", args: {} };
     if (method === "POST") return { op: "pack_create", args: {} };
   }
+  if (a === "packs" && b && !c && method === "GET") return { op: "pack_get", args:{id:b} };
   if (a === "packs" && b && c === "preflight" && !d && method === "GET") return { op:"pack_preflight", args:{id:b} };
   if (a === "packs" && b && c === "publish-preview" && method === "GET") return {op:"pack_publish_preview",args:{id:b}};
   if (a === "packs" && b && c === "publish" && method === "POST") return {op:"pack_publish",args:{id:b}};
