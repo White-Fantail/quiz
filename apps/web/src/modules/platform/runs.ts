@@ -4,6 +4,7 @@ import { ratingsForQuizzes, ratingsForQuiz, myRatingForQuiz, ratingAccess } from
 import { fail, requireActor, type Actor } from "./auth";
 import { utcWeekStart, WEEK_MS } from "./weekly-clock";
 import { selectUnseen } from "./unseen-questions";
+import { runTargetCount } from "./run-length";
 import { playableQuizWhere } from "./content-locale";
 import type { Locale } from "../../i18n/core";
 
@@ -116,6 +117,7 @@ export async function weeklyCurrent(p:Record<string,any>) {
 }
 export async function weeklySubmit(p:Record<string,any>,actor:Actor|null) {
   const user=requireActor(actor);
+  fail(410,"weekly_retired","Weekly challenges have been retired. Create or publish a quiz pack instead.");
   const {start,end}=validateWeek(p.weekStart);
   if (new Date().getTime() >= start.getTime())
     fail(409,"week_started","Please submit before the weekly edition begins");
@@ -140,6 +142,7 @@ export async function weeklySubmit(p:Record<string,any>,actor:Actor|null) {
 export async function weeklyPublish(p:Record<string,any>,actor:Actor|null) {
   const user=requireActor(actor);
   if(user.role!=="ADMIN") fail(403,"admin_required","Weekly scheduling requires trusted admin authority");
+  fail(410,"weekly_retired","New weekly challenge scheduling is retired.");
   const item=await db().weeklyChallenge.findUnique({
     where:{id:p.challengeId},include:{host:{select:{displayName:true}},questions:{orderBy:{position:"asc"},include:{quiz:true,revision:true}}},
   });
@@ -230,6 +233,7 @@ async function randomChoices(lane:Lane,locale:Locale,count:number,avoid:string[]
 }
 export async function runStart(p:Record<string,any>,actor:Actor|null) {
   const mode=p.mode as RunMode, lane=p.lane as Lane, locale=p.locale as Locale;
+  if(mode==="WEEKLY") fail(410,"weekly_retired","Weekly challenges are retired. Choose random play or explore quiz packs.");
   const edition=mode==="WEEKLY"?await currentEdition(lane):null;
   if(mode==="WEEKLY" && (!edition || !await editionAvailable(edition,locale)))
     fail(409,"weekly_unavailable","이번 주의 공식 챌린지가 아직 공개되지 않았어요");
@@ -259,11 +263,11 @@ export async function runStart(p:Record<string,any>,actor:Actor|null) {
   try {
     const run=await db().playRun.create({data:{
       id,mode,lane,locale,userId:actor?.id,weeklyId:edition?.id,officialEligible,
-      tokenHash:hash(runToken),expiresAt,
+      tokenHash:hash(runToken),expiresAt,targetCount:mode==="INFINITE"?null:questions.length,
       questions:{create:questions.map((q,index)=>({...q,position:index}))}
     }});
     return {runId:run.id,runToken,mode,lane,locale,status:"ACTIVE",completed:0,score:0,
-      total:mode==="INFINITE"?null:5,weekly:edition?publicWeekly(edition):null,
+      total:runTargetCount(run),weekly:edition?publicWeekly(edition):null,
       official:officialEligible};
   } catch(error:any) {
     if(error?.code==="P2002" && mode==="WEEKLY" && actor)
@@ -273,7 +277,7 @@ export async function runStart(p:Record<string,any>,actor:Actor|null) {
 }
 function runSummary(run:any) {
   return {runId:run.id,mode:run.mode,lane:run.lane,locale:run.locale,status:run.status,
-    completed:run.currentIndex,total:run.mode==="INFINITE"?null:5,
+    completed:run.currentIndex,total:runTargetCount(run),
     score:run.score,solved:run.solved,failed:run.failed,
     official:run.mode==="WEEKLY"&&run.officialEligible&&!!run.userId&&run.weekly?.hostId!==run.userId,
     completedAt:run.completedAt};
@@ -346,7 +350,7 @@ export async function runCurrent(p:Record<string,any>,actor:Actor|null) {
 }
 export async function runFinish(p:Record<string,any>,actor:Actor|null) {
   const run=await checkedRun(p.runId,p.runToken,actor);
-  if(run.mode!=="INFINITE") fail(403,"finish_not_allowed","Official and five-round runs must complete five questions");
+  if(run.mode!=="INFINITE") fail(403,"finish_not_allowed","Only continuous random runs can end early");
   if(run.status==="FINISHED") return runSummary(run);
   const updated=await db().playRun.update({where:{id:run.id},data:{status:"FINISHED",completedAt:new Date()}});
   return runSummary(updated);
