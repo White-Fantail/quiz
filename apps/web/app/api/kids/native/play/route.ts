@@ -12,7 +12,7 @@ const uuid=z.string().uuid(),token=z.string().min(32).max(200);
 const session={sessionId:uuid,sessionToken:token};
 const run={runId:uuid,runToken:token};
 const actions=z.discriminatedUnion("action",[
-  z.object({action:z.literal("run_start"),mode:z.enum(["RANDOM_FIVE","WEEKLY"]),
+  z.object({action:z.literal("run_start"),mode:z.literal("RANDOM_FIVE"),
     avoidQuizIds:z.array(uuid).max(1000).default([])}).strict(),
   z.object({action:z.literal("run_current"),...run}).strict(),
   z.object({action:z.literal("single_start"),quizId:uuid}).strict(),
