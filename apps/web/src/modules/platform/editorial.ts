@@ -141,49 +141,94 @@ export async function adminFeatureRemove(p:Record<string,any>,actor:Actor|null){
   });
 }
 
-/** Kids safety review is independent of creator publication and editor placement. */
+/** Only creator-requested Kids applications enter this list. No general approval queue. */
 export async function adminPackSafetyList(p:Record<string,any>,actor:Actor|null){
   admin(actor);
-  const rows=await db().quizPack.findMany({where:{publication:"PUBLISHED"},
-    orderBy:[{updatedAt:"desc"},{id:"desc"}],skip:p.offset,take:p.limit,
-    select:{id:true,title:true,sourceLocale:true,currentVersion:true,orderMode:true,
-      safetyStatus:true,kidsEligible:true,items:{select:{quizId:true}}}});
+  const where={publication:"PUBLISHED",kidsReviewStatus:"PENDING"};
+  const [rows,total]=await Promise.all([
+    db().quizPack.findMany({where,orderBy:[{updatedAt:"desc"},{id:"desc"}],
+      skip:p.offset,take:p.limit,select:{id:true,title:true,sourceLocale:true,
+      currentVersion:true,orderMode:true,safetyStatus:true,kidsEligible:true,
+      kidsReviewStatus:true,items:{select:{quizId:true}}}}),
+    db().quizPack.count({where})
+  ]);
   const checked=await Promise.all(rows.map(async pack=>{
-    const locale=pack.sourceLocale;
     let ready=false,issue="";
-    if(locale!=="en"&&locale!=="ko")issue="Original language has not been classified";
+    if(pack.sourceLocale!=="en"&&pack.sourceLocale!=="ko")
+      issue="Original language has not been classified";
     else try{
-      await safePack(pack.id,locale,"KIDS",{skipPackApproval:true});ready=true;
+      await safePack(pack.id,pack.sourceLocale,"KIDS",{skipPackApproval:true});
+      ready=true;
     }catch(e){issue=e instanceof Error?e.message:"Safety check failed";}
-    return {id:pack.id,title:pack.title,sourceLocale:locale,
+    return {id:pack.id,title:pack.title,sourceLocale:pack.sourceLocale,
       currentVersion:pack.currentVersion,safetyStatus:pack.safetyStatus,
-      kidsEligible:pack.kidsEligible,questionCount:pack.items.length,ready,issue};
+      kidsReviewStatus:pack.kidsReviewStatus,kidsEligible:pack.kidsEligible,
+      questionCount:pack.items.length,ready,issue};
   }));
-  return {items:checked,offset:p.offset,limit:p.limit};
+  return {items:checked,total,offset:p.offset,limit:p.limit};
 }
+
+/** Only packs with OPEN user reports need ordinary content moderation. */
+export async function adminPackReportsList(p:Record<string,any>,actor:Actor|null){
+  admin(actor);
+  const where={reports:{some:{status:"OPEN"}}};
+  const [packs,total]=await Promise.all([
+    db().quizPack.findMany({where,orderBy:[{updatedAt:"desc"},{id:"desc"}],
+      skip:p.offset,take:p.limit,select:{id:true,title:true,currentVersion:true,
+        safetyStatus:true,publication:true,reports:{where:{status:"OPEN"},
+          select:{reason:true,createdAt:true}}}}),
+    db().quizPack.count({where})
+  ]);
+  return {items:packs.map(pack=>({id:pack.id,title:pack.title,
+    publication:pack.publication,currentVersion:pack.currentVersion,
+    safetyStatus:pack.safetyStatus,openReports:pack.reports.length,
+    reasons:[...new Set(pack.reports.map(r=>r.reason))]})),total,
+    offset:p.offset,limit:p.limit};
+}
+
+/** Kids decisions and whole-pack restrictions are deliberately independent.
+ * No creator action may clear a trusted restriction.
+ */
 export async function adminPackSafetyReview(p:Record<string,any>,actor:Actor|null){
   const user=admin(actor);
-  const pack=await db().quizPack.findFirst({where:{id:p.id,publication:"PUBLISHED"}});
-  if(!pack)fail(404,"not_found","Published pack not found");
+  const pack=await db().quizPack.findFirst({where:{id:p.id}});
+  if(!pack)fail(404,"not_found","Quiz pack not found");
   if(p.expectedVersion!==pack.currentVersion)
     fail(409,"pack_conflict","Pack changed; inspect the latest version");
+  if(["APPROVED","REJECTED"].includes(p.verdict)){
+    if(pack.publication!=="PUBLISHED"||pack.kidsReviewStatus!=="PENDING")
+      fail(409,"kids_review_not_requested","Only pending creator requests may be reviewed");
+  }
   if(p.verdict==="APPROVED"){
     if(pack.safetyStatus==="RESTRICTED")
-      fail(409,"restricted_pack","Restore to pending before reapproving");
+      fail(409,"restricted_pack","Restricted packs cannot appear in Kids");
     if(pack.sourceLocale!=="en"&&pack.sourceLocale!=="ko")
       fail(409,"pack_locale_unclassified","An original language is required");
     await safePack(pack.id,pack.sourceLocale,"KIDS",{skipPackApproval:true});
   }
-  const updated=await db().$transaction(async tx=>{
+  const data=p.verdict==="APPROVED"?
+    {kidsReviewStatus:"APPROVED",kidsEligible:true}:
+    p.verdict==="REJECTED"?
+      {kidsReviewStatus:"REJECTED",kidsEligible:false}:
+    p.verdict==="RESTRICTED"?
+      {safetyStatus:"RESTRICTED",kidsReviewStatus:"NOT_REQUESTED",kidsEligible:false}:
+      {safetyStatus:"ACTIVE",kidsReviewStatus:"NOT_REQUESTED",kidsEligible:false};
+  return db().$transaction(async tx=>{
     const changed=await tx.quizPack.updateMany({where:{
-      id:pack.id,currentVersion:pack.currentVersion,updatedAt:pack.updatedAt,
-      publication:"PUBLISHED"
-    },data:{safetyStatus:p.verdict,kidsEligible:p.verdict==="APPROVED"}});
+      id:pack.id,currentVersion:pack.currentVersion,updatedAt:pack.updatedAt
+    },data});
     if(changed.count!==1)fail(409,"pack_conflict","Pack changed; inspect the latest version");
-    await tx.auditLog.create({data:{actorId:user.id,objectId:pack.id,action:"pack.kids_safety.review",
+    if(["RESTRICTED","RESTORED"].includes(p.verdict))
+      await tx.packReport.updateMany({where:{packId:pack.id,status:"OPEN"},
+        data:{status:"RESOLVED"}});
+    await tx.auditLog.create({data:{actorId:user.id,objectId:pack.id,
+      action:["RESTRICTED","RESTORED"].includes(p.verdict)?
+        "pack.general.moderation":"pack.kids_safety.review",
       detail:{verdict:p.verdict,reason:p.reason,packVersion:pack.currentVersion,
         sourceLocale:pack.sourceLocale}}});
-    return {id:pack.id,verdict:p.verdict,kidsEligible:p.verdict==="APPROVED"};
+    return {id:pack.id,verdict:p.verdict,kidsEligible:data.kidsEligible,
+      kidsReviewStatus:data.kidsReviewStatus,
+      safetyStatus:p.verdict==="RESTRICTED"?"RESTRICTED":
+        p.verdict==="RESTORED"?"ACTIVE":pack.safetyStatus};
   });
-  return updated;
 }
