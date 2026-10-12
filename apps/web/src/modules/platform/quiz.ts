@@ -162,8 +162,13 @@ export async function quizPublish(p: Record<string, any>, actor: Actor | null) {
     if (recent >= 100) fail(429, "rate_limit", "Daily publication limit reached");
   }
   await db().$transaction(async tx => {
-    await tx.quiz.update({ where: { id: old.id }, data: { publication: "PUBLISHED", kidsEligible: false, safetyStatus: "ACTIVE",
-        kidsReviewStatus:old.kidsReviewStatus==="NOT_REQUESTED"?"NOT_REQUESTED":"REQUESTED" } });
+    const checked=await tx.quiz.updateMany({
+      where:{id:old.id,authorId:user.id,currentVersion:old.currentVersion,
+        safetyStatus:old.safetyStatus,publication:old.publication},
+      data:{publication:"PUBLISHED",kidsEligible:false,safetyStatus:"ACTIVE",
+        kidsReviewStatus:old.kidsReviewStatus==="NOT_REQUESTED"?"NOT_REQUESTED":"REQUESTED"}
+    });
+    if(checked.count!==1)fail(409,"publish_conflict","Quiz changed or was restricted during publication");
     await tx.quizLocalization.updateMany({where:{quizId:old.id,locale:old.sourceLocale},data:{status:"PUBLISHED",publishedVersion:old.currentVersion}});
     await tx.auditLog.create({ data: { actorId: user.id, action: "quiz.publish", objectId: old.id } });
   });
