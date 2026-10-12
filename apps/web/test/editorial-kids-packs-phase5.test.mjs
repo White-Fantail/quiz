@@ -48,7 +48,8 @@ test("whole-pack safety approval is distinct from author publication and resets 
  const schema=read("../../prisma/schema.prisma");
  assert.match(schema,/kidsEligible\s+Boolean\s+@default\(false\)/);
  const social=read("src/modules/platform/social.ts");
- assert.match(social,/currentVersion:\{increment:1\}[\s\S]{0,180}safetyStatus:"PENDING",kidsEligible:false/);
+ assert.match(social,/currentVersion:\\{increment:1\\}[\\s\\S]{0,180}safetyStatus:old\\.safetyStatus==="RESTRICTED"\\?"RESTRICTED":"PENDING",kidsEligible:false/);
+ assert.match(social,/restricted_pack/);
  assert.match(social,/publication:"PUBLISHED",safetyStatus:"PENDING",kidsEligible:false/);
  const safety=read("src/modules/platform/feature-eligibility.ts");
  assert.match(safety,/sourceLocale!==locale/);
