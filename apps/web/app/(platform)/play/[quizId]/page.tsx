@@ -136,7 +136,7 @@ export default function SingleQuizPage() {
         {session.promptMediaIds.map(id => <div key={id}>{clueMedia(id)}</div>)}
       </div>}
       <ol className="clue-list">
-        {clues.map((clue, index) => supersededReveal(clues, index) ? null : <li key={index}>
+        {clues.map((clue, index) => supersededReveal(clues, index) ? null : <li key={index} style={{counterSet:`clue ${index}`}}>
           {clue.text && <p>{clue.text}</p>}
           {clue.mediaId && clueMedia(clue.mediaId,clue.type==="image-reveal"?clue.reveal:undefined)}
           {clue.type === "map" && clue.map && <div className="map-clue">
