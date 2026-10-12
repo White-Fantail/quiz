@@ -26,3 +26,8 @@ The original `KidProfile`, `KidGuardianPin`, `KidDeviceSession` and all native c
 Automated validation: `npm run test`, `npm run typecheck`, `npm run build`, `npm run kids:bundle:ios`, `npm run kids:bundle:android`. These are source/build gates. Real onboarding, old-cookie PIN release, EN/KO and R2 media, EAS device builds, app-store privacy and migration rollback must still pass separately before production cutover.
 
 For execution and rollback review, see [Phase 5 runbook](kids-native-phase5-cutover.md).
+
+## Native home greeting and parent entry
+- The paired child's home screen greets the active profile (e.g. **Hello, Leo!**) and keeps the adventure banner and discovery cards.
+- The former large white profile/language/parent panel is removed. A compact, accessible **Parents** control sits beside the greeting and navigates to the existing six-digit guardian PIN gate, never directly to private guardian settings.
+- Child game language is still pinned by the guardian profile (web family settings or PIN-protected native guardian view); removing the informational panel does not enable child-controlled locale changes.

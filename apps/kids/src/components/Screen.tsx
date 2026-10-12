@@ -1,14 +1,18 @@
-import type { PropsWithChildren } from "react";
+import type { PropsWithChildren, ReactNode } from "react";
 import { ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { theme } from "../theme";
 
-export function Screen({title,subtitle,children}:PropsWithChildren<{title:string;subtitle?:string}>) {
+export function Screen({title,subtitle,headerAction,children}:PropsWithChildren<{title:string;subtitle?:string;headerAction?:ReactNode}>) {
   const {width}=useWindowDimensions();
   return <SafeAreaView style={styles.safe} edges={["top","left","right"]}>
     <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{paddingHorizontal:width>=700?32:18,paddingBottom:34,flexGrow:1}}>
       <View style={styles.body}>
-        <Text accessibilityRole="header" style={[styles.title,{fontSize:width>=700?36:29}]}>{title}</Text>
+        <View style={styles.headerRow}>
+          <Text accessibilityRole="header" numberOfLines={2}
+            style={[styles.title,{fontSize:width>=700?36:29},headerAction&&styles.titleWithAction]}>{title}</Text>
+          {headerAction?<View style={styles.headerAction}>{headerAction}</View>:null}
+        </View>
         {subtitle?<Text style={styles.subtitle}>{subtitle}</Text>:null}
         <View style={styles.content}>{children}</View>
       </View>
@@ -25,6 +29,9 @@ const styles=StyleSheet.create({
  safe:{flex:1,backgroundColor:theme.colors.background},
  body:{width:"100%",maxWidth:980,alignSelf:"center",paddingTop:22},
  title:{fontWeight:"900",color:theme.colors.ink,letterSpacing:-0.5},
+ headerRow:{flexDirection:"row",alignItems:"center",justifyContent:"space-between",gap:14},
+ titleWithAction:{flexShrink:1},
+ headerAction:{flexShrink:0},
  subtitle:{fontSize:16,color:theme.colors.muted,lineHeight:23,marginTop:8},
  content:{marginTop:22,gap:18},
  banner:{flexDirection:"row",alignItems:"center",gap:16,borderRadius:theme.radius.card,padding:22},
