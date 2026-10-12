@@ -5,8 +5,7 @@ import { topicList } from "./topics";
 import { fail, requireActor, type Actor } from "./auth";
 import { quizList, quizGet, quizCreate, quizUpdate, quizPublish, quizLanguageSet, quizReview, quizReviewGet } from "./quiz";
 import { playStart, playClue, playGuess } from "./play";
-import { weeklyCurrent,weeklySubmit,weeklyPublish,weeklyProposals,weeklySuspend,weeklyStandings,weeklyInsights,
-  runStart,runCurrent,runFinish,runHistory,runFeedback } from "./runs";
+import { runStart,runCurrent,runFinish,runHistory,runFeedback } from "./runs";
 import { reviewsList, reviewUpsert, reviewRemove, reportCreate, reportsMine, packCreate, packList, packGet, packPreflight, packUpdate, packLanguageSet, packLanguages, packTranslationUpsert, packPublishPreview, packPublish } from "./social";
 import { quizStats, myStats, me, leaderboard, rankingOptin, adultVerify } from "./analytics";
 import { packReviewsList, packReviewUpsert, packReviewRemove, packReportCreate, packInsightsMine } from "./pack-social";
@@ -30,7 +29,7 @@ export async function execute(name: Operation, raw: unknown, actor: Actor | null
       userAdjustable: ["answerType", "topics", "creatorIntent", "recommendedAudience", "clues", "answer"],
       platformControlled: ["safetyStatus", "kidsEligible"],
       playModes: ["RANDOM_FIVE","INFINITE","PACK"], audiences: ["GENERAL","KIDS"],
-      quickStartQuestions: 5, weeklyChallenge: "RETIRED", editorialPicks: "ACTIVE", packOrderModes: ["CREATOR","RANDOM"],
+      quickStartQuestions: 5, editorialPicks: "ACTIVE", packOrderModes: ["CREATOR","RANDOM"],
       version: "v2", format: "progressive-clues" };
     case "topic_list": return topicList(p);
     case "quiz_list": return quizList(p, actor);
@@ -103,13 +102,6 @@ export async function execute(name: Operation, raw: unknown, actor: Actor | null
     case "media_review_get": return mediaReviewGet(p,actor);
     case "media_review": return mediaReview(p, actor);
     case "play_media": return signedPlayMedia(p, actor);
-    case "weekly_current": return weeklyCurrent(p);
-    case "weekly_submit": return weeklySubmit(p,actor);
-    case "weekly_publish": return weeklyPublish(p,actor);
-    case "weekly_proposals": return weeklyProposals(p,actor);
-    case "weekly_suspend": return weeklySuspend(p,actor);
-    case "weekly_standings": return weeklyStandings(p);
-    case "weekly_insights": return weeklyInsights(p,actor);
     case "run_start": return runStart(p,actor);
     case "run_current": return runCurrent(p,actor);
     case "run_finish": return runFinish(p,actor);
