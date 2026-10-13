@@ -4,6 +4,7 @@ import { Redirect,useLocalSearchParams,useRouter } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import type { KidQuestion,KidRunResult,KidGuessResult } from "@quizdip/api-client";
 import { ApiError } from "@quizdip/api-client";
+import { activeImageStage } from "@quizdip/domain";
 import { Screen } from "../src/components/Screen";
 import { KidsEmojiIcon } from "../src/components/KidsIcon";
 import { KidClueView,SafeKidMedia } from "../src/components/KidClueView";
@@ -195,13 +196,14 @@ export default function KidGameScreen(){
    {(Array.isArray(question.promptMediaIds)?question.promptMediaIds:[]).map(id=>
       <SafeKidMedia key={"prompt:"+id} token={token!} mediaId={id}
         sessionId={question.sessionId} sessionToken={question.sessionToken}/>)}
-   {(question.clues??[]).map((clue,i)=>clue.type==="image-reveal" && 
-     question.clues.slice(i+1).some(next=>next.type==="image-reveal"&&next.mediaId===clue.mediaId)
-       ?null:<View key={clue.id??String(i)} style={{gap:8}}>
+   {(question.clues??[]).map((clue,i)=>{
+     const stage=activeImageStage(question.clues,i);
+     if(!stage&&!clue.text&&!clue.map)return null;
+     return <View key={clue.id??String(i)} style={{gap:8}}>
      <View style={styles.inline}><KidsEmojiIcon emoji="✨" size={18} color={theme.colors.accent}/><Text style={styles.hintLabel}>{t("native.play.hint")} {i+1}</Text></View>
-     <KidClueView clue={clue} token={token!} sessionId={question.sessionId}
+     <KidClueView clue={clue} mediaStage={stage} token={token!} sessionId={question.sessionId}
        sessionToken={question.sessionToken}/>
-   </View>)}
+   </View>})}
    {result?<View style={[styles.feedback,result.correct?styles.success:styles.tryAgain]}>
      <Text style={styles.feedbackText}>{result.correct?t("native.play.correctMessage"):
        ended?t("native.play.tryNextTime"):t("native.play.nextHint")}</Text>
