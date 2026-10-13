@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { db } from "./db";
-import { requirePublishingPermission } from "./moderation";
+import { requirePublishingPermission, assertPublishingAllowedInTx } from "./moderation";
 import { fail, requireActor, type Actor } from "./auth";
 import { validateMediaReferences } from "./media";
 import { isTrustedMcpAdmin } from "./auto-approval";
@@ -163,6 +163,7 @@ export async function quizTranslationPublish(p: Record<string,any>, actor:Actor|
   await validateMediaReferences(user.id,rev.promptMediaIds as string[],fields.clues,true);
   const autoKidsApproval = quiz.safetyStatus === "ACTIVE" && quiz.kidsReviewStatus !== "NOT_REQUESTED" && isTrustedMcpAdmin(user);
   return db().$transaction(async tx=>{
+    await assertPublishingAllowedInTx(tx,user);
     const checked=await tx.quizLocalization.updateMany({
       where:{id:loc.id,currentVersion:p.expectedVersion,sourceRevisionId:source.id},
       data:{publishedVersion:p.expectedVersion,status:"PUBLISHED"}
