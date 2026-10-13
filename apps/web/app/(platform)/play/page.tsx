@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { ImageReveal, type RevealSettings } from "../../../src/components/image-reveal";
+import { RemainingClues } from "../../../src/components/remaining-clues";
 import { activeImageStage } from "@quizdip/domain";
 import { useLocale } from "../../../src/i18n/provider";
 import { localizeHref } from "../../../src/i18n/core";
@@ -86,6 +87,10 @@ export default function PlayPage({packId}:{packId?:string}={}) {
   const [questionsToRate,setQuestionsToRate]=useState<FeedbackItem[]>([]);
   const [ratingBusy,setRatingBusy]=useState(false);
   const [ratingError,setRatingError]=useState("");
+  const [remainingClues,setRemainingClues]=useState<Clue[]|null>(null);
+  const [reviewOpen,setReviewOpen]=useState(false);
+  const [reviewBusy,setReviewBusy]=useState(false);
+  const [reviewError,setReviewError]=useState("");
 
   useEffect(()=>{
     // Deep links from Kids and campaigns must preserve the audience selection.
@@ -95,6 +100,7 @@ export default function PlayPage({packId}:{packId?:string}={}) {
   useEffect(()=>{
     let alive=true;
     setRun(null);setRound(null);setError("");setFeedback("");setMedia({});
+    setRemainingClues(null);setReviewOpen(false);setReviewBusy(false);setReviewError("");
     if(!packId)void request("/runs?limit=5").then(value=>{if(alive)setMyHistory(value.items||[])}).catch(()=>{});
     return ()=>{alive=false;};
   },[lane,locale]);
@@ -111,6 +117,7 @@ export default function PlayPage({packId}:{packId?:string}={}) {
   },[run?.runId,run?.status,round]);
 
   const showRound=useCallback(async (r:RunInfo) => {
+    setRemainingClues(null);setReviewOpen(false);setReviewError("");
     const data=await request("/runs/"+r.runId+"/current","POST",{runToken:r.runToken,avoidQuizIds:rememberedQuizzes(),locale});
     if(data.status==="FINISHED" && !data.sessionId){
       if(packId)try{sessionStorage.removeItem("quizdip-pack-run:"+packId+":"+locale)}catch{}
@@ -199,6 +206,28 @@ export default function PlayPage({packId}:{packId?:string}={}) {
     }catch(e){setError(e instanceof Error?e.message:msg("Could not check your answer.","정답을 확인하지 못했어요."));}
     finally{setBusy(false);}
   }
+  async function toggleRemainingClues() {
+    if (!round || reviewBusy || round.sessionStatus === "ACTIVE") return;
+    if (reviewOpen) { setReviewOpen(false); return; }
+    setReviewOpen(true);
+    if (remainingClues) return;
+    setReviewBusy(true); setReviewError("");
+    try {
+      const result = await request("/play/" + round.sessionId + "/review", "POST",
+        { sessionToken: round.sessionToken });
+      const unseen = result.clues as Clue[];
+      setRemainingClues(unseen);
+      await Promise.all([...new Set(unseen.map(clue => clue.mediaId).filter((id):id is string => !!id))].map(async id => {
+        try {
+          const asset = await request("/play/" + round.sessionId + "/media", "POST",
+            { sessionToken: round.sessionToken, mediaId: id });
+          setMedia(previous => ({ ...previous, [id]: asset }));
+        } catch { /* Missing or restricted media stays inaccessible. */ }
+      }));
+    } catch (e) {
+      setReviewError(e instanceof Error ? e.message : msg("Could not load the remaining clues.", "남은 단서를 불러오지 못했어요."));
+    } finally { setReviewBusy(false); }
+  }
   async function nextRound(){
     if(!run)return;
     setBusy(true);setError("");
@@ -217,6 +246,7 @@ export default function PlayPage({packId}:{packId?:string}={}) {
   }
 
   const isDone=!!round&&round.sessionStatus!=="ACTIVE";
+  const remainingCount=round?Math.max(0,round.clueCount-round.clueIndex):0;
   const endReached=!!run&&(run.status==="FINISHED")&&(!round||isDone);
 
   // Keep a physical-keyboard player in the answer field after each new clue/round,
@@ -362,7 +392,20 @@ export default function PlayPage({packId}:{packId?:string}={}) {
         {feedback&&<div className={"feedback "+(answer&&roundScore>0?"success":"")} role="status">
           {feedback}{answer&&<p>{msg("Answer: ","정답: ")}<strong>{answer}</strong> · {roundScore}{msg(" pts","점")}</p>}
         </div>}
-        {isDone&&<button type="button" className="btn btn-primary play-next-round" disabled={busy} onClick={()=>void nextRound()}>
+        {isDone && remainingCount > 0 && <section className="remaining-clue-review">
+          <button type="button" className="btn btn-outline" disabled={reviewBusy}
+            aria-expanded={reviewOpen} onClick={() => void toggleRemainingClues()}>
+            {reviewOpen ? msg("Hide remaining clues", "남은 단서 접기") :
+              msg(`View remaining clues (${remainingCount})`, `남은 단서 ${remainingCount}개 보기`)}
+          </button>
+          {reviewOpen && <>
+            {reviewBusy && <p className="muted" role="status">{msg("Loading remaining clues…", "남은 단서를 불러오는 중…")}</p>}
+            {reviewError && <p role="alert" className="feedback">{reviewError}</p>}
+            {remainingClues && <RemainingClues clues={remainingClues}
+              firstClueIndex={round.clueIndex + 1} media={media}/>}
+          </>}
+        </section>}
+        {isDone&&<button type="button" className="btn btn-primary play-next-round" disabled={busy||reviewBusy} onClick={()=>void nextRound()}>
           {endReached?msg("View final results →","최종 결과 보기 →"):msg("Next question →","다음 문제 →")}
         </button>}
         <p className="play-keyboard-help"><span aria-hidden="true">⌨</span> <kbd>Enter</kbd> {isDone?msg("Next question / results","다음 문제 / 결과 보기"):msg("Check answer · empty field: next clue","정답 확인 · 빈칸이면 다음 단서")} <span className="shortcut-divider">·</span> <kbd>Ctrl/⌘ + Enter</kbd> {isDone?msg("Next","다음"):msg("Reveal next clue","다음 단서")}</p>
