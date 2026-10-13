@@ -62,6 +62,7 @@ test("native UI guards route and secure storage and uses parent-approved locale"
  assert.match(state,/SecureStore.getItemAsync/);
  assert.match(state,/SecureStore.deleteItemAsync/);
  assert.match(state,/AppState.addEventListener/);
- assert.match(catalog,/api.catalog\(token/);
+ assert.match(catalog,/useKidsAdventures/);
+ assert.match(file("../kids/src/useKidsAdventures.ts"),/kidsApi\.catalog\(token/);
  assert.doesNotMatch(catalog,/publicApi\.kidsCatalog/);
 });
