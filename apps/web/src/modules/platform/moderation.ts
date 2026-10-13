@@ -290,7 +290,7 @@ export async function moderationContentReview(p:Record<string,any>,actor:Actor|n
       p.decision==="RESTRICTED"?"Content restricted: "+p.reason
       :p.decision==="RESTORED"?"Content restriction lifted"
       :"Staff review complete. Content is public again");
-    return {kind,id:p.id,safetyStatus:next,verdict:p.decision};
+    return {kind,id:p.id,safetyStatus:next,verdict:p.decision,version:target.currentVersion};
   });
 }
 
