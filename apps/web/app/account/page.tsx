@@ -79,6 +79,13 @@ export default async function AccountPage() {
       <Link className="btn btn-outline" href={localizeHref("/account/settings",locale)}>{msg("account.openSettings")}</Link>
     </div>
     <div className="placeholder-panel">
+      <h2>{locale==="ko"?"콘텐츠 신고 및 이의신청":"Moderation and appeals"}</h2>
+      <p className="muted">{locale==="ko"?"보류·제재 알림, 게시 제한 상태, 이의신청 내역을 확인할 수 있어요.":"Review moderation notices, publishing restrictions and appeal status."}</p>
+      <Link className="btn btn-outline" href={localizeHref("/account/moderation",locale)}>
+        {locale==="ko"?"신고 및 이의신청 확인":"View moderation inbox"}
+      </Link>
+    </div>
+    <div className="placeholder-panel">
       <h2>{msg("kids.guardian.title")}</h2>
       <p className="muted">{msg("kids.native.pairHelp")}</p>
       <Link className="btn btn-outline" href={localizeHref("/account/kids",locale)}>
