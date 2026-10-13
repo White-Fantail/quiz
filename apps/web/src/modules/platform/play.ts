@@ -32,27 +32,30 @@ export async function getPlaySession(p: Record<string, any>, actor: Actor | null
   if (session.locale !== "und" && (session.revision.localization?.locale !== session.locale ||
     session.revision.localization.status !== "PUBLISHED"))
     fail(409, "locale_unavailable", "This question language is no longer available");
+  const sessionQuiz=await db().quiz.findUnique({where:{id:session.quizId},select:{publication:true,safetyStatus:true}});
+  if(!sessionQuiz || sessionQuiz.publication!=="PUBLISHED" || sessionQuiz.safetyStatus!=="ACTIVE")
+    fail(409,"question_suspended","This quiz is no longer publicly playable");
   if (session.runId) {
     const run=await db().playRun.findUnique({where:{id:session.runId}});
     if (!run || run.status!=="ACTIVE" || run.currentIndex!==session.roundIndex)
       fail(409,"run_not_active","This run's active round has changed");
     if(run.mode==="PACK" && (!run.packId || !await db().quizPack.findFirst({
-      where:{id:run.packId,publication:"PUBLISHED",safetyStatus:{not:"RESTRICTED"},
+      where:{id:run.packId,publication:"PUBLISHED",safetyStatus:"ACTIVE",
         localizations:{some:{locale:run.locale,status:"PUBLISHED"}}},
       select:{id:true}
     })))fail(409,"pack_unavailable","This pack has been withdrawn");
     const quiz=await db().quiz.findUnique({where:{id:session.quizId}});
-    if (!quiz || quiz.publication!=="PUBLISHED" || quiz.safetyStatus==="RESTRICTED" ||
-      (run.lane==="KIDS" && !(quiz.safetyStatus!=="RESTRICTED"&&quiz.kidsEligible&&quiz.kidsReviewStatus==="APPROVED")))
+    if (!quiz || quiz.publication!=="PUBLISHED" || quiz.safetyStatus!=="ACTIVE" ||
+      (run.lane==="KIDS" && !(quiz.safetyStatus==="ACTIVE"&&quiz.kidsEligible&&quiz.kidsReviewStatus==="APPROVED")))
       fail(409,"question_suspended","This quiz is unavailable for the chosen audience");
   }
   return session;
 }
 export async function playStart(p: Record<string, any>, actor: Actor | null) {
   const quiz = await db().quiz.findUnique({ where: { id: p.quizId } });
-  if (!quiz || quiz.publication !== "PUBLISHED" || quiz.safetyStatus === "RESTRICTED")
+  if (!quiz || quiz.publication !== "PUBLISHED" || quiz.safetyStatus !== "ACTIVE")
     fail(404, "not_found", "Quiz unavailable");
-  if (p.kids && !(quiz.safetyStatus!=="RESTRICTED"&&quiz.kidsEligible&&quiz.kidsReviewStatus==="APPROVED"))
+  if (p.kids && !(quiz.safetyStatus==="ACTIVE"&&quiz.kidsEligible&&quiz.kidsReviewStatus==="APPROVED"))
     fail(403, "not_for_kids", "Quiz has not passed Kids eligibility checks");
   const { revision, translation } = await currentPlayableRevision(quiz.id, p.locale);
   if(p.kids && !["ORIGINAL","LEGACY"].includes(translation.origin))
