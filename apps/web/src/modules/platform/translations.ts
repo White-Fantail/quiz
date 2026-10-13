@@ -146,7 +146,7 @@ export async function quizTranslationPublish(p: Record<string,any>, actor:Actor|
     if(incompatible) fail(409,"media_translation_required","Audio/video media must be localized separately before publishing");
   }
   await validateMediaReferences(user.id,rev.promptMediaIds as string[],fields.clues,true);
-  const autoKidsApproval = quiz.kidsReviewStatus !== "NOT_REQUESTED" && isTrustedMcpAdmin(user);
+  const autoKidsApproval = quiz.safetyStatus === "ACTIVE" && quiz.kidsReviewStatus !== "NOT_REQUESTED" && isTrustedMcpAdmin(user);
   return db().$transaction(async tx=>{
     const checked=await tx.quizLocalization.updateMany({
       where:{id:loc.id,currentVersion:p.expectedVersion,sourceRevisionId:source.id},
