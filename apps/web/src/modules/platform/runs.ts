@@ -324,7 +324,7 @@ export async function runFeedback(p:Record<string,any>,actor:Actor|null) {
   if(run.status!=="FINISHED")fail(409,"run_in_progress","Finish the run before rating questions");
   const recentFirst=run.mode==="INFINITE";
   const sessions=await db().playSession.findMany({
-    where:{runId:run.id,status:{in:["SOLVED","FAILED"]}},
+    where:{runId:run.id,status:{in:["SOLVED","FAILED"]},quiz:{publication:"PUBLISHED",safetyStatus:"ACTIVE"}},
     select:{quizId:true,userId:true,roundIndex:true,revision:{select:{title:true,localization:{select:{origin:true}}}},
       quiz:{select:{authorId:true}}},
     orderBy:{roundIndex:recentFirst?"desc":"asc"},take:run.mode==="PACK"?100:5
