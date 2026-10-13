@@ -293,10 +293,26 @@ export async function publisherGet(p:Record<string,any>,actor:Actor|null){
     select:{id:true,displayName:true,role:true,publishingStatus:true,
       publishingRestrictedUntil:true,createdAt:true}});
   if(!person)fail(404,"user_not_found","User not found");
-  const [quizzes,packs]=await Promise.all([
-    db().quiz.count({where:{authorId:p.userId}}),db().quizPack.count({where:{authorId:p.userId}})
+  const [quizIds,packIds,accountHistory]=await Promise.all([
+    db().quiz.findMany({where:{authorId:p.userId},select:{id:true}}),
+    db().quizPack.findMany({where:{authorId:p.userId},select:{id:true}}),
+    db().auditLog.findMany({where:{objectId:p.userId,action:"publisher.restriction_change"},
+      orderBy:{createdAt:"desc"},take:15,select:{detail:true,createdAt:true}})
   ]);
-  return {...person,quizzes,packs};
+  const identifiers=[...quizIds,...packIds].map(item=>item.id);
+  const decisions=identifiers.length?await db().auditLog.findMany({where:{
+    objectId:{in:identifiers},action:{in:["quiz.moderation_review","pack.moderation_review",
+      "quiz.review","pack.general.moderation"]}},select:{objectId:true,action:true,detail:true,createdAt:true},
+    orderBy:{createdAt:"desc"},take:200}):[];
+  const confirmed=decisions.filter(row=>{
+    const d=row.detail;
+    if(!d||typeof d!=="object"||Array.isArray(d))return false;
+    return ("decision" in d&&d.decision==="RESTRICTED")||("verdict" in d&&d.verdict==="RESTRICTED");
+  });
+  return {...person,quizzes:quizIds.length,packs:packIds.length,
+    confirmedViolationDecisions:confirmed.length,
+    confirmedContentCount:new Set(confirmed.map(d=>d.objectId)).size,
+    restrictionHistory:accountHistory.map(row=>({createdAt:row.createdAt,detail:row.detail}))};
 }
 
 export async function publisherSet(p:Record<string,any>,actor:Actor|null){
