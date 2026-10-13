@@ -116,3 +116,42 @@ test("Home and Explore use one adventure taxonomy with pack-first discovery",()=
  assert.doesNotMatch(tabs,/\{name:"packs",label:/);
  assert.doesNotMatch(source("src/useKidsAdventures.ts"),/QuizDipPublicApi|publicApi|Authorization:/);
 });
+
+
+test("Challenge missions reuse child-approved packs, saved progress, and native game routes",()=>{
+ const challenge=source("app/(tabs)/challenge.tsx");
+ const game=source("app/game.tsx");
+ const locale=source("../../packages/i18n/src/kids.ts");
+ assert.match(challenge,/useKidsAdventures/);
+ assert.match(challenge,/packs\.slice\(0,4\)/);
+ assert.match(challenge,/mode:"RANDOM_FIVE"/);
+ assert.match(challenge,/packId:pack\.id/);
+ assert.match(challenge,/SecureStore\.getItemAsync\(SAVED_GAME\)/);
+ assert.match(challenge,/canResume\?<Pressable/);
+ assert.match(game,/quizdip-kids-active-game-v1/);
+ assert.match(challenge,/AdventureArtwork/);
+ for(const key of ["native.challenge.start","native.challenge.packHeading","native.challenge.resumeDetail"])
+   assert.ok(locale.includes('"'+key+'"'));
+ assert.doesNotMatch(challenge,/publicApi|leaderboard|reviewUpsert/);
+});
+
+test("Treasures are a private, server-backed collection with honest earned and locked badges",()=>{
+ const treasures=source("app/(tabs)/treasures.tsx");
+ const server=source("../web/src/modules/kids/game.ts");
+ const artwork=source("src/components/TreasureChestArtwork.tsx");
+ const locale=source("../../packages/i18n/src/kids.ts");
+ assert.match(treasures,/useFocusEffect/);
+ assert.match(treasures,/kidsApi\.treasures\(token\)/);
+ assert.match(treasures,/badgeSlots\.map/);
+ assert.match(treasures,/earned\.has\(badge\.id\)/);
+ assert.match(treasures,/data\.discoveries\.map/);
+ assert.match(treasures,/router\.push\("\/explore"\)/);
+ for(const id of ["first","five","ten"]) {
+   assert.ok(treasures.includes('id:"'+id+'"'));
+   assert.ok(server.includes('id:"'+id+'"'));
+ }
+ assert.match(artwork,/react-native-svg/);
+ assert.doesNotMatch(treasures,/publicApi|leaderboard|AsyncStorage/);
+ for(const key of ["native.treasure.collection","native.treasure.unlocked","native.treasure.locked","native.treasure.more"])
+   assert.ok(locale.includes('"'+key+'"'));
+});
