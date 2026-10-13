@@ -38,6 +38,8 @@ function route(method: string, segments: string[]): Match | null {
   }
   if(a==="admin" && b==="quizzes" && c==="review" && !d && method==="GET")
     return {op:"admin_quiz_review_list",args:{}};
+  if(a==="admin" && b==="media" && c==="review" && !d && method==="GET")
+    return {op:"admin_media_review_list",args:{}};
   if(a==="discover" && b==="sections" && !c && method==="GET") return {op:"discover_sections",args:{}};
   if(a==="editorial" && !b && method==="GET")return {op:"editorial_features",args:{}};
   if(a==="admin" && b==="features"){

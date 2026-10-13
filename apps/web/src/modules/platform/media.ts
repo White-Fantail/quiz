@@ -379,6 +379,29 @@ export async function mediaTransform(p: Record<string, any>, actor: Actor | null
     throw error;
   }
 }
+/** Admin-only queue across all creators. Public APIs remain owner-scoped. */
+export async function adminMediaReviewList(p: Record<string, any>, actor: Actor | null) {
+  const user = requireActor(actor);
+  if (user.role !== "ADMIN") fail(403, "admin_required", "Only administrators can review media");
+  const where: Record<string, any> = { deletedAt: null, status: "READY" };
+  if (p.kind !== "all") where.kind = p.kind;
+  if (p.moderation !== "all") where.moderationStatus = p.moderation;
+  if (p.search) where.OR = [
+    { originalName: { contains:p.search, mode:"insensitive" } },
+    { alt: { contains:p.search, mode:"insensitive" } },
+    { attribution: { contains:p.search, mode:"insensitive" } },
+    { owner: { displayName: { contains:p.search, mode:"insensitive" } } },
+  ];
+  const [rows, total] = await Promise.all([
+    db().mediaAsset.findMany({
+      where, orderBy:[{createdAt:"desc"},{id:"desc"}],
+      skip:p.offset,take:p.limit,include:{owner:{select:{displayName:true}}}
+    }),
+    db().mediaAsset.count({where})
+  ]);
+  return { items:rows.map(item=>({...mediaSummary(item),ownerName:item.owner.displayName})),
+    total,offset:p.offset,limit:p.limit,hasMore:p.offset+rows.length<total };
+}
 export async function mediaReview(p: Record<string, any>, actor: Actor | null) {
   const user = requireActor(actor);
   if (user.role !== "ADMIN") fail(403, "admin_required", "Trusted admin permission required");
@@ -457,5 +480,6 @@ export async function mediaReviewGet(p:Record<string,any>,actor:Actor|null) {
   if(!item || item.deletedAt || item.status!=="READY")
     fail(404,"media_not_found","Media is unavailable");
   return {...mediaSummary(item),previewUrl:await previewUrl(item.storageKey,item.mimeType),
+    ...(item.kind==="image" ? {thumbnailUrl:await thumbnailFor(item)} : {}),
     previewExpiresInSeconds:60};
 }
