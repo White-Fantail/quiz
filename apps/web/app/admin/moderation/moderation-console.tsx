@@ -32,7 +32,7 @@ export default function ModerationConsole(){
   const [queue,setQueue]=useState<Item[]>([]);
   const [selected,setSelected]=useState<Item|null>(null);
   const [userId,setUserId]=useState("");
-  const [userInfo,setUserInfo]=useState<{displayName:string;publishingStatus:string;publishingRestrictedUntil:string|null}|null>(null);
+  const [userInfo,setUserInfo]=useState<{displayName:string;publishingStatus:string;publishingRestrictedUntil:string|null;confirmedViolationDecisions:number;confirmedContentCount:number;quizzes:number;packs:number}|null>(null);
   const [reason,setReason]=useState("");
   const [days,setDays]=useState("7");
   const [busy,setBusy]=useState(false),[loading,setLoading]=useState(true);
@@ -168,8 +168,14 @@ export default function ModerationConsole(){
           <input value={userId} onChange={e=>setUserId(e.target.value)} placeholder={msg("Select a creator above or enter ID","위에서 제작자를 선택하거나 ID 입력")}/>
         </label>
         <button className="btn btn-outline" disabled={busy||!userId} onClick={()=>void lookup()}>{msg("Look up creator","제작자 조회")}</button>
-        {userInfo&&<p>{userInfo.displayName} · {msg("Access","권한")}: {userInfo.publishingStatus}
-          {userInfo.publishingRestrictedUntil?" · "+userInfo.publishingRestrictedUntil.slice(0,10):""}</p>}
+        {userInfo&&<div>
+          <p>{userInfo.displayName} · {msg("Access","권한")}: {userInfo.publishingStatus}
+            {userInfo.publishingRestrictedUntil?" · "+userInfo.publishingRestrictedUntil.slice(0,10):""}</p>
+          <p className="muted">{msg("Content","게시물")}: {userInfo.quizzes} {msg("quizzes","문제")} · {userInfo.packs} {msg("packs","팩")}</p>
+          <p className="muted">{msg("Confirmed restriction decisions","관리자 위반 확정 조치")}:
+            {" "+userInfo.confirmedViolationDecisions} ({userInfo.confirmedContentCount} {msg("distinct items","개 콘텐츠")})
+            {" · "}{msg("Reports alone do not count as violations","단순 신고는 위반으로 집계하지 않아요")}</p>
+        </div>}
         <label>{msg("Reason (required for restriction)","사유 (제한 시 필수)")}
           <textarea value={reason} rows={3} maxLength={1000} onChange={e=>setReason(e.target.value)}/>
         </label>
