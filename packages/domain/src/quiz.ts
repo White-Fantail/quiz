@@ -59,7 +59,7 @@ export interface QuizQuestion {
   answerType: AnswerType;
   topics?: QuizTopic[];
   prompt: string;
-  answer: { canonical: string; aliases: string[] };
+  answer: { canonical: string; aliases: string[]; responseMode?: "text" | "multiple-choice"; options?: string[] };
   clues: Clue[];
   creatorIntent?: CreatorIntent;
   recommendedAudience?: RecommendedAudience;
