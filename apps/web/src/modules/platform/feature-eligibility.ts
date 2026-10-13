@@ -30,12 +30,15 @@ async function approvedMedia(revisions:SafeRevision[]):Promise<boolean>{
 }
 function ageEligible(value:unknown,band?:KidAgeBand){
   if(!band)return true;
-  const age=band==="EARLY"?6:band==="MIDDLE"?9:12;
+  // Profile bands cover several birthdays. Check range overlap, not a single
+  // representative age (6 previously excluded every 4–5 quiz for EARLY).
+  const group=band==="EARLY"?{minimum:4,maximum:7}:
+    band==="MIDDLE"?{minimum:8,maximum:10}:{minimum:11,maximum:12};
   if(!value||typeof value!=="object")return true;
   const range=(value as {ageRange?:{minimum?:number;maximum?:number}}).ageRange;
   if(!range)return true;
-  return !(typeof range.minimum==="number"&&age<range.minimum ||
-    typeof range.maximum==="number"&&age>range.maximum);
+  return !(typeof range.minimum==="number"&&range.minimum>group.maximum ||
+    typeof range.maximum==="number"&&range.maximum<group.minimum);
 }
 /** Revalidate publication, localization, safety, age and EVERY asset. No fallback
  * to another language, no feature/editorial or creator authority can override this.
