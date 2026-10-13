@@ -36,15 +36,19 @@ export default function ModerationConsole(){
   const [busy,setBusy]=useState(false),[loading,setLoading]=useState(true);
   const [error,setError]=useState(""),[success,setSuccess]=useState("");
   const load=useCallback(async()=>{
-    const [config,rows]=await Promise.all([api("policy"),api("queue?limit=100")]);
-    setPolicy(config);setQueue(rows.items??[]);
+    // The daily review queue must still load if the optional policy-status badge fails.
+    const [config,rows]=await Promise.allSettled([api("policy"),api("queue?limit=100")]);
+    if(config.status==="fulfilled")setPolicy(config.value);
+    else setPolicy(null);
+    if(rows.status==="rejected")throw rows.reason;
+    setQueue(rows.value.items??[]);
   },[]);
-  useEffect(()=>{let mounted=true;Promise.all([api("policy"),api("queue?limit=100")])
-    .then(([config,rows])=>{if(mounted){setPolicy(config);setQueue(rows.items??[]);}})
-    .catch(e=>{if(mounted)setError(e.message)})
-    .finally(()=>{if(mounted)setLoading(false)});
+  useEffect(()=>{
+    let mounted=true;
+    load().catch(e=>{if(mounted)setError(e instanceof Error?e.message:"Unable to load reports")})
+      .finally(()=>{if(mounted)setLoading(false)});
     return ()=>{mounted=false};
-  },[]);
+  },[load]);
   async function action(work:()=>Promise<unknown>,message:string){
     setBusy(true);setError("");setSuccess("");
     try{await work();await load();setSuccess(message);return true}
@@ -94,7 +98,8 @@ export default function ModerationConsole(){
       <div className="moderation-policy-toolbar">
         <div className="moderation-policy-toolbar-status">
           <strong>{msg("Automatic report holds","신고 자동 보류")}</strong>
-          {policy&&<span className="small-tag">{policy.enabled?msg("Enabled","사용 중"):msg("Disabled","꺼짐")}</span>}
+          {policy?<span className="small-tag">{policy.enabled?msg("Enabled","사용 중"):msg("Disabled","꺼짐")}</span>
+            :<span className="muted">{msg("Rule status unavailable","설정 상태 확인 불가")}</span>}
         </div>
         <Link className="btn btn-outline" href={localizeHref("/admin/moderation/settings",locale)}>
           {msg("Manage hold rules →","자동 보류 설정 →")}
