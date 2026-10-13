@@ -32,7 +32,7 @@ export default async function AdminPage() {
         <Link href={localizeHref("/admin/moderation",locale)} className="feature-card">
           <span className="symbol yellow" aria-hidden="true">⚑</span>
           <h2>{msg("Report moderation & creator restrictions","신고 처리 및 제작자 게시 제한")}</h2>
-          <p>{msg("Manage automatic hold thresholds, review flagged content and restrict repeated abusive publishing.","자동 보류 임계치를 설정하고 신고 콘텐츠 및 악성 게시자의 공개 권한을 관리해요.")}</p>
+          <p>{msg("Review reported content, appeals and publishing restrictions. Auto-hold rules have their own settings page.","신고 콘텐츠와 이의신청, 게시 제한을 처리해요. 자동 보류 기준은 별도 설정 페이지에서 관리합니다.")}</p>
           <span className="card-link">{msg("Open moderation →","신고 관리 열기 →")}</span>
         </Link>
         <Link href={localizeHref("/admin/features",locale)} className="feature-card">
