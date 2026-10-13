@@ -227,3 +227,15 @@ The following ADMIN-only operations use the same authenticated `execute()` servi
 Existing `POST /api/v1/quizzes/:id/reports` / `quizdip_report_create` and `POST /api/v1/packs/:id/reports` / `quizdip_pack_report_create` now evaluate the current persisted policy after every eligible adult report. A qualifying report count changes `safetyStatus` from `ACTIVE` to `UNDER_REVIEW` and does **not** change `publication`. The `ACTIVE` gate applies to public catalogs, detail, ratings, discovery, Kids, runs and signed sessions. Staff resolves open reports and logs decisions; creator publishing restrictions gate REST, Studio and MCP publication operations.
 
 Threshold defaults and reviewer safeguards are defined in [report moderation design](report-moderation.md). No AI classifier is used. Production rollout requires database migration `20261014080000_report_moderation` and tested account-authenticated flows.
+
+### Creator notices and appeals (no AI)
+| REST | MCP | Purpose |
+| --- | --- | --- |
+| GET /api/v1/me/moderation | quizdip_my_moderation_inbox | Owner-only recent notices, account publishing status and appeals |
+| POST /api/v1/me/moderation/notices/:id/read | quizdip_my_moderation_read | Mark an owned notice as read |
+| POST /api/v1/me/moderation/appeals | quizdip_my_moderation_appeal | Appeal own held/restricted QUIZ/PACK or publisher restriction |
+| GET /api/v1/admin/moderation/detail/:kind/:id | quizdip_admin_moderation_detail | ADMIN full reasons, audit and related appeals |
+| GET /api/v1/admin/moderation/appeals | quizdip_admin_moderation_appeals | ADMIN appeal queue |
+| POST /api/v1/admin/moderation/appeals/:id/review | quizdip_admin_moderation_appeal_review | ADMIN accept/reject and explain decision |
+
+These endpoints use owner/admin authorization in shared platform operations. They depend on migration `20261014100000_moderation_appeals_and_notifications`; the prior migration `20261014080000_report_moderation` is also required. Alert messages intentionally omit the reporter identity. Staff decisions are audited. Changing thresholds re-evaluates existing OPEN reports; disabling auto holds does not auto-restore previously withheld material.
