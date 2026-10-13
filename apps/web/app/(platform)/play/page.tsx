@@ -9,7 +9,7 @@ import { bilingual } from "../../../src/i18n/view-copy";
 import { RatingBadge, RatingButtons, RatingSignIn, type RatingAccess } from "../../../src/components/quiz-ratings";
 import PackFeedback, { PackShare } from "../../../src/components/pack-feedback";
 import type { RatingSummary } from "../../../src/modules/quiz/rating-metadata";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type Lane = "GENERAL" | "KIDS";
 type Mode = "RANDOM_FIVE" | "INFINITE" | "PACK";
@@ -72,6 +72,8 @@ export default function PlayPage({packId}:{packId?:string}={}) {
   const [run,setRun]=useState<RunInfo|null>(null);
   const [round,setRound]=useState<Round|null>(null);
   const [guess,setGuess]=useState("");
+  const answerInputRef=useRef<HTMLInputElement>(null);
+  const guessFormRef=useRef<HTMLFormElement>(null);
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState("");
   const [feedback,setFeedback]=useState("");
@@ -216,6 +218,47 @@ export default function PlayPage({packId}:{packId?:string}={}) {
 
   const isDone=!!round&&round.sessionStatus!=="ACTIVE";
   const endReached=!!run&&(run.status==="FINISHED")&&(!round||isDone);
+
+  // Keep a physical-keyboard player in the answer field after each new clue/round,
+  // without opening the virtual keyboard unexpectedly on a touch device.
+  useEffect(()=>{
+    if(!round||isDone||busy||mustReveal||round.responseMode==="multiple-choice")return;
+    if(window.matchMedia("(pointer: fine)").matches){
+      answerInputRef.current?.focus({preventScroll:true});
+    }
+  },[round?.quizId,round?.clueIndex,round?.responseMode,isDone,busy,mustReveal]);
+
+  useEffect(()=>{
+    function handleKeyboard(event:KeyboardEvent) {
+      // Enter can also commit a Korean/other IME candidate: never treat that as an answer or action.
+      if(event.key!=="Enter"||event.repeat||event.isComposing||event.keyCode===229||
+         event.altKey||event.shiftKey||busy||!round)return;
+      const target=event.target;
+      if(target instanceof HTMLElement){
+        const interactive=target.closest('input,textarea,select,a,button,[role="button"],[contenteditable="true"]');
+        if(interactive&&interactive!==answerInputRef.current)return;
+      }
+      // Ctrl/Command+Enter advances without submitting an answer, even when one is typed.
+      if(event.ctrlKey||event.metaKey){
+        if(isDone){event.preventDefault();void nextRound();}
+        else if(round.clueIndex<round.clueCount){event.preventDefault();void reveal();}
+        return;
+      }
+      if(isDone){event.preventDefault();void nextRound();return;}
+      if(!mustReveal&&guess.trim()){
+        // Native Enter submits the focused text input. Otherwise submit the selected choice.
+        if(target!==answerInputRef.current){
+          event.preventDefault();guessFormRef.current?.requestSubmit();
+        }
+      }else if(round.clueIndex<round.clueCount){
+        // Empty input (or a locked input after a wrong guess): reveal the next clue.
+        event.preventDefault();void reveal();
+      }
+    }
+    window.addEventListener("keydown",handleKeyboard);
+    return ()=>window.removeEventListener("keydown",handleKeyboard);
+  },[round,isDone,busy,mustReveal,guess]);
+
   return <main className="container inner-page play-experience">
     <div className="play-intro">
       <span className="eyebrow">QUIZDIP · PLAY</span>
@@ -297,7 +340,7 @@ export default function PlayPage({packId}:{packId?:string}={}) {
         {!isDone&&round.clueIndex<round.clueCount&&
           <button type="button" className="btn btn-outline" disabled={busy} onClick={()=>void reveal()}>
             {msg("Reveal another clue","단서 하나 더 보기")}</button>}
-        {!isDone&&<form className="guess-form" onSubmit={e=>void check(e)}>
+        {!isDone&&<form ref={guessFormRef} className="guess-form" onSubmit={e=>void check(e)}>
           <label id="quizdip-answer-label">{msg("What's your answer?","정답은 무엇일까요?")}</label>
           {round.responseMode==="multiple-choice"&&round.options?.length?
             <div className="guess-option-grid" role="group" aria-labelledby="quizdip-answer-label">
@@ -307,7 +350,7 @@ export default function PlayPage({packId}:{packId?:string}={}) {
                 <span className="guess-option-letter">{String.fromCharCode(65+index)}</span>{option}
               </button>)}
             </div>:
-            <input id="quizdip-answer" value={guess} onChange={e=>setGuess(e.target.value)}
+            <input ref={answerInputRef} className="guess-input" id="quizdip-answer" value={guess} onChange={e=>setGuess(e.target.value)}
               aria-labelledby="quizdip-answer-label" autoComplete="off" placeholder={msg("Enter your answer","정답을 입력해 보세요")}
               maxLength={200} disabled={busy||mustReveal}/>}
           <div className="guess-row">
@@ -321,6 +364,7 @@ export default function PlayPage({packId}:{packId?:string}={}) {
         {isDone&&<button type="button" className="btn btn-primary" disabled={busy} onClick={()=>void nextRound()}>
           {endReached?msg("View final results →","최종 결과 보기 →"):msg("Next question →","다음 문제 →")}
         </button>}
+        <p className="play-keyboard-help"><span aria-hidden="true">⌨</span> <kbd>Enter</kbd> {isDone?msg("Next question / results","다음 문제 / 결과 보기"):msg("Check answer · empty field: next clue","정답 확인 · 빈칸이면 다음 단서")} <span className="shortcut-divider">·</span> <kbd>Ctrl/⌘ + Enter</kbd> {isDone?msg("Next","다음"):msg("Reveal next clue","다음 단서")}</p>
       </>:<>
         <div className="round-finish">
           <div className="round-finish-symbol">✦</div>
