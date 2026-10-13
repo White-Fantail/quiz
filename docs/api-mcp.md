@@ -43,6 +43,7 @@ The web UI, REST API and MCP tools reuse `execute()` and the same policy layer. 
 | Start game | POST /api/v1/play | quizdip_play_start |
 | Reveal next clue | POST /api/v1/play/:id/clue | quizdip_play_clue |
 | Submit answer | POST /api/v1/play/:id/guess | quizdip_play_guess |
+| Review unused clues after the signed session ends | POST /api/v1/play/:id/review | quizdip_play_review |
 | List/leave reviews | GET/POST /api/v1/quizzes/:id/reviews | quizdip_reviews_list / quizdip_review_upsert |
 | Submit report | POST /api/v1/quizzes/:id/reports | quizdip_report_create |
 | My reports | GET /api/v1/reports/mine | quizdip_reports_mine |
@@ -66,7 +67,7 @@ Tool arguments are typed by Zod schemas in `apps/web/src/modules/platform/contra
 
 ## Content and score semantics
 
-Clues are ordered and stored per immutable `QuizRevision`. Image, audio and video clues use `mediaId`; optional prompt media use `promptMediaIds`. All asset storage is private Cloudflare R2 and documented in [media design and setup](media-r2.md). Each session is pinned to the revision it started on. An authenticated creator can read their answers and complete clue sequence, but public metadata never returns answers; game sessions reveal **one clue at a time** after presenting the random session token.
+Clues are ordered and stored per immutable `QuizRevision`. Image, audio and video clues use `mediaId`; optional prompt media use `promptMediaIds`. All asset storage is private Cloudflare R2 and documented in [media design and setup](media-r2.md). Each session is pinned to the revision it started on. An authenticated creator can read their answers and complete clue sequence, but public metadata never returns answers; game sessions reveal **one clue at a time** after presenting the random session token. Once the server records `SOLVED` or `FAILED`, `play_review` returns only unused clues of that pinned revision without changing score or run position. It requires the signed session capability, rejects active sessions and honors publication/safety and child-device restrictions. `play_media` can sign approved remaining-clue assets only for completed sessions, even after a multi-question run advances.
 
 User review rating is `+1` or `-1` and requires a completed play. A report is a separate workflow, not a dislike.
 
