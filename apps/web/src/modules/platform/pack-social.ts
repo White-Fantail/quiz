@@ -1,4 +1,5 @@
 import { db } from "./db";
+import { submitReport } from "./moderation";
 import { fail, requireActor, type Actor } from "./auth";
 import { ratingSummary } from "../quiz/rating-metadata";
 import { safePack } from "./feature-eligibility";
@@ -27,7 +28,7 @@ export async function packRatingFor(id:string,locale:string) {
 /** Returns only a public pack with all questions eligible in this locale. */
 async function publicPack(id:string,locale:string) {
   const pack=await db().quizPack.findFirst({
-    where:{id,publication:"PUBLISHED",safetyStatus:{not:"RESTRICTED"},localizations:{some:{locale,status:"PUBLISHED"}}},
+    where:{id,publication:"PUBLISHED",safetyStatus:"ACTIVE",localizations:{some:{locale,status:"PUBLISHED"}}},
     select:{id:true,authorId:true,currentVersion:true,
       items:{select:{quizId:true}}}
   });
@@ -94,22 +95,8 @@ export async function packReviewRemove(p:Record<string,any>,actor:Actor|null) {
     ratings:await packRatingFor(p.id,p.locale)};
 }
 export async function packReportCreate(p:Record<string,any>,actor:Actor|null) {
-  const user=requireActor(actor);
-  if(user.childScope)fail(403,"child_reports_disabled","Child accounts use the parental safety report workflow");
-  await publicPack(p.id,p.locale);
-  const since=new Date(Date.now()-86400000);
-  const [quizReports,packReports]=await Promise.all([
-    db().report.count({where:{reporterId:user.id,createdAt:{gte:since}}}),
-    db().packReport.count({where:{reporterId:user.id,createdAt:{gte:since}}})
-  ]);
-  if(quizReports+packReports>=10)fail(429,"rate_limit","Daily report limit reached");
-  const item=await db().packReport.create({data:{
-    packId:p.id,reporterId:user.id,locale:p.locale,
-    reason:p.reason,detail:p.detail
-  }});
-  return {id:item.id,status:item.status,createdAt:item.createdAt};
+  return submitReport("PACK",p,actor);
 }
-/** Owner-only, aggregated insights: no per-player activity or child identities. */
 export async function packInsightsMine(p:Record<string,any>,actor:Actor|null) {
   const user=requireActor(actor);
   const pack=await db().quizPack.findFirst({where:{id:p.id,authorId:user.id},
