@@ -54,3 +54,15 @@ test("preview media URL is requested as it is revealed, with readable non-media 
   assert.match(player,/studio-preview-notice/);
   assert.match(player,/onClick=\{reset\}/);
 });
+
+
+test("creator-authored question line breaks are preserved in preview and all play modes",()=>{
+  const styles = source("app/globals.css");
+  const single = source("app/(platform)/play/[quizId]/page.tsx");
+  const rounds = source("app/(platform)/play/page.tsx");
+  assert.match(styles,/\.play-panel \.quiz-question-prompt\s*\{[^}]*white-space:\s*pre-wrap;/);
+  assert.match(styles,/\.play-panel \.quiz-question-prompt\s*\{[^}]*overflow-wrap:\s*anywhere;/);
+  assert.match(player,/<h2 className="quiz-question-prompt">\{quiz\.prompt\}<\/h2>/);
+  assert.match(single,/<h2 className="quiz-question-prompt">\{session\.prompt\}<\/h2>/);
+  assert.match(rounds,/<h2 className="quiz-question-prompt">\{round\.prompt\}<\/h2>/);
+});
