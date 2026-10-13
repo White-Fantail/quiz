@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { requirePublishingPermission, submitReport } from "./moderation";
+import { requirePublishingPermission, assertPublishingAllowedInTx, submitReport } from "./moderation";
 import { validateMediaReferences } from "./media";
 import { isTrustedMcpAdmin } from "./auto-approval";
 import { ratingsForQuiz } from "./ratings";
@@ -208,6 +208,7 @@ export async function packLanguageSet(p: Record<string, any>, actor: Actor | nul
   const target=await db().quizPack.findFirst({where:{id:p.id,authorId:user.id},select:{publication:true}});
   if(target?.publication==="PUBLISHED")await requirePublishingPermission(actor);
   return db().$transaction(async tx => {
+    if(target?.publication==="PUBLISHED") await assertPublishingAllowedInTx(tx,user);
     const old=await tx.quizPack.findFirst({where:{id:p.id,authorId:user.id},
       include:{items:true}});
     if(!old) fail(404,"not_found","Pack not found");
@@ -263,6 +264,7 @@ export async function packTranslationUpsert(p:Record<string,any>,actor:Actor|nul
       fail(409,"incomplete_pack_locale","Every pack question must be published in that language");
   }
   const result=await db().$transaction(async tx=>{
+    if(p.status==="PUBLISHED") await assertPublishingAllowedInTx(tx,user);
     const saved=await tx.quizPackLocalization.upsert({
       where:{packId_locale:{packId:pack.id,locale:p.locale}},
       create:{packId:pack.id,locale:p.locale,title:p.title,description:p.description,status:p.status},
@@ -286,6 +288,7 @@ export async function packUpdate(p: Record<string, any>, actor: Actor | null) {
     await validatePackQuestions(ids,user.id,p.publication==="PUBLISHED" ||
       (old.publication==="PUBLISHED"&&p.publication!=="DRAFT"),old.sourceLocale,old.items.map(item=>item.quizId));
   const updated = await db().$transaction(async tx => {
+    if(old.publication==="PUBLISHED"||p.publication==="PUBLISHED") await assertPublishingAllowedInTx(tx,user);
     const changed=await tx.quizPack.updateMany({
       where:{id:old.id,authorId:user.id,currentVersion:old.currentVersion},
       data:{
