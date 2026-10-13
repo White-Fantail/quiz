@@ -1,5 +1,5 @@
 import { useEffect,useId,useState } from "react";
-import { ActivityIndicator,Image as NativeImage,Pressable,StyleSheet,Text,View } from "react-native";
+import { ActivityIndicator,Platform,Pressable,StyleSheet,Text,View } from "react-native";
 import Svg,{Circle,Defs,Mask,Rect} from "react-native-svg";
 import { Image } from "expo-image";
 import { useAudioPlayer } from "expo-audio";
@@ -8,6 +8,7 @@ import type { KidClue,KidPlayMedia,ImageRevealSettings } from "@quizdip/api-clie
 import { kidsApi } from "../services/api";
 import { useKidsLocale } from "../state/locale";
 import { theme } from "../theme";
+import { nativeRevealBlurRadius } from "./reveal-blur";
 
 function AudioPlayer({url}:{url:string}){
   const player=useAudioPlayer(url);
@@ -23,7 +24,8 @@ function VideoPlayer({url}:{url:string}){
 function NativeImageReveal({url,reveal,label}:{url:string;reveal:ImageRevealSettings;label:string}){
   const maskId=useId().replace(/:/g,"_");
   const [layout,setLayout]=useState({width:320,height:240});
-  const strength=Math.max(0,Math.min(100,reveal.strength));
+  const strength=Number.isFinite(reveal.strength)?Math.max(0,Math.min(100,reveal.strength)):100;
+  const blurRadius=reveal.effect==="blur" ? nativeRevealBlurRadius(strength,Platform.OS) : 0;
   const x=Math.max(0,Math.min(100,reveal.focusX??50));
   const y=Math.max(0,Math.min(100,reveal.focusY??50));
   const zoom=1+strength*0.03;
@@ -32,8 +34,8 @@ function NativeImageReveal({url,reveal,label}:{url:string;reveal:ImageRevealSett
     const {width,height}=event.nativeEvent.layout;
     if(width>0&&height>0&&Math.abs(width-layout.width)>1)setLayout({width,height});
   }}>
-    <NativeImage source={{uri:url}} accessibilityLabel={label} resizeMode="contain"
-      blurRadius={reveal.effect==="blur" ? strength*0.30 : 0}
+    <Image key={`${reveal.effect}:${blurRadius}`} source={{uri:url}} accessibilityLabel={label} contentFit="contain"
+      blurRadius={blurRadius}
       style={[styles.revealImage,reveal.effect==="zoom"?{
         transform:[{translateX:(50-x)/100*layout.width*(zoom-1)},
           {translateY:(50-y)/100*layout.height*(zoom-1)},{scale:zoom}]
