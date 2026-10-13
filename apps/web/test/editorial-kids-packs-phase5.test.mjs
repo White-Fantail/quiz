@@ -92,7 +92,9 @@ test("native Kids pack flow is device-bound and fail-closed under time and conte
 
 test("Kids UI stays native, translatable, with isolated sample web preview",()=>{
  const navigation=read("../kids/app/(tabs)/_layout.tsx");
- assert.match(navigation,/name:"packs",label:"kids\.nav\.packs"/);
+ assert.match(navigation,/<Tabs.Screen name="packs" options=\{\{href:null\}\}/);
+ assert.match(read("../kids/app/(tabs)/explore.tsx"),/shownPacks\.map/);
+ assert.match(read("../kids/src/useKidsAdventures.ts"),/kidsApi\.packs\(token/);
  const ui=read("../kids/app/(tabs)/packs.tsx");
  assert.match(ui,/kidsApi\.packs\(token/);
  assert.match(ui,/kidsApi\.features\(token\)/);
