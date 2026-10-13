@@ -31,7 +31,7 @@ export async function myModerationInbox(p:Record<string,any>,actor:Actor|null){
       take:50,select:{id:true,targetKind:true,targetId:true,status:true,message:true,resolution:true,createdAt:true,reviewedAt:true}}),
     db().user.findUnique({where:{id:user.id},select:{publishingStatus:true,publishingRestrictedUntil:true}})
   ]);
-  return {notices,appeals,publishing:profile};
+  return {userId:user.id,notices,appeals,publishing:profile};
 }
 export async function myModerationRead(p:Record<string,any>,actor:Actor|null){
   const user=requireActor(actor);
