@@ -52,7 +52,7 @@ export async function moderationPolicyUpdate(p:Record<string,any>,actor:Actor|nu
         minimumEstablishedReporters:p.minimumEstablishedReporters,
         establishedAccountDays:p.establishedAccountDays,updatedById:admin.id}});
     await tx.auditLog.create({data:{actorId:admin.id,action:"moderation.policy_update",objectId:"default",
-      detail:{before:previous,after:p}}});
+      detail:{before:JSON.parse(JSON.stringify(previous)),after:p}}});
     return row;
   });
 }
@@ -74,10 +74,12 @@ export async function submitReport(kind:TargetKind,p:Record<string,any>,actor:Ac
     if(!item||item.publication!=="PUBLISHED"||item.safetyStatus!=="ACTIVE")
       fail(404,"not_found","Content is not available for reporting");
     if(item.authorId===user.id)fail(403,"own_report","Creators cannot report their own content");
+    let publishedVersion:number|null=null;
     if(kind==="QUIZ"){
       const loc=await tx.quizLocalization.findUnique({where:{quizId_locale:{quizId:id,locale:p.locale}}});
       if(!loc||loc.status!=="PUBLISHED"||loc.publishedVersion===null)
         fail(404,"locale_unavailable","Quiz is not published in this language");
+      publishedVersion=loc.publishedVersion;
     } else {
       const loc=await tx.quizPackLocalization.findUnique({where:{packId_locale:{packId:id,locale:p.locale}}});
       if(!loc||loc.status!=="PUBLISHED")
@@ -95,9 +97,8 @@ export async function submitReport(kind:TargetKind,p:Record<string,any>,actor:Ac
     if(quizCount+packCount>=10)fail(429,"rate_limit","Daily report limit reached");
     let report:{id:string;status:string;createdAt:Date};
     if(kind==="QUIZ"){
-      const rev=await tx.quizRevision.findFirst({where:{quizId:id,
-        localization:{locale:p.locale,status:"PUBLISHED"}},
-        orderBy:{version:"desc"}});
+      const rev=await tx.quizRevision.findFirst({where:{quizId:id,version:publishedVersion!,
+        localization:{locale:p.locale,status:"PUBLISHED"}}});
       if(!rev)fail(409,"revision_missing","Published revision unavailable");
       report=await tx.report.create({data:{quizId:id,reporterId:user.id,
         revisionId:rev.id,locale:p.locale,reason:p.reason,detail:p.detail}});
@@ -185,7 +186,7 @@ export async function moderationContentReview(p:Record<string,any>,actor:Actor|n
       fail(409,"restricted_content","Use RESTORED to lift a staff restriction");
     const next=p.decision==="RESTRICTED"?"RESTRICTED":"ACTIVE";
     const where={id:p.id,safetyStatus:target.safetyStatus,publication:"PUBLISHED"};
-    const data:Record<string,unknown>={safetyStatus:next};
+    const data:any={safetyStatus:next};
     if(kind==="QUIZ"){
       data.moderationReviewedAt=new Date();
       if(p.decision==="RESTRICTED"){
