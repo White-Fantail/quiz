@@ -855,3 +855,16 @@ a.feature-card:hover { border-color:#B4AEF7; transform:translateY(-3px); }
   .ranking-entry { gap:8px; }
   .ranking-periods button { padding:9px 12px; }
 }
+
+/* Author-defined multiple-choice answers: shared by normal play and Studio preview. */
+.guess-option-grid { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:8px 0 14px; }
+.guess-option { display:flex;align-items:center;gap:12px;min-height:64px;padding:12px 15px;
+  border:2px solid var(--border);border-radius:14px;background:#fff;color:var(--ink);
+  font:inherit;text-align:left;overflow-wrap:anywhere;cursor:pointer;transition:border-color .12s,background-color .12s; }
+.guess-option:hover:not(:disabled),.guess-option.selected { border-color:var(--purple);background:#F1EEFF; }
+.guess-option:focus-visible { outline:3px solid var(--purple);outline-offset:3px; }
+.guess-option:disabled { cursor:not-allowed;opacity:.68; }
+.guess-option-letter { flex:0 0 27px;display:grid;place-items:center;min-height:27px;
+  border-radius:50%;background:#EEECFB;font-size:.82rem;font-weight:800; }
+.guess-option.selected .guess-option-letter { background:var(--purple);color:white; }
+@media(max-width:560px){.guess-option-grid{grid-template-columns:1fr;}}
