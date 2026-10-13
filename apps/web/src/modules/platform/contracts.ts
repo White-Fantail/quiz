@@ -91,6 +91,19 @@ export const operations = {
   quiz_language_set: { public: false, description: "Confirm the original language of a legacy unclassified quiz without translating it", schema: z.object({ id: uuid, locale: localeCode, confirm: z.literal(true) }) },
   quiz_publish: { public: false, description: "Publish my quiz; explicit user confirmation needed", schema: z.object({ id: uuid, confirm: z.literal(true) }) },
   quiz_kids_request: { public:false, description:"Creator requests or withdraws Kids review without granting approval",schema:z.object({id:uuid,requested:z.boolean()}) },
+  my_moderation_inbox: {public:false,description:"Creator: private moderation notices, account status, and appeals",schema:z.object(paging)},
+  my_moderation_read: {public:false,description:"Creator: mark one of my private moderation notices as read",schema:z.object({id:uuid})},
+  my_moderation_appeal: {public:false,description:"Creator: request staff review of held content or publishing restriction",schema:z.object({
+    kind:z.enum(["QUIZ","PACK","PUBLISHER"]),targetId:z.union([uuid,userId]),
+    message:z.string().trim().min(15).max(2000),confirm:z.literal(true)
+  })},
+  admin_moderation_detail: {public:false,description:"ADMIN: inspect full report reasons, audit history and appeals",schema:z.object({kind:z.enum(["QUIZ","PACK"]),id:uuid})},
+  admin_moderation_appeals: {public:false,description:"ADMIN: review pending and resolved creator appeals",schema:z.object({
+    ...paging,status:z.enum(["OPEN","ACCEPTED","REJECTED","ALL"]).default("OPEN")
+  })},
+  admin_moderation_appeal_review: {public:false,description:"ADMIN: accept or reject a moderation appeal with a reason",schema:z.object({
+    id:uuid,decision:z.enum(["ACCEPTED","REJECTED"]),reason:z.string().trim().min(5).max(1000),confirm:z.literal(true)
+  })},
   admin_moderation_policy_get: {public:false,description:"ADMIN: read configurable non-AI report-hold policy",schema:z.object({})},
   admin_moderation_policy_update: {public:false,description:"ADMIN: change report thresholds and anti-brigading safeguards",schema:z.object({
     enabled:z.boolean(),quizReportThreshold:z.number().int().min(2).max(100),
