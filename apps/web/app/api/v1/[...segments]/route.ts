@@ -36,6 +36,14 @@ function route(method: string, segments: string[]): Match | null {
     if (b && c === "reviews" && method === "DELETE") return { op: "review_remove", args: { quizId: b } };
     if (b && c === "reports" && method === "POST") return { op: "report_create", args: { quizId: b } };
   }
+  if(a==="admin" && b==="moderation"){
+    if(c==="queue"&&!d&&method==="GET")return {op:"admin_moderation_queue",args:{}};
+    if(c==="policy"&&!d&&method==="GET")return {op:"admin_moderation_policy_get",args:{}};
+    if(c==="policy"&&!d&&method==="PATCH")return {op:"admin_moderation_policy_update",args:{}};
+    if(c==="review"&&!d&&method==="POST")return {op:"admin_moderation_review",args:{}};
+    if(c==="publishers"&&d&&!e&&method==="GET")return {op:"admin_publisher_get",args:{userId:d}};
+    if(c==="publishers"&&d&&!e&&method==="POST")return {op:"admin_publisher_set",args:{userId:d}};
+  }
   if(a==="admin" && b==="quizzes" && c==="review" && !d && method==="GET")
     return {op:"admin_quiz_review_list",args:{}};
   if(a==="admin" && b==="media" && c==="review" && !d && method==="GET")
