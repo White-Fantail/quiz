@@ -1,5 +1,6 @@
 import { db } from "./db";
 import { validateMediaReferences } from "./media";
+import { isTrustedMcpAdmin } from "./auto-approval";
 import { ratingsForQuiz } from "./ratings";
 import { packRatingFor, packRatingsFor } from "./pack-social";
 import { currentPlayableRevision } from "./content-locale";
@@ -363,7 +364,7 @@ export async function packPublishPreview(p:Record<string,any>,actor:Actor|null) 
     draftCount:drafts.length,draftIds:drafts,issues,ready:issues.length===0};
 }
 
-/** Confirmed all-or-nothing pack + owned-draft release. Never approves Kids content. */
+/** Confirmed all-or-nothing pack + owned-draft release. Pack Kids approval remains separate. */
 export async function packPublish(p:Record<string,any>,actor:Actor|null){
   const user=requireActor(actor);
   if(p.confirm!==true)fail(400,"confirmation_required","Confirm bulk publication");
@@ -392,13 +393,18 @@ export async function packPublish(p:Record<string,any>,actor:Actor|null){
       if(q.publication!=="PUBLISHED"){
         if(q.authorId!==user.id || q.sourceLocale!==pack.sourceLocale)
           fail(403,"unowned_draft","Only owned original-language drafts can be published");
-        const changed=await tx.quiz.updateMany({where:{id:q.id,publication:q.publication,currentVersion:q.currentVersion},
-          data:{publication:"PUBLISHED",kidsEligible:false,safetyStatus:"ACTIVE",kidsReviewStatus:"NOT_REQUESTED"}});
+        const autoKidsApproval = q.kidsReviewStatus !== "NOT_REQUESTED" && isTrustedMcpAdmin(user);
+        const changed=await tx.quiz.updateMany({where:{id:q.id,publication:q.publication,currentVersion:q.currentVersion,
+          kidsReviewStatus:q.kidsReviewStatus,safetyStatus:"ACTIVE"},
+          data:{publication:"PUBLISHED",kidsEligible:autoKidsApproval,safetyStatus:"ACTIVE",
+            kidsReviewStatus:q.kidsReviewStatus==="NOT_REQUESTED"?"NOT_REQUESTED":autoKidsApproval?"APPROVED":"REQUESTED"}});
         if(changed.count!==1)fail(409,"quiz_changed","Quiz changed while publishing");
         await tx.quizLocalization.updateMany({where:{quizId:q.id,locale:pack.sourceLocale},
           data:{status:"PUBLISHED",publishedVersion:q.currentVersion}});
         await tx.auditLog.create({data:{actorId:user.id,action:"pack.quiz.publish",objectId:q.id,
           detail:{packId:pack.id}}});
+        if(autoKidsApproval) await tx.auditLog.create({data:{actorId:user.id,action:"quiz.review",objectId:q.id,
+          detail:{verdict:"KIDS_APPROVED",source:"ADMIN_MCP",version:q.currentVersion,packId:pack.id}}});
       }
     }
     const changed=await tx.quizPack.updateMany({where:{id:pack.id,authorId:user.id,

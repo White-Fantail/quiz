@@ -180,7 +180,7 @@ export const operations = {
     sort: z.enum(["newest", "oldest", "name", "size"]).default("newest"),
   }) },
   media_get: { public: false, description: "Get a media asset, owner preview, thumbnail and quiz usage", schema: z.object({ id: mediaId, purpose: z.enum(["detail", "thumbnail"]).default("detail") }) },
-  media_update: { public: false, description: "Edit attribution or accessible text of my media, resetting moderation", schema: z.object({ id: mediaId, ...mediaMetadata }) },
+  media_update: { public: false, description: "Edit attribution or accessible text of my media; normal edits reset moderation", schema: z.object({ id: mediaId, ...mediaMetadata }) },
   media_delete: { public: false, description: "Delete media not needed by current revisions or unexpired plays; keep historical revision records; requires confirmation", schema: z.object({ id: mediaId, confirm: z.literal(true) }) },
   media_transform: { public: false, description: "Create an immutable derived image crop, blur or progressive reveal", schema: z.object({
     id: mediaId, crop: z.object({ left: z.number().int().min(0), top: z.number().int().min(0),
