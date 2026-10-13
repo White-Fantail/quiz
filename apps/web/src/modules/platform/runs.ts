@@ -109,7 +109,7 @@ async function startPackRun(p:Record<string,any>,actor:Actor|null) {
   // A signed-in player can resume on any device: their run capability is
   // deterministically derived server-side, never obtained from a public URL.
   const current=await db().quizPack.findFirst({
-    where:{id:p.packId,publication:"PUBLISHED",safetyStatus:{not:"RESTRICTED"},localizations:{some:{locale,status:"PUBLISHED"}}},
+    where:{id:p.packId,publication:"PUBLISHED",safetyStatus:"ACTIVE",localizations:{some:{locale,status:"PUBLISHED"}}},
     select:{id:true,currentVersion:true}
   });
   if(!current)fail(404,"pack_unavailable","Quiz pack is not published in this language");
@@ -127,7 +127,7 @@ async function startPackRun(p:Record<string,any>,actor:Actor|null) {
   const expiry=new Date(Date.now()+30*86400000);
   return db().$transaction(async tx=>{
     const pack=await tx.quizPack.findFirst({
-      where:{id:p.packId,publication:"PUBLISHED",safetyStatus:{not:"RESTRICTED"},
+      where:{id:p.packId,publication:"PUBLISHED",safetyStatus:"ACTIVE",
         currentVersion:safe.packVersion,
         localizations:{some:{locale,status:"PUBLISHED"}}},
       include:{items:{orderBy:{position:"asc"},select:{quizId:true,position:true}}}
@@ -233,7 +233,7 @@ export async function runCurrent(p:Record<string,any>,actor:Actor|null):Promise<
   if(run.status==="FINISHED") return runSummary(run);
   if(run.mode==="PACK"){
     if(!run.packId || !await db().quizPack.findFirst({where:{id:run.packId,
-      publication:"PUBLISHED",safetyStatus:{not:"RESTRICTED"},localizations:{some:{locale:run.locale,status:"PUBLISHED"}}},
+      publication:"PUBLISHED",safetyStatus:"ACTIVE",localizations:{some:{locale:run.locale,status:"PUBLISHED"}}},
       select:{id:true}}))
       fail(409,"pack_unavailable","Quiz pack is no longer published");
   }
@@ -267,8 +267,8 @@ export async function runCurrent(p:Record<string,any>,actor:Actor|null):Promise<
     fail(409,"no_more_questions","No further questions in this run");
   }
   const quiz=await db().quiz.findUnique({where:{id:round.quizId}});
-  if(!quiz || quiz.publication!=="PUBLISHED" || quiz.safetyStatus==="RESTRICTED" ||
-    (run.lane==="KIDS" && !(quiz.safetyStatus!=="RESTRICTED"&&quiz.kidsEligible&&quiz.kidsReviewStatus==="APPROVED"))){
+  if(!quiz || quiz.publication!=="PUBLISHED" || quiz.safetyStatus!=="ACTIVE" ||
+    (run.lane==="KIDS" && !(quiz.safetyStatus==="ACTIVE"&&quiz.kidsEligible&&quiz.kidsReviewStatus==="APPROVED"))){
     if(run.mode==="PACK"&&run.lane==="GENERAL")return skipWithdrawnPackRound(run,p,actor);
     fail(409,"question_suspended","This question is temporarily unavailable for safety review");
   }
