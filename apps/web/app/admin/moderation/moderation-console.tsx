@@ -4,6 +4,8 @@ import Link from "next/link";
 import {useLocale} from "../../../src/i18n/provider";
 import {localizeHref} from "../../../src/i18n/core";
 import {bilingual} from "../../../src/i18n/view-copy";
+import ModerationDetail from "./moderation-detail";
+import ModeratorAppeals from "./moderation-appeals";
 
 type Policy={enabled:boolean;quizReportThreshold:number;packReportThreshold:number;
   windowHours:number;minimumEstablishedReporters:number;establishedAccountDays:number};
@@ -146,6 +148,7 @@ export default function ModerationConsole(){
       {selected&&<div className="feature-card" style={{marginTop:20,display:"grid",gap:10}}>
         <strong>{msg("Review","심사")}: {selected.title} ({selected.kind})</strong>
         <p>{msg("Current safety state","현재 상태")}: {selected.safetyStatus}</p>
+        <ModerationDetail kind={selected.kind} id={selected.id}/>
         <label>{msg("Decision reason","심사 사유")}
           <textarea value={reason} rows={3} maxLength={1000} onChange={e=>setReason(e.target.value)}/>
         </label>
@@ -178,6 +181,7 @@ export default function ModerationConsole(){
           <button className="btn btn-outline" disabled={busy||!userId} onClick={()=>void setPublishing("ACTIVE")}>{msg("Restore publishing","게시 제한 해제")}</button>
         </div>
       </div>
+      <ModeratorAppeals/>
     </>}
   </section>;
 }
