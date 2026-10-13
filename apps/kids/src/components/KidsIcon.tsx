@@ -6,7 +6,7 @@ export type KidsIconName =
   | "home" | "compass" | "book" | "puzzle" | "star" | "sparkles"
   | "dinosaur" | "lion" | "globe" | "rocket" | "search" | "paw"
   | "dice" | "trophy" | "apple" | "shield" | "lock" | "moon"
-  | "family" | "child" | "target" | "phone" | "medal" | "whale" | "giraffe";
+  | "family" | "child" | "target" | "timer" | "phone" | "medal" | "whale" | "giraffe";
 
 // Emoji text is not reliably supported by every iOS Simulator/Android font image.
 // All decorative icons are paths/shapes, rendered by the existing react-native-svg.
@@ -17,7 +17,7 @@ const emojiIcons: Record<string, KidsIconName> = {
   "🚀": "rocket", "🔎": "search", "🐾": "paw", "🎲": "dice",
   "🏆": "trophy", "🍎": "apple", "🛡️": "shield", "🔒": "lock",
   "🌙": "moon", "👨‍👩‍👧": "family", "🧒": "child", "🎯": "target",
-  "📱": "phone", "🏅": "medal", "🥇": "medal", "🐳": "whale",
+  "📱": "phone", "⏱": "timer", "🏅": "medal", "🥇": "medal", "🐳": "whale",
   "🦒": "giraffe",
 };
 
@@ -96,6 +96,9 @@ export function KidsIcon({ name, size = 32, color = theme.colors.ink }: {
       break;
     case "target":
       shape = <><Circle cx="12" cy="12" r="9"/><Circle cx="12" cy="12" r="5.5"/><Circle cx="12" cy="12" r="2" fill={color}/></>;
+      break;
+    case "timer":
+      shape = <><Circle cx="12" cy="13" r="8.5"/><Path d="M12 8v5l3 2M9 2h6"/></>;
       break;
     case "phone":
       shape = <><Rect x="6" y="2" width="12" height="20" rx="2"/><Line x1="10" y1="18.5" x2="14" y2="18.5"/></>;
