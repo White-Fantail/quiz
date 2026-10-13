@@ -91,6 +91,27 @@ export const operations = {
   quiz_language_set: { public: false, description: "Confirm the original language of a legacy unclassified quiz without translating it", schema: z.object({ id: uuid, locale: localeCode, confirm: z.literal(true) }) },
   quiz_publish: { public: false, description: "Publish my quiz; explicit user confirmation needed", schema: z.object({ id: uuid, confirm: z.literal(true) }) },
   quiz_kids_request: { public:false, description:"Creator requests or withdraws Kids review without granting approval",schema:z.object({id:uuid,requested:z.boolean()}) },
+  admin_moderation_policy_get: {public:false,description:"ADMIN: read configurable non-AI report-hold policy",schema:z.object({})},
+  admin_moderation_policy_update: {public:false,description:"ADMIN: change report thresholds and anti-brigading safeguards",schema:z.object({
+    enabled:z.boolean(),quizReportThreshold:z.number().int().min(2).max(100),
+    packReportThreshold:z.number().int().min(2).max(100),
+    windowHours:z.number().int().min(1).max(720),
+    minimumEstablishedReporters:z.number().int().min(0).max(100),
+    establishedAccountDays:z.number().int().min(0).max(90),confirm:z.literal(true)
+  }).refine(p=>p.minimumEstablishedReporters<=Math.min(p.quizReportThreshold,p.packReportThreshold),
+    {path:["minimumEstablishedReporters"],message:"Cannot exceed either report threshold"})},
+  admin_moderation_queue: {public:false,description:"ADMIN: queue of held/reported quizzes and packs",schema:z.object({limit:z.number().int().min(1).max(100).default(50)})},
+  admin_moderation_review: {public:false,description:"ADMIN: clear, staff-restrict or restore published quizzes and packs",schema:z.object({
+    kind:z.enum(["QUIZ","PACK"]),id:uuid,decision:z.enum(["CLEARED","RESTRICTED","RESTORED"]),
+    reason:z.string().trim().max(1000).default(""),confirm:z.literal(true)
+  }).refine(p=>p.decision!=="RESTRICTED"||p.reason.length>=5,
+    {path:["reason"],message:"A restriction requires a reason"})},
+  admin_publisher_get: {public:false,description:"ADMIN: review a creator's current publication access",schema:z.object({userId})},
+  admin_publisher_set: {public:false,description:"ADMIN: restrict or restore creator publication across REST, Studio and MCP",schema:z.object({
+    userId,status:z.enum(["ACTIVE","RESTRICTED"]),until:z.iso.datetime().nullable().optional(),
+    reason:z.string().trim().max(1000).default(""),confirm:z.literal(true)
+  }).refine(p=>p.status!=="RESTRICTED"||p.reason.length>=5,
+    {path:["reason"],message:"An account restriction requires a reason"})},
   admin_quiz_review_list: { public:false,description:"ADMIN: flagged reports, negative feedback, requested Kids reviews and restrictions",schema:z.object({
     ...paging,search:z.string().trim().max(120).default(""),
     queue:z.enum(["ATTENTION","REPORTS","RATINGS","KIDS","RESTRICTED","ALL"]).default("ATTENTION")
