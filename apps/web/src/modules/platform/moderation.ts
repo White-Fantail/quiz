@@ -208,7 +208,7 @@ export async function moderationContentReview(p:Record<string,any>,actor:Actor|n
     await tx.auditLog.create({data:{actorId:admin.id,
       action:kind==="QUIZ"?"quiz.moderation_review":"pack.moderation_review",
       objectId:p.id,detail:{decision:p.decision,reason:p.reason,previous:target.safetyStatus}}});
-    return {kind,id:p.id,safetyStatus:next};
+    return {kind,id:p.id,safetyStatus:next,verdict:p.decision};
   });
 }
 
