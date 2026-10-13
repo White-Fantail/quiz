@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import sharp from "sharp";
 import { db } from "./db";
 import { fail, requireActor, type Actor } from "./auth";
+import { isTrustedMcpAdmin } from "./auto-approval";
 import {
   LIMITS, MIME_KIND, CHUNK_SIZE, partKey, readChunks, uploadTicket, previewUrl, putObject,
   deleteObject, readObject, checkSize, sniff, importExternal, objectExists,
@@ -81,9 +82,18 @@ export async function mediaComplete(p: Record<string, any>, actor: Actor | null)
   // Write exact validated buffer to a new private key. Do not use remote COPY:
   // a presigned staging PUT remains reusable until expiry and could be raced.
   await putObject(item.storageKey, bytes, item.mimeType);
-  const updated = await db().mediaAsset.updateMany({
-    where: { id: item.id, ownerId: item.ownerId, status: "UPLOADING" },
-    data: { status: "READY", uploadKey: null, uploadExpiresAt: null },
+  const autoApprove = isTrustedMcpAdmin(actor) && item.moderationStatus !== "RESTRICTED";
+  const updated = await db().$transaction(async tx => {
+    const done = await tx.mediaAsset.updateMany({
+      where: { id: item.id, ownerId: item.ownerId, status: "UPLOADING" },
+      data: { status: "READY", uploadKey: null, uploadExpiresAt: null,
+        ...(autoApprove ? { moderationStatus: "APPROVED" } : {}) },
+    });
+    if (done.count && autoApprove) await tx.auditLog.create({ data: {
+      actorId: item.ownerId, action: "media.review", objectId: item.id,
+      detail: { verdict: "APPROVED", source: "ADMIN_MCP" },
+    } });
+    return done;
   });
   if (!p.partCount) await deleteObject(item.uploadKey).catch(() => undefined);
   // Chunk objects are temporary; configure Cloudflare R2 to expire uploads/ after one day.
@@ -105,13 +115,21 @@ export async function mediaImport(p: Record<string, any>, actor: Actor | null) {
   const storageKey = `assets/${id}/original`;
   await putObject(storageKey, fetched.bytes, mimeType);
   try {
-    const item = await db().mediaAsset.create({ data: {
-      id, ownerId: user.id, kind: p.kind, mimeType,
-      originalName: p.filename, sizeBytes: fetched.bytes.length,
-      sha256: createHash("sha256").update(fetched.bytes).digest("hex"),
-      status: "READY", storageKey, sourceUrl: p.url,
-      ...safeMetadata(p),
-    } });
+    const item = await db().$transaction(async tx => {
+      const created = await tx.mediaAsset.create({ data: {
+        id, ownerId: user.id, kind: p.kind, mimeType,
+        originalName: p.filename, sizeBytes: fetched.bytes.length,
+        sha256: createHash("sha256").update(fetched.bytes).digest("hex"),
+        status: "READY", storageKey, sourceUrl: p.url,
+        moderationStatus: isTrustedMcpAdmin(user) ? "APPROVED" : "PENDING",
+        ...safeMetadata(p),
+      } });
+      if (isTrustedMcpAdmin(user)) await tx.auditLog.create({ data: {
+        actorId: user.id, action: "media.review", objectId: id,
+        detail: { verdict: "APPROVED", source: "ADMIN_MCP" },
+      } });
+      return created;
+    });
     return mediaSummary(item);
   } catch (error) {
     await deleteObject(storageKey).catch(() => undefined);
@@ -257,9 +275,16 @@ export async function mediaUpdate(p: Record<string, any>, actor: Actor | null) {
   if (old.moderationStatus === "APPROVED" && (await publishedCurrentQuizzes(old.id)).length)
     fail(409, "media_in_use", "Published quizzes use this asset; create and review a replacement first");
   if (!Object.keys(changes).length) fail(400, "nothing_to_update", "Specify metadata to change");
-  const item = await db().mediaAsset.update({ where: { id: old.id }, data: {
-    ...changes, moderationStatus: old.moderationStatus === "RESTRICTED" ? "RESTRICTED" : "PENDING",
-  } });
+  const user = requireActor(actor);
+  const autoApprove = isTrustedMcpAdmin(user) && old.status === "READY" && old.moderationStatus !== "RESTRICTED";
+  const item = await db().$transaction(async tx => {
+    const updated = await tx.mediaAsset.update({ where: { id: old.id }, data: {
+      ...changes, moderationStatus: old.moderationStatus === "RESTRICTED" ? "RESTRICTED" : autoApprove ? "APPROVED" : "PENDING",
+    } });
+    if (autoApprove) await tx.auditLog.create({data:{ actorId:user.id,action:"media.review",objectId:old.id,
+      detail:{verdict:"APPROVED",source:"ADMIN_MCP",afterMetadataUpdate:true} }});
+    return updated;
+  });
   return mediaSummary(item);
 }
 async function publishedCurrentQuizzes(id: string): Promise<string[]> {
@@ -333,13 +358,21 @@ export async function mediaTransform(p: Record<string, any>, actor: Actor | null
   const id = randomUUID(); const storageKey = `assets/${id}/original`;
   await putObject(storageKey, transformed, "image/webp");
   try {
-    const item = await db().mediaAsset.create({ data: {
-      id, ownerId: user.id, kind: "image", mimeType: "image/webp",
-      originalName: "clue-image.webp", sizeBytes: transformed.length,
-      sha256: createHash("sha256").update(transformed).digest("hex"),
-      storageKey, status: "READY", parentId: origin.id,
-      alt: origin.alt, attribution: origin.attribution, license: origin.license,
-    } });
+    const item = await db().$transaction(async tx => {
+      const created = await tx.mediaAsset.create({ data: {
+        id, ownerId: user.id, kind: "image", mimeType: "image/webp",
+        originalName: "clue-image.webp", sizeBytes: transformed.length,
+        sha256: createHash("sha256").update(transformed).digest("hex"),
+        storageKey, status: "READY", parentId: origin.id,
+        moderationStatus: isTrustedMcpAdmin(user) ? "APPROVED" : "PENDING",
+        alt: origin.alt, attribution: origin.attribution, license: origin.license,
+      } });
+      if (isTrustedMcpAdmin(user)) await tx.auditLog.create({ data: {
+        actorId: user.id, action: "media.review", objectId: id,
+        detail: { verdict: "APPROVED", source: "ADMIN_MCP", parentId: origin.id },
+      } });
+      return created;
+    });
     return mediaSummary(item);
   } catch (error) {
     await deleteObject(storageKey).catch(() => undefined);

@@ -9,6 +9,8 @@ export function fail(status: number, code: string, message: string): never { thr
 export type Actor = { id: string; role: string; displayName: string; leaderboardEligible: boolean; leaderboardOptIn: boolean;
   /** Server-internal only; no browser/MCP identity resolver may populate this field. */
   childScope?: {profileId:string;deviceId:string};
+  /** Server-only provenance set after verified MCP OAuth authentication. */
+  trustedMcpRequest?: true;
 };
 
 /**

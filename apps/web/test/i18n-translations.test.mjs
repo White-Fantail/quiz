@@ -49,7 +49,8 @@ test("localized version pointers, immutable session IDs, and translation review 
   assert.match(svc,/validateLocalizedClues\(source\.clues,fields\.clues\)/);
   assert.match(svc,/kind:\{in:\["audio","video"\]\}/);
   assert.match(svc,/created:false,published:false/);
-  assert.match(svc,/kidsEligible:false,kidsReviewStatus:/);
+  assert.match(svc,/kidsEligible:autoKidsApproval/);
+  assert.match(svc,/quiz\.kidsReviewStatus !== "NOT_REQUESTED" && isTrustedMcpAdmin\(user\)/);
   assert.doesNotMatch(svc,/safetyStatus:"PENDING"/);
   const eligibility=read("src/modules/platform/content-locale.ts");
   const play=read("src/modules/platform/play.ts");

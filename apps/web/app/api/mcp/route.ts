@@ -44,7 +44,7 @@ const authenticatedPost = requireMcpAuth(auth, async (request, claims) => {
   // expiration, PKCE-derived grant and the mcp:tools scope.
   if (typeof claims.sub !== "string" || !claims.sub)
     return Response.json({ error: "invalid_identity" }, { status: 401 });
-  const actor = await actorByIdentity(claims.sub);
+  const actor: Actor = { ...(await actorByIdentity(claims.sub)), trustedMcpRequest: true };
   // Serve both 2025-era stateless MCP clients (including Claude connector probes)
   // and 2026-07-28 per-request MCP clients without changing OAuth protection.
   const handler = createMcpHandler(() => createServer(actor), {

@@ -3,6 +3,7 @@ import { db } from "./db";
 import { ratingsForQuizzes, ratingsForQuiz } from "./ratings";
 import { fail, requireActor, type Actor } from "./auth";
 import { validateMediaReferences } from "./media";
+import { isTrustedMcpAdmin } from "./auto-approval";
 import { saveTopicLinks, topicSummaries, normalizeTopicKey, localizedTopicSummaries } from "./topics";
 import { playableQuizWhere, currentPlayableRevision } from "./content-locale";
 import type { Locale } from "../../i18n/core";
@@ -114,14 +115,16 @@ export async function quizUpdate(p: Record<string, any>, actor: Actor | null) {
   const nextClues = (p.clues ?? prior.clues) as any[];
   const nextPromptMediaIds = (p.promptMediaIds ?? prior.promptMediaIds) as string[];
   await validateMediaReferences(user.id, nextPromptMediaIds, nextClues, old.publication === "PUBLISHED");
+  const kidsRequested = p.kidsRequested !== false &&
+    (p.kidsRequested === true || old.kidsReviewStatus !== "NOT_REQUESTED");
+  const autoKidsApproval = old.publication === "PUBLISHED" && kidsRequested && isTrustedMcpAdmin(user);
   if (old.safetyStatus === "RESTRICTED")
     fail(403, "restricted_quiz", "Restricted quizzes require trusted moderation clearance");
   await db().$transaction(async tx => {
     const changed = await tx.quiz.updateMany({
       where: { id: old.id, authorId: user.id, currentVersion: p.expectedVersion, safetyStatus:old.safetyStatus },
-      data: { currentVersion: { increment: 1 }, kidsEligible: false,
-        kidsReviewStatus:p.kidsRequested===false?"NOT_REQUESTED":p.kidsRequested===true?"REQUESTED":
-          old.kidsReviewStatus==="NOT_REQUESTED"?"NOT_REQUESTED":"REQUESTED",
+      data: { currentVersion: { increment: 1 }, kidsEligible: autoKidsApproval,
+        kidsReviewStatus: !kidsRequested ? "NOT_REQUESTED" : autoKidsApproval ? "APPROVED" : "REQUESTED",
         ...(p.mode !== undefined ? { mode: p.mode } : {}),
         ...(p.answerType !== undefined ? { answerType: p.answerType } : {}),
         ...(p.creatorIntent !== undefined ? { creatorIntent: p.creatorIntent } : {}),
@@ -144,6 +147,9 @@ export async function quizUpdate(p: Record<string, any>, actor: Actor | null) {
       await saveTopicLinks(tx, old.id, existing.map(link => ({ name: link.topic.name, isSpoiler: link.isSpoiler })), p.answer, old.sourceLocale);
     }
     await tx.auditLog.create({ data: { actorId: user.id, action: modified ? "quiz.edit" : "quiz.settings", objectId: old.id } });
+    if (autoKidsApproval) await tx.auditLog.create({ data: { actorId: user.id,
+      action: "quiz.review", objectId: old.id,
+      detail: { verdict: "KIDS_APPROVED", source: "ADMIN_MCP", version: p.expectedVersion + 1 } } });
   });
   return quizGet(old.id, actor);
 }
@@ -157,6 +163,7 @@ export async function quizPublish(p: Record<string, any>, actor: Actor | null) {
     kidsReviewStatus:old.kidsReviewStatus,alreadyPublished:true };
   const currentRevision = await revision(old.id, old.currentVersion);
   await validateMediaReferences(user.id, currentRevision.promptMediaIds as string[], currentRevision.clues as any[], true);
+  const autoKidsApproval = old.kidsReviewStatus !== "NOT_REQUESTED" && isTrustedMcpAdmin(user);
   if (old.publication !== "PUBLISHED" && user.role !== "ADMIN") {
     const recent = await db().auditLog.count({ where: { actorId: user.id, action: "quiz.publish", createdAt: { gte: new Date(Date.now() - 86400000) } } });
     if (recent >= 100) fail(429, "rate_limit", "Daily publication limit reached");
@@ -165,14 +172,17 @@ export async function quizPublish(p: Record<string, any>, actor: Actor | null) {
     const checked=await tx.quiz.updateMany({
       where:{id:old.id,authorId:user.id,currentVersion:old.currentVersion,
         safetyStatus:old.safetyStatus,publication:old.publication},
-      data:{publication:"PUBLISHED",kidsEligible:false,safetyStatus:"ACTIVE",
-        kidsReviewStatus:old.kidsReviewStatus==="NOT_REQUESTED"?"NOT_REQUESTED":"REQUESTED"}
+      data:{publication:"PUBLISHED",kidsEligible:autoKidsApproval,safetyStatus:"ACTIVE",
+        kidsReviewStatus:old.kidsReviewStatus==="NOT_REQUESTED"?"NOT_REQUESTED":autoKidsApproval?"APPROVED":"REQUESTED"}
     });
     if(checked.count!==1)fail(409,"publish_conflict","Quiz changed or was restricted during publication");
     await tx.quizLocalization.updateMany({where:{quizId:old.id,locale:old.sourceLocale},data:{status:"PUBLISHED",publishedVersion:old.currentVersion}});
     await tx.auditLog.create({ data: { actorId: user.id, action: "quiz.publish", objectId: old.id } });
+    if (autoKidsApproval) await tx.auditLog.create({ data: { actorId:user.id,
+      action:"quiz.review",objectId:old.id,
+      detail:{verdict:"KIDS_APPROVED",source:"ADMIN_MCP",version:old.currentVersion} } });
   });
-  return { id: old.id, publication: "PUBLISHED", kidsReviewStatus:old.kidsReviewStatus==="NOT_REQUESTED"?"NOT_REQUESTED":"REQUESTED" };
+  return { id: old.id, publication: "PUBLISHED", kidsReviewStatus:old.kidsReviewStatus==="NOT_REQUESTED"?"NOT_REQUESTED":autoKidsApproval?"APPROVED":"REQUESTED" };
 }
 
 /** Creator intent alone never grants child access; staff must approve the request. */
@@ -182,8 +192,13 @@ export async function quizKidsRequest(p:Record<string,any>,actor:Actor|null) {
   if(!quiz)fail(404,"not_found","Quiz not found");
   if(p.requested && quiz.safetyStatus==="RESTRICTED")
     fail(409,"restricted_quiz","Restricted quizzes cannot request Kids exposure");
+  const autoKidsApproval = p.requested && quiz.publication === "PUBLISHED" && isTrustedMcpAdmin(user);
+  if (autoKidsApproval) {
+    const rev = await revision(quiz.id, quiz.currentVersion);
+    await validateMediaReferences(user.id, rev.promptMediaIds as string[], rev.clues as any[], true);
+  }
   const status=p.requested
-    ? quiz.kidsReviewStatus==="APPROVED"?"APPROVED":"REQUESTED"
+    ? autoKidsApproval || quiz.kidsReviewStatus==="APPROVED"?"APPROVED":"REQUESTED"
     : "NOT_REQUESTED";
   await db().$transaction(async tx=>{
     const updated=await tx.quiz.updateMany({where:{id:quiz.id,authorId:user.id,currentVersion:quiz.currentVersion,
@@ -192,6 +207,9 @@ export async function quizKidsRequest(p:Record<string,any>,actor:Actor|null) {
     if(updated.count!==1)fail(409,"version_conflict","Quiz changed while requesting Kids review");
     await tx.auditLog.create({data:{actorId:user.id,action:p.requested?"quiz.kids.request":"quiz.kids.withdraw",
       objectId:quiz.id,detail:{version:quiz.currentVersion,status}}});
+    if (autoKidsApproval && quiz.kidsReviewStatus !== "APPROVED")
+      await tx.auditLog.create({data:{actorId:user.id,action:"quiz.review",objectId:quiz.id,
+        detail:{verdict:"KIDS_APPROVED",source:"ADMIN_MCP",version:quiz.currentVersion}}});
   });
   return {id:quiz.id,kidsReviewStatus:status,kidsEligible:status==="APPROVED"};
 }
