@@ -78,7 +78,7 @@ async function validatePackQuestions(ids: string[], authorId: string, publish = 
   const qs = await db().quiz.findMany({ where: { id: { in: ids } },
     include: { localizations: true } });
   if (qs.length !== ids.length || qs.some(q => (q.authorId !== authorId && q.publication !== "PUBLISHED") ||
-    (q.safetyStatus === "RESTRICTED" && !existing.has(q.id)) || (publish && q.publication !== "PUBLISHED")))
+    (q.safetyStatus !== "ACTIVE" && !existing.has(q.id)) || (publish && q.publication !== "PUBLISHED")))
     fail(400, "invalid_pack", "Pack has unavailable or unpublished questions");
   if(publish && locale!=="und" && qs.some(q=>!q.localizations.some(l=>l.locale===locale && l.status==="PUBLISHED")))
     fail(409,"incomplete_pack_locale","Every question must be published in the pack language");
@@ -205,6 +205,8 @@ export async function packList(p: Record<string, any>, actor: Actor | null) {
 /** Author confirmation of a legacy pack's ORIGINAL language, never an automatic translation. */
 export async function packLanguageSet(p: Record<string, any>, actor: Actor | null) {
   const user = requireActor(actor);
+  const target=await db().quizPack.findFirst({where:{id:p.id,authorId:user.id},select:{publication:true}});
+  if(target?.publication==="PUBLISHED")await requirePublishingPermission(actor);
   return db().$transaction(async tx => {
     const old=await tx.quizPack.findFirst({where:{id:p.id,authorId:user.id},
       include:{items:true}});
@@ -401,7 +403,7 @@ export async function packPublish(p:Record<string,any>,actor:Actor|null){
       }
     }
     const changed=await tx.quizPack.updateMany({where:{id:pack.id,authorId:user.id,
-      publication:pack.publication,updatedAt:pack.updatedAt,safetyStatus:{not:"RESTRICTED"}},data:{publication:"PUBLISHED",safetyStatus:"ACTIVE",kidsEligible:false,kidsReviewStatus:"NOT_REQUESTED"}});
+      publication:pack.publication,updatedAt:pack.updatedAt,safetyStatus:"ACTIVE"},data:{publication:"PUBLISHED",safetyStatus:"ACTIVE",kidsEligible:false,kidsReviewStatus:"NOT_REQUESTED"}});
     if(changed.count!==1)fail(409,"pack_changed","Pack changed during publication");
     await tx.quizPackLocalization.updateMany({where:{packId:pack.id,locale:pack.sourceLocale},
       data:{status:"PUBLISHED"}});
@@ -419,7 +421,7 @@ export async function packKidsRequest(p:Record<string,any>,actor:Actor|null){
   const user=requireActor(actor);
   const pack=await db().quizPack.findFirst({where:{id:p.id,authorId:user.id}});
   if(!pack)fail(404,"not_found","Owned pack not found");
-  if(pack.publication!=="PUBLISHED"||pack.safetyStatus==="RESTRICTED")
+  if(pack.publication!=="PUBLISHED"||pack.safetyStatus!=="ACTIVE")
     fail(409,"pack_unavailable","Only unrestricted published packs can request Kids review");
   if(pack.kidsReviewStatus==="PENDING"||pack.kidsReviewStatus==="APPROVED")
     return {id:pack.id,kidsReviewStatus:pack.kidsReviewStatus,alreadyRequested:true};
