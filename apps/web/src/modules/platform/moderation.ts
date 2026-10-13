@@ -30,6 +30,21 @@ export async function requirePublishingPermission(actor: Actor | null) {
   fail(403, "publishing_restricted", "Your publishing access is restricted. Existing content can still be viewed.");
 }
 
+/** A row lock held through the publication transaction serializes against ADMIN account restrictions. */
+export async function assertPublishingAllowedInTx(tx:any, user:Actor) {
+  if (user.role==="ADMIN") return;
+  const rows=await tx.$queryRaw`SELECT "publishingStatus","publishingRestrictedUntil" FROM "User" WHERE "id"=${user.id} FOR SHARE` as
+    {publishingStatus:string;publishingRestrictedUntil:Date|null}[];
+  if(!rows.length)fail(401,"invalid_identity","Account not found");
+  if(rows[0].publishingStatus==="RESTRICTED" &&
+    (!rows[0].publishingRestrictedUntil || rows[0].publishingRestrictedUntil>new Date()))
+    fail(403,"publishing_restricted","This account cannot publish or modify public content");
+}
+
+async function notice(tx:any,userId:string,kind:TargetKind|"PUBLISHER",targetId:string,event:string,message:string){
+  await tx.moderationNotice.create({data:{userId,targetKind:kind,targetId,event,message}});
+}
+
 async function policyRow():Promise<PolicyRow>{
   return db().moderationPolicy.upsert({where:{id:"default"},create:{id:"default"},update:{}}) as Promise<PolicyRow>;
 }
@@ -51,9 +66,62 @@ export async function moderationPolicyUpdate(p:Record<string,any>,actor:Actor|nu
         packReportThreshold:p.packReportThreshold,windowHours:p.windowHours,
         minimumEstablishedReporters:p.minimumEstablishedReporters,
         establishedAccountDays:p.establishedAccountDays,updatedById:admin.id}});
+    const held={quizzes:0,packs:0};
+    // Re-evaluate current OPEN reports when thresholds/window change. No scheduled task or AI needed.
+    // Single transaction ensures staff never sees new rules with stale hold decisions.
+    if(row.enabled){
+      const since=new Date(Date.now()-row.windowHours*3600000);
+      const establishedBefore=new Date(Date.now()-row.establishedAccountDays*86400000);
+      const quizCandidates=await tx.$queryRaw`
+        SELECT r."quizId" AS "id" FROM "Report" r
+        JOIN "Quiz" q ON q."id"=r."quizId"
+        JOIN "User" u ON u."id"=r."reporterId"
+        WHERE r."status"='OPEN' AND r."createdAt">=${since}
+          AND q."publication"='PUBLISHED' AND q."safetyStatus"='ACTIVE'
+          AND r."reporterId"<>q."authorId"
+        GROUP BY r."quizId"
+        HAVING COUNT(DISTINCT r."reporterId")>=${row.quizReportThreshold}
+          AND COUNT(DISTINCT CASE WHEN u."createdAt"<=${establishedBefore} THEN r."reporterId" END)>=${row.minimumEstablishedReporters}
+      ` as {id:string}[];
+      const packCandidates=await tx.$queryRaw`
+        SELECT r."packId" AS "id" FROM "PackReport" r
+        JOIN "QuizPack" q ON q."id"=r."packId"
+        JOIN "User" u ON u."id"=r."reporterId"
+        WHERE r."status"='OPEN' AND r."createdAt">=${since}
+          AND q."publication"='PUBLISHED' AND q."safetyStatus"='ACTIVE'
+          AND r."reporterId"<>q."authorId"
+        GROUP BY r."packId"
+        HAVING COUNT(DISTINCT r."reporterId")>=${row.packReportThreshold}
+          AND COUNT(DISTINCT CASE WHEN u."createdAt"<=${establishedBefore} THEN r."reporterId" END)>=${row.minimumEstablishedReporters}
+      ` as {id:string}[];
+      for(const candidate of quizCandidates){
+        const q=await tx.quiz.findUnique({where:{id:candidate.id},select:{authorId:true}});
+        if(!q)continue;
+        const changed=await tx.quiz.updateMany({where:{id:candidate.id,safetyStatus:"ACTIVE",publication:"PUBLISHED"},
+          data:{safetyStatus:"UNDER_REVIEW"}});
+        if(changed.count){
+          held.quizzes++;
+          await tx.auditLog.create({data:{actorId:admin.id,action:"quiz.auto_hold",objectId:candidate.id,
+            detail:{source:"POLICY_UPDATE",policyId:"default"}}});
+          await notice(tx,q.authorId,"QUIZ",candidate.id,"UNDER_REVIEW","Quiz temporarily hidden pending staff review");
+        }
+      }
+      for(const candidate of packCandidates){
+        const q=await tx.quizPack.findUnique({where:{id:candidate.id},select:{authorId:true}});
+        if(!q)continue;
+        const changed=await tx.quizPack.updateMany({where:{id:candidate.id,safetyStatus:"ACTIVE",publication:"PUBLISHED"},
+          data:{safetyStatus:"UNDER_REVIEW"}});
+        if(changed.count){
+          held.packs++;
+          await tx.auditLog.create({data:{actorId:admin.id,action:"pack.auto_hold",objectId:candidate.id,
+            detail:{source:"POLICY_UPDATE",policyId:"default"}}});
+          await notice(tx,q.authorId,"PACK",candidate.id,"UNDER_REVIEW","Quiz pack temporarily hidden pending staff review");
+        }
+      }
+    }
     await tx.auditLog.create({data:{actorId:admin.id,action:"moderation.policy_update",objectId:"default",
-      detail:{before:JSON.parse(JSON.stringify(previous)),after:p}}});
-    return row;
+      detail:{before:JSON.parse(JSON.stringify(previous)),after:p,held}}});
+    return {...row,reevaluatedHolds:held};
   });
 }
 
@@ -125,11 +193,14 @@ export async function submitReport(kind:TargetKind,p:Record<string,any>,actor:Ac
           ?await tx.quiz.updateMany({where,data:{safetyStatus:"UNDER_REVIEW"}})
           :await tx.quizPack.updateMany({where,data:{safetyStatus:"UNDER_REVIEW"}});
         held=changed.count===1;
-        if(held)await tx.auditLog.create({data:{actorId:user.id,
-          action:kind==="QUIZ"?"quiz.auto_hold":"pack.auto_hold",objectId:id,
-          detail:{reportId:report.id,reporters:reporters.size,established,
-            threshold:kind==="QUIZ"?policy.quizReportThreshold:policy.packReportThreshold,
-            windowHours:policy.windowHours}}});
+        if(held){
+          await tx.auditLog.create({data:{actorId:user.id,
+            action:kind==="QUIZ"?"quiz.auto_hold":"pack.auto_hold",objectId:id,
+            detail:{reportId:report.id,reporters:reporters.size,established,
+              threshold:kind==="QUIZ"?policy.quizReportThreshold:policy.packReportThreshold,
+              windowHours:policy.windowHours}}});
+          await notice(tx,item.authorId,kind,id,"UNDER_REVIEW","Content temporarily hidden pending staff review");
+        }
       }
     }
     return {id:report.id,status:report.status,createdAt:report.createdAt,locale:p.locale,
@@ -208,6 +279,10 @@ export async function moderationContentReview(p:Record<string,any>,actor:Actor|n
     await tx.auditLog.create({data:{actorId:admin.id,
       action:kind==="QUIZ"?"quiz.moderation_review":"pack.moderation_review",
       objectId:p.id,detail:{decision:p.decision,reason:p.reason,previous:target.safetyStatus}}});
+    await notice(tx,target.authorId,kind,p.id,p.decision,
+      p.decision==="RESTRICTED"?"Content restricted: "+p.reason
+      :p.decision==="RESTORED"?"Content restriction lifted"
+      :"Staff review complete. Content is public again");
     return {kind,id:p.id,safetyStatus:next,verdict:p.decision};
   });
 }
@@ -240,6 +315,8 @@ export async function publisherSet(p:Record<string,any>,actor:Actor|null){
     },select:{id:true,publishingStatus:true,publishingRestrictedUntil:true}});
     await tx.auditLog.create({data:{actorId:admin.id,action:"publisher.restriction_change",objectId:p.userId,
       detail:{previous:target.publishingStatus,status:p.status,until:p.status==="RESTRICTED"?p.until??null:null,reason:p.reason}}});
+    await notice(tx,p.userId,"PUBLISHER",p.userId,p.status==="RESTRICTED"?"PUBLISHING_RESTRICTED":"PUBLISHING_RESTORED",
+      p.status==="RESTRICTED"?"Publishing restricted: "+p.reason:"Your publishing access has been restored");
     return updated;
   });
 }
