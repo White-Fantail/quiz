@@ -4,12 +4,13 @@ QuizDip uses Prisma ORM 7 and Better Auth against the same PostgreSQL database.
 
 ## Vercel Marketplace: Prisma Postgres
 
-The Prisma Postgres integration automatically sets `DATABASE_URL` in Vercel. **Do not replace or duplicate this managed variable merely because `DIRECT_URL` is absent.** According to Prisma's Vercel integration guide, the managed `DATABASE_URL` uses Prisma Postgres's built-in connection pooling.
+The Prisma Postgres integration automatically provisions `DATABASE_URL` in Vercel. For this database that URL uses the **direct** `db.prisma.io` host; preserve the managed value instead of editing it. Obtain a separate URL from Prisma Console with **Connection pooling ON** (`pooled.db.prisma.io`), then add it to Vercel as `DATABASE_URL_POOLED`.
 
-- `DATABASE_URL` (required): provided by the Prisma/Vercel integration; used for application traffic by Prisma Client, REST/MCP endpoints and Better Auth.
-- `DIRECT_URL` (optional, for migration tooling): when available, point this to the *same* database's direct endpoint (`db.prisma.io`). Prisma CLI selects `DIRECT_URL || DATABASE_URL` in `prisma.config.ts`. The Better Auth build migration likewise uses `DIRECT_URL` if set, otherwise the existing `DATABASE_URL`.
-- A separate direct URL is recommended for migration/session-continuity concerns, but **its absence does not mean the Marketplace integration is broken**. If migration commands encounter transaction-pooler errors, configure a direct URL from the same Prisma Postgres database in the Prisma Console; don't guess one or modify managed URLs.
-- Preview/staging must never share production credentials or migrations.
+- `DATABASE_URL_POOLED` (preferred application traffic): used by the shared runtime pool for Prisma Client, REST/MCP routes and Better Auth. Local development can omit it to fall back to `DATABASE_URL`.
+- `DATABASE_URL` (direct migration fallback): managed by Vercel/Prisma; used by Prisma and Better Auth migrations unless `DIRECT_URL` is configured. Keep it unchanged.
+- `DIRECT_URL` (optional): direct connection to the *same* database for migrations. Prisma CLI uses `DIRECT_URL || DATABASE_URL` from `prisma.config.ts`.
+- Production builds explicitly clear `DATABASE_URL_POOLED` in the **Better Auth migration subprocess** so the shared pool uses `DIRECT_URL || DATABASE_URL` for schema writes; regular app requests continue to use the pooled URL.
+- Preview/staging must never share production credentials or migrations. Do not commit credentials or manually change Marketplace-managed URLs.
 
 ## Application pooling
 
@@ -24,7 +25,7 @@ errors log pool counts and a sanitized error code, not credentials.
 
 ## Diagnosing FATAL 53300 / too many connections
 
-1. Confirm which *hostname* Vercel's managed production `DATABASE_URL` is using (without exposing URL credentials). Prisma Postgres's conventional pooled hostname is `pooled.db.prisma.io` and direct hostname is `db.prisma.io`.
+1. Confirm Vercel has `DATABASE_URL_POOLED` targeting `pooled.db.prisma.io` and `DATABASE_URL` targeting the direct `db.prisma.io` host (without revealing credentials).
 2. Verify application code is reusing a bounded client/pool across requests. This repository shares the pool between Better Auth and Prisma ORM.
 3. In Prisma Console, inspect connection counts, concurrency, and plan limits. If the pooler itself reaches its limit, inspect function concurrency and scale capacity as required.
 4. If errors refer to role `prisma_migration`, inspect whether migrations or a migration-role connection are consuming available connections. The role name alone does **not** prove the actual host or variable content.
