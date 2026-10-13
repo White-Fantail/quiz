@@ -14,8 +14,8 @@ export type Lane = "GENERAL" | "KIDS";
 export type RunMode = "RANDOM_FIVE" | "INFINITE" | "PACK";
 export function eligibleQuizWhere(lane: Lane): Record<string,unknown> {
   return { publication: "PUBLISHED", ...(lane === "KIDS"
-    ? { safetyStatus: { not:"RESTRICTED" }, kidsEligible: true, kidsReviewStatus:"APPROVED" }
-    : { safetyStatus: { not: "RESTRICTED" } }) };
+    ? { safetyStatus: "ACTIVE", kidsEligible: true, kidsReviewStatus:"APPROVED" }
+    : { safetyStatus: "ACTIVE" }) };
 }
 function hash(token: string) { return createHash("sha256").update(token).digest("hex"); }
 function secret(): string {
