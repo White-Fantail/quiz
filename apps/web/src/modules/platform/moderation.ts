@@ -126,7 +126,7 @@ export async function moderationPolicyUpdate(p:Record<string,any>,actor:Actor|nu
     await tx.auditLog.create({data:{actorId:admin.id,action:"moderation.policy_update",objectId:"default",
       detail:{before:JSON.parse(JSON.stringify(previous)),after:p,held}}});
     return {...row,reevaluatedHolds:held};
-  });
+  },{timeout:60000});
 }
 
 /** Prevent duplicate OPEN reports per reporter and target; serialize per-target decisions.
