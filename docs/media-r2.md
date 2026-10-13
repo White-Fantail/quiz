@@ -7,7 +7,7 @@ Media is a **first-class asset** referenced by ID from both the quiz prompt and 
 - Cloudflare **R2** private bucket (S3-compatible `@aws-sdk/client-s3`), no public read permissions.
 - Prisma `MediaAsset`: stable ID, owner, media kind/MIME, original size and SHA-256, immutable R2 key, optional parent (derived variant), source, attribution/license/alt/transcript, READY/UPLOADING/DELETED state and independent moderation PENDING/APPROVED/RESTRICTED.
 - Quiz revisions store `promptMediaIds: string[]` and ordered typed clues with `mediaId`. Text/map clues work without storage. Quiz revisions remain immutable. Assets cannot be overwritten; historical-only references no longer block media deletion while current and playable references do.
-- `play_start` returns the first clue plus prompt media IDs. `play_clue` reveals further clues. `play_media` checks the actual session's revealed-clue count and returns a **60-second signed R2 GET** URL only for APPROVED media that was actually revealed (or is in the prompt).
+- `play_start` returns the first clue plus prompt media IDs. `play_clue` reveals further clues. During active play, `play_media` checks the actual session's revealed-clue count and returns a **60-second signed R2 GET** URL only for APPROVED media that was actually revealed (or is in the prompt). When the signed session is `SOLVED` or `FAILED`, `play_review` permits read-only access to unused clues and `play_media` can sign approved assets for them, even after the next round begins. Scores never change and active future-round clues remain hidden.
 - Creator `media_get` returns a short-lived owner preview URL, including for assets pending safety moderation. Never return raw R2 credentials or object keys to callers.
 
 ## API / MCP parity
