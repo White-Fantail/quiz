@@ -210,3 +210,20 @@ Example authoring payload fragment:
 On `play_start`/`run_current`, the server returns `responseMode` and, for authored multiple-choice only, shuffled `options`. The order remains stable for a resumed session but varies across sessions. `play_guess` still accepts `guess` as a string, and multiple-choice guesses must match a supplied choice. The server grades without exposing which choice is correct. Explicit multiple-choice gets 75% of the free-text clue-based score (75 points maximum). Existing play records and legacy question scores remain unchanged.
 
 Kids native play prioritizes authored choices for every age group. For legacy free-text questions the existing age-dependent, approved-question decoy generator remains in use. Translations must preserve the answer mode and choice count; AI translation includes translated distractors and remains reviewable. Altering an approved question still creates a revision subject to Kids review. All authoring changes use existing REST/MCP operations and shared validation, with no new operation or permission.
+
+## Configurable report moderation (non-AI, dev implementation)
+
+The following ADMIN-only operations use the same authenticated `execute()` service for REST and MCP:
+
+| REST | MCP | Action |
+| --- | --- | --- |
+| GET /api/v1/admin/moderation/policy | quizdip_admin_moderation_policy_get | Inspect current report thresholds and anti-brigading settings |
+| PATCH /api/v1/admin/moderation/policy | quizdip_admin_moderation_policy_update | Update thresholds, established-user minimum and window; `confirm:true` |
+| GET /api/v1/admin/moderation/queue | quizdip_admin_moderation_queue | Quizzes and packs held for staff review or with open reports |
+| POST /api/v1/admin/moderation/review | quizdip_admin_moderation_review | Clear, restrict or restore a reported QUIZ/PACK; `confirm:true` |
+| GET /api/v1/admin/moderation/publishers/:userId | quizdip_admin_publisher_get | Inspect current account publishing access |
+| POST /api/v1/admin/moderation/publishers/:userId | quizdip_admin_publisher_set | Apply/lift timed or indefinite publishing restriction with reason, `confirm:true` |
+
+Existing `POST /api/v1/quizzes/:id/reports` / `quizdip_report_create` and `POST /api/v1/packs/:id/reports` / `quizdip_pack_report_create` now evaluate the current persisted policy after every eligible adult report. A qualifying report count changes `safetyStatus` from `ACTIVE` to `UNDER_REVIEW` and does **not** change `publication`. The `ACTIVE` gate applies to public catalogs, detail, ratings, discovery, Kids, runs and signed sessions. Staff resolves open reports and logs decisions; creator publishing restrictions gate REST, Studio and MCP publication operations.
+
+Threshold defaults and reviewer safeguards are defined in [report moderation design](report-moderation.md). No AI classifier is used. Production rollout requires database migration `20261014080000_report_moderation` and tested account-authenticated flows.
