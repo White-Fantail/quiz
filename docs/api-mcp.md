@@ -189,3 +189,24 @@ For `quizdip_quiz_review`, `quizdip_media_review` and `quizdip_admin_pack_safety
 - Eligibility: authenticated GENERAL play, first completion per user/quiz/UTC period (including wrong first completions), no authored/self plays, child device or KidPlaySingle history, restricted/unpublished quizzes, guests, or non-consenting/non-verified public identities.
 - Detective: average successful score among quizzes with at least two clues and five qualifying solves. Explorer: at least two separate successful quizzes per non-spoiler primary topic; fallback to answer type when absent. Challenge: qualified solves weighted by all-time failure percentage with at least 10 distinct registered completions and ≥40% failure, without revealing identities. Rising: accounts created within 30 days; high solver count in the selected period.
 - Public GET queries use bounded server aggregation and fail closed if an accurate full ranking exceeds the current live limits rather than reporting a partial list as complete. UTC daily/week/month boundaries use Monday as week start. No weekly challenge mode, prizes or Kids leaderboards are introduced.
+
+## Authored multiple-choice answers (backward-compatible)
+
+The existing `answer` object keeps `canonical` and `aliases`. Question create/update and manually translated drafts may optionally add `responseMode:"multiple-choice"` and `options` (2–6 distinct strings containing the canonical answer exactly once). All other options are incorrect and must not overlap aliases, including case/Unicode-normalized variants. No new Prisma columns or migration are necessary: versioned answers are already JSON. Omitted `responseMode` continues to mean free-text.
+
+Example authoring payload fragment:
+
+```json
+{
+  "answer": {
+    "canonical": "Tyrannosaurus",
+    "aliases": ["T-Rex"],
+    "responseMode": "multiple-choice",
+    "options": ["Triceratops", "Tyrannosaurus", "Stegosaurus", "Brachiosaurus"]
+  }
+}
+```
+
+On `play_start`/`run_current`, the server returns `responseMode` and, for authored multiple-choice only, shuffled `options`. The order remains stable for a resumed session but varies across sessions. `play_guess` still accepts `guess` as a string, and multiple-choice guesses must match a supplied choice. The server grades without exposing which choice is correct. Explicit multiple-choice gets 75% of the free-text clue-based score (75 points maximum). Existing play records and legacy question scores remain unchanged.
+
+Kids native play prioritizes authored choices for every age group. For legacy free-text questions the existing age-dependent, approved-question decoy generator remains in use. Translations must preserve the answer mode and choice count; AI translation includes translated distractors and remains reviewable. Altering an approved question still creates a revision subject to Kids review. All authoring changes use existing REST/MCP operations and shared validation, with no new operation or permission.
