@@ -1,10 +1,11 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
-import { isCorrectAnswer, scoreForClues } from "@quizdip/domain";
+import { isCorrectAnswer, scoreForAnswer, normalizeAnswer } from "@quizdip/domain";
 import { db } from "./db";
 import { ratingsForQuiz, myRatingForQuiz, ratingAccess } from "./ratings";
 import { fail, type Actor } from "./auth";
 import { currentPlayableRevision } from "./content-locale";
 import { completesRun } from "./run-length";
+import { publicAnswerFormat, answerResponseMode } from "./answer-options";
 
 function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
@@ -67,7 +68,8 @@ export async function playStart(p: Record<string, any>, actor: Actor | null) {
   return { sessionId: session.id, sessionToken: token, title: revision.title, prompt: revision.prompt,
     quizId:quiz.id,ratings,myRating,myTranslationRating,ratingAccess:ratingAccess(actor,quiz.authorId,session.userId),
     isTranslation:translation.origin==="TRANSLATION",
-    mode: revision.mode, locale: p.locale, quizVersion: revision.version, promptMediaIds: revision.promptMediaIds, clue: clues[0], clueIndex: 1, clueCount: clues.length };
+    mode: revision.mode, locale: p.locale, quizVersion: revision.version, promptMediaIds: revision.promptMediaIds, clue: clues[0], clueIndex: 1, clueCount: clues.length,
+    ...publicAnswerFormat(revision.answer, session.id) };
 }
 export async function playClue(p: Record<string, any>, actor: Actor | null) {
   const session = await getPlaySession(p, actor);
@@ -87,11 +89,13 @@ export async function playGuess(p: Record<string, any>, actor: Actor | null) {
   if (session.status !== "ACTIVE") fail(409, "finished", "Game has already ended");
   if (session.wrongGuesses >= session.usedClues) fail(429, "reveal_next_clue", "Reveal another clue before trying again");
   const clues = session.revision.clues as unknown[];
-  const answer = session.revision.answer as { canonical: string; aliases: string[] };
+  const answer = session.revision.answer as { canonical: string; aliases: string[]; responseMode?: "text" | "multiple-choice"; options?: string[] };
+  if (answerResponseMode(answer) === "multiple-choice" && !answer.options?.some(option => normalizeAnswer(option) === normalizeAnswer(p.guess)))
+    fail(400, "invalid_choice", "Select one of the supplied choices");
   const correct = isCorrectAnswer(answer, p.guess);
   const last = session.usedClues === clues.length;
   const failed = !correct && last;
-  const score = correct ? Math.round(scoreForClues(clues.length, session.usedClues)) : 0;
+  const score = correct ? scoreForAnswer(clues.length, session.usedClues, answer.responseMode) : 0;
   const terminal=correct || failed;
   await db().$transaction(async tx => {
     const updated = await tx.playSession.updateMany({
