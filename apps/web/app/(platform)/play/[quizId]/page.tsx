@@ -15,6 +15,7 @@ type Clue = { type: "text" | "image" | "image-reveal" | "audio" | "video" | "map
   mediaId?: string; reveal?: RevealSettings; map?: {latitude:number;longitude:number;zoom?:number} };
 type Session = { sessionId: string; sessionToken: string; title: string;
   prompt: string; promptMediaIds: string[]; clue: Clue; clueIndex: number; clueCount: number;
+  responseMode?:"text"|"multiple-choice";options?:string[];
   ratings:RatingSummary;myRating:number|null;ratingAccess:RatingAccess;isTranslation?:boolean;myTranslationRating?:number|null };
 type Media = { mediaId:string; url:string; kind:string };
 
@@ -155,11 +156,19 @@ export default function SingleQuizPage() {
         <button type="button" className="btn btn-outline" disabled={busy}
           onClick={() => void reveal()}>{msg("Reveal another clue","힌트 하나 더 볼까?")}</button>}
       {status === "ACTIVE" && <form className="guess-form" onSubmit={e => void submit(e)}>
-        <label htmlFor="single-quiz-answer">{msg("What's your answer?","정답은 무엇일까요?")}</label>
+        <label id="single-quiz-answer-label">{msg("What's your answer?","정답은 무엇일까요?")}</label>
+        {session.responseMode==="multiple-choice"&&session.options?.length?
+          <div className="guess-option-grid" role="group" aria-labelledby="single-quiz-answer-label">
+            {session.options.map((option,index)=><button key={option} type="button"
+              className={"guess-option"+(guess===option?" selected":"")} aria-pressed={guess===option}
+              disabled={busy||mustReveal} onClick={()=>setGuess(option)}>
+              <span className="guess-option-letter">{String.fromCharCode(65+index)}</span>{option}
+            </button>)}
+          </div>:
+          <input id="single-quiz-answer" aria-labelledby="single-quiz-answer-label" maxLength={200} autoComplete="off"
+            value={guess} onChange={e=>setGuess(e.target.value)}
+            disabled={busy||mustReveal} placeholder={msg("Type your answer","정답을 입력해 봐")}/>}
         <div className="guess-row">
-          <input id="single-quiz-answer" maxLength={200} autoComplete="off"
-            value={guess} onChange={e => setGuess(e.target.value)}
-            disabled={busy || mustReveal} placeholder={msg("Type your answer","정답을 입력해 봐")}/>
           <button className="btn btn-primary" type="submit"
             disabled={busy || mustReveal || !guess.trim()}>{msg("Check answer","정답 확인")}</button>
         </div>
