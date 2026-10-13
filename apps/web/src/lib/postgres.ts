@@ -4,14 +4,14 @@ import { Pool } from "pg";
  * One pg pool per warm Vercel instance, shared by Prisma and Better Auth.
  *
  * Keep the per-instance limit small: Vercel can run many instances, and
- * without a pooled DATABASE_URL they would exhaust direct DB connections.
+ * without provider pooling they could exhaust direct DB connections.
  */
 const holder = globalThis as unknown as { quizdipSharedPool?: Pool };
 
 export function databasePool(): Pool {
   if (!holder.quizdipSharedPool) {
     const pool = new Pool({
-      connectionString: process.env.DATABASE_URL || "postgresql://localhost:5432/quizdip",
+      connectionString: process.env.DATABASE_URL_POOLED || process.env.DATABASE_URL || "postgresql://localhost:5432/quizdip",
       max: 2,
       // Allow slower TLS/remote DB handshakes without increasing DB capacity.
       connectionTimeoutMillis: 15_000,
