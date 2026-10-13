@@ -319,7 +319,7 @@ export default function PlayPage({packId}:{packId?:string}={}) {
         <div className="round-progress"><span>{msg("Question ","문제 ")}{round.round}{run.total?" / "+run.total:""} </span>
           <span>{msg("Clue ","단서 ")}{round.clueIndex} / {round.clueCount}</span></div>
         <RatingBadge ratings={round.ratings}/>
-        <h2>{round.prompt}</h2>
+        <h2 className="quiz-question-prompt">{round.prompt}</h2>
         {!!round.promptMediaIds?.length&&<div className="clue-media-list">
           {round.promptMediaIds.map(id=><div key={id}>{media[id]?<MediaPart item={media[id]}/>:<p className="muted">{msg("Couldn't load the media.","미디어를 불러올 수 없어요.")}</p>}</div>)}
         </div>}
