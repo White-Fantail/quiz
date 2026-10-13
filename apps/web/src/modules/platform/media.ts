@@ -465,11 +465,14 @@ export async function validateMediaReferences(
 
 export async function signedPlayMedia(p: Record<string, any>, actor: Actor | null) {
   const { getPlaySession } = await import("./play");
-  const session = await getPlaySession(p, actor);
+  const session = await getPlaySession(p, actor, { allowCompletedRun: true });
   const promptMediaIds = session.revision.promptMediaIds as string[];
-  const visibleClues = (session.revision.clues as Array<Record<string, any>>).slice(0, session.usedClues);
+  // Only completed sessions can obtain approved media for clues not used to score.
+  const finished = session.status === "SOLVED" || session.status === "FAILED";
+  const allClues = session.revision.clues as Array<Record<string, any>>;
+  const visibleClues = finished ? allClues : allClues.slice(0, session.usedClues);
   if (!promptMediaIds.includes(p.mediaId) && !visibleClues.some(c => c.mediaId === p.mediaId))
-    fail(403, "clue_not_revealed", "This media is not an already revealed clue");
+    fail(403, "clue_not_revealed", "This media is not available to this session");
   const media = await db().mediaAsset.findUnique({ where: { id: p.mediaId } });
   if (!media || media.status !== "READY" || media.deletedAt || media.moderationStatus !== "APPROVED")
     fail(404, "media_unavailable", "Media is not approved for playback");
