@@ -13,6 +13,8 @@ model User {
   subject               String
   displayName           String
   role                  String        @default("MEMBER")
+  publishingStatus      String        @default("ACTIVE")
+  publishingRestrictedUntil DateTime?
   leaderboardEligible   Boolean       @default(false)
   leaderboardOptIn      Boolean       @default(false)
   uiLocale              String        @default("en")
@@ -241,6 +243,7 @@ model PackReport {
   status                String   @default("OPEN")
   createdAt             DateTime @default(now())
   @@index([packId, status])
+  @@index([packId, reporterId, status])
   @@index([packId, locale, reason])
   @@index([reporterId, createdAt])
 }
@@ -318,7 +321,21 @@ model Report {
   createdAt             DateTime      @default(now())
   @@index([quizId, status])
   @@index([quizId, status, createdAt])
+  @@index([quizId, reporterId, status])
   @@index([quizId, locale, reason])
+}
+
+/** Admin-configurable report hold policy; key "default" is a singleton. */
+model ModerationPolicy {
+  id                          String   @id
+  enabled                     Boolean  @default(true)
+  quizReportThreshold         Int      @default(3)
+  packReportThreshold         Int      @default(3)
+  windowHours                 Int      @default(24)
+  minimumEstablishedReporters Int      @default(2)
+  establishedAccountDays      Int      @default(7)
+  updatedById                 String?
+  updatedAt                   DateTime @updatedAt
 }
 
 model AuditLog {
