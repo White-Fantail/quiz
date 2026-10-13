@@ -78,15 +78,15 @@ export function SafeKidMedia({token,sessionId,sessionToken,mediaId,reveal}:{
      media.kind==="video"?<VideoPlayer key={media.url} url={media.url}/>:null}
   </View>;
 }
-export function KidClueView({clue,token,sessionId,sessionToken}:{
-  clue:KidClue;token:string;sessionId:string;sessionToken:string
+export function KidClueView({clue,mediaStage,token,sessionId,sessionToken}:{
+  clue:KidClue;mediaStage:KidClue|null;token:string;sessionId:string;sessionToken:string
 }){
   const {t}=useKidsLocale();
   return <View style={styles.clue}>
     {clue.text?<Text style={styles.description}>{clue.text}</Text>:null}
-    {["image","image-reveal","audio","video"].includes(clue.type)&&clue.mediaId?
-      <SafeKidMedia token={token} sessionId={sessionId} sessionToken={sessionToken} mediaId={clue.mediaId}
-        reveal={clue.type==="image-reveal"?clue.reveal:undefined}/>:
+    {mediaStage && ["image","image-reveal","audio","video"].includes(mediaStage.type)&&mediaStage.mediaId?
+      <SafeKidMedia token={token} sessionId={sessionId} sessionToken={sessionToken} mediaId={mediaStage.mediaId}
+        reveal={mediaStage.type==="image-reveal"?mediaStage.reveal:undefined}/>:
      clue.type==="map" && clue.map?<View style={styles.map}>
        <Text style={styles.pin}>📍</Text>
        <Text style={styles.description}>{t("native.media.map")}</Text>
