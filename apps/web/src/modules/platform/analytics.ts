@@ -5,7 +5,7 @@ import { publicLeaderboard, personalRankingPeriods } from "./leaderboard-service
 export async function quizStats(p:Record<string,any>,actor:Actor|null) {
   const quiz=await db().quiz.findUnique({where:{id:p.quizId}});
   if(!quiz || (quiz.authorId!==actor?.id &&
-    (quiz.publication!=="PUBLISHED" || quiz.safetyStatus==="RESTRICTED")))
+    (quiz.publication!=="PUBLISHED" || quiz.safetyStatus!=="ACTIVE")))
     fail(404,"not_found","Quiz not found");
   const loc=await db().quizLocalization.findUnique({
     where:{quizId_locale:{quizId:quiz.id,locale:p.locale}}});
