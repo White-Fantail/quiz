@@ -362,7 +362,7 @@ export default function PlayPage({packId}:{packId?:string}={}) {
         {feedback&&<div className={"feedback "+(answer&&roundScore>0?"success":"")} role="status">
           {feedback}{answer&&<p>{msg("Answer: ","정답: ")}<strong>{answer}</strong> · {roundScore}{msg(" pts","점")}</p>}
         </div>}
-        {isDone&&<button type="button" className="btn btn-primary" disabled={busy} onClick={()=>void nextRound()}>
+        {isDone&&<button type="button" className="btn btn-primary play-next-round" disabled={busy} onClick={()=>void nextRound()}>
           {endReached?msg("View final results →","최종 결과 보기 →"):msg("Next question →","다음 문제 →")}
         </button>}
         <p className="play-keyboard-help"><span aria-hidden="true">⌨</span> <kbd>Enter</kbd> {isDone?msg("Next question / results","다음 문제 / 결과 보기"):msg("Check answer · empty field: next clue","정답 확인 · 빈칸이면 다음 단서")} <span className="shortcut-divider">·</span> <kbd>Ctrl/⌘ + Enter</kbd> {isDone?msg("Next","다음"):msg("Reveal next clue","다음 단서")}</p>
