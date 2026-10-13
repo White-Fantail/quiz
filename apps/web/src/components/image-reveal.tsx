@@ -4,13 +4,6 @@ import type { CSSProperties } from "react";
 export type RevealSettings = {
   effect:"blur"|"zoom"|"spotlight"; strength:number; focusX?:number; focusY?:number;
 };
-export type RevealItem = {type:string;mediaId?:string};
-/** Keep one active image on screen as progressively clearer stages unlock. */
-export function supersededReveal(clues:RevealItem[],index:number):boolean {
-  const clue=clues[index];
-  return clue?.type==="image-reveal" && !!clue.mediaId &&
-    clues.slice(index+1).some(next=>next.type==="image-reveal"&&next.mediaId===clue.mediaId);
-}
 export function ImageReveal({src,alt,reveal}:{src:string;alt:string;reveal:RevealSettings}) {
   const strength=Math.max(0,Math.min(100,Number.isFinite(reveal.strength)?reveal.strength:100));
   const x=Math.max(0,Math.min(100,reveal.focusX??50));
