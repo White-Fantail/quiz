@@ -22,6 +22,7 @@ Creators can set a pack's `orderMode` to `CREATOR` (default) or `RANDOM`. Random
 ## Feedback and discovery
 
 - After a completed five-question run, rate questions on the result screen. One-off Discover questions can be rated as soon as they finish.
+- After each scored question, players can optionally reveal unused text, map, image, audio and video clues without changing their score. The signed session token grants read-only review of that question’s pinned revision only after `SOLVED` or `FAILED`; live future clues stay hidden.
 - Full packs have separate completion-gated pack feedback, reports and creator performance analytics, independently of question reviews.
 - Discover highlights evidence-based popularity, quality and difficulty separately from explicit, ADMIN-selected `Editor's Pick` placements.
 
