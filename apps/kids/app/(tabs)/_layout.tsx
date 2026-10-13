@@ -9,7 +9,6 @@ import { theme } from "../../src/theme";
 const tabs = [
  {name:"index",label:"kids.nav.home",emoji:"🏠"},
  {name:"explore",label:"kids.nav.explore",emoji:"🧭"},
- {name:"packs",label:"kids.nav.packs",emoji:"📚"},
  {name:"challenge",label:"kids.nav.challenge",emoji:"🧩"},
  {name:"treasures",label:"kids.nav.treasures",emoji:"⭐"},
 ] as const;
@@ -27,6 +26,7 @@ export default function KidsTabs(){
   tabBarStyle:{height:68,paddingTop:5,paddingBottom:10,backgroundColor:theme.colors.card,borderTopColor:theme.colors.outline},
   tabBarLabelStyle:{fontSize:12,fontWeight:"700"},
  }}>
+  <Tabs.Screen name="packs" options={{href:null}} />
   {tabs.map(tab=><Tabs.Screen key={tab.name} name={tab.name}
     options={{title:t(tab.label),tabBarAccessibilityLabel:t(tab.label),
       tabBarIcon:({color})=> <KidsEmojiIcon emoji={tab.emoji} size={26}
