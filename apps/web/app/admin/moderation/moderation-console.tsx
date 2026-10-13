@@ -49,8 +49,8 @@ export default function ModerationConsole(){
   },[]);
   async function action(work:()=>Promise<unknown>,message:string){
     setBusy(true);setError("");setSuccess("");
-    try{await work();await load();setSuccess(message)}
-    catch(e){setError(e instanceof Error?e.message:"Request failed")}
+    try{await work();await load();setSuccess(message);return true}
+    catch(e){setError(e instanceof Error?e.message:"Request failed");return false}
     finally{setBusy(false)}
   }
   function changeNumber(field:keyof Policy,value:string){
@@ -68,9 +68,9 @@ export default function ModerationConsole(){
       setError(msg("Enter a specific restriction reason (5+ characters).","제한 사유를 5자 이상 입력해 주세요."));return;
     }
     if(!window.confirm(msg("Confirm moderation decision?","관리자 심사 결정을 확정할까요?")))return;
-    await action(()=>api("review",request("POST",{kind:selected.kind,id:selected.id,decision,reason})),
+    const saved=await action(()=>api("review",request("POST",{kind:selected.kind,id:selected.id,decision,reason})),
       msg("Moderation decision saved.","심사 결과를 저장했습니다."));
-    setSelected(null);setReason("");
+    if(saved){setSelected(null);setReason("");}
   }
   async function setPublishing(status:"ACTIVE"|"RESTRICTED"){
     if(!userId.trim())return;
@@ -187,7 +187,7 @@ export default function ModerationConsole(){
           <button className="btn btn-outline" disabled={busy||!userId} onClick={()=>void setPublishing("ACTIVE")}>{msg("Restore publishing","게시 제한 해제")}</button>
         </div>
       </div>
-      <ModeratorAppeals/>
+      <ModeratorAppeals onReviewed={()=>void load()}/>
     </>}
   </section>;
 }
