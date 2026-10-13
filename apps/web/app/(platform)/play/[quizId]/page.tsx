@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { ImageReveal, supersededReveal, type RevealSettings } from "../../../../src/components/image-reveal";
+import { ImageReveal, type RevealSettings } from "../../../../src/components/image-reveal";
+import { activeImageStage } from "@quizdip/domain";
 import { useLocale } from "../../../../src/i18n/provider";
 import { localizeHref } from "../../../../src/i18n/core";
 import { bilingual } from "../../../../src/i18n/view-copy";
@@ -136,16 +137,19 @@ export default function SingleQuizPage() {
         {session.promptMediaIds.map(id => <div key={id}>{clueMedia(id)}</div>)}
       </div>}
       <ol className="clue-list">
-        {clues.map((clue, index) => supersededReveal(clues, index) ? null : <li key={index} style={{counterSet:`clue ${index}`}}>
+        {clues.map((clue, index) => {
+          const stage=activeImageStage(clues,index);
+          if(!stage&&!clue.text&&!clue.map)return null;
+          return <li key={index} style={{counterSet:`clue ${index}`}}>
           {clue.text && <p>{clue.text}</p>}
-          {clue.mediaId && clueMedia(clue.mediaId,clue.type==="image-reveal"?clue.reveal:undefined)}
+          {stage?.mediaId && clueMedia(stage.mediaId,stage.type==="image-reveal"?stage.reveal:undefined)}
           {clue.type === "map" && clue.map && <div className="map-clue">
             <a target="_blank" rel="noopener noreferrer"
               href={"https://www.openstreetmap.org/?mlat=" + clue.map.latitude +
                 "&mlon=" + clue.map.longitude + "#map=" + (clue.map.zoom ?? 8) +
                 "/" + clue.map.latitude + "/" + clue.map.longitude}>{msg("View map clue ↗","지도 단서 보기 ↗")}</a>
           </div>}
-        </li>)}
+        </li>})}
       </ol>
       {status === "ACTIVE" && session.clueIndex < session.clueCount &&
         <button type="button" className="btn btn-outline" disabled={busy}
