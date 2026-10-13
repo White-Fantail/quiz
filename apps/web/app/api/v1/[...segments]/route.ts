@@ -38,6 +38,9 @@ function route(method: string, segments: string[]): Match | null {
   }
   if(a==="admin" && b==="moderation"){
     if(c==="queue"&&!d&&method==="GET")return {op:"admin_moderation_queue",args:{}};
+    if(c==="appeals"&&!d&&method==="GET")return {op:"admin_moderation_appeals",args:{}};
+    if(c==="appeals"&&d&&e==="review"&&!f&&method==="POST")return {op:"admin_moderation_appeal_review",args:{id:d}};
+    if(c==="detail"&&d&&e&&!f&&method==="GET")return {op:"admin_moderation_detail",args:{kind:d,id:e}};
     if(c==="policy"&&!d&&method==="GET")return {op:"admin_moderation_policy_get",args:{}};
     if(c==="policy"&&!d&&method==="PATCH")return {op:"admin_moderation_policy_update",args:{}};
     if(c==="review"&&!d&&method==="POST")return {op:"admin_moderation_review",args:{}};
@@ -64,6 +67,11 @@ function route(method: string, segments: string[]): Match | null {
   if(a==="admin" && b==="packs" && c && d==="safety-review" && !e && method==="POST")
     return {op:"admin_pack_safety_review",args:{id:c}};
 
+  if(a==="me" && b==="moderation"){
+    if(!c && method==="GET")return {op:"my_moderation_inbox",args:{}};
+    if(c==="appeals"&&!d&&method==="POST")return {op:"my_moderation_appeal",args:{}};
+    if(c==="notices"&&d&&e==="read"&&!f&&method==="POST")return {op:"my_moderation_read",args:{id:d}};
+  }
   if(a==="me" && b==="packs" && c && !d && method==="GET")
     return {op:"my_pack_get",args:{id:c}};
   if(a==="me" && b==="packs" && c && d==="insights" && !e && method==="GET")
