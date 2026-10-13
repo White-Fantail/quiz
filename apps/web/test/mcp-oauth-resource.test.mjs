@@ -115,7 +115,7 @@ test("resource fallback cannot change other OAuth grants, endpoints or content t
 
 test("OAuth resource fallback is wired for authorization and refresh without token logging", () => {
   const source = readFileSync(new URL("../app/api/auth/[...all]/route.ts", import.meta.url), "utf8");
-  assert.match(source, /defaultMcpAuthorizationResource\\(request, mcpResource\\)/);
-  assert.match(source, /defaultMcpRefreshResource\\(authorization.request, mcpResource\\)/);
+  assert.ok(source.includes("defaultMcpAuthorizationResource(request, mcpResource)"));
+  assert.ok(source.includes("defaultMcpRefreshResource(authorization.request, mcpResource)"));
   assert.doesNotMatch(source, /mcp-oauth-trace|tokenFingerprint|summarizeOAuthResponse/);
 });
