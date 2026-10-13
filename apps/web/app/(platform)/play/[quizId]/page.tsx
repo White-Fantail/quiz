@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { ImageReveal, type RevealSettings } from "../../../../src/components/image-reveal";
+import { RemainingClues } from "../../../../src/components/remaining-clues";
 import { activeImageStage } from "@quizdip/domain";
 import { useLocale } from "../../../../src/i18n/provider";
 import { localizeHref } from "../../../../src/i18n/core";
@@ -52,11 +53,16 @@ export default function SingleQuizPage() {
   const [answer, setAnswer] = useState("");
   const [score, setScore] = useState(0);
   const [status, setStatus] = useState<"ACTIVE" | "SOLVED" | "FAILED">("ACTIVE");
+  const [remainingClues, setRemainingClues] = useState<Clue[] | null>(null);
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [reviewBusy, setReviewBusy] = useState(false);
+  const [reviewError, setReviewError] = useState("");
 
   useEffect(() => {
     let active = true;
     setSession(null); setClues([]); setMedia({}); setBusy(true); setError("");
     setGuess(""); setFeedback(""); setMustReveal(false); setAnswer(""); setScore(0); setStatus("ACTIVE");
+    setRemainingClues(null); setReviewOpen(false); setReviewBusy(false); setReviewError("");
     const kids = new URLSearchParams(window.location.search).get("kids") === "true";
     void request("/play", { quizId, kids, locale }).then((next:Session) => {
       if (!active) return;
@@ -114,6 +120,30 @@ export default function SingleQuizPage() {
     } catch (e) { setError(e instanceof Error ? e.message : msg("Could not check your answer.","정답을 확인하지 못했어요.")); }
     finally { setBusy(false); }
   }
+  async function toggleRemainingClues() {
+    if (!session || reviewBusy || status === "ACTIVE") return;
+    if (reviewOpen) { setReviewOpen(false); return; }
+    setReviewOpen(true);
+    if (remainingClues) return;
+    setReviewBusy(true); setReviewError("");
+    try {
+      const result = await request("/play/" + session.sessionId + "/review",
+        { sessionToken: session.sessionToken });
+      const unseen = result.clues as Clue[];
+      setRemainingClues(unseen);
+      await Promise.all([...new Set(unseen.map(clue => clue.mediaId).filter((id):id is string => !!id))].map(async id => {
+        try {
+          const asset = await request("/play/" + session.sessionId + "/media",
+            { sessionToken: session.sessionToken, mediaId: id });
+          setMedia(old => ({ ...old, [id]: asset }));
+        } catch { /* Restricted or missing media stays inaccessible. */ }
+      }));
+    } catch (e) {
+      setReviewError(e instanceof Error ? e.message : msg("Could not load the remaining clues.", "남은 단서를 불러오지 못했어요."));
+    } finally { setReviewBusy(false); }
+  }
+  const remainingCount = session ? Math.max(0, session.clueCount - session.clueIndex) : 0;
+
   useEffect(()=>{
     if(!session||status!=="ACTIVE"||busy||mustReveal||session.responseMode==="multiple-choice")return;
     if(window.matchMedia("(pointer: fine)").matches){
@@ -214,6 +244,19 @@ export default function SingleQuizPage() {
         {feedback}
         {status !== "ACTIVE" && <p>{msg("Answer: ","정답: ")}<strong>{answer}</strong> · {score}{msg(" pts","점")}</p>}
       </div>}
+      {status !== "ACTIVE" && remainingCount > 0 && <section className="remaining-clue-review">
+        <button type="button" className="btn btn-outline" disabled={reviewBusy}
+          aria-expanded={reviewOpen} onClick={() => void toggleRemainingClues()}>
+          {reviewOpen ? msg("Hide remaining clues", "남은 단서 접기") :
+            msg(`View remaining clues (${remainingCount})`, `남은 단서 ${remainingCount}개 보기`)}
+        </button>
+        {reviewOpen && <>
+          {reviewBusy && <p className="muted" role="status">{msg("Loading remaining clues…", "남은 단서를 불러오는 중…")}</p>}
+          {reviewError && <p role="alert" className="feedback">{reviewError}</p>}
+          {remainingClues && <RemainingClues clues={remainingClues}
+            firstClueIndex={session.clueIndex + 1} media={media} />}
+        </>}
+      </section>}
       {status !== "ACTIVE" && <div className="single-rating-review">
         <h3>{msg("How was this quiz?","이 문제는 어땠나요?")}</h3>
         <RatingButtons quizId={quizId} locale={locale} initialRating={session.myRating} access={session.ratingAccess}
