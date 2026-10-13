@@ -167,7 +167,7 @@ export default function SingleQuizPage() {
         <RatingBadge ratings={session.ratings}/>
       </div>
       <h1>{session.title}</h1>
-      <h2>{session.prompt}</h2>
+      <h2 className="quiz-question-prompt">{session.prompt}</h2>
       {session.promptMediaIds.length > 0 && <div className="clue-media-list">
         {session.promptMediaIds.map(id => <div key={id}>{clueMedia(id)}</div>)}
       </div>}
