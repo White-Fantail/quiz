@@ -3,6 +3,7 @@ import { Alert,ActivityIndicator,Pressable,StyleSheet,Text,TextInput,View } from
 import { Redirect,useRouter } from "expo-router";
 import { ApiError,type GuardianDashboard,type GuardianChildProfile } from "@quizdip/api-client";
 import { Screen,Banner } from "../src/components/Screen";
+import { KidsEmojiIcon } from "../src/components/KidsIcon";
 import { useKidsSession } from "../src/state/session";
 import { useParentAccess } from "../src/state/parent";
 import { useKidsLocale } from "../src/state/locale";
@@ -96,7 +97,7 @@ export default function GuardianDashboardScreen(){
        {data.profiles.map(p=><Pressable key={p.id} accessibilityRole="button"
          accessibilityState={{selected:selected===p.id}} onPress={()=>select(p.id)}
          style={[styles.choice,selected===p.id&&styles.chosen]}>
-           <Text style={[styles.choiceText,selected===p.id&&styles.chosenText]}>🧒 {p.nickname}</Text>
+           <View style={styles.inline}><KidsEmojiIcon emoji="🧒" size={19} color={selected===p.id?"#FFFFFF":theme.colors.ink}/><Text style={[styles.choiceText,selected===p.id&&styles.chosenText]}>{p.nickname}</Text></View>
        </Pressable>)}
        {data.profiles.length<8?<Pressable accessibilityRole="button" onPress={()=>select("new")}
          style={[styles.choice,selected==="new"&&styles.chosen]}>
@@ -142,10 +143,10 @@ export default function GuardianDashboardScreen(){
      {selectedProfile&&<View style={styles.panel}>
        <Text style={styles.heading}>{t("native.parent.weekly")}</Text>
        <View style={styles.options}>
-         <Text style={styles.metric}>🧩 {insight?.playedLast7Days??0} {t("native.parent.plays")}</Text>
-         <Text style={styles.metric}>⭐ {insight?.solvedLast7Days??0} {t("native.parent.solved")}</Text>
-         <Text style={styles.metric}>⏱ {insight?.minutesLast7Days??0} {t("native.time.minutes")}</Text>
-         <Text style={styles.metric}>🎯 {insight?.successRate??0}%</Text>
+         <View style={styles.metric}><KidsEmojiIcon emoji="🧩" size={18}/><Text style={styles.metricText}>{insight?.playedLast7Days??0} {t("native.parent.plays")}</Text></View>
+         <View style={styles.metric}><KidsEmojiIcon emoji="⭐" size={18}/><Text style={styles.metricText}>{insight?.solvedLast7Days??0} {t("native.parent.solved")}</Text></View>
+         <View style={styles.metric}><KidsEmojiIcon emoji="⏱" size={18}/><Text style={styles.metricText}>{insight?.minutesLast7Days??0} {t("native.time.minutes")}</Text></View>
+         <View style={styles.metric}><KidsEmojiIcon emoji="🎯" size={18}/><Text style={styles.metricText}>{insight?.successRate??0}%</Text></View>
        </View>
        {(insight?.usageByDay??[]).map(x=><Text key={x.day} style={styles.note}>{x.day}: {x.minutes}m</Text>)}
        <Text style={styles.label}>{t("native.parent.topics")}</Text>
@@ -154,7 +155,7 @@ export default function GuardianDashboardScreen(){
      {selectedProfile&&<View style={styles.panel}>
        <Text style={styles.heading}>{t("native.parent.devices")}</Text>
        {devices.map(d=><View key={d.id} style={styles.device}>
-         <View style={{flex:1}}><Text style={styles.label}>📱 {d.deviceName}</Text>
+         <View style={{flex:1}}><View style={styles.inline}><KidsEmojiIcon emoji="📱" size={18}/><Text style={styles.label}>{d.deviceName}</Text></View>
          <Text style={styles.note}>{new Date(d.expiresAt).toLocaleDateString()}</Text></View>
          <Pressable accessibilityRole="button" onPress={()=>confirm(t("native.parent.revoke"),
              {action:"device_revoke",id:d.id,confirm:true})}>
@@ -221,7 +222,9 @@ const styles=StyleSheet.create({
  danger:{color:theme.colors.error,fontSize:15,fontWeight:"700"},
  device:{flexDirection:"row",alignItems:"center",gap:12},
  code:{fontSize:20,fontWeight:"900",letterSpacing:1,color:theme.colors.accent,textAlign:"center"},
- metric:{backgroundColor:theme.colors.lilac,borderRadius:13,padding:12,fontSize:14,fontWeight:"800",color:theme.colors.ink},
+ inline:{flexDirection:"row",alignItems:"center",gap:7},
+ metric:{backgroundColor:theme.colors.lilac,borderRadius:13,padding:12,flexDirection:"row",alignItems:"center",gap:7},
+ metricText:{fontSize:14,fontWeight:"800",color:theme.colors.ink},
  success:{color:"#207354",fontSize:15,fontWeight:"800"},
  disabled:{opacity:0.45}
 });

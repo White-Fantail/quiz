@@ -2,6 +2,7 @@ import type { PropsWithChildren, ReactNode } from "react";
 import { ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { theme } from "../theme";
+import { KidsEmojiIcon } from "./KidsIcon";
 
 export function Screen({title,subtitle,headerAction,children}:PropsWithChildren<{title:string;subtitle?:string;headerAction?:ReactNode}>) {
   const {width}=useWindowDimensions();
@@ -21,7 +22,7 @@ export function Screen({title,subtitle,headerAction,children}:PropsWithChildren<
 }
 export function Banner({emoji,title,detail,tint=theme.colors.lilac}:{emoji:string;title:string;detail:string;tint?:string}){
  return <View style={[styles.banner,{backgroundColor:tint}]} accessible accessibilityLabel={title+". "+detail}>
-   <Text style={styles.emoji} accessibilityElementsHidden>{emoji}</Text>
+   <KidsEmojiIcon emoji={emoji} size={52}/>
    <View style={{flex:1}}><Text style={styles.bannerTitle}>{title}</Text><Text style={styles.bannerText}>{detail}</Text></View>
  </View>;
 }
@@ -35,6 +36,6 @@ const styles=StyleSheet.create({
  subtitle:{fontSize:16,color:theme.colors.muted,lineHeight:23,marginTop:8},
  content:{marginTop:22,gap:18},
  banner:{flexDirection:"row",alignItems:"center",gap:16,borderRadius:theme.radius.card,padding:22},
- emoji:{fontSize:54},bannerTitle:{color:theme.colors.ink,fontSize:22,fontWeight:"800"},
+ bannerTitle:{color:theme.colors.ink,fontSize:22,fontWeight:"800"},
  bannerText:{color:theme.colors.muted,fontSize:15,lineHeight:22,marginTop:7},
 });

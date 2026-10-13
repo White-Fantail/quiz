@@ -65,3 +65,18 @@ test("Kids home uses a personal greeting and compact PIN-guarded parents entry",
  assert.match(locales,/"native\.home\.hello": "Hello"/);
  assert.match(locales,/"native\.home\.hello": "안녕"/);
 });
+
+
+test("native Kids decorative icons are font-independent SVGs",()=>{
+ const icon=source("src/components/KidsIcon.tsx");
+ assert.match(icon,/from "react-native-svg"/);
+ for(const emoji of ["🏠","🧭","📚","🧩","⭐","✨","🦕","🦁","🌍","🚀","🔒","👨‍👩‍👧"])
+   assert.ok(icon.includes(`"${emoji}"`),`missing vector icon mapping for ${emoji}`);
+ assert.match(source("app/(tabs)/_layout.tsx"),/tabBarIcon:\(\{color\}\)=> <KidsEmojiIcon/);
+ assert.doesNotMatch(source("app/(tabs)/_layout.tsx"),/fontSize:23/);
+ for(const path of ["src/components/Screen.tsx","src/components/AdventureTile.tsx"])
+   assert.match(source(path),/<KidsEmojiIcon/);
+ for(const path of ["app/(tabs)/explore.tsx","app/(tabs)/packs.tsx","app/(tabs)/challenge.tsx",
+   "app/(tabs)/treasures.tsx","app/game.tsx","app/guardian.tsx","app/time-up.tsx"])
+   assert.match(source(path),/KidsEmojiIcon/);
+});

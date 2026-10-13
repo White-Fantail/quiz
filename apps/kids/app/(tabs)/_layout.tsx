@@ -2,7 +2,7 @@ import { Tabs, Redirect } from "expo-router";
 import { ActivityIndicator, View } from "react-native";
 import { useKidsSession } from "../../src/state/session";
 import { useKidsTime } from "../../src/state/time";
-import { Text } from "react-native";
+import { KidsEmojiIcon } from "../../src/components/KidsIcon";
 import { useKidsLocale } from "../../src/state/locale";
 import { theme } from "../../src/theme";
 
@@ -29,6 +29,6 @@ export default function KidsTabs(){
  }}>
   {tabs.map(tab=><Tabs.Screen key={tab.name} name={tab.name}
     options={{title:t(tab.label),tabBarAccessibilityLabel:t(tab.label),
-      tabBarIcon:()=> <Text style={{fontSize:23}}>{tab.emoji}</Text>}}/>)}
+      tabBarIcon:({color})=> <KidsEmojiIcon emoji={tab.emoji} size={26} color={color}/>}}/>)}
  </Tabs>;
 }

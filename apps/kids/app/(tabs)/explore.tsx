@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import type { AnswerType } from "@quizdip/domain";
 import type { KidsCatalogItem } from "@quizdip/api-client";
 import { Screen } from "../../src/components/Screen";
+import { KidsEmojiIcon } from "../../src/components/KidsIcon";
 import { kidsApi } from "../../src/services/api";
 import { useKidsSession } from "../../src/state/session";
 import { useKidsLocale } from "../../src/state/locale";
@@ -56,14 +57,15 @@ export default function ExploreScreen(){
  },[token,locale,answerType,topic,page,retry]);
  return <Screen title={t("kids.explore.title")} subtitle={t("kids.explore.lead")}>
   {topic?<Pressable accessibilityRole="button" onPress={()=>{setTopic("");setPage(0);}}>
-   <Text style={styles.clear}>🦕 {t("kids.explore.dinosaur")} × {t("kids.explore.clearTopic")}</Text>
+   <View style={styles.filterLabel}><KidsEmojiIcon emoji="🦕" size={18} color={theme.colors.accent}/>
+     <Text style={styles.clear}>{t("kids.explore.dinosaur")} × {t("kids.explore.clearTopic")}</Text></View>
   </Pressable>:null}
   <View style={styles.filters} accessibilityLabel={t("kids.explore.filters")}>
    {categories.map(item=><Pressable key={item.type} accessibilityRole="button"
      accessibilityState={{selected:answerType===item.type}}
      onPress={()=>{setAnswerType(item.type);setTopic("");setPage(0);}}
      style={[styles.filter,answerType===item.type&&styles.active]}>
-    <Text style={styles.filterText}>{item.emoji} {t(item.key)}</Text>
+    <View style={styles.filterLabel}><KidsEmojiIcon emoji={item.emoji} size={20}/><Text style={styles.filterText}>{t(item.key)}</Text></View>
    </Pressable>)}
   </View>
   {state==="loading"?<Text style={styles.message}>{t("kids.explore.loading")}</Text>:null}
@@ -75,7 +77,7 @@ export default function ExploreScreen(){
   <View style={styles.list}>
    {items.map(quiz=><Pressable key={quiz.id} accessibilityRole="button" onPress={()=>router.push({pathname:"/game",params:{quizId:quiz.id}})}
       style={styles.card} accessibilityLabel={quiz.title}>
-     <Text style={styles.cardEmoji}>{quiz.answerType==="animal"?"🐾":quiz.answerType==="place"?"🌏":"🌟"}</Text>
+     <KidsEmojiIcon emoji={quiz.answerType==="animal"?"🐾":quiz.answerType==="place"?"🌏":"🌟"} size={34}/>
      <View style={{flex:1}}>
        <Text style={styles.cardTitle}>{quiz.title}</Text>
        <Text numberOfLines={3} style={styles.cardText}>{quiz.prompt}</Text>
@@ -97,13 +99,14 @@ export default function ExploreScreen(){
 }
 const styles=StyleSheet.create({
  filters:{flexDirection:"row",flexWrap:"wrap",gap:8},
+ filterLabel:{flexDirection:"row",alignItems:"center",gap:8},
  filter:{backgroundColor:theme.colors.card,borderRadius:14,paddingHorizontal:14,paddingVertical:12},
  active:{backgroundColor:theme.colors.lilac},
  filterText:{fontSize:15,color:theme.colors.ink,fontWeight:"700"},
  clear:{color:theme.colors.accent,fontWeight:"700",fontSize:14,padding:8},
  list:{gap:12},box:{gap:12},message:{fontSize:15,color:theme.colors.muted,lineHeight:23},
  card:{flexDirection:"row",gap:14,backgroundColor:theme.colors.card,borderRadius:20,padding:17,borderColor:theme.colors.outline,borderWidth:1},
- cardEmoji:{fontSize:34},cardTitle:{fontSize:19,fontWeight:"800",color:theme.colors.ink},
+ cardTitle:{fontSize:19,fontWeight:"800",color:theme.colors.ink},
  cardText:{fontSize:14,color:theme.colors.muted,lineHeight:21,marginTop:6},
  approved:{fontSize:12,color:"#267C60",fontWeight:"700",marginTop:9},
  pagination:{flexDirection:"row",justifyContent:"space-between",alignItems:"center"},

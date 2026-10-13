@@ -3,6 +3,7 @@ import { ActivityIndicator,Pressable,StyleSheet,Text,View } from "react-native";
 import { useFocusEffect } from "expo-router";
 import type { KidTreasures } from "@quizdip/api-client";
 import { Screen,Banner } from "../../src/components/Screen";
+import { KidsEmojiIcon } from "../../src/components/KidsIcon";
 import { kidsApi } from "../../src/services/api";
 import { useKidsLocale } from "../../src/state/locale";
 import { useKidsSession } from "../../src/state/session";
@@ -37,14 +38,14 @@ export default function TreasuresScreen(){
        <Text style={styles.heading}>{t("native.treasure.badges")}</Text>
        <View style={styles.tiles}>
          {data.badges.length?data.badges.map(b=><View key={b.id} style={styles.badge}>
-           <Text style={{fontSize:35}}>{b.emoji}</Text>
+           <KidsEmojiIcon emoji={b.emoji} size={36}/>
            <Text style={styles.badgeText}>{b.id==="first"?t("native.treasure.first"):
              b.id==="five"?t("native.treasure.five"):t("native.treasure.ten")}</Text>
          </View>):<Text style={styles.note}>{t("native.treasure.firstGoal")}</Text>}
        </View>
        <Text style={styles.heading}>{t("native.treasure.discoveries")}</Text>
        {data.discoveries.length?data.discoveries.map(x=><View key={x.quizId} style={styles.card}>
-         <Text style={styles.symbol}>🌟</Text><Text style={styles.item}>{x.title}</Text>
+         <KidsEmojiIcon emoji="🌟" size={24}/><Text style={styles.item}>{x.title}</Text>
        </View>):<Text style={styles.note}>{t("native.treasure.empty")}</Text>}
      </View>:null}
  </Screen>;
@@ -58,5 +59,5 @@ const styles=StyleSheet.create({
  badge:{backgroundColor:theme.colors.peach,padding:18,borderRadius:18,alignItems:"center",gap:8,minWidth:140,flex:1},
  badgeText:{fontSize:15,fontWeight:"800",color:theme.colors.ink,textAlign:"center"},
  card:{flexDirection:"row",alignItems:"center",gap:14,padding:18,borderRadius:18,backgroundColor:theme.colors.card},
- symbol:{fontSize:23},item:{fontSize:16,fontWeight:"800",color:theme.colors.ink,flex:1}
+ item:{fontSize:16,fontWeight:"800",color:theme.colors.ink,flex:1}
 });

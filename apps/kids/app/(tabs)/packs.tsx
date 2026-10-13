@@ -3,6 +3,7 @@ import {useRouter} from "expo-router";
 import {Pressable,StyleSheet,Text,View} from "react-native";
 import type {KidPackItem,KidsFeaturedItem} from "@quizdip/api-client";
 import {Screen} from "../../src/components/Screen";
+import {KidsEmojiIcon} from "../../src/components/KidsIcon";
 import {kidsApi} from "../../src/services/api";
 import {useKidsLocale} from "../../src/state/locale";
 import {useKidsSession} from "../../src/state/session";
@@ -37,12 +38,12 @@ export default function KidsPacks(){
   </Screen>;
   return <Screen title={t("native.packs.title")} subtitle={t("native.packs.lead")}>
     {!!featured.length&&<View style={styles.section}>
-      <Text style={styles.heading}>✨ {t("native.packs.featured")}</Text>
+      <View style={styles.inline}><KidsEmojiIcon emoji="✨" size={23}/><Text style={styles.heading}>{t("native.packs.featured")}</Text></View>
       <Text style={styles.note}>{t("native.packs.curated")}</Text>
       {featured.map(item=><Pressable accessibilityRole="button" key={item.id} style={styles.feature}
         onPress={()=>router.push(item.type==="PACK"?{pathname:"/game",params:{packId:item.id}}:
           {pathname:"/game",params:{quizId:item.id}})}>
-        <Text style={styles.title}>⭐ {item.headline||item.title}</Text>
+        <View style={styles.inline}><KidsEmojiIcon emoji="⭐" size={20}/><Text style={[styles.title,{flex:1}]}>{item.headline||item.title}</Text></View>
         <Text style={styles.note}>{item.description}</Text>
         <Text style={styles.note}>{item.creator} · {item.questionCount} {t("native.packs.questions")}</Text>
       </Pressable>)}
@@ -58,7 +59,7 @@ export default function KidsPacks(){
     <View style={styles.section}>{items.map(pack=><Pressable key={pack.id}
       accessibilityRole="button" accessibilityLabel={pack.title}
       style={styles.card} onPress={()=>router.push({pathname:"/game",params:{packId:pack.id}})}>
-      <Text style={styles.emoji}>📚</Text>
+      <KidsEmojiIcon emoji="📚" size={34}/>
       <View style={{flex:1,gap:6}}>
        <Text style={styles.title}>{pack.title}</Text>
        <Text style={styles.note}>{pack.description}</Text>
@@ -80,11 +81,11 @@ export default function KidsPacks(){
   </Screen>;
 }
 const styles=StyleSheet.create({
- section:{gap:12},heading:{fontSize:20,fontWeight:"900",color:theme.colors.ink},
+ section:{gap:12},inline:{flexDirection:"row",alignItems:"center",gap:8},heading:{fontSize:20,fontWeight:"900",color:theme.colors.ink},
  card:{flexDirection:"row",gap:14,backgroundColor:theme.colors.card,padding:18,
    borderRadius:20,borderWidth:1,borderColor:theme.colors.outline},
  feature:{backgroundColor:theme.colors.lilac,padding:18,borderRadius:20,gap:7},
- emoji:{fontSize:32},title:{fontSize:18,fontWeight:"800",color:theme.colors.ink},
+ title:{fontSize:18,fontWeight:"800",color:theme.colors.ink},
  note:{fontSize:14,lineHeight:21,color:theme.colors.muted},link:{fontSize:15,
    fontWeight:"800",color:theme.colors.accent,marginTop:4},
  nav:{flexDirection:"row",justifyContent:"space-between",alignItems:"center"},

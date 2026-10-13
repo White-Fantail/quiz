@@ -1,6 +1,7 @@
 import { ActivityIndicator,Pressable,StyleSheet,Text,View } from "react-native";
 import { Redirect,useRouter } from "expo-router";
 import { Screen,Banner } from "../src/components/Screen";
+import { KidsEmojiIcon } from "../src/components/KidsIcon";
 import { useKidsTime } from "../src/state/time";
 import { useKidsSession } from "../src/state/session";
 import { useKidsLocale } from "../src/state/locale";
@@ -23,12 +24,13 @@ export default function TimeUp(){
        <Text style={styles.buttonText}>{t("native.time.retry")}</Text>
      </Pressable>
      <Pressable accessibilityRole="button" onPress={()=>router.push("/parent")} style={styles.secondary}>
-       <Text style={styles.secondaryText}>🔒 {t("native.guardian.open")}</Text>
+       <View style={styles.inline}><KidsEmojiIcon emoji="🔒" size={19}/><Text style={styles.secondaryText}>{t("native.guardian.open")}</Text></View>
      </Pressable>
    </View>
  </Screen>;
 }
 const styles=StyleSheet.create({
+ inline:{flexDirection:"row",alignItems:"center",justifyContent:"center",gap:8},
  panel:{gap:16,padding:20,borderRadius:20,backgroundColor:theme.colors.card},
  detail:{color:theme.colors.ink,fontWeight:"800",fontSize:18,textAlign:"center"},
  button:{padding:17,backgroundColor:theme.colors.accent,borderRadius:16,alignItems:"center"},

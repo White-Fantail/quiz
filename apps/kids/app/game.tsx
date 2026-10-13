@@ -5,6 +5,7 @@ import * as SecureStore from "expo-secure-store";
 import type { KidQuestion,KidRunResult,KidGuessResult } from "@quizdip/api-client";
 import { ApiError } from "@quizdip/api-client";
 import { Screen } from "../src/components/Screen";
+import { KidsEmojiIcon } from "../src/components/KidsIcon";
 import { KidClueView,SafeKidMedia } from "../src/components/KidClueView";
 import { useKidsLocale } from "../src/state/locale";
 import { useKidsSession } from "../src/state/session";
@@ -158,13 +159,13 @@ export default function KidGameScreen(){
  </Screen>;
  if(summary)return <Screen title={t("native.play.complete")}>
    <View style={styles.results}>
-     <Text style={styles.big}>🏆</Text>
+     <KidsEmojiIcon emoji="🏆" size={65} color={theme.colors.accent}/>
      <Text style={styles.heading}>{t("native.play.wellDone")}</Text>
      <Text style={styles.score}>{summary.score} {t("native.play.points")}</Text>
      <Text style={styles.note}>{summary.solved} / {summary.completed} {t("native.play.correct")}</Text>
    </View>
    <Pressable accessibilityRole="button" onPress={()=>router.replace("/treasures")} style={styles.button}>
-     <Text style={styles.buttonText}>⭐ {t("kids.nav.treasures")}</Text>
+     <View style={styles.inline}><KidsEmojiIcon emoji="⭐" size={20} color="#FFFFFF"/><Text style={styles.buttonText}>{t("kids.nav.treasures")}</Text></View>
    </Pressable>
    <Pressable accessibilityRole="button" onPress={()=>router.replace(reference?.kind==="run"&&reference.mode==="PACK"?"/packs":"/challenge")} style={styles.secondary}>
      <Text style={styles.secondaryText}>{t("native.play.back")}</Text>
@@ -183,7 +184,7 @@ export default function KidGameScreen(){
  return <Screen title={question.title} subtitle={question.prompt}>
    {reminderNumber>0 && reminderNumber!==dismissedBreak?<Pressable accessibilityRole="button"
      style={styles.restNotice} onPress={()=>setDismissedBreak(reminderNumber)}>
-     <Text style={styles.restText}>🍎 {t("native.time.reminder")}</Text>
+     <View style={styles.inline}><KidsEmojiIcon emoji="🍎" size={22}/><Text style={styles.restText}>{t("native.time.reminder")}</Text></View>
      <Text style={styles.note}>{t("native.time.dismiss")}</Text>
    </Pressable>:null}
    <View style={styles.progress}>
@@ -197,7 +198,7 @@ export default function KidGameScreen(){
    {(question.clues??[]).map((clue,i)=>clue.type==="image-reveal" && 
      question.clues.slice(i+1).some(next=>next.type==="image-reveal"&&next.mediaId===clue.mediaId)
        ?null:<View key={clue.id??String(i)} style={{gap:8}}>
-     <Text style={styles.hintLabel}>✨ {t("native.play.hint")} {i+1}</Text>
+     <View style={styles.inline}><KidsEmojiIcon emoji="✨" size={18} color={theme.colors.accent}/><Text style={styles.hintLabel}>{t("native.play.hint")} {i+1}</Text></View>
      <KidClueView clue={clue} token={token!} sessionId={question.sessionId}
        sessionToken={question.sessionToken}/>
    </View>)}
@@ -228,12 +229,12 @@ export default function KidGameScreen(){
      </>:null}
      {question.clueIndex<question.clueCount?
        <Pressable accessibilityRole="button" disabled={pending} style={styles.secondary} onPress={clue}>
-         <Text style={styles.secondaryText}>✨ {t("native.play.reveal")}</Text>
+         <View style={styles.inline}><KidsEmojiIcon emoji="✨" size={19}/><Text style={styles.secondaryText}>{t("native.play.reveal")}</Text></View>
        </Pressable>:null}
    </>:null}
    {reportNotice?<Text accessibilityRole="alert" style={styles.note}>{reportNotice}</Text>:null}
    <Pressable accessibilityRole="button" onPress={()=>setReportOpen(v=>!v)} style={styles.reportButton}>
-     <Text style={styles.reportText}>🛡️ {t("native.report.title")}</Text>
+     <View style={styles.inline}><KidsEmojiIcon emoji="🛡️" size={18} color={theme.colors.muted}/><Text style={styles.reportText}>{t("native.report.title")}</Text></View>
    </Pressable>
    {reportOpen?<View style={styles.reportChoices}>
      <Text style={styles.note}>{t("native.report.help")}</Text>
@@ -253,6 +254,7 @@ export default function KidGameScreen(){
  </Screen>;
 }
 const styles=StyleSheet.create({
+ inline:{flexDirection:"row",alignItems:"center",justifyContent:"center",gap:8},
  reportButton:{alignItems:"center",padding:14,borderRadius:14,backgroundColor:theme.colors.card},
  reportChoices:{backgroundColor:theme.colors.card,padding:16,borderRadius:18,gap:12},
  reportText:{fontSize:14,fontWeight:"700",color:theme.colors.muted},
@@ -263,7 +265,7 @@ const styles=StyleSheet.create({
  hintLabel:{color:theme.colors.accent,fontWeight:"800",fontSize:15,paddingStart:5},
  note:{color:theme.colors.muted,fontSize:16,lineHeight:23},
  results:{backgroundColor:theme.colors.lilac,padding:30,borderRadius:24,alignItems:"center",gap:14},
- big:{fontSize:60},heading:{fontSize:26,fontWeight:"900",color:theme.colors.ink},
+ heading:{fontSize:26,fontWeight:"900",color:theme.colors.ink},
  score:{fontSize:34,color:theme.colors.accent,fontWeight:"900"},
  button:{padding:17,borderRadius:18,backgroundColor:theme.colors.accent,alignItems:"center"},
  buttonText:{fontSize:18,fontWeight:"900",color:"#FFFFFF"},
