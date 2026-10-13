@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { ImageReveal, supersededReveal, type RevealSettings } from "../../../src/components/image-reveal";
+import { ImageReveal, type RevealSettings } from "../../../src/components/image-reveal";
+import { activeImageStage } from "@quizdip/domain";
 import { useLocale } from "../../../src/i18n/provider";
 import { localizeHref } from "../../../src/i18n/core";
 import { bilingual } from "../../../src/i18n/view-copy";
@@ -280,15 +281,18 @@ export default function PlayPage({packId}:{packId?:string}={}) {
           {round.promptMediaIds.map(id=><div key={id}>{media[id]?<MediaPart item={media[id]}/>:<p className="muted">{msg("Couldn't load the media.","미디어를 불러올 수 없어요.")}</p>}</div>)}
         </div>}
         <ol className="clue-list">
-          {round.clues.map((clue,i)=>supersededReveal(round.clues,i)?null:<li key={clue.id||i} style={{counterSet:`clue ${i}`}}>
+          {round.clues.map((clue,i)=>{
+            const stage=activeImageStage(round.clues,i);
+            if(!stage&&!clue.text&&!clue.map)return null;
+            return <li key={clue.id||i} style={{counterSet:`clue ${i}`}}>
             {clue.text&&<p>{clue.text}</p>}
             {clue.type==="map"&&clue.map&&<div className="map-clue">
               <span>{msg("Map clue · latitude ","지도 단서 · 위도 ")}{clue.map.latitude}{msg(", longitude ",", 경도 ")}{clue.map.longitude}</span>
               <a href={`https://www.openstreetmap.org/?mlat=${clue.map.latitude}&mlon=${clue.map.longitude}#map=${clue.map.zoom||8}/${clue.map.latitude}/${clue.map.longitude}`}
                 target="_blank" rel="noopener noreferrer">{msg("View map ↗","지도에서 보기 ↗")}</a>
             </div>}
-            {clue.mediaId&&(media[clue.mediaId]?<MediaPart item={media[clue.mediaId]} reveal={clue.type==="image-reveal"?clue.reveal:undefined}/>:<p className="muted">{msg("Media is unavailable.","미디어가 제공되지 않았어요.")}</p>)}
-          </li>)}
+            {stage?.mediaId&&(media[stage.mediaId]?<MediaPart item={media[stage.mediaId]} reveal={stage.type==="image-reveal"?stage.reveal:undefined}/>:<p className="muted">{msg("Media is unavailable.","미디어가 제공되지 않았어요.")}</p>)}
+          </li>})}
         </ol>
         {!isDone&&round.clueIndex<round.clueCount&&
           <button type="button" className="btn btn-outline" disabled={busy} onClick={()=>void reveal()}>
