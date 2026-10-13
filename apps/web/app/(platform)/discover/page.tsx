@@ -157,7 +157,7 @@ export default function DiscoverPage() {
               <span className="small-tag">{locale === "en" ? (typeLabelsEn[quiz.answerType] || "Quiz") : (kind?.label ?? "퀴즈")}</span>
             </div>
             <h3>{quiz.title}</h3>
-            <p>{quiz.prompt}</p>
+            <p className="discover-card-description">{quiz.prompt}</p>
             <div className="discover-tags">
               {publicTopics(quiz).slice(0, 5).map(item =>
                 <button type="button" key={item.id ?? item.key ?? item.name}
