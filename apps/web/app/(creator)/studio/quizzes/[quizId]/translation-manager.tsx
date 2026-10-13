@@ -118,7 +118,7 @@ export default function TranslationManager({quizId}:{quizId:string}){
         <label className="studio-wide">{message("정답","Canonical answer")}
           <input maxLength={200} required value={fields.answer.canonical}
             onChange={e=>edit(v=>({...v,answer:{...v.answer,canonical:e.target.value,
-              ...(v.answer.responseMode==="multiple-choice"?{options:[e.target.value,...(v.answer.options??[]).filter(option=>option!==v.answer.canonical)]}:{})}}))}/>
+              ...(v.answer.responseMode==="multiple-choice"?{options:[e.target.value,...(v.answer.options??[]).slice(1)]}:{})}}))}/>
         </label>
         {source.fields.answer.responseMode==="multiple-choice"&&<label className="studio-wide">
           {message("번역된 오답 선택지 · 한 줄에 하나씩","Translated incorrect choices · one per line")}
