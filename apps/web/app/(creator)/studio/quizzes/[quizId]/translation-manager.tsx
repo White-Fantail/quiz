@@ -5,7 +5,7 @@ import {useLocale} from "../../../../../src/i18n/provider";
 type Locale = "en"|"ko";
 type Clue = {type:"text"|"image"|"audio"|"video"|"map";text?:string;mediaId?:string;
   map?:{latitude:number;longitude:number;zoom?:number}};
-type Fields = {title:string;prompt:string;answer:{canonical:string;aliases:string[]};clues:Clue[]};
+type Fields = {title:string;prompt:string;answer:{canonical:string;aliases:string[];responseMode?:"text"|"multiple-choice";options?:string[]};clues:Clue[]};
 type Version = {locale:string;currentVersion:number;publishedVersion:number|null;
   status:string;sourceRevisionId:string|null;stale:boolean;hasUnpublishedChanges:boolean;
   fields?:Fields|null};
@@ -22,7 +22,9 @@ async function request(path:string,method="GET",body?:unknown):Promise<any>{
   return result.data;
 }
 function editableFromSource(fields:Fields):Fields{
-  return {title:"",prompt:"",answer:{canonical:"",aliases:[]},
+  return {title:"",prompt:"",answer:{canonical:"",aliases:[],
+    ...(fields.answer.responseMode==="multiple-choice"?{responseMode:"multiple-choice" as const,
+      options:Array.from({length:fields.answer.options?.length??0},()=> "")}:{})},
     clues:fields.clues.map(c=>({...c,text:""}))};
 }
 export default function TranslationManager({quizId}:{quizId:string}){
@@ -115,8 +117,19 @@ export default function TranslationManager({quizId}:{quizId:string}){
         </label>
         <label className="studio-wide">{message("정답","Canonical answer")}
           <input maxLength={200} required value={fields.answer.canonical}
-            onChange={e=>edit(v=>({...v,answer:{...v.answer,canonical:e.target.value}}))}/>
+            onChange={e=>edit(v=>({...v,answer:{...v.answer,canonical:e.target.value,
+              ...(v.answer.responseMode==="multiple-choice"?{options:[e.target.value,...(v.answer.options??[]).filter(option=>option!==v.answer.canonical)]}:{})}}))}/>
         </label>
+        {source.fields.answer.responseMode==="multiple-choice"&&<label className="studio-wide">
+          {message("번역된 오답 선택지 · 한 줄에 하나씩","Translated incorrect choices · one per line")}
+          <textarea rows={5} value={(fields.answer.options??[]).filter(option=>option!==fields.answer.canonical).join("\n")}
+            onChange={e=>edit(v=>({...v,answer:{...v.answer,responseMode:"multiple-choice",
+              options:[v.answer.canonical,...e.target.value.split("\n")]}}))}/>
+          <span className="muted">{message(
+            "원본과 동일한 오답 개수와 의미를 유지하세요. 정답은 위 입력값으로 자동 포함됩니다.",
+            "Keep the same number and meaning of incorrect choices as the original. The canonical answer is included automatically."
+          )}</span>
+        </label>}
         <label className="studio-wide">{message("인정할 다른 정답 · 줄바꿈으로 구분","Accepted answer aliases · one per line")}
           <textarea rows={2} value={fields.answer.aliases.join("\n")}
             onChange={e=>edit(v=>({...v,answer:{...v.answer,aliases:e.target.value.split("\n").map(x=>x.trim()).filter(Boolean)}}))}/>
