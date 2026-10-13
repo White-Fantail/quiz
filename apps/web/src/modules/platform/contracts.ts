@@ -181,7 +181,7 @@ export const operations = {
   my_quizzes: { public: false, description: "Search, filter and paginate only my authored quizzes. Returns total count and lightweight feedback totals.", schema: z.object({
     ...paging, search: z.string().trim().max(120).default(""),
     publication: z.enum(["all","DRAFT","PUBLISHED","HIDDEN"]).default("all"),
-    safety: z.enum(["all","ACTIVE","RESTRICTED"]).default("all"),
+    safety: z.enum(["all","ACTIVE","UNDER_REVIEW","RESTRICTED"]).default("all"),
     sort: z.enum(["newest","oldest"]).default("newest")
   }) },
   my_quiz_insights: { public: false, description: "Private owner-only play results, rating summary, anonymized report counts and paginated quiz feedback across revisions", schema: z.object({ quizId: uuid, locale: z.enum(["en","ko","und","all"]).default("all"), ...paging }) },
