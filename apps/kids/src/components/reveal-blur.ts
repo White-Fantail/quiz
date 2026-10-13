@@ -10,7 +10,7 @@ export function nativeRevealBlurRadius(strength: number, platform: string): numb
   // Unknown input must not accidentally reveal a concealed answer.
   const value = Number.isFinite(strength) ? Math.max(0, Math.min(100, strength)) : 100;
   if (value === 0) return 0;
-  const factor = platform === "ios" ? 0.9 : platform === "android" ? 0.65 : 0.3;
-  const maxRadius = platform === "ios" ? 60 : platform === "android" ? 50 : 30;
+  const factor = platform === "ios" ? 1.45 : platform === "android" ? 1.0 : 0.3;
+  const maxRadius = platform === "ios" ? 72 : platform === "android" ? 60 : 30;
   return Math.min(maxRadius, Math.round(value * factor * 10) / 10);
 }
