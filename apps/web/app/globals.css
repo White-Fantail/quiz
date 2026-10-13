@@ -226,7 +226,9 @@ a.feature-card:hover { border-color:#B4AEF7; transform:translateY(-3px); }
 .discover-grid { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:19px;margin:24px 0; }
 .discover-card { display:flex;flex-direction:column;min-width:0; }
 .discover-card h3 { font-size:1.3rem;margin:18px 0 10px;overflow-wrap:anywhere; }
-.discover-card p { min-height:0; flex:1;white-space:normal;overflow-wrap:anywhere; }
+.discover-card p { min-height:0;white-space:normal;overflow-wrap:anywhere; }
+/* Keep long blurbs inside their own line box; metadata remains in normal flow. */
+.discover-card-description { display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:4;overflow:hidden; }
 .discover-card-top { display:flex;justify-content:space-between;align-items:start; }
 .discover-tags { display:flex;gap:7px;flex-wrap:wrap;margin:12px 0; }
 .discover-topic { border:0;background:#EEEBFF;color:#493CCA;padding:5px 9px;border-radius:999px;font-size:.78rem;font-weight:700; }
