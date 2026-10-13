@@ -29,6 +29,7 @@ export default function KidsTabs(){
  }}>
   {tabs.map(tab=><Tabs.Screen key={tab.name} name={tab.name}
     options={{title:t(tab.label),tabBarAccessibilityLabel:t(tab.label),
-      tabBarIcon:({color})=> <KidsEmojiIcon emoji={tab.emoji} size={26} color={color}/>}}/>)}
+      tabBarIcon:({color})=> <KidsEmojiIcon emoji={tab.emoji} size={26}
+        color={typeof color==="string"?color:theme.colors.ink}/>}}/>)}
  </Tabs>;
 }
