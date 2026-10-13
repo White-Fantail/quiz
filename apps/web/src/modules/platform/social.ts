@@ -376,6 +376,7 @@ export async function packPublish(p:Record<string,any>,actor:Actor|null){
   const preview=await packPublishPreview(p,actor);
   if(!preview.ready)fail(409,"pack_not_ready",preview.issues.join(", "));
   return db().$transaction(async tx=>{
+    await assertPublishingAllowedInTx(tx,user);
     const pack=await tx.quizPack.findFirst({where:{id:p.id,authorId:user.id},
       include:{items:{orderBy:{position:"asc"}}}});
     if(!pack)fail(404,"not_found","Pack no longer exists");
@@ -434,7 +435,7 @@ export async function packKidsRequest(p:Record<string,any>,actor:Actor|null){
   return db().$transaction(async tx=>{
     const changed=await tx.quizPack.updateMany({where:{id:pack.id,authorId:user.id,
       currentVersion:pack.currentVersion,updatedAt:pack.updatedAt,publication:"PUBLISHED",
-      safetyStatus:{not:"RESTRICTED"}},data:{kidsReviewStatus:"PENDING",kidsEligible:false}});
+      safetyStatus:"ACTIVE"},data:{kidsReviewStatus:"PENDING",kidsEligible:false}});
     if(changed.count!==1)fail(409,"pack_conflict","Pack changed; reload before requesting review");
     await tx.auditLog.create({data:{actorId:user.id,objectId:pack.id,
       action:"pack.kids.review.request",detail:{version:pack.currentVersion}}});
@@ -446,7 +447,7 @@ export async function packKidsRequest(p:Record<string,any>,actor:Actor|null){
 export async function packGet(p:Record<string,any>,actor:Actor|null){
   const locale=p.locale as "en"|"ko";
   const pack=await db().quizPack.findFirst({
-    where:{id:p.id,publication:"PUBLISHED",safetyStatus:{not:"RESTRICTED"},
+    where:{id:p.id,publication:"PUBLISHED",safetyStatus:"ACTIVE",
       localizations:{some:{locale,status:"PUBLISHED"}}},
     include:{author:{select:{id:true,displayName:true}},
       localizations:{where:{locale,status:"PUBLISHED"},select:{title:true,description:true}},
