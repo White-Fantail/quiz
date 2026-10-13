@@ -16,7 +16,7 @@ const initialPolicy:Policy={enabled:true,quizReportThreshold:3,packReportThresho
 async function api(path:string,init?:RequestInit){
   const response=await fetch("/api/v1/admin/moderation/"+path,{
     credentials:"same-origin",cache:"no-store",...init,
-    headers:{"content-type":"application/json",...(init?.headers||{})}});
+    headers:{"content-type":"application/json"}});
   const body=await response.json().catch(()=>({}));
   if(!response.ok)throw Error(body.message||body.error||"Request failed");
   return body.data;
@@ -117,7 +117,7 @@ export default function ModerationConsole(){
         {" "}{msg("Enable automatic holds","자동 보류 활성화")}</label></p>
       <button className="btn btn-primary" type="button" disabled={busy}
         onClick={()=>{if(window.confirm(msg("Save thresholds?","변경한 임계치를 저장할까요?")))
-          void action(()=>api("policy",request("PATCH",policy)),
+          void action(()=>api("policy",request("PATCH",{...policy})),
             msg("Policy saved.","정책 설정을 저장했습니다."));}}>
         {msg("Save policy","설정 저장")}
       </button>
