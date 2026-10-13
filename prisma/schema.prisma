@@ -29,6 +29,8 @@ model User {
   sessions              PlaySession[]
   reviews               Review[]
   reports               Report[]
+  moderationNotices     ModerationNotice[]
+  moderationAppeals     ModerationAppeal[]
   mediaAssets           MediaAsset[]
   playRuns              PlayRun[]
   creatorReviewsReceived CreatorReview[] @relation("CreatorReceived")
@@ -338,6 +340,39 @@ model ModerationPolicy {
   updatedAt                   DateTime @updatedAt
 }
 
+/** Private creator notification; never include reporter identities in messages. */
+model ModerationNotice {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  targetKind  String
+  targetId    String
+  event       String
+  message     String    @default("")
+  createdAt   DateTime  @default(now())
+  readAt      DateTime?
+  @@index([userId, createdAt])
+  @@index([userId, readAt])
+}
+
+/** Creator appeals do not directly change trusted moderation decisions. */
+model ModerationAppeal {
+  id           String    @id @default(uuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  targetKind   String
+  targetId     String
+  message      String
+  status       String    @default("OPEN")
+  resolution   String    @default("")
+  reviewedById String?
+  reviewedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+  @@index([targetKind, targetId, status])
+}
+
 model AuditLog {
   id                    String        @id @default(uuid())
   actorId               String
@@ -346,6 +381,7 @@ model AuditLog {
   detail                Json?
   createdAt             DateTime      @default(now())
   @@index([actorId, createdAt])
+  @@index([objectId, action, createdAt])
 }
 
 model CreatorReview {
