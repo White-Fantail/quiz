@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { db } from "./db";
 import { fail, requireActor, type Actor } from "./auth";
 import { validateMediaReferences } from "./media";
+import { isTrustedMcpAdmin } from "./auto-approval";
 import { translationFields, type TranslationFields } from "./contracts";
 import { detectContentLocale } from "./translation-language";
 import type { Locale } from "../../i18n/core";
@@ -145,17 +146,21 @@ export async function quizTranslationPublish(p: Record<string,any>, actor:Actor|
     if(incompatible) fail(409,"media_translation_required","Audio/video media must be localized separately before publishing");
   }
   await validateMediaReferences(user.id,rev.promptMediaIds as string[],fields.clues,true);
+  const autoKidsApproval = quiz.kidsReviewStatus !== "NOT_REQUESTED" && isTrustedMcpAdmin(user);
   return db().$transaction(async tx=>{
     const checked=await tx.quizLocalization.updateMany({
       where:{id:loc.id,currentVersion:p.expectedVersion,sourceRevisionId:source.id},
       data:{publishedVersion:p.expectedVersion,status:"PUBLISHED"}
     });
     if(checked.count!==1) fail(409,"version_conflict","Language changed while publishing");
-    await tx.quiz.update({where:{id:quiz.id},data:{kidsEligible:false,kidsReviewStatus:quiz.kidsReviewStatus==="NOT_REQUESTED"?"NOT_REQUESTED":"REQUESTED"}});
+    await tx.quiz.update({where:{id:quiz.id},data:{kidsEligible:autoKidsApproval,
+      kidsReviewStatus:quiz.kidsReviewStatus==="NOT_REQUESTED"?"NOT_REQUESTED":autoKidsApproval?"APPROVED":"REQUESTED"}});
     await tx.auditLog.create({data:{actorId:user.id,action:"quiz.translation.publish",objectId:quiz.id,
       detail:{locale:p.locale,version:p.expectedVersion,sourceRevisionId:source.id,reviewed:p.reviewed}}});
+    if(autoKidsApproval) await tx.auditLog.create({data:{actorId:user.id,action:"quiz.review",objectId:quiz.id,
+      detail:{verdict:"KIDS_APPROVED",source:"ADMIN_MCP",version:quiz.currentVersion,locale:p.locale}}});
     return {quizId:quiz.id,locale:p.locale,version:p.expectedVersion,status:"PUBLISHED",
-      kidsEligible:false,kidsReviewStatus:quiz.kidsReviewStatus==="NOT_REQUESTED"?"NOT_REQUESTED":"REQUESTED"};
+      kidsEligible:autoKidsApproval,kidsReviewStatus:quiz.kidsReviewStatus==="NOT_REQUESTED"?"NOT_REQUESTED":autoKidsApproval?"APPROVED":"REQUESTED"};
   });
 }
 export async function quizTranslationHide(p:Record<string,any>,actor:Actor|null) {
