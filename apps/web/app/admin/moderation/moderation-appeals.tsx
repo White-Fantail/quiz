@@ -2,7 +2,7 @@
 import {useCallback,useEffect,useState} from "react";
 import {useLocale} from "../../../src/i18n/provider";
 type Appeal={id:string;creator:string;userId:string;targetKind:string;targetId:string;message:string;status:string;createdAt:string};
-export default function ModeratorAppeals(){
+export default function ModeratorAppeals({onReviewed}:{onReviewed?:()=>void}){
   const ko=useLocale()==="ko";
   const [items,setItems]=useState<Appeal[]>([]),[status,setStatus]=useState("OPEN"),
     [reason,setReason]=useState<Record<string,string>>({}),[busy,setBusy]=useState(false),
@@ -26,7 +26,7 @@ export default function ModeratorAppeals(){
         body:JSON.stringify({decision,reason:explanation,confirm:true})});
       const body=await resp.json().catch(()=>({}));
       if(!resp.ok)throw Error(body.message||body.error||"Review failed");
-      await load();setSuccess(ko?"심사 결과를 저장했어요.":"Appeal decision saved.");
+      await load();onReviewed?.();setSuccess(ko?"심사 결과를 저장했어요.":"Appeal decision saved.");
     }catch(e){setError(e instanceof Error?e.message:"Review failed")}finally{setBusy(false)}
   }
   return <section className="section">
