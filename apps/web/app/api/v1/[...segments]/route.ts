@@ -106,6 +106,7 @@ function route(method: string, segments: string[]): Match | null {
   if (a === "play" && !b && method === "POST") return { op: "play_start", args: {} };
   if (a === "play" && b && c === "clue" && method === "POST") return { op: "play_clue", args: { sessionId: b } };
   if (a === "play" && b && c === "guess" && method === "POST") return { op: "play_guess", args: { sessionId: b } };
+  if (a === "play" && b && c === "review" && method === "POST") return { op: "play_review", args: { sessionId: b } };
   if (a === "media") {
     if (!b && method === "GET") return { op: "media_list", args: {} };
     if (b === "upload" && !c && method === "POST") return { op: "media_upload", args: {} };
