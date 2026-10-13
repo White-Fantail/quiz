@@ -45,3 +45,16 @@ test("pack spotlight honors discover safety and localization gates and deduplica
   assert.match(list, /if \(!loading && !present.length\) return null/);
   assert.match(client, /const inFlight = new Map/);
 });
+
+test("Discover card descriptions do not overlap creator and metadata", () => {
+  const css = read("app/globals.css");
+  const ranked = read("app/(platform)/discover/discovery-sections.tsx");
+  const catalog = read("app/(platform)/discover/pack-browser.tsx");
+  const questions = read("app/(platform)/discover/page.tsx");
+  assert.match(css, /\.discover-card p\s*\{[^}]*min-height:0;[^}]*\}/);
+  assert.doesNotMatch(css, /\.discover-card p\s*\{[^}]*flex\s*:\s*1\b/);
+  assert.match(css, /\.discover-card-description\s*\{[^}]*-webkit-line-clamp:4;[^}]*overflow:hidden;/);
+  assert.match(ranked, /className="discover-card-description"[^>]*>\{item.subtitle\}/);
+  assert.match(catalog, /className="discover-card-description"[^>]*>\{pack.description\}/);
+  assert.match(questions, /className="discover-card-description"[^>]*>\{quiz.prompt\}/);
+});
