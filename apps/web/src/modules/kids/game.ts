@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { buildKidAnswerChoices } from "./answer-choices";
 import { db } from "../platform/db";
 import { execute } from "../platform/operations";
 import { fail } from "../platform/auth";
@@ -29,7 +29,7 @@ async function ownedRun(kid:Kid,runId:string) {
 /** Recheck safety, original language revision and all media BEFORE every protected play action. */
 async function ownedSession(kid:Kid,sessionId:string,sessionToken:string){
   const entry=await db().playSession.findUnique({where:{id:sessionId},
-    include:{quiz:true,revision:{include:{localization:true}}}});
+    include:{quiz:true,run:{select:{packId:true}},revision:{include:{localization:true}}}});
   if(!entry)fail(404,"kid_play_missing","Game session not found");
   if(entry.runId){
     await ownedRun(kid,entry.runId);
@@ -74,27 +74,27 @@ async function answerChoices(kid:Kid,sessionId:string,sessionToken:string){
   if(kid.profile.ageBand==="OLDER")return [];
   const active=await ownedSession(kid,sessionId,sessionToken);
   if(active.status!=="ACTIVE")return [];
-  const correct=String((active.revision.answer as any)?.canonical??"").trim();
-  if(!correct)return [];
   const revisions=await db().quizRevision.findMany({
     where:{answerType:active.revision.answerType,
       localization:{is:{locale:kid.profile.locale,status:"PUBLISHED",
         origin:{in:approvedOrigins},quiz:{is:playableQuizWhere(kid.profile.locale as "en"|"ko","KIDS")}}}},
-    include:{localization:true},orderBy:{id:"asc"},take:120
+    select:{quizId:true,answer:true,version:true,localization:{select:{publishedVersion:true}}},
+    orderBy:{id:"asc"},take:120
   });
-  const distinct=new Set<string>([correct.toLocaleLowerCase()]);
-  const decoys:string[]=[];
-  for(const revision of revisions){
-    if(revision.quizId===active.quizId || revision.localization?.publishedVersion!==revision.version)continue;
-    const text=String((revision.answer as any)?.canonical??"").trim();
-    if(text && !distinct.has(text.toLocaleLowerCase())){distinct.add(text.toLocaleLowerCase());decoys.push(text);}
+  const preferredQuizIds=new Set<string>();
+  if(active.run?.packId){
+    const siblings=await db().packQuestion.findMany({
+      where:{packId:active.run.packId},select:{quizId:true}
+    });
+    for(const sibling of siblings)preferredQuizIds.add(sibling.quizId);
   }
-  if(decoys.length<(kid.profile.ageBand==="EARLY"?1:2))return [];
-  const sorted=(values:string[])=>values.sort((a,b)=>{
-    const order=(x:string)=>createHash("sha256").update(sessionId+":"+x).digest("hex");
-    return order(a).localeCompare(order(b));
+  return buildKidAnswerChoices({
+    sessionId,runId:active.runId,roundIndex:active.roundIndex,
+    answer:active.revision.answer,
+    candidates:revisions.filter(revision=>revision.quizId!==active.quizId &&
+      revision.localization?.publishedVersion===revision.version),
+    preferredQuizIds,minDecoys:kid.profile.ageBand==="EARLY"?1:2
   });
-  return sorted([correct,...sorted(decoys).slice(0,3)]);
 }
 export async function startKidRun(kid:Kid,mode:Mode,avoidQuizIds:string[]=[]){
   // Use the shared published question bank, but exclude this child's previously
