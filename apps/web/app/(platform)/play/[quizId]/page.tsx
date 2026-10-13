@@ -189,7 +189,8 @@ export default function SingleQuizPage() {
       {status === "ACTIVE" && session.clueIndex < session.clueCount &&
         <button type="button" className="btn btn-outline" disabled={busy}
           onClick={() => void reveal()}>{msg("Reveal another clue","힌트 하나 더 볼까?")}</button>}
-      {status === "ACTIVE" && <form ref={guessFormRef} className="guess-form" onSubmit={e => void submit(e)}>
+      {status === "ACTIVE" && <form ref={guessFormRef} className="guess-form" onSubmit={e => void submit(e)}
+        onKeyDown={e=>{if(e.key==="Enter"&&(e.nativeEvent.isComposing||e.nativeEvent.keyCode===229))e.preventDefault();}}>
         <label id="single-quiz-answer-label">{msg("What's your answer?","정답은 무엇일까요?")}</label>
         {session.responseMode==="multiple-choice"&&session.options?.length?
           <div className="guess-option-grid" role="group" aria-labelledby="single-quiz-answer-label">
