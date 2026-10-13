@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { db } from "./db";
+import { requirePublishingPermission, moderationContentReview } from "./moderation";
 import { ratingsForQuizzes, ratingsForQuiz } from "./ratings";
 import { fail, requireActor, type Actor } from "./auth";
 import { validateMediaReferences } from "./media";
@@ -51,7 +52,7 @@ export async function quizList(p: Record<string, any>, actor: Actor | null) {
       clueCount: (r.clues as any[]).length,
       version: r.version, publication: quiz.publication, safetyStatus: quiz.safetyStatus,
       recommendedAudience: quiz.recommendedAudience, kidsReviewStatus:quiz.kidsReviewStatus, ratings: summaries.get(quiz.id),
-      kidsEligible: quiz.kidsEligible && quiz.safetyStatus !== "RESTRICTED" };
+      kidsEligible: quiz.kidsEligible && quiz.safetyStatus === "ACTIVE" };
   });
   return { items, locale, offset: p.offset, limit: p.limit };
 }
@@ -61,7 +62,7 @@ export async function quizGet(id: string, actor: Actor | null, locale: Locale = 
   } });
   if (!quiz) fail(404, "not_found", "Quiz not found");
   const owned = actor?.id === quiz.authorId;
-  if (!owned && (quiz.publication !== "PUBLISHED" || quiz.safetyStatus === "RESTRICTED"))
+  if (!owned && (quiz.publication !== "PUBLISHED" || quiz.safetyStatus !== "ACTIVE"))
     fail(404, "not_found", "Quiz not found");
   // Owners can always manage legacy unclassified quiz versions in Studio.
   const r = owned ? await revision(id, quiz.currentVersion)
@@ -75,7 +76,7 @@ export async function quizGet(id: string, actor: Actor | null, locale: Locale = 
     creatorIntent: owned ? quiz.creatorIntent : undefined,
     recommendedAudience: quiz.recommendedAudience, ratings, safetyStatus: quiz.safetyStatus,
     kidsReviewStatus:quiz.kidsReviewStatus,
-    kidsEligible: quiz.kidsEligible && quiz.safetyStatus !== "RESTRICTED",
+    kidsEligible: quiz.kidsEligible && quiz.safetyStatus === "ACTIVE",
     ...(owned ? { answer: r.answer, clues: r.clues, authorId: quiz.authorId } : {}) };
 }
 export async function quizCreate(p: Record<string, any>, actor: Actor | null) {
@@ -110,6 +111,7 @@ export async function quizUpdate(p: Record<string, any>, actor: Actor | null) {
   if (p.locale !== undefined && p.locale !== old.sourceLocale)
     fail(409, "language_change_requires_confirmation", "Use the original-language confirmation action");
   if (p.expectedVersion !== old.currentVersion) fail(409, "version_conflict", "Refresh quiz and try again");
+  if(old.publication==="PUBLISHED") await requirePublishingPermission(actor);
   const prior = await revision(old.id, old.currentVersion);
   const modified = ["title", "prompt", "mode", "answerType", "answer", "clues", "promptMediaIds", "topics"].some(key => p[key] !== undefined);
   const nextClues = (p.clues ?? prior.clues) as any[];
@@ -158,7 +160,8 @@ export async function quizPublish(p: Record<string, any>, actor: Actor | null) {
   if (p.confirm !== true) fail(400, "confirmation_required", "User must confirm publishing");
   const old = await db().quiz.findFirst({ where: { id: p.id, authorId: user.id } });
   if (!old) fail(404, "not_found", "Quiz not found");
-  if (old.safetyStatus === "RESTRICTED") fail(403, "restricted_quiz", "Quiz is restricted");
+  if (old.safetyStatus !== "ACTIVE") fail(403, "restricted_quiz", "Quiz requires moderator clearance");
+  await requirePublishingPermission(actor);
   if (old.publication === "PUBLISHED") return { id:old.id, publication:"PUBLISHED",
     kidsReviewStatus:old.kidsReviewStatus,alreadyPublished:true };
   const currentRevision = await revision(old.id, old.currentVersion);
@@ -190,7 +193,7 @@ export async function quizKidsRequest(p:Record<string,any>,actor:Actor|null) {
   const user=requireActor(actor);
   const quiz=await db().quiz.findFirst({where:{id:p.id,authorId:user.id}});
   if(!quiz)fail(404,"not_found","Quiz not found");
-  if(p.requested && quiz.safetyStatus==="RESTRICTED")
+  if(p.requested && quiz.safetyStatus!=="ACTIVE")
     fail(409,"restricted_quiz","Restricted quizzes cannot request Kids exposure");
   const autoKidsApproval = p.requested && quiz.publication === "PUBLISHED" && isTrustedMcpAdmin(user);
   if (autoKidsApproval) {
@@ -217,6 +220,8 @@ export async function quizKidsRequest(p:Record<string,any>,actor:Actor|null) {
 /** Explicitly classify a legacy original, never auto-translate or silently relabel. */
 export async function quizLanguageSet(p: Record<string, any>, actor: Actor | null) {
   const owner = requireActor(actor);
+  const published=await db().quiz.findFirst({where:{id:p.id,authorId:owner.id},select:{publication:true}});
+  if(published?.publication==="PUBLISHED") await requirePublishingPermission(actor);
   const result = await db().$transaction(async tx => {
     const quiz = await tx.quiz.findFirst({where:{id:p.id,authorId:owner.id}});
     if(!quiz) fail(404,"not_found","Quiz not found");
@@ -318,11 +323,13 @@ export async function adminQuizReviewList(p:Record<string,any>,actor:Actor|null)
 export async function quizReview(p:Record<string,any>,actor:Actor|null) {
   const admin=requireActor(actor);
   if(admin.role!=="ADMIN")fail(403,"admin_required","Only trusted staff can review a quiz");
+  if(["CLEARED","RESTORED","RESTRICTED"].includes(p.verdict))
+    return moderationContentReview({kind:"QUIZ",id:p.id,decision:p.verdict,reason:p.reason},actor);
   const quiz=await db().quiz.findUnique({where:{id:p.id}});
   if(!quiz)fail(404,"not_found","Quiz was not found");
   if(quiz.publication!=="PUBLISHED")fail(409,"not_published","Only published quizzes can be moderated");
   if(p.verdict==="KIDS_APPROVED"){
-    if(quiz.safetyStatus==="RESTRICTED")fail(409,"restricted_quiz","Restricted quiz cannot enter Kids");
+    if(quiz.safetyStatus!=="ACTIVE")fail(409,"restricted_quiz","Only active quizzes can enter Kids");
     if(quiz.kidsReviewStatus!=="REQUESTED")
       fail(409,"kids_not_requested","Only creator-requested quizzes can receive Kids approval");
     const rev=await revision(quiz.id,quiz.currentVersion);
