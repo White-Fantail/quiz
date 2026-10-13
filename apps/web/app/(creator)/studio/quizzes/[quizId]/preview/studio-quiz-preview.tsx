@@ -150,7 +150,7 @@ export default function StudioQuizPreview({quizId,detailHref}:{quizId:string;det
         {" · "}{quiz.locale==="und"?msg("Unclassified language","언어 미분류"):quiz.locale.toUpperCase()}
       </p>
       <h1>{quiz.title}</h1>
-      <h2>{quiz.prompt}</h2>
+      <h2 className="quiz-question-prompt">{quiz.prompt}</h2>
       {quiz.promptMediaIds?.length>0&&<div className="clue-media-list">
         {quiz.promptMediaIds.map(id=><div key={id}>{mediaView(id)}</div>)}
       </div>}
