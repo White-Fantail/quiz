@@ -182,6 +182,7 @@ export const operations = {
   play_start: { public: true, description: "Start a playable session and see first clue", schema: z.object({ quizId: uuid, kids: z.boolean().default(false), locale: optionalLocale }) },
   play_clue: { public: true, description: "Reveal the next clue using my play token", schema: z.object(session) },
   play_guess: { public: true, description: "Check my guess on the server", schema: z.object({ ...session, guess: z.string().trim().min(1).max(200) }) },
+  play_review: { public: true, description: "Read remaining pinned clues only after my session finishes (signed session token required)", schema: z.object(session) },
   reviews_list: { public: true, description: "Read public quiz reviews", schema: z.object({ quizId: uuid, locale: optionalLocale, kind: z.enum(["QUIZ","TRANSLATION"]).default("QUIZ"), ...paging }) },
   review_upsert: { public: false, description: "Rate and review a completed quiz", schema: z.object({ quizId: uuid, locale: optionalLocale, kind: z.enum(["QUIZ","TRANSLATION"]).default("QUIZ"), rating: z.union([z.literal(-1), z.literal(1)]), comment: z.string().max(2000).default("") }) },
   review_remove: { public: false, description: "Remove my own quiz reaction", schema: z.object({quizId:uuid,locale:optionalLocale,kind:z.enum(["QUIZ","TRANSLATION"]).default("QUIZ")}) },
@@ -256,7 +257,7 @@ export const operations = {
   }).refine(p=>p.verdict!=="RESTRICTED"||p.reason.length>=5,{
     path:["reason"],message:"A media restriction requires a reason of at least 5 characters"
   }) },
-  play_media: { public: true, description: "Renew time-limited playback URL for a revealed clue or prompt media", schema: z.object({
+  play_media: { public: true, description: "Renew signed playback URL for revealed or completed-round review media", schema: z.object({
     ...session, mediaId
   }) },
   run_start: { public: true, description: "Start or resume a pack, quick-five or continuous random play", schema: z.object({
