@@ -1,55 +1,25 @@
 import { toNextJsHandler } from "better-auth/next-js";
 import { defaultMcpAuthorizationResource } from "../../../../src/lib/mcp-oauth-resource";
-import { auth, mcpResource, siteOrigin } from "../../../../src/lib/auth";
-import {
-  mcpOAuthTraceEnabled,
-  summarizeOAuthRequest,
-  summarizeOAuthResponse,
-} from "../../../../src/lib/mcp-oauth-trace";
+import { auth, mcpResource } from "../../../../src/lib/auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-const handlers=toNextJsHandler(auth);
+const handlers = toNextJsHandler(auth);
 
-function locked(request:Request,handler:(request:Request)=>Promise<Response>|Response) {
-  if (request.headers.get("cookie")?.split(";").some(x=>x.trim().startsWith("quizdip-kid-session=")))
-    return Response.json({error:"kid_mode_active"},{status:403});
+function locked(request: Request, handler: (request: Request) => Promise<Response> | Response) {
+  if (request.headers.get("cookie")?.split(";").some(x => x.trim().startsWith("quizdip-kid-session=")))
+    return Response.json({ error: "kid_mode_active" }, { status: 403 });
   return handler(request);
 }
 
 /**
- * Trace the OAuth authorization and token endpoints only until 16 Oct 2026.
- * Only the missing MCP resource may be added on explicit MCP authorization.
- * The Better Auth response is returned unchanged; logging is best-effort.
+ * Retain the MCP OAuth resource compatibility fix without temporary
+ * access-token logging or response inspection.
  */
-async function handle(request:Request, handler:(request:Request)=>Promise<Response>|Response):Promise<Response> {
-  // A narrowly scoped MCP compatibility default. Does not add any scopes,
-  // bypass consent, or modify requests explicitly specifying another resource.
+function handle(request: Request, handler: (request: Request) => Promise<Response> | Response) {
   const normalized = defaultMcpAuthorizationResource(request, mcpResource);
-  const upstreamRequest = normalized.request;
-  const pathname = new URL(request.url).pathname;
-  const phase = pathname.endsWith("/oauth2/authorize") ? "authorize"
-    : pathname.endsWith("/oauth2/token") ? "token" : null;
-  const trace = phase !== null && mcpOAuthTraceEnabled();
-  let input: Awaited<ReturnType<typeof summarizeOAuthRequest>> | null = null;
-  if (trace && phase) {
-    try {
-      input = await summarizeOAuthRequest(request, phase, mcpResource);
-    } catch {
-      // Logging must never interrupt authentication.
-    }
-  }
-  const response = await locked(upstreamRequest, handler);
-  if (trace && phase && input) {
-    try {
-      const result = await summarizeOAuthResponse(response, phase, mcpResource, siteOrigin);
-      console.info("[mcp-oauth-trace]", { ...input, resourceDefaulted: normalized.applied, ...result });
-    } catch {
-      // Diagnostics are non-authoritative and must never affect the response.
-    }
-  }
-  return response;
+  return locked(normalized.request, handler);
 }
 
-export const GET=(request:Request)=>handle(request,handlers.GET);
-export const POST=(request:Request)=>handle(request,handlers.POST);
+export const GET = (request: Request) => handle(request, handlers.GET);
+export const POST = (request: Request) => handle(request, handlers.POST);

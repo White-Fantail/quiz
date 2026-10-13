@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { existsSync, readFileSync } from "node:fs";
 import { defaultMcpAuthorizationResource } from "../src/lib/mcp-oauth-resource.ts";
 
 const base = "https://quizdip.vercel.app/api/auth/oauth2/authorize";
@@ -44,4 +45,21 @@ test("ordinary OAuth login, unrelated scopes, wrong methods or endpoints never c
   assert.equal(defaultMcpAuthorizationResource(post, resource).applied, false);
   const callback = new Request("https://quizdip.vercel.app/api/auth/oauth2/token");
   assert.equal(defaultMcpAuthorizationResource(callback, resource).applied, false);
+});
+
+test("MCP OAuth trace and rejection instrumentation are absent while authorization works", () => {
+  const authRoute = readFileSync(new URL("../app/api/auth/[...all]/route.ts", import.meta.url), "utf8");
+  const mcpRoute = readFileSync(new URL("../app/api/mcp/route.ts", import.meta.url), "utf8");
+  assert.match(authRoute, /defaultMcpAuthorizationResource\(request, mcpResource\)/);
+  assert.match(mcpRoute, /requireMcpAuth\(auth,/);
+  assert.match(mcpRoute, /requiredScopes: \["mcp:tools"\]/);
+  for (const source of [authRoute, mcpRoute]) {
+    assert.doesNotMatch(source, /mcp-oauth-trace|mcp-auth-diagnostics|MCP OAuth rejection|tokenFingerprint|summarizeOAuthResponse/);
+  }
+  for (const removed of [
+    "../src/lib/mcp-oauth-trace.ts",
+    "../src/lib/mcp-auth-diagnostics.ts",
+  ]) {
+    assert.equal(existsSync(new URL(removed, import.meta.url)), false);
+  }
 });
