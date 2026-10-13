@@ -40,3 +40,27 @@ Staff can restrict creator publication with `publishingStatus=RESTRICTED` and op
 7. Do not deploy production migrations or merge to main without explicit approval.
 
 This policy is separate from the existing Kids and media affirmative review requirements.
+
+## Follow-up implementation (October 14, 2026)
+
+- Threshold changes recheck **existing OPEN reports** in the new rolling period in the same database transaction. Lowering thresholds can immediately hold qualifying ACTIVE content and send creators an in-app notice. Disabling holds does not automatically republish content already awaiting staff review.
+- Account publishing guards are rechecked using a `User ... FOR SHARE` row lock within each publication transaction; restriction updates acquire the conflicting row lock. This closes the administrator-restricts-during-publication race.
+- A reporter cannot re-file an OPEN report or re-file a recently submitted report for the same item during a 24-hour cooldown, even after staff clearance. Report counts remain deduplicated per distinct author.
+- Owners receive private moderation notices and can appeal held/restricted content or an active publishing restriction at `/account/moderation`. Appeals require a reason, use a one-OPEN-appeal-per-owner/target constraint, and must be accepted/rejected by ADMIN with a rationale. Appeals do not automatically change status when filed.
+- Staff can view report details and audit history, confirmed moderation restrictions (distinct from unverified reports), and the appeals queue at `/admin/moderation`.
+- REST and MCP expose identical actions through the shared operation router (see `docs/api-mcp.md`).
+
+## End-to-end test matrix for a dev environment
+
+1. Run migrations `20261014080000_report_moderation` and `20261014100000_moderation_appeals_and_notifications` on a dedicated dev database (not the production database); regenerate Prisma client. Validate no existing content is deleted.
+2. Verify TypeScript, full tests and Next.js build; use ADMIN and 4 separate ordinary established identities plus 3 recent identities.
+3. General quiz and pack publish without staff approval; Kids content still requires separate explicit approval. Restrict one account; verify draft creation allowed but direct quiz publish, edited already-public quiz, bulk pack publish (including draft members), pack edit, translated quiz publish, pack localized publish and legacy-language update fail from **both REST and MCP**.
+4. Normal report: the first two established unique reporters do not hide a quiz; the third triggers `UNDER_REVIEW`, preserves `publication=PUBLISHED`, appears in staff queue and the owner's inbox. Confirm public direct GET, Discover, editorial, Kids native, all new play and already-started clue/media/guess requests do not expose it. Check pack-level reports behave independently and unrelated packs can skip unavailable members.
+5. Repeated report by the same account within 24 hours, self-report, new account brigading and over-quota reports cannot trigger holds. In a concurrency test, use simultaneous reports from independent accounts; verify a single audit event and notice on each transition.
+6. Staff CLEAR removes the hold and closes reports without deleting quiz history, REST/MCP access recovers; reporter cannot immediately re-file the same content. Staff RESTRICTED permanently gates public access until RESTORED or accepted appeal.
+7. Change quiz threshold from 5 to 3 with 4 valid existing OPEN reports: the content transitions to UNDER_REVIEW without a new report. Disable auto holds: future reports stay public but appear in the moderation queue. Re-enable: qualifying OPEN reports are re-evaluated. Confirm policy changes are ADMIN-only and audited.
+8. Verify owner receives private notices and cannot read another account's notices; only owner may submit appeal. Confirm duplicate OPEN appeal, child-scoped submissions and empty appeal reason fail; accepted appeal restores exactly the target; rejected appeal does not. Moderator reasons and audit decisions persist. Reporter identities must not appear in owner view.
+9. Concurrent publication and administrator restriction: either publication commits before restriction or is rejected; publication **must never commit after the restriction becomes effective**. Exercise through both REST/MCP.
+10. Review logs, migration status, DB indices and all role checks. Do not merge to `main` or deploy to production until the full matrix passes.
+
+Known gap: this is source implementation; a Vercel preview build was previously blocked by an integration-scope 403. New DB migrations and end-to-end authentication/playback have not been executed here.
