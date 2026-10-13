@@ -1,4 +1,5 @@
 import { db } from "./db";
+import { requirePublishingPermission, submitReport } from "./moderation";
 import { validateMediaReferences } from "./media";
 import { isTrustedMcpAdmin } from "./auto-approval";
 import { ratingsForQuiz } from "./ratings";
@@ -10,7 +11,7 @@ import { playableQuizWhere } from "./content-locale";
 
 async function getPublicQuiz(quizId: string) {
   const q = await db().quiz.findUnique({ where: { id: quizId } });
-  if (!q || q.publication !== "PUBLISHED" || q.safetyStatus === "RESTRICTED")
+  if (!q || q.publication !== "PUBLISHED" || q.safetyStatus !== "ACTIVE")
     fail(404, "not_found", "Published quiz not found");
   return q;
 }
@@ -61,18 +62,7 @@ export async function reviewRemove(p:Record<string,any>,actor:Actor|null) {
     ratings:await ratingsForQuiz(p.quizId,p.locale,p.kind)};
 }
 export async function reportCreate(p:Record<string,any>,actor:Actor|null) {
-  const user=requireActor(actor);
-  await getPublicQuiz(p.quizId);
-  const {revision}=await currentPlayableRevision(p.quizId,p.locale);
-  const recent=await db().report.count({where:{
-    reporterId:user.id,createdAt:{gte:new Date(Date.now()-86400000)}
-  }});
-  if(recent>=10)fail(429,"rate_limit","Daily report limit reached");
-  const report=await db().report.create({data:{
-    quizId:p.quizId,reporterId:user.id,locale:p.locale,revisionId:revision.id,
-    reason:p.reason,detail:p.detail
-  }});
-  return {id:report.id,locale:p.locale,status:report.status,createdAt:report.createdAt};
+  return submitReport("QUIZ",p,actor);
 }
 export async function reportsMine(p: Record<string, any>, actor: Actor | null) {
   const user = requireActor(actor);
@@ -110,7 +100,7 @@ export async function packPreflight(p:Record<string,any>,actor:Actor|null) {
   for(const id of ids){
     const quiz=byId.get(id);
     if(!quiz){issues.push({quizId:id,code:"missing_quiz"});continue;}
-    if(quiz.safetyStatus==="RESTRICTED")issues.push({quizId:id,code:"restricted"});
+    if(quiz.safetyStatus!=="ACTIVE")issues.push({quizId:id,code:"restricted"});
     if(quiz.authorId!==user.id && quiz.publication!=="PUBLISHED")issues.push({quizId:id,code:"unavailable_external_quiz"});
     const loc=quiz.localizations[0];
     if(!loc)issues.push({quizId:id,code:"missing_localization"});
@@ -159,7 +149,7 @@ export async function myPackGet(p:Record<string,any>,actor:Actor|null) {
   const quizDetails=new Map(quizzes.map(quiz=>[quiz.id,quiz]));
   let kidsReady=false,kidsIssue="",excludedCount=0;
   if(pack.publication==="PUBLISHED"&&["en","ko"].includes(pack.sourceLocale)){
-    if(pack.safetyStatus!=="RESTRICTED"){
+    if(pack.safetyStatus==="ACTIVE"){
       try{excludedCount=(await safePack(pack.id,pack.sourceLocale as "en"|"ko","GENERAL")).excludedCount;}
       catch{excludedCount=ids.length;}
     }
@@ -182,7 +172,7 @@ export async function packList(p: Record<string, any>, actor: Actor | null) {
   const locale = p.locale as "en" | "ko";
   // SQL selects packs with at least one eligible member; safePack checks every asset.
   const where: any = p.mine ? { authorId: actor!.id } : {
-    publication: "PUBLISHED",safetyStatus:{not:"RESTRICTED"},
+    publication: "PUBLISHED",safetyStatus:"ACTIVE",
     localizations: { some: { locale, status: "PUBLISHED" } },
     items: { some: { quiz: playableQuizWhere(locale) } }
   };
@@ -262,6 +252,7 @@ export async function packTranslationUpsert(p:Record<string,any>,actor:Actor|nul
   if(!pack)fail(404,"not_found","Owned pack not found");
   if(pack.sourceLocale==="und" || pack.sourceLocale===p.locale)
     fail(409,"invalid_translation_language","Classify the original pack and select another language");
+  if(p.status==="PUBLISHED") await requirePublishingPermission(actor);
   if(p.status==="PUBLISHED"){
     if(!p.confirm)fail(400,"confirmation_required","Confirm translated pack publication");
     if(pack.publication!=="PUBLISHED")fail(409,"pack_not_published","Publish the original pack first");
@@ -285,6 +276,7 @@ export async function packUpdate(p: Record<string, any>, actor: Actor | null) {
   const user = requireActor(actor);
   const old = await db().quizPack.findFirst({ where: { id: p.id, authorId: user.id }, include: { items: true } });
   if (!old) fail(404, "not_found", "Pack not found");
+  if(old.publication==="PUBLISHED"||p.publication==="PUBLISHED") await requirePublishingPermission(actor);
   const ids: string[] = p.quizIds ?? old.items.sort((a, b) => a.position - b.position).map(i => i.quizId);
   if (p.publication === "PUBLISHED" && p.confirm !== true) fail(400, "confirmation_required", "Confirm publishing the pack");
   // Do not stop a creator editing pack metadata merely because an existing member was restricted.
@@ -297,7 +289,7 @@ export async function packUpdate(p: Record<string, any>, actor: Actor | null) {
       data:{
         currentVersion:{increment:1},
         // Independent general restriction survives creator edits; Kids approval does not.
-        safetyStatus:old.safetyStatus==="RESTRICTED"?"RESTRICTED":"ACTIVE",
+        safetyStatus:old.safetyStatus,
         kidsEligible:false,kidsReviewStatus:"NOT_REQUESTED",
         ...(p.title !== undefined ? {title:p.title}:{}),
         ...(p.description !== undefined ? {description:p.description}:{}),
@@ -339,7 +331,7 @@ export async function packPublishPreview(p:Record<string,any>,actor:Actor|null) 
   for(const id of ids) {
     const q=byId.get(id);
     if(!q){issues.push("missing_quiz:"+id);continue;}
-    if(q.safetyStatus==="RESTRICTED")issues.push("restricted_quiz:"+id);
+    if(q.safetyStatus!=="ACTIVE")issues.push("restricted_quiz:"+id);
     if(q.publication!=="PUBLISHED") {
       if(q.authorId!==user.id)issues.push("unowned_draft:"+id);
       else drafts.push(id);
@@ -368,9 +360,10 @@ export async function packPublishPreview(p:Record<string,any>,actor:Actor|null) 
 export async function packPublish(p:Record<string,any>,actor:Actor|null){
   const user=requireActor(actor);
   if(p.confirm!==true)fail(400,"confirmation_required","Confirm bulk publication");
+  await requirePublishingPermission(actor);
   const existing=await db().quizPack.findFirst({where:{id:p.id,authorId:user.id}});
   if(!existing)fail(404,"not_found","Owned pack not found");
-  if(existing.safetyStatus==="RESTRICTED")
+  if(existing.safetyStatus!=="ACTIVE")
     fail(409,"restricted_pack","A restricted pack cannot be republished without moderator review");
   if(existing.publication==="PUBLISHED")
     return {id:existing.id,publication:"PUBLISHED",alreadyPublished:true,
@@ -389,7 +382,7 @@ export async function packPublish(p:Record<string,any>,actor:Actor|null){
     if(draftIds.length!==preview.draftCount || draftIds.some(id=>!preview.draftIds.includes(id)))
       fail(409,"pack_changed","Pack questions changed; preview again");
     for(const q of questions){
-      if(q.safetyStatus==="RESTRICTED")fail(409,"restricted_quiz","A pack question is restricted");
+      if(q.safetyStatus!=="ACTIVE")fail(409,"restricted_quiz","A pack question is restricted");
       if(q.publication!=="PUBLISHED"){
         if(q.authorId!==user.id || q.sourceLocale!==pack.sourceLocale)
           fail(403,"unowned_draft","Only owned original-language drafts can be published");
