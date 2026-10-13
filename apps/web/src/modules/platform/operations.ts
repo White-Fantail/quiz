@@ -3,6 +3,7 @@ import { quizLanguages,quizTranslationGet,quizTranslationGenerate,quizTranslatio
 import { localeGet, localeUpdate } from "./locale";
 import { topicList } from "./topics";
 import { fail, requireActor, type Actor } from "./auth";
+import { moderationPolicyGet, moderationPolicyUpdate, moderationQueue, moderationContentReview, publisherGet, publisherSet } from "./moderation";
 import { quizList, quizGet, quizCreate, quizUpdate, quizPublish, quizKidsRequest, quizLanguageSet, quizReview, quizReviewGet, adminQuizReviewList } from "./quiz";
 import { playStart, playClue, playGuess } from "./play";
 import { runStart,runCurrent,runFinish,runHistory,runFeedback } from "./runs";
@@ -47,6 +48,12 @@ export async function execute(name: Operation, raw: unknown, actor: Actor | null
     case "quiz_translation_save": return quizTranslationSave(p,actor);
     case "quiz_translation_publish": return quizTranslationPublish(p,actor);
     case "quiz_translation_hide": return quizTranslationHide(p,actor);
+    case "admin_moderation_policy_get": return moderationPolicyGet(p,actor);
+    case "admin_moderation_policy_update": return moderationPolicyUpdate(p,actor);
+    case "admin_moderation_queue": return moderationQueue(p,actor);
+    case "admin_moderation_review": return moderationContentReview(p,actor);
+    case "admin_publisher_get": return publisherGet(p,actor);
+    case "admin_publisher_set": return publisherSet(p,actor);
     case "admin_quiz_review_list": return adminQuizReviewList(p,actor);
     case "quiz_review_get": return quizReviewGet(p,actor);
     case "quiz_review": return quizReview(p, actor);
