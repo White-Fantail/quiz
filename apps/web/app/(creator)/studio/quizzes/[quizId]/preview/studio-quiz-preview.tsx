@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { ImageReveal, supersededReveal, type RevealSettings } from "../../../../../../src/components/image-reveal";
+import { ImageReveal, type RevealSettings } from "../../../../../../src/components/image-reveal";
+import { activeImageStage } from "@quizdip/domain";
 import { useEffect, useState, type FormEvent } from "react";
 import { isCorrectAnswer, scoreForClues } from "@quizdip/domain";
 import { RatingBadge } from "../../../../../../src/components/quiz-ratings";
@@ -154,9 +155,12 @@ export default function StudioQuizPreview({quizId,detailHref}:{quizId:string;det
         {quiz.promptMediaIds.map(id=><div key={id}>{mediaView(id)}</div>)}
       </div>}
       <ol className="clue-list">
-        {quiz.clues.slice(0,clueIndex).map((clue,index)=>supersededReveal(quiz.clues.slice(0,clueIndex),index)?null:<li key={index} style={{counterSet:`clue ${index}`}}>
+        {quiz.clues.slice(0,clueIndex).map((clue,index)=>{
+          const stage=activeImageStage(quiz.clues.slice(0,clueIndex),index);
+          if(!stage&&!clue.text&&!clue.map)return null;
+          return <li key={index} style={{counterSet:`clue ${index}`}}>
           {clue.text&&<p>{clue.text}</p>}
-          {clue.mediaId&&mediaView(clue.mediaId,clue.type==="image-reveal"?clue.reveal:undefined)}
+          {stage?.mediaId&&mediaView(stage.mediaId,stage.type==="image-reveal"?stage.reveal:undefined)}
           {clue.type==="map"&&clue.map&&<div className="map-clue">
             <a target="_blank" rel="noopener noreferrer"
               href={"https://www.openstreetmap.org/?mlat="+clue.map.latitude+
@@ -165,7 +169,7 @@ export default function StudioQuizPreview({quizId,detailHref}:{quizId:string;det
               {msg("View map clue ↗","지도 단서 보기 ↗")}
             </a>
           </div>}
-        </li>)}
+        </li>})}
       </ol>
       {result==="ACTIVE"&&clueIndex<quiz.clues.length&&<button type="button" className="btn btn-outline" onClick={reveal}>
         {msg("Reveal another clue","힌트 하나 더 볼까?")}
