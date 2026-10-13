@@ -81,7 +81,7 @@ export type KidClue = {id:string;order:number;type:"text"|"image"|"image-reveal"
 export type KidQuestion = {sessionId:string;sessionToken:string;quizId:string;
   title:string;prompt:string;promptMediaIds:string[];
   clues:KidClue[];clueIndex:number;clueCount:number;sessionStatus:"ACTIVE"|"SOLVED"|"FAILED";
-  canGuess:boolean;options?:string[];round?:number;total?:number;score?:number;runId?:string;runToken?:string};
+  canGuess:boolean;responseMode?:"text"|"multiple-choice";options?:string[];round?:number;total?:number;score?:number;runId?:string;runToken?:string};
 export type KidRunStart = {runId:string;runToken:string;mode:"RANDOM_FIVE"|"PACK";
   lane:"KIDS";locale:Locale;status:string;total:number;completed:number;score:number};
 export type KidRunResult = {runId:string;status:"FINISHED";completed:number;total:number;
