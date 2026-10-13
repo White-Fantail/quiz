@@ -209,6 +209,8 @@ export async function adminPackSafetyReview(p:Record<string,any>,actor:Actor|nul
       fail(409,"pack_locale_unclassified","An original language is required");
     await safePack(pack.id,pack.sourceLocale,"KIDS",{skipPackApproval:true});
   }
+  if(p.verdict==="RESTORED" && pack.safetyStatus!=="RESTRICTED")
+    fail(409,"not_restricted","Only staff-restricted packs can be restored");
   const data=p.verdict==="APPROVED"?
     {kidsReviewStatus:"APPROVED",kidsEligible:true}:
     p.verdict==="REJECTED"?
