@@ -1,0 +1,244 @@
+import { db } from "./db";
+import { fail, requireActor, type Actor } from "./auth";
+import { DEFAULT_REPORT_HOLD_POLICY, shouldAutoHold, type ReportHoldPolicy } from "./moderation-rules";
+
+type TargetKind = "QUIZ" | "PACK";
+type PolicyRow = ReportHoldPolicy & {id: string; updatedAt: Date; updatedById: string | null};
+
+function staff(actor: Actor | null): Actor {
+  const user = requireActor(actor);
+  if (user.role !== "ADMIN" || user.childScope)
+    fail(403, "admin_required", "Platform moderation requires an administrator");
+  return user;
+}
+
+export async function requirePublishingPermission(actor: Actor | null) {
+  const user = requireActor(actor);
+  if (user.role === "ADMIN") return user;
+  const account = await db().user.findUnique({where:{id:user.id},
+    select:{publishingStatus:true,publishingRestrictedUntil:true}});
+  if (!account) fail(401,"invalid_identity","Account not found");
+  if (account.publishingStatus !== "RESTRICTED") return user;
+  if (account.publishingRestrictedUntil && account.publishingRestrictedUntil <= new Date()) {
+    await db().$transaction(async tx=>{
+      const updated=await tx.user.updateMany({where:{id:user.id,publishingStatus:"RESTRICTED",
+        publishingRestrictedUntil:{lte:new Date()}},data:{publishingStatus:"ACTIVE",publishingRestrictedUntil:null}});
+      if(updated.count) await tx.auditLog.create({data:{actorId:user.id,action:"publisher.restriction_expired",objectId:user.id}});
+    });
+    return user;
+  }
+  fail(403, "publishing_restricted", "Your publishing access is restricted. Existing content can still be viewed.");
+}
+
+async function policyRow():Promise<PolicyRow>{
+  return db().moderationPolicy.upsert({where:{id:"default"},create:{id:"default"},update:{}}) as Promise<PolicyRow>;
+}
+
+export async function moderationPolicyGet(_p:Record<string,unknown>,actor:Actor|null){
+  staff(actor);
+  return policyRow();
+}
+
+export async function moderationPolicyUpdate(p:Record<string,any>,actor:Actor|null){
+  const admin=staff(actor);
+  if(p.minimumEstablishedReporters>Math.min(p.quizReportThreshold,p.packReportThreshold))
+    fail(422,"invalid_policy","Established-reporter minimum cannot exceed either report threshold");
+  return db().$transaction(async tx=>{
+    const previous=await tx.moderationPolicy.upsert({where:{id:"default"},
+      create:{id:"default"},update:{}});
+    const row=await tx.moderationPolicy.update({where:{id:"default"},
+      data:{enabled:p.enabled,quizReportThreshold:p.quizReportThreshold,
+        packReportThreshold:p.packReportThreshold,windowHours:p.windowHours,
+        minimumEstablishedReporters:p.minimumEstablishedReporters,
+        establishedAccountDays:p.establishedAccountDays,updatedById:admin.id}});
+    await tx.auditLog.create({data:{actorId:admin.id,action:"moderation.policy_update",objectId:"default",
+      detail:{before:previous,after:p}}});
+    return row;
+  });
+}
+
+/** Prevent duplicate OPEN reports per reporter and target; serialize per-target decisions.
+ * Reporting is available to adults on currently ACTIVE published content only.
+ */
+export async function submitReport(kind:TargetKind,p:Record<string,any>,actor:Actor|null){
+  const user=requireActor(actor);
+  if(user.childScope) fail(403,"child_reports_disabled","Child reports use the parent safety flow");
+  const id=kind==="QUIZ"?p.quizId:p.id;
+  return db().$transaction(async tx=>{
+    // Serialize report insert/count/hold decisions for the same target to avoid lost thresholds.
+    if(kind==="QUIZ") await tx.$queryRaw`SELECT "id" FROM "Quiz" WHERE "id"=${id} FOR UPDATE`;
+    else await tx.$queryRaw`SELECT "id" FROM "QuizPack" WHERE "id"=${id} FOR UPDATE`;
+    const item=kind==="QUIZ"
+      ?await tx.quiz.findUnique({where:{id}})
+      :await tx.quizPack.findUnique({where:{id}});
+    if(!item||item.publication!=="PUBLISHED"||item.safetyStatus!=="ACTIVE")
+      fail(404,"not_found","Content is not available for reporting");
+    if(item.authorId===user.id)fail(403,"own_report","Creators cannot report their own content");
+    if(kind==="QUIZ"){
+      const loc=await tx.quizLocalization.findUnique({where:{quizId_locale:{quizId:id,locale:p.locale}}});
+      if(!loc||loc.status!=="PUBLISHED"||loc.publishedVersion===null)
+        fail(404,"locale_unavailable","Quiz is not published in this language");
+    } else {
+      const loc=await tx.quizPackLocalization.findUnique({where:{packId_locale:{packId:id,locale:p.locale}}});
+      if(!loc||loc.status!=="PUBLISHED")
+        fail(404,"locale_unavailable","Quiz pack is not published in this language");
+    }
+    const existing=kind==="QUIZ"
+      ?await tx.report.findFirst({where:{quizId:id,reporterId:user.id,status:"OPEN"}})
+      :await tx.packReport.findFirst({where:{packId:id,reporterId:user.id,status:"OPEN"}});
+    if(existing)fail(409,"already_reported","You have already reported this content");
+    const since=new Date(Date.now()-86400000);
+    const [quizCount,packCount]=await Promise.all([
+      tx.report.count({where:{reporterId:user.id,createdAt:{gte:since}}}),
+      tx.packReport.count({where:{reporterId:user.id,createdAt:{gte:since}}})
+    ]);
+    if(quizCount+packCount>=10)fail(429,"rate_limit","Daily report limit reached");
+    let report:{id:string;status:string;createdAt:Date};
+    if(kind==="QUIZ"){
+      const rev=await tx.quizRevision.findFirst({where:{quizId:id,
+        localization:{locale:p.locale,status:"PUBLISHED"}},
+        orderBy:{version:"desc"}});
+      if(!rev)fail(409,"revision_missing","Published revision unavailable");
+      report=await tx.report.create({data:{quizId:id,reporterId:user.id,
+        revisionId:rev.id,locale:p.locale,reason:p.reason,detail:p.detail}});
+    }else{
+      report=await tx.packReport.create({data:{packId:id,reporterId:user.id,
+        locale:p.locale,reason:p.reason,detail:p.detail}});
+    }
+    const policy=await tx.moderationPolicy.findUnique({where:{id:"default"}}) ?? DEFAULT_REPORT_HOLD_POLICY;
+    let held=false;
+    if(policy.enabled){
+      const windowStart=new Date(Date.now()-policy.windowHours*3600000);
+      const reports=kind==="QUIZ"
+        ?await tx.report.findMany({where:{quizId:id,status:"OPEN",createdAt:{gte:windowStart}},
+          select:{reporterId:true,reporter:{select:{createdAt:true}}}})
+        :await tx.packReport.findMany({where:{packId:id,status:"OPEN",createdAt:{gte:windowStart}},
+          select:{reporterId:true,reporter:{select:{createdAt:true}}}});
+      const reporters=new Map<string,Date>();
+      for(const r of reports)reporters.set(r.reporterId,r.reporter.createdAt);
+      const ageCutoff=new Date(Date.now()-policy.establishedAccountDays*86400000);
+      const established=[...reporters.values()].filter(created=>created<=ageCutoff).length;
+      if(shouldAutoHold(policy,kind,reporters.size,established)){
+        const where={id,publication:"PUBLISHED",safetyStatus:"ACTIVE"};
+        const changed=kind==="QUIZ"
+          ?await tx.quiz.updateMany({where,data:{safetyStatus:"UNDER_REVIEW"}})
+          :await tx.quizPack.updateMany({where,data:{safetyStatus:"UNDER_REVIEW"}});
+        held=changed.count===1;
+        if(held)await tx.auditLog.create({data:{actorId:user.id,
+          action:kind==="QUIZ"?"quiz.auto_hold":"pack.auto_hold",objectId:id,
+          detail:{reportId:report.id,reporters:reporters.size,established,
+            threshold:kind==="QUIZ"?policy.quizReportThreshold:policy.packReportThreshold,
+            windowHours:policy.windowHours}}});
+      }
+    }
+    return {id:report.id,status:report.status,createdAt:report.createdAt,locale:p.locale,
+      moderationStatus:held?"UNDER_REVIEW":item.safetyStatus};
+  });
+}
+
+export async function moderationQueue(p:Record<string,any>,actor:Actor|null){
+  staff(actor);
+  const [quizzes,packs]=await Promise.all([
+    db().quiz.findMany({where:{publication:"PUBLISHED",OR:[
+      {safetyStatus:{in:["UNDER_REVIEW","RESTRICTED"]}},{reports:{some:{status:"OPEN"}}}
+    ]},include:{
+      author:{select:{displayName:true,publishingStatus:true,publishingRestrictedUntil:true}},
+      reports:{where:{status:"OPEN"},select:{reporterId:true}},
+      revisions:{orderBy:{createdAt:"desc"},take:1,select:{title:true}}
+    },orderBy:{updatedAt:"desc"},take:100}),
+    db().quizPack.findMany({where:{publication:"PUBLISHED",OR:[
+      {safetyStatus:{in:["UNDER_REVIEW","RESTRICTED"]}},{reports:{some:{status:"OPEN"}}}
+    ]},include:{
+      author:{select:{displayName:true,publishingStatus:true,publishingRestrictedUntil:true}},
+      reports:{where:{status:"OPEN"},select:{reporterId:true}}
+    },orderBy:{updatedAt:"desc"},take:100})
+  ]);
+  const items=[
+    ...quizzes.map(q=>({kind:"QUIZ" as const,id:q.id,title:q.revisions[0]?.title??"(Untitled)",
+      authorId:q.authorId,author:q.author.displayName,
+      publishingStatus:q.author.publishingStatus,publishingRestrictedUntil:q.author.publishingRestrictedUntil,
+      safetyStatus:q.safetyStatus,reportCount:new Set(q.reports.map(r=>r.reporterId)).size,
+      updatedAt:q.updatedAt})),
+    ...packs.map(q=>({kind:"PACK" as const,id:q.id,title:q.title,authorId:q.authorId,
+      author:q.author.displayName,publishingStatus:q.author.publishingStatus,
+      publishingRestrictedUntil:q.author.publishingRestrictedUntil,
+      safetyStatus:q.safetyStatus,reportCount:new Set(q.reports.map(r=>r.reporterId)).size,
+      updatedAt:q.updatedAt}))
+  ].sort((a,b)=>Number(b.safetyStatus==="UNDER_REVIEW")-Number(a.safetyStatus==="UNDER_REVIEW")
+    ||b.reportCount-a.reportCount||b.updatedAt.getTime()-a.updatedAt.getTime());
+  return {items:items.slice(0,p.limit),total:items.length,limit:p.limit};
+}
+
+export async function moderationContentReview(p:Record<string,any>,actor:Actor|null){
+  const admin=staff(actor);
+  if(p.decision==="RESTRICTED"&&p.reason.trim().length<5)
+    fail(422,"reason_required","Restriction needs a specific explanation");
+  return db().$transaction(async tx=>{
+    const kind:TargetKind=p.kind;
+    const target=kind==="QUIZ"?
+      await tx.quiz.findUnique({where:{id:p.id}}):
+      await tx.quizPack.findUnique({where:{id:p.id}});
+    if(!target||target.publication!=="PUBLISHED")fail(404,"not_found","Published content not found");
+    if(p.decision==="RESTORED"&&target.safetyStatus!=="RESTRICTED")
+      fail(409,"not_restricted","Only restricted content can be restored");
+    if(p.decision==="CLEARED"&&target.safetyStatus==="RESTRICTED")
+      fail(409,"restricted_content","Use RESTORED to lift a staff restriction");
+    const next=p.decision==="RESTRICTED"?"RESTRICTED":"ACTIVE";
+    const where={id:p.id,safetyStatus:target.safetyStatus,publication:"PUBLISHED"};
+    const data:Record<string,unknown>={safetyStatus:next};
+    if(kind==="QUIZ"){
+      data.moderationReviewedAt=new Date();
+      if(p.decision==="RESTRICTED"){
+        data.kidsEligible=false;
+        data.kidsReviewStatus="REJECTED";
+      }
+      const result=await tx.quiz.updateMany({where,data});
+      if(result.count!==1)fail(409,"review_conflict","Content changed during review");
+      await tx.report.updateMany({where:{quizId:p.id,status:"OPEN"},data:{status:"CLOSED"}});
+    } else {
+      if(p.decision==="RESTRICTED"){
+        data.kidsEligible=false;
+        data.kidsReviewStatus="NOT_REQUESTED";
+      }
+      const result=await tx.quizPack.updateMany({where,data});
+      if(result.count!==1)fail(409,"review_conflict","Content changed during review");
+      await tx.packReport.updateMany({where:{packId:p.id,status:"OPEN"},data:{status:"CLOSED"}});
+    }
+    await tx.auditLog.create({data:{actorId:admin.id,
+      action:kind==="QUIZ"?"quiz.moderation_review":"pack.moderation_review",
+      objectId:p.id,detail:{decision:p.decision,reason:p.reason,previous:target.safetyStatus}}});
+    return {kind,id:p.id,safetyStatus:next};
+  });
+}
+
+export async function publisherGet(p:Record<string,any>,actor:Actor|null){
+  staff(actor);
+  const person=await db().user.findUnique({where:{id:p.userId},
+    select:{id:true,displayName:true,role:true,publishingStatus:true,
+      publishingRestrictedUntil:true,createdAt:true}});
+  if(!person)fail(404,"user_not_found","User not found");
+  const [quizzes,packs]=await Promise.all([
+    db().quiz.count({where:{authorId:p.userId}}),db().quizPack.count({where:{authorId:p.userId}})
+  ]);
+  return {...person,quizzes,packs};
+}
+
+export async function publisherSet(p:Record<string,any>,actor:Actor|null){
+  const admin=staff(actor);
+  const until=p.until?new Date(p.until):null;
+  if(p.status==="RESTRICTED" && until && until<=new Date())
+    fail(422,"invalid_expiry","Restriction end date must be in the future");
+  if(p.status==="RESTRICTED" && p.reason.trim().length<5)
+    fail(422,"reason_required","Provide a reason for restricting publishing");
+  return db().$transaction(async tx=>{
+    const target=await tx.user.findUnique({where:{id:p.userId}});
+    if(!target)fail(404,"user_not_found","User not found");
+    if(target.role==="ADMIN")fail(403,"admin_protected","Administrator accounts cannot be publishing-restricted");
+    const updated=await tx.user.update({where:{id:p.userId},data:{
+      publishingStatus:p.status,publishingRestrictedUntil:p.status==="RESTRICTED"?until:null
+    },select:{id:true,publishingStatus:true,publishingRestrictedUntil:true}});
+    await tx.auditLog.create({data:{actorId:admin.id,action:"publisher.restriction_change",objectId:p.userId,
+      detail:{previous:target.publishingStatus,status:p.status,until:p.status==="RESTRICTED"?p.until??null:null,reason:p.reason}}});
+    return updated;
+  });
+}
