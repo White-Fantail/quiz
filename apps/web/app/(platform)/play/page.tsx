@@ -20,7 +20,7 @@ type RunInfo = {runId:string;runToken:string;mode:Mode;lane:Lane;packId?:string|
   solved?:number;failed?:number;exhausted?:boolean;message?:string};
 type Round = RunInfo & {sessionId:string;sessionToken:string;round:number;quizId:string;title:string;
   prompt:string;promptMediaIds:string[];clues:Clue[];clueIndex:number;clueCount:number;
-  sessionStatus:string;canGuess?:boolean;ratings?:RatingSummary;myRating?:number|null;ratingAccess?:RatingAccess};
+  sessionStatus:string;canGuess?:boolean;responseMode?:"text"|"multiple-choice";options?:string[];ratings?:RatingSummary;myRating?:number|null;ratingAccess?:RatingAccess};
 type FeedbackItem = {quizId:string;round:number;title:string;ratings:RatingSummary;myRating:number|null;ratingAccess:RatingAccess;isTranslation?:boolean;myTranslationRating?:number|null};
 type MediaPreview = {url:string;kind:string;mimeType:string;mediaId:string};
 
@@ -298,11 +298,19 @@ export default function PlayPage({packId}:{packId?:string}={}) {
           <button type="button" className="btn btn-outline" disabled={busy} onClick={()=>void reveal()}>
             {msg("Reveal another clue","단서 하나 더 보기")}</button>}
         {!isDone&&<form className="guess-form" onSubmit={e=>void check(e)}>
-          <label htmlFor="quizdip-answer">{msg("What's your answer?","정답은 무엇일까요?")}</label>
-          <div className="guess-row">
+          <label id="quizdip-answer-label">{msg("What's your answer?","정답은 무엇일까요?")}</label>
+          {round.responseMode==="multiple-choice"&&round.options?.length?
+            <div className="guess-option-grid" role="group" aria-labelledby="quizdip-answer-label">
+              {round.options.map((option,index)=><button type="button" key={option}
+                className={"guess-option"+(guess===option?" selected":"")} aria-pressed={guess===option}
+                disabled={busy||mustReveal} onClick={()=>setGuess(option)}>
+                <span className="guess-option-letter">{String.fromCharCode(65+index)}</span>{option}
+              </button>)}
+            </div>:
             <input id="quizdip-answer" value={guess} onChange={e=>setGuess(e.target.value)}
-              autoComplete="off" placeholder={msg("Enter your answer","정답을 입력해 보세요")} maxLength={200}
-              disabled={busy||mustReveal}/>
+              aria-labelledby="quizdip-answer-label" autoComplete="off" placeholder={msg("Enter your answer","정답을 입력해 보세요")}
+              maxLength={200} disabled={busy||mustReveal}/>}
+          <div className="guess-row">
             <button type="submit" className="btn btn-primary" disabled={busy||mustReveal||!guess.trim()}>
               {msg("Check answer","정답 확인")}</button>
           </div>
