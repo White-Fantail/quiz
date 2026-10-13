@@ -23,10 +23,20 @@ test("invalid effects, strength, focus and remote images are rejected",()=>{
   ])assert.throws(()=>parseOperation("quiz_create",{...base,clues:[{type:"image-reveal",mediaId,reveal}]}));
   assert.throws(()=>parseOperation("quiz_create",{...base,clues:[{type:"image-reveal",mediaId:"https://example.com/image.png",reveal:{effect:"blur",strength:0}}]}));
 });
-test("play and studio show the newest image stage instead of stacking old reveal images",()=>{
+test("web player and Studio retain each clue's text while updating a shared image in place",()=>{
   for(const path of ["app/(platform)/play/page.tsx","app/(platform)/play/[quizId]/page.tsx",
-    "app/(creator)/studio/quizzes/[quizId]/preview/studio-quiz-preview.tsx"])
-    assert.match(read(path),/supersededReveal/);
+    "app/(creator)/studio/quizzes/[quizId]/preview/studio-quiz-preview.tsx"]){
+    const page=read(path);
+    assert.match(page,/activeImageStage/);
+    assert.match(page,/clue\.text/);
+    assert.match(page,/stage\?\.mediaId/);
+    assert.doesNotMatch(page,/supersededReveal/);
+  }
+  const kidGame=read("../kids/app/game.tsx"),kidClue=read("../kids/src/components/KidClueView.tsx");
+  assert.match(kidGame,/activeImageStage/);
+  assert.match(kidGame,/mediaStage=\{stage\}/);
+  assert.match(kidClue,/clue\.text/);
+  assert.match(kidClue,/mediaStage\.mediaId/);
   assert.match(read("src/modules/platform/media.ts"),/clue\.type === "image-reveal" \? "image"/);
   assert.match(read("app/(creator)/studio/quizzes/[quizId]/quiz-detail.tsx"),/Create Image Reveal/);
 });
