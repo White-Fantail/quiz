@@ -178,7 +178,7 @@ export default function StudioQuizPreview({quizId,detailHref}:{quizId:string;det
         <label id="preview-answer-label">{msg("What's your answer?","정답은 무엇일까요?")}</label>
         {quiz.answer.responseMode==="multiple-choice"&&quiz.answer.options?.length?
           <div className="guess-option-grid" role="group" aria-labelledby="preview-answer-label">
-            {quiz.answer.options.map((option,index)=><button key={option} type="button"
+            {quiz.answer.options.map((_,index,all)=>all[(index+1+attempt)%all.length]).map((option,index)=><button key={option} type="button"
               className={"guess-option"+(guess===option?" selected":"")} aria-pressed={guess===option}
               disabled={needsNext} onClick={()=>setGuess(option)}>
               <span className="guess-option-letter">{String.fromCharCode(65+index)}</span>{option}
