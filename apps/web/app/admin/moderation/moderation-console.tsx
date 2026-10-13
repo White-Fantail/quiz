@@ -12,8 +12,6 @@ type Policy={enabled:boolean;quizReportThreshold:number;packReportThreshold:numb
 type Item={kind:"QUIZ"|"PACK";id:string;title:string;authorId:string;author:string;
   publishingStatus:string;publishingRestrictedUntil:string|null;safetyStatus:string;
   reportCount:number;updatedAt:string};
-const initialPolicy:Policy={enabled:true,quizReportThreshold:3,packReportThreshold:3,
-  windowHours:24,minimumEstablishedReporters:2,establishedAccountDays:7};
 
 async function api(path:string,init?:RequestInit){
   const response=await fetch("/api/v1/admin/moderation/"+path,{
@@ -28,8 +26,7 @@ function request(method:string,body:Record<string,unknown>):RequestInit{
 }
 export default function ModerationConsole(){
   const locale=useLocale(),msg=(en:string,ko:string)=>bilingual(locale,en,ko);
-  const [policy,setPolicy]=useState<Policy>(initialPolicy);
-  const [savedPolicy,setSavedPolicy]=useState<Policy>(initialPolicy);
+  const [policy,setPolicy]=useState<Policy|null>(null);
   const [queue,setQueue]=useState<Item[]>([]);
   const [selected,setSelected]=useState<Item|null>(null);
   const [userId,setUserId]=useState("");
@@ -40,10 +37,10 @@ export default function ModerationConsole(){
   const [error,setError]=useState(""),[success,setSuccess]=useState("");
   const load=useCallback(async()=>{
     const [config,rows]=await Promise.all([api("policy"),api("queue?limit=100")]);
-    setPolicy(config);setSavedPolicy(config);setQueue(rows.items??[]);
+    setPolicy(config);setQueue(rows.items??[]);
   },[]);
   useEffect(()=>{let mounted=true;Promise.all([api("policy"),api("queue?limit=100")])
-    .then(([config,rows])=>{if(mounted){setPolicy(config);setSavedPolicy(config);setQueue(rows.items??[]);}})
+    .then(([config,rows])=>{if(mounted){setPolicy(config);setQueue(rows.items??[]);}})
     .catch(e=>{if(mounted)setError(e.message)})
     .finally(()=>{if(mounted)setLoading(false)});
     return ()=>{mounted=false};
@@ -53,9 +50,6 @@ export default function ModerationConsole(){
     try{await work();await load();setSuccess(message);return true}
     catch(e){setError(e instanceof Error?e.message:"Request failed");return false}
     finally{setBusy(false)}
-  }
-  function changeNumber(field:keyof Policy,value:string){
-    setPolicy(previous=>({...previous,[field]:Number(value)}));
   }
   async function lookup(id=userId){
     if(!id.trim())return;
@@ -92,103 +86,20 @@ export default function ModerationConsole(){
     },msg("Publishing access updated.","게시 권한을 변경했습니다."));
     setReason("");
   }
-  const hasUnsavedChanges=(
-    policy.enabled!==savedPolicy.enabled ||
-    policy.quizReportThreshold!==savedPolicy.quizReportThreshold ||
-    policy.packReportThreshold!==savedPolicy.packReportThreshold ||
-    policy.windowHours!==savedPolicy.windowHours ||
-    policy.minimumEstablishedReporters!==savedPolicy.minimumEstablishedReporters ||
-    policy.establishedAccountDays!==savedPolicy.establishedAccountDays
-  );
-  const establishedDescription=policy.minimumEstablishedReporters===0
-    ?msg("No established-account requirement","기존 계정 최소 인원 조건 없음")
-    :msg("At least "+policy.minimumEstablishedReporters+" established reporters",
-      "기존 계정 신고자 최소 "+policy.minimumEstablishedReporters+"명");
-  const ageDescription=policy.establishedAccountDays===0
-    ?msg("Every account meets the age rule","가입 당일부터 기존 계정으로 인정")
-    :msg("Accounts at least "+policy.establishedAccountDays+" days old",
-      "가입 "+policy.establishedAccountDays+"일 이상 계정");
   return <section className="section review-console">
     {error&&<p role="alert" className="feedback">{error}</p>}
     {success&&<p role="status" className="feedback success">{success}</p>}
-    {loading&&<p role="status">{msg("Loading moderation policy…","모더레이션 설정을 불러오는 중…")}</p>}
+    {loading&&<p role="status">{msg("Loading moderation queue…","신고 관리 목록을 불러오는 중…")}</p>}
     {!loading&&<>
-      <div className="review-section-heading">
-        <div><h2>{msg("Automatic hold rules","자동 보류 기준")}</h2>
-          <p className="muted">{msg("Only independent account reports count. Admin review decides the final outcome.","독립적인 신고 계정 수로 보류를 결정하며, 최종 제재는 관리자가 판단합니다.")}</p></div>
-      </div>
-      <div className="feature-card" aria-live="polite" style={{display:"grid",gap:12,marginBottom:16}}>
-        <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
-          <strong>{msg("Automatic hold at a glance","현재 자동 보류 조건")}</strong>
-          <span className="small-tag">{policy.enabled
-            ?msg("Auto-hold ON","자동 보류 사용 중")
-            :msg("Auto-hold OFF","자동 보류 중지")}</span>
-          {hasUnsavedChanges&&<span className="small-tag" style={{borderStyle:"dashed"}}>
-            {msg("Preview only · not saved","미저장 · 변경사항 미적용")}
-          </span>}
+      <div className="moderation-policy-toolbar">
+        <div className="moderation-policy-toolbar-status">
+          <strong>{msg("Automatic report holds","신고 자동 보류")}</strong>
+          {policy&&<span className="small-tag">{policy.enabled?msg("Enabled","사용 중"):msg("Disabled","꺼짐")}</span>}
         </div>
-        <p className="muted" style={{margin:0}}>{msg(
-          "All applicable requirements below must be met for the same item. Reports are counted from distinct accounts, not total clicks.",
-          "같은 콘텐츠에 아래 조건이 모두 충족되어야 자동 보류됩니다. 신고 횟수가 아니라 서로 다른 신고 계정 수를 계산합니다."
-        )}</p>
-        <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
-          <span className="small-tag">{msg("Quiz","문제")} ≥ {policy.quizReportThreshold}{msg(" reporters","명")}</span>
-          <span className="small-tag">{msg("Pack","팩")} ≥ {policy.packReportThreshold}{msg(" reporters","명")}</span>
-          <span className="small-tag">{msg("Within the last ","최근 ")}{policy.windowHours}{msg(" hours","시간")}</span>
-          <span className="small-tag">{establishedDescription}</span>
-          <span className="small-tag">{ageDescription}</span>
-        </div>
-        <p style={{margin:0}}>{policy.enabled
-          ?msg(
-            "Example: "+policy.quizReportThreshold+" different people report one quiz within "+policy.windowHours+" hours; at least "+policy.minimumEstablishedReporters+" of them have accounts "+policy.establishedAccountDays+"+ days old. Then it is temporarily hidden pending staff review.",
-            "예: 최근 "+policy.windowHours+"시간에 한 문제를 서로 다른 "+policy.quizReportThreshold+"명 이상이 신고하고, 그중 최소 "+policy.minimumEstablishedReporters+"명이 가입 "+policy.establishedAccountDays+"일 이상이라면 관리자 검토까지 일시적으로 숨깁니다."
-          )
-          :msg(
-            "Reports are still accepted and shown in the review queue. Automatic hiding is disabled.",
-            "신고 접수와 관리자 검토는 계속되지만 자동 숨김은 발생하지 않습니다."
-          )}</p>
-        <small className="muted">{msg(
-          "Self-reports and repeated open reports from the same account do not increase the count. A hold is not a confirmed violation.",
-          "본인 콘텐츠 신고는 제외하고, 같은 계정의 중복 신고는 추가 집계하지 않습니다. 자동 보류는 위반 확정이 아닙니다."
-        )}</small>
+        <Link className="btn btn-outline" href={localizeHref("/admin/moderation/settings",locale)}>
+          {msg("Manage hold rules →","자동 보류 설정 →")}
+        </Link>
       </div>
-      <div className="cards" style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(175px,1fr))",gap:12}}>
-        {([
-          ["quizReportThreshold",msg("Quiz report threshold","문제 신고 임계치"),2,100,
-            msg("Minimum number of different accounts reporting the same quiz.","같은 문제를 신고한 서로 다른 계정의 최소 수")],
-          ["packReportThreshold",msg("Pack report threshold","팩 신고 임계치"),2,100,
-            msg("Minimum number of different accounts reporting the same pack.","같은 퀴즈팩을 신고한 서로 다른 계정의 최소 수")],
-          ["windowHours",msg("Report window (hours)","신고 집계 시간"),1,720,
-            msg("Only OPEN reports submitted in the last N hours count.","현재 기준 최근 N시간의 미처리 신고만 집계")],
-          ["minimumEstablishedReporters",msg("Established reporters required","기존 계정 최소 신고자"),0,100,
-            msg("Among the unique reporters, at least this many must meet the account-age rule.","전체 신고자 중 가입 기간 조건을 충족해야 하는 최소 인원")],
-          ["establishedAccountDays",msg("Established account age (days)","기존 계정 기준 일수"),0,90,
-            msg("An account is established after being registered for this many days.","가입한 지 이 일수 이상이면 기존 계정으로 인정")]
-        ] as const).map(([field,label,min,max,help])=>
-          <label key={field} className="feature-card" style={{display:"grid",gap:8}}>
-            <span style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
-              <span>{label}</span>
-              <span className="small-tag" title={help} aria-label={help} style={{cursor:"help"}}>?</span>
-            </span>
-            <input aria-label={label} type="number" min={min} max={max} step={1} value={policy[field]}
-              onChange={e=>changeNumber(field,e.target.value)}/>
-            <small className="muted">{help}</small>
-          </label>)}
-      </div>
-      {policy.minimumEstablishedReporters>Math.min(policy.quizReportThreshold,policy.packReportThreshold)&&
-        <p role="alert" className="feedback">{msg(
-          "Established-reporter minimum cannot exceed either content threshold.",
-          "기존 계정 최소 신고자 수는 문제·팩 신고 임계치를 초과할 수 없습니다."
-        )}</p>}
-      <p><label><input type="checkbox" checked={policy.enabled}
-        onChange={e=>setPolicy(previous=>({...previous,enabled:e.target.checked}))}/>
-        {" "}{msg("Enable automatic holds","자동 보류 활성화")}</label></p>
-      <button className="btn btn-primary" type="button" disabled={busy||policy.minimumEstablishedReporters>Math.min(policy.quizReportThreshold,policy.packReportThreshold)}
-        onClick={()=>{if(window.confirm(msg("Save thresholds?","변경한 임계치를 저장할까요?")))
-          void action(()=>api("policy",request("PATCH",{...policy})),
-            msg("Policy saved.","정책 설정을 저장했습니다."));}}>
-        {msg("Save policy","설정 저장")}
-      </button>
       <div className="review-section-heading" style={{marginTop:30}}>
         <div><h2>{msg("Held and reported content","보류 및 신고된 콘텐츠")}</h2>
           <p className="muted">{msg("A hold hides the content from public discovery and play until staff review.","보류된 콘텐츠는 관리자가 검토할 때까지 공개 검색과 플레이에서 제외됩니다.")}</p></div>
