@@ -50,7 +50,7 @@ export default function ChallengeScreen(){
 
    {canResume?<Pressable accessibilityRole="button" onPress={()=>router.push("/game")}
      style={({pressed})=>[styles.resume,{opacity:pressed?.8:1}]}>
-      <View style={styles.resumeIcon}><KidsEmojiIcon emoji="▶" size={25} color={theme.colors.accent}/></View>
+      <View style={styles.resumeIcon}><KidsEmojiIcon emoji="🧭" size={25} color={theme.colors.accent}/></View>
       <View style={{flex:1,gap:4}}>
         <Text style={styles.resumeTitle}>{t("native.play.resume")}</Text>
         <Text style={styles.resumeDetail}>{t("native.challenge.resumeDetail")}</Text>
