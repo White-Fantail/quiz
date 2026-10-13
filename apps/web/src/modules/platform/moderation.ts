@@ -48,7 +48,9 @@ async function notice(tx:any,userId:string,kind:TargetKind|"PUBLISHER",targetId:
 }
 
 async function policyRow():Promise<PolicyRow>{
-  return db().moderationPolicy.upsert({where:{id:"default"},create:{id:"default"},update:{}}) as Promise<PolicyRow>;
+  const current=await db().moderationPolicy.findUnique({where:{id:"default"}});
+  if(!current)fail(503,"moderation_migration_required","Moderation policy migration must be applied");
+  return current;
 }
 
 export async function moderationPolicyGet(_p:Record<string,unknown>,actor:Actor|null){
