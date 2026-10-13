@@ -44,7 +44,8 @@ export async function defaultMcpRefreshResource(
   if (request.method !== "POST") return { request, applied: false };
   const url = new URL(request.url);
   if (!url.pathname.endsWith("/oauth2/token")) return { request, applied: false };
-  if (!/^application\\/x-www-form-urlencoded(?:\\s*;|$)/i.test(request.headers.get("content-type") ?? ""))
+  const contentType = (request.headers.get("content-type") ?? "").split(";")[0].trim().toLowerCase();
+  if (contentType !== "application/x-www-form-urlencoded")
     return { request, applied: false };
 
   // Limit parsing to small OAuth token requests; never read or log credentials.
