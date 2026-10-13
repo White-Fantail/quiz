@@ -2,7 +2,30 @@ import { z } from "zod";
 
 export const uuid = z.string().uuid();
 export const userId = z.string().min(8).max(200).regex(/^[a-zA-Z0-9_-]+$/);
-export const answerSchema = z.object({ canonical: z.string().trim().min(1).max(200), aliases: z.array(z.string().trim().min(1).max(200)).max(20).default([]) });
+const answerTextKey = (value: string) => value.normalize("NFKC").trim().replace(/\\s+/g, " ").toLocaleLowerCase();
+export const answerSchema = z.object({
+  canonical: z.string().trim().min(1).max(200),
+  aliases: z.array(z.string().trim().min(1).max(200)).max(20).default([]),
+  responseMode: z.enum(["text", "multiple-choice"]).optional(),
+  options: z.array(z.string().trim().min(1).max(200)).min(2).max(6).optional()
+}).superRefine((answer, ctx) => {
+  if (answer.responseMode !== "multiple-choice") {
+    if (answer.options !== undefined) ctx.addIssue({code:"custom",path:["options"],message:"Only multiple-choice questions can specify options"});
+    return;
+  }
+  if (!answer.options) {
+    ctx.addIssue({code:"custom",path:["options"],message:"Multiple-choice questions need 2 to 6 options"});
+    return;
+  }
+  const keys = answer.options.map(answerTextKey);
+  if (new Set(keys).size !== keys.length)
+    ctx.addIssue({code:"custom",path:["options"],message:"Answer choices must be distinct"});
+  if (keys.filter(value => value === answerTextKey(answer.canonical)).length !== 1)
+    ctx.addIssue({code:"custom",path:["options"],message:"Include the canonical correct answer exactly once"});
+  const aliases = new Set(answer.aliases.map(answerTextKey));
+  if (keys.some(value => value !== answerTextKey(answer.canonical) && aliases.has(value)))
+    ctx.addIssue({code:"custom",path:["options"],message:"Incorrect options cannot be accepted answer aliases"});
+});
 const mediaId = uuid;
 export const clueSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("text"), text: z.string().trim().min(1).max(3000) }),
