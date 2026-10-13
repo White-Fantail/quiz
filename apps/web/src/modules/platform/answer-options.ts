@@ -18,7 +18,7 @@ export function disclosedAnswerChoices(value: unknown, sessionId: string): strin
   return [...answer.options].sort((a, b) => digest(a).localeCompare(digest(b)));
 }
 
-export function publicAnswerFormat(value: unknown, sessionId: string) {
+export function publicAnswerFormat(value: unknown, sessionId: string): { responseMode: "text" | "multiple-choice"; options?: string[] } {
   const responseMode = answerResponseMode(value);
   return { responseMode, ...(responseMode === "multiple-choice"
     ? { options: disclosedAnswerChoices(value, sessionId) } : {}) };
