@@ -16,7 +16,7 @@ test("clear image stays perfectly clear; additional strength always increases or
   for(const platform of ["ios","android","web"]){
     assert.equal(nativeRevealBlurRadius(0,platform),0);
     const radii=[0,1,12,24,50,95,100].map(x=>nativeRevealBlurRadius(x,platform));
-    for(let i=1;i<radii.length;i++)assert.ok(radii[i]>radii[i-1]||i===radii.length-1,
+    for(let i=1;i<radii.length;i++)assert.ok(radii[i]>=radii[i-1],
       `${platform} should not weaken blur at higher strength: ${radii}`);
     assert.ok(radii.at(-1)<=(platform==="ios"?72:60));
   }
