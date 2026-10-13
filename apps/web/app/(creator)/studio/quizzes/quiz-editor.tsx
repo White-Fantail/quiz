@@ -16,7 +16,7 @@ type AnswerType = "person"|"animal"|"place"|"thing"|"event"|"concept"|"other";
 type Language = "ko"|"en"|"und";
 type Quiz = {
   id:string; title:string;prompt:string;locale:Language;version:number;publication:string;
-  safetyStatus:string;answerType:AnswerType;answer:{canonical:string;aliases:string[]};
+  safetyStatus:string;answerType:AnswerType;answer:{canonical:string;aliases:string[];responseMode?:"text"|"multiple-choice";options?:string[]};
   clues:Array<{id?:string;type:ClueType;text?:string;mediaId?:string;reveal?:Reveal;map?:MapData}>;
   topics:Array<{name:string;isSpoiler?:boolean}>;promptMediaIds?:string[];
   creatorIntent?:{ageRange?:{minimum?:number;maximum?:number};note?:string}|null;
@@ -24,6 +24,7 @@ type Quiz = {
 };
 type Form = {
   title:string;prompt:string;locale:Language;answerType:AnswerType;canonical:string;
+  responseMode:"text"|"multiple-choice";distractors:string;
   aliases:string;topics:string;clues:Clue[];creatorMin:string;creatorMax:string;creatorNote:string;
   suggestedMin:string;suggestedMax:string;difficulty:string;promptMediaIds:string[];
 };
@@ -35,13 +36,15 @@ function newClue(type:ClueType="text"):Clue {
     map:{latitude:0,longitude:0,zoom:10}};
 }
 function blankForm(locale:Language):Form {
-  return {title:"",prompt:"",locale,answerType:"other",canonical:"",aliases:"",topics:"",
+  return {title:"",prompt:"",locale,answerType:"other",canonical:"",responseMode:"text",distractors:"",aliases:"",topics:"",
     clues:[newClue()],creatorMin:"",creatorMax:"",creatorNote:"",
     suggestedMin:"",suggestedMax:"",difficulty:"",promptMediaIds:[]};
 }
 function fromQuiz(quiz:Quiz):Form {
   return {title:quiz.title,prompt:quiz.prompt,locale:quiz.locale,answerType:quiz.answerType,
     canonical:quiz.answer.canonical,aliases:quiz.answer.aliases.join("\n"),
+    responseMode:quiz.answer.responseMode==="multiple-choice"?"multiple-choice":"text",
+    distractors:(quiz.answer.options??[]).filter(text=>text.normalize("NFKC").trim().toLocaleLowerCase()!==quiz.answer.canonical.normalize("NFKC").trim().toLocaleLowerCase()).join("\n"),
     topics:quiz.topics.map(t=>t.name).join(", "),
     clues:quiz.clues.map(c=>({...newClue(c.type),text:c.text??"",mediaId:c.mediaId??"",
       reveal:c.reveal?{...c.reveal}:{effect:"blur",strength:60,focusX:50,focusY:50},
@@ -79,6 +82,15 @@ function asPayload(form:Form,original:Quiz|null) {
   if(title.length>180||prompt.length>2000||canonical.length>200)throw Error("Title, question or answer is too long.");
   const aliases=[...new Set(form.aliases.split(/[\n,]+/).map(s=>s.trim()).filter(Boolean))].filter(s=>s.toLocaleLowerCase()!==canonical.toLocaleLowerCase());
   if(aliases.length>20||aliases.some(s=>s.length>200))throw Error("Maximum 20 alternative answers, up to 200 characters each.");
+  const distractors=form.distractors.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+  const normalize=(value:string)=>value.normalize("NFKC").trim().replace(/\s+/g," ").toLocaleLowerCase();
+  if(form.responseMode==="multiple-choice"){
+    if(distractors.length<1||distractors.length>5)throw Error("Add 1 to 5 incorrect choices (2 to 6 total choices).");
+    const accepted=new Set([canonical,...aliases].map(normalize));
+    if(new Set(distractors.map(normalize)).size!==distractors.length || distractors.some(option=>accepted.has(normalize(option))))
+      throw Error("Choices must be unique and cannot duplicate the correct answer or its aliases.");
+    if(distractors.some(s=>s.length>200))throw Error("Each choice must be 200 characters or fewer.");
+  }
   const names=[...new Set(form.topics.split(",").map(s=>s.trim()).filter(Boolean))];
   if(names.length>12||names.some(s=>s.length>80))throw Error("Maximum 12 topics, up to 80 characters each.");
   if(form.clues.length<1||form.clues.length>15)throw Error("Add between 1 and 15 clues.");
@@ -101,7 +113,7 @@ function asPayload(form:Form,original:Quiz|null) {
   });
   const oldTopics=new Map((original?.topics??[]).map(t=>[t.name.toLocaleLowerCase(),!!t.isSpoiler]));
   const topics=names.map(name=>({name,isSpoiler:oldTopics.get(name.toLocaleLowerCase())??false}));
-  return {title,prompt,answerType:form.answerType,answer:{canonical,aliases},clues,topics,
+  return {title,prompt,answerType:form.answerType,answer:{canonical,aliases,...(form.responseMode==="multiple-choice"?{responseMode:"multiple-choice" as const,options:[canonical,...distractors]}:{})},clues,topics,
     promptMediaIds:form.promptMediaIds,
     creatorIntent:{ageRange:ageRange(form.creatorMin,form.creatorMax),note:form.creatorNote},
     recommendedAudience:{ageRange:ageRange(form.suggestedMin,form.suggestedMax),
@@ -141,7 +153,7 @@ export default function QuizEditor({quizId,backHref}:{quizId?:string;backHref?:s
   },[quizId,reload]);
   const dirty=quizId?!!initial&&JSON.stringify(form)!==initial:
     !!form.title.trim()||!!form.prompt.trim()||!!form.canonical.trim()||
-    form.clues.some(c=>!!c.text.trim()||!!c.mediaId)||!!form.topics.trim();
+    form.clues.some(c=>!!c.text.trim()||!!c.mediaId)||!!form.topics.trim()||!!form.distractors.trim();
   useEffect(()=>{
     const onBeforeUnload=(event:BeforeUnloadEvent)=>{
       if(dirty&&!saving){event.preventDefault();event.returnValue="";}
@@ -230,12 +242,24 @@ export default function QuizEditor({quizId,backHref}:{quizId?:string;backHref?:s
             {answerTypes.map(type=><option value={type} key={type}>{type}</option>)}
           </select>
         </label>
+        <label>{msg("Answer method","답변 방식")}
+          <select value={form.responseMode} onChange={e=>update("responseMode",e.target.value as Form["responseMode"])}>
+            <option value="text">{msg("Type the answer","주관식 · 직접 입력")}</option>
+            <option value="multiple-choice">{msg("Choose from options","객관식 · 선택지 고르기")}</option>
+          </select>
+        </label>
         <label>{msg("Correct answer","정답")}
           <input required maxLength={200} value={form.canonical} onChange={e=>update("canonical",e.target.value)} placeholder={msg("e.g. Kiwi","예: 키위")}/>
         </label>
         <label>{msg("Other accepted answers · one per line","인정할 다른 정답 · 줄마다 하나")}
           <textarea rows={3} value={form.aliases} onChange={e=>update("aliases",e.target.value)} placeholder={msg("Synonyms and alternate spellings","다른 표기와 동의어")}/>
         </label>
+        {form.responseMode==="multiple-choice"&&<label className="studio-wide">
+          {msg("Incorrect choices · one per line (1 to 5)","오답 선택지 · 한 줄에 하나씩 (1~5개)")}
+          <textarea rows={5} value={form.distractors} onChange={e=>update("distractors",e.target.value)}
+            placeholder={msg("Add plausible incorrect answers. The correct answer is included automatically.","정답과 헷갈릴 만한 오답을 넣어 주세요. 위의 대표 정답은 자동 포함됩니다.")}/>
+          <span className="muted">{msg("Players see shuffled choices. Multiple-choice scores have a 75-point maximum.","선택지는 플레이마다 섞여 표시됩니다. 객관식 최고 점수는 75점입니다.")}</span>
+        </label>}
         <label className="studio-wide">{msg("Topics · comma separated","주제 · 쉼표로 구분")}
           <input value={form.topics} onChange={e=>update("topics",e.target.value)} placeholder={msg("Nature, Animals, New Zealand","자연, 동물, 뉴질랜드")}/>
         </label>
