@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { db } from "./db";
+import { requirePublishingPermission } from "./moderation";
 import { fail, requireActor, type Actor } from "./auth";
 import { validateMediaReferences } from "./media";
 import { isTrustedMcpAdmin } from "./auto-approval";
@@ -133,6 +134,8 @@ export async function quizTranslationSave(p: Record<string,any>, actor:Actor|nul
 export async function quizTranslationPublish(p: Record<string,any>, actor:Actor|null) {
   const {quiz,user}=await owned(p.id,actor);
   if(quiz.publication!=="PUBLISHED") fail(409,"quiz_not_published","Publish the original quiz first");
+  if(quiz.safetyStatus!=="ACTIVE") fail(403,"restricted_quiz","This quiz requires moderator clearance");
+  await requirePublishingPermission(actor);
   if(quiz.sourceLocale===p.locale || quiz.sourceLocale==="und")
     fail(409,"invalid_translation_language","Only non-source translations can be independently published");
   const loc=await db().quizLocalization.findUnique({where:{quizId_locale:{quizId:quiz.id,locale:p.locale}}});
