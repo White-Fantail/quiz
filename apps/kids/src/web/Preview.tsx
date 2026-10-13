@@ -89,12 +89,13 @@ export default function Preview({initialTab="home"}:{initialTab?:Tab}){
    <View style={styles.card}><Text style={styles.title}>🧒 {s.profile}</Text><Text style={styles.detail}>{s.about}</Text></View>
    <Text style={styles.heading}>{t("kids.chooseTopic")}</Text>
    <View style={styles.grid}>{([
-    {emoji:"🦕",name:"kids.topic.dinosaurs",detail:"kids.topic.dinosaursDesc",type:"animal",tint:theme.colors.lilac},
-    {emoji:"🦁",name:"kids.topic.animals",detail:"kids.topic.animalsDesc",type:"animal",tint:theme.colors.peach},
-    {emoji:"🌍",name:"kids.topic.world",detail:"kids.topic.worldDesc",type:"place",tint:theme.colors.mint},
-    {emoji:"🚀",name:"kids.topic.science",detail:"kids.topic.scienceDesc",type:"concept",tint:theme.colors.sky}
+    {id:"dinosaur",emoji:"🦕",name:"kids.topic.dinosaurs",detail:"kids.topic.dinosaursDesc",type:"animal",tint:theme.colors.lilac},
+    {id:"animals",emoji:"🦁",name:"kids.topic.animals",detail:"kids.topic.animalsDesc",type:"animal",tint:theme.colors.peach},
+    {id:"world",emoji:"🌍",name:"kids.topic.world",detail:"kids.topic.worldDesc",type:"place",tint:theme.colors.mint},
+    {id:"space",emoji:"🚀",name:"kids.topic.science",detail:"kids.topic.scienceDesc",type:"concept",tint:theme.colors.sky}
    ] as const).map(v=><View key={v.name} style={{width:width>=720?"48%":"100%"}}>
-    <AdventureTile emoji={v.emoji} title={t(v.name)} detail={t(v.detail)} tint={v.tint}
+    <AdventureTile id={v.id} emoji={v.emoji} title={t(v.name)} detail={t(v.detail)} tint={v.tint}
+      count={3} playLabel={t("native.adventure.toPlay")}
       onPress={()=>{setFilter(v.type);setTab("explore");}}/></View>)}</View>
   </Screen>:null}
   {tab==="explore"?<Screen title={t("kids.explore.title")} subtitle={s.explore}>
