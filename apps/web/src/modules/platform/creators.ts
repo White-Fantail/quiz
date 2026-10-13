@@ -5,7 +5,7 @@ export async function userGet(p: Record<string, any>) {
   const user = await db().user.findUnique({ where: { id: p.userId }, select: { id: true, displayName: true } });
   if (!user) fail(404, "not_found", "Creator not found");
   const [publishedQuizzes, positive, negative] = await Promise.all([
-    db().quiz.count({ where: { authorId: user.id, publication: "PUBLISHED", safetyStatus: { not: "RESTRICTED" } } }),
+    db().quiz.count({ where: { authorId: user.id, publication: "PUBLISHED", safetyStatus: "ACTIVE" } }),
     db().creatorReview.count({ where: { targetId: user.id, rating: 1 } }),
     db().creatorReview.count({ where: { targetId: user.id, rating: -1 } })
   ]);
@@ -30,7 +30,7 @@ export async function creatorReviewUpsert(p: Record<string, any>, actor: Actor |
   if (!target) fail(404, "not_found", "Creator not found");
   const completed = await db().playSession.count({
     where: { userId: reviewer.id, status: { in: ["SOLVED", "FAILED"] },
-      quiz: { authorId: p.userId, publication: "PUBLISHED", safetyStatus: { not: "RESTRICTED" } } }
+      quiz: { authorId: p.userId, publication: "PUBLISHED", safetyStatus: "ACTIVE" } }
   });
   if (!completed) fail(403, "play_required", "Finish one of this creator's published quizzes before reviewing");
   const review = await db().creatorReview.upsert({
