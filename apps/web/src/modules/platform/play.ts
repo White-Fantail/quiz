@@ -10,7 +10,8 @@ import { publicAnswerFormat, answerResponseMode } from "./answer-options";
 function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
 }
-export async function getPlaySession(p: Record<string, any>, actor: Actor | null) {
+export async function getPlaySession(p: Record<string, any>, actor: Actor | null,
+  { allowCompletedRun = false }: { allowCompletedRun?: boolean } = {}) {
   const session = await db().playSession.findUnique({
     where: { id: p.sessionId },
     include: { revision: { include: { localization: true } } }
@@ -37,7 +38,11 @@ export async function getPlaySession(p: Record<string, any>, actor: Actor | null
     fail(409,"question_suspended","This quiz is no longer publicly playable");
   if (session.runId) {
     const run=await db().playRun.findUnique({where:{id:session.runId}});
-    if (!run || run.status!=="ACTIVE" || run.currentIndex!==session.roundIndex)
+    // Completed, pinned rounds remain reviewable after the run advances.
+    // Active sessions must still belong to the original current round.
+    const completed = session.status === "SOLVED" || session.status === "FAILED";
+    if (!run || (!(allowCompletedRun && completed) &&
+        (run.status!=="ACTIVE" || run.currentIndex!==session.roundIndex)))
       fail(409,"run_not_active","This run's active round has changed");
     if(run.mode==="PACK" && (!run.packId || !await db().quizPack.findFirst({
       where:{id:run.packId,publication:"PUBLISHED",safetyStatus:"ACTIVE",
@@ -74,6 +79,16 @@ export async function playStart(p: Record<string, any>, actor: Actor | null) {
     mode: revision.mode, locale: p.locale, quizVersion: revision.version, promptMediaIds: revision.promptMediaIds, clue: clues[0], clueIndex: 1, clueCount: clues.length,
     ...publicAnswerFormat(revision.answer, session.id) };
 }
+/** Read-only review after grading, restricted to the completed pinned session. */
+export async function playReview(p: Record<string, any>, actor: Actor | null) {
+  const session = await getPlaySession(p, actor, { allowCompletedRun: true });
+  if (session.status !== "SOLVED" && session.status !== "FAILED")
+    fail(409, "review_not_available", "Finish the question before reviewing its remaining clues");
+  const clues = session.revision.clues as Record<string, unknown>[];
+  return { firstClueIndex: session.usedClues + 1, clueCount: clues.length,
+    clues: clues.slice(session.usedClues) };
+}
+
 export async function playClue(p: Record<string, any>, actor: Actor | null) {
   const session = await getPlaySession(p, actor);
   if (session.status !== "ACTIVE") fail(409, "finished", "Game has already ended");
