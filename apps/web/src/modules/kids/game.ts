@@ -1,4 +1,5 @@
 import { buildKidAnswerChoices } from "./answer-choices";
+import { publicAnswerFormat } from "../platform/answer-options";
 import { db } from "../platform/db";
 import { execute } from "../platform/operations";
 import { fail } from "../platform/auth";
@@ -71,8 +72,10 @@ async function ownedSession(kid:Kid,sessionId:string,sessionToken:string){
   return entry;
 }
 async function answerChoices(kid:Kid,sessionId:string,sessionToken:string){
-  if(kid.profile.ageBand==="OLDER")return [];
   const active=await ownedSession(kid,sessionId,sessionToken);
+  const authorChoices=publicAnswerFormat(active.revision.answer,sessionId);
+  if(authorChoices.responseMode==="multiple-choice")return authorChoices.options ?? [];
+  if(kid.profile.ageBand==="OLDER")return [];
   if(active.status!=="ACTIVE")return [];
   const revisions=await db().quizRevision.findMany({
     where:{answerType:active.revision.answerType,
@@ -158,6 +161,7 @@ export async function currentKidSingle(kid:Kid,sessionId:string,sessionToken:str
     promptMediaIds:session.revision.promptMediaIds,clues:clues.slice(0,session.usedClues),
     clueIndex:session.usedClues,clueCount:clues.length,sessionStatus:session.status,
     canGuess:session.status==="ACTIVE" && session.wrongGuesses<session.usedClues,
+    ...publicAnswerFormat(session.revision.answer,sessionId),
     options:await answerChoices(kid,sessionId,sessionToken),
     ...(session.status!=="ACTIVE"?{scoreThisQuestion:session.score}:{})};
 }
