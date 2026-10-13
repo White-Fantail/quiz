@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { resolveLocale, localizeHref } from "../src/i18n/core";
 import { t } from "../src/i18n/messages";
 import { LocaleProvider } from "../src/i18n/provider";
+import LanguageSwitcher from "../src/i18n/language-switcher";
 import "./globals.css";
 import "./management.css";
 
@@ -45,6 +46,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
                   <Link key={href} href={localizeHref(href, locale)}>{t(locale, key)}</Link>
                 ))}
               </nav>
+              <LanguageSwitcher compact />
             </div>
           </header>
           <main>{children}</main>
