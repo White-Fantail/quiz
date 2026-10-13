@@ -35,7 +35,7 @@ async function approvedMedia(revisions:SafeRevision[]):Promise<boolean>{
 export async function safePack(id:string,locale:Locale,lane:AudienceLane,
   options:{skipPackApproval?:boolean;ageBand?:KidAgeBand}={}):Promise<SafePack> {
   const pack=await db().quizPack.findFirst({
-    where:{id,publication:"PUBLISHED",safetyStatus:{not:"RESTRICTED"},
+    where:{id,publication:"PUBLISHED",safetyStatus:"ACTIVE",
       localizations:{some:{locale,status:"PUBLISHED"}},
       ...(lane==="KIDS"&&!options.skipPackApproval?
         {kidsEligible:true,kidsReviewStatus:"APPROVED",sourceLocale:locale}:{})},
