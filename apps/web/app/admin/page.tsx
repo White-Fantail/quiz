@@ -29,6 +29,12 @@ export default async function AdminPage() {
           <p>{msg("Review reports, high negative ratings and creator-submitted Kids quizzes.","신고·높은 부정 평가·제작자가 신청한 Kids 문제를 검토해요.")}</p>
           <span className="card-link">{msg("Open review tools →","심사 도구 열기 →")}</span>
         </Link>
+        <Link href={localizeHref("/admin/moderation",locale)} className="feature-card">
+          <span className="symbol yellow" aria-hidden="true">⚑</span>
+          <h2>{msg("Report moderation & creator restrictions","신고 처리 및 제작자 게시 제한")}</h2>
+          <p>{msg("Manage automatic hold thresholds, review flagged content and restrict repeated abusive publishing.","자동 보류 임계치를 설정하고 신고 콘텐츠 및 악성 게시자의 공개 권한을 관리해요.")}</p>
+          <span className="card-link">{msg("Open moderation →","신고 관리 열기 →")}</span>
+        </Link>
         <Link href={localizeHref("/admin/features",locale)} className="feature-card">
           <span className="symbol yellow" aria-hidden="true">✦</span>
           <h2>{msg("Editorial recommendations","운영자 추천 콘텐츠")}</h2>
