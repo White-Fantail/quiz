@@ -37,7 +37,7 @@ export default function PackBrowser({page,onPageChange,ready}:{page:number;onPag
         <span className="small-tag">{ko?"퀴즈팩":"Quiz pack"}</span>
         <span className="muted">{pack.quizIds.length} {ko?"문제":"questions"}</span>
       </div>
-      <h3>{pack.title}</h3><p>{pack.description}</p>
+      <h3>{pack.title}</h3><p className="discover-card-description">{pack.description}</p>
       <p className="muted">{pack.orderMode==="RANDOM"?(ko?"랜덤 출제":"Random each play"):(ko?"제작자 순서":"Creator order")}</p>
       {pack.ratings?.positivePercent!==null&&pack.ratings?.positivePercent!==undefined&&
         <p>👍 {pack.ratings.positivePercent}% · {pack.ratings.total}{ko?"명 평가":" ratings"}</p>}
