@@ -2,6 +2,7 @@ import { db } from "./db";
 import { fail } from "./auth";
 import { playableQuizWhere } from "./content-locale";
 import { selectPlayablePackItems } from "./pack-policy";
+import { ageEligible } from "./kids-age";
 import type { Locale } from "../../i18n/core";
 
 export type AudienceLane = "GENERAL"|"KIDS";
@@ -27,18 +28,6 @@ async function approvedMedia(revisions:SafeRevision[]):Promise<boolean>{
   const count=await db().mediaAsset.count({where:{id:{in:ids},
     status:"READY",moderationStatus:"APPROVED",deletedAt:null}});
   return count===ids.length;
-}
-function ageEligible(value:unknown,band?:KidAgeBand){
-  if(!band)return true;
-  // Profile bands cover several birthdays. Check range overlap, not a single
-  // representative age (6 previously excluded every 4–5 quiz for EARLY).
-  const group=band==="EARLY"?{minimum:4,maximum:7}:
-    band==="MIDDLE"?{minimum:8,maximum:10}:{minimum:11,maximum:12};
-  if(!value||typeof value!=="object")return true;
-  const range=(value as {ageRange?:{minimum?:number;maximum?:number}}).ageRange;
-  if(!range)return true;
-  return !(typeof range.minimum==="number"&&range.minimum>group.maximum ||
-    typeof range.maximum==="number"&&range.maximum<group.minimum);
 }
 /** Revalidate publication, localization, safety, age and EVERY asset. No fallback
  * to another language, no feature/editorial or creator authority can override this.
