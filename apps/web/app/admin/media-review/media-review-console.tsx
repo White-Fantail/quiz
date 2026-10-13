@@ -63,8 +63,8 @@ function MediaPreview({item,expanded}:{item:Media;expanded:boolean}){
     return ()=>{active=false;observer?.disconnect();};
   },[item.id,item.kind,expanded]);
   const thumb=detail?.thumbnailUrl||detail?.previewUrl;
-  return <div className="admin-media-preview" ref={node}>
-    <div className="admin-media-thumb">
+  return <>
+    <div className="admin-media-thumb" ref={node}>
       {item.kind==="image"&&thumb?<img src={thumb} alt={item.alt||item.originalName} loading="lazy"/>:
         <span>{item.kind==="image"?"IMAGE":item.kind==="audio"?"AUDIO":"VIDEO"}</span>}
     </div>
@@ -79,7 +79,7 @@ function MediaPreview({item,expanded}:{item:Media;expanded:boolean}){
       {item.license&&<p><b>{msg("License","라이선스")}:</b> {item.license}</p>}
       {item.transcript&&<p><b>{msg("Transcript","자막/대본")}:</b> {item.transcript}</p>}
     </div>}
-  </div>;
+  </>;
 }
 
 function MediaRow({item,selected,busy,onSelect,onApprove,onRestrict}:{
@@ -165,7 +165,6 @@ export default function MediaReviewConsole(){
           setItems(result.items??[]);
           setTotal(result.total??0);
           setSelected([]);
-          setError("");
         }
       }catch(e){if(active){setItems([]);setError(e instanceof Error?e.message:String(e));}}
       finally{if(active)setLoading(false);}
