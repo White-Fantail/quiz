@@ -15,7 +15,7 @@ import { editorialFeaturesList,adminFeatureList,adminFeatureCandidates,adminFeat
 import { userGet, creatorReviewsList, creatorReviewUpsert } from "./creators";
 import { myQuizzes, myQuizInsights } from "./studio";
 import { mediaUpload, mediaChunk, mediaComplete, mediaImport, mediaList, mediaGet, mediaUpdate,
-  mediaDelete, mediaTransform, mediaReview, mediaReviewGet, signedPlayMedia } from "./media";
+  mediaDelete, mediaTransform, mediaReview, mediaReviewGet, adminMediaReviewList, signedPlayMedia } from "./media";
 
 export async function execute(name: Operation, raw: unknown, actor: Actor | null): Promise<unknown> {
   const p = parseOperation(name, raw);
@@ -104,6 +104,7 @@ export async function execute(name: Operation, raw: unknown, actor: Actor | null
     case "media_update": return mediaUpdate(p, actor);
     case "media_delete": return mediaDelete(p, actor);
     case "media_transform": return mediaTransform(p, actor);
+    case "admin_media_review_list": return adminMediaReviewList(p,actor);
     case "media_review_get": return mediaReviewGet(p,actor);
     case "media_review": return mediaReview(p, actor);
     case "play_media": return signedPlayMedia(p, actor);

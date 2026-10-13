@@ -187,6 +187,11 @@ export const operations = {
       width: z.number().int().positive(), height: z.number().int().positive() }).optional(),
     blur: z.number().min(0.3).max(20).optional(), resizeWidth: z.number().int().min(64).max(2048).optional()
   }).refine(p => !!(p.crop || p.blur || p.resizeWidth), { message: "Choose at least one image transform" }) },
+  admin_media_review_list: { public:false, description:"ADMIN ONLY: paginate ready media pending review and previously moderated media", schema:z.object({
+    ...paging, search:z.string().trim().max(120).default(""),
+    kind:z.enum(["all","image","audio","video"]).default("all"),
+    moderation:z.enum(["all","PENDING","APPROVED","RESTRICTED"]).default("PENDING")
+  }) },
   media_review_get: { public: false, description: "ADMIN ONLY: inspect private media and credits before moderation", schema: z.object({id:mediaId}) },
   media_review: { public: false, description: "ADMIN ONLY: explicitly approve or restrict validated media", schema: z.object({
     id: mediaId, verdict: z.enum(["APPROVED", "RESTRICTED"]), confirm: z.literal(true),

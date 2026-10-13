@@ -41,6 +41,12 @@ export default async function AdminPage() {
           <p>{msg("Review complete packs independently before native Kids devices can discover them.","팩 자체의 내용과 전체 문제·미디어 안전성을 심사한 뒤 어린이용으로 승인해요.")}</p>
           <span className="card-link">{msg("Review packs →","퀴즈팩 심사 →")}</span>
         </Link>
+        <Link href={localizeHref("/admin/media-review",locale)} className="feature-card">
+          <span className="symbol yellow" aria-hidden="true">▣</span>
+          <h2>{msg("Media review","미디어 심사")}</h2>
+          <p>{msg("Preview new images, audio and video. Approve directly from the list or restrict with a required reason.","이미지·오디오·동영상을 미리 보고 목록에서 바로 승인하거나 사유를 남겨 제한해요.")}</p>
+          <span className="card-link">{msg("Review media →","미디어 심사 열기 →")}</span>
+        </Link>
       </div>
     </section>
   );
