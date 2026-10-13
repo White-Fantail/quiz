@@ -19,7 +19,11 @@ test("Kids is a real native Expo app, not a webview shell",()=>{
 });
 test("native discovery is read-only, locale-scoped and server-safe",()=>{
  const src=source("app/(tabs)/explore.tsx"),api=source("src/services/api.ts");
- assert.match(src,/api\.catalog\(token/);
+ const discovery=source("src/useKidsAdventures.ts");
+ assert.match(discovery,/kidsApi\.catalog\(token/);
+ assert.match(discovery,/kidsApi\.packs\(token/);
+ assert.match(discovery,/kidsApi\.features\(token/);
+ assert.match(discovery,/time\.status!=="allowed"/);
  assert.match(source("../../packages/api-client/src/index.ts"),/kidsEligible===true/);
  assert.doesNotMatch(src,/play_guess|play_start|answer\.canonical/);
  assert.match(api,/export const KIDS_API_ORIGIN = "https:\/\/quizdip\.vercel\.app"/);
@@ -79,4 +83,36 @@ test("native Kids decorative icons are font-independent SVGs",()=>{
  for(const path of ["app/(tabs)/explore.tsx","app/(tabs)/packs.tsx","app/(tabs)/challenge.tsx",
    "app/(tabs)/treasures.tsx","app/game.tsx","app/guardian.tsx","app/time-up.tsx"])
    assert.match(source(path),/KidsEmojiIcon/);
+});
+
+
+test("Home and Explore use one adventure taxonomy with pack-first discovery",()=>{
+ const home=source("app/(tabs)/index.tsx");
+ const explore=source("app/(tabs)/explore.tsx");
+ const adventure=source("src/adventures.ts");
+ const art=source("src/components/AdventureArtwork.tsx");
+ const card=source("src/components/AdventureTile.tsx");
+ const tabs=source("app/(tabs)/_layout.tsx");
+ const locale=source("../../packages/i18n/src/kids.ts");
+ assert.match(home,/adventures\.filter/);
+ assert.match(home,/adventureCount/);
+ assert.match(home,/params:\{adventure:item\.id\}/);
+ assert.match(home,/useKidsAdventures/);
+ assert.match(explore,/adventures\.map/);
+ assert.match(explore,/useKidsAdventures/);
+ assert.match(explore,/shownPacks\.map/);
+ assert.match(explore,/shownQuizzes\.map/);
+ assert.ok(explore.indexOf("shownPacks.map")<explore.indexOf("shownQuizzes.map"),"show packs before single quizzes");
+ assert.match(explore,/adventureById\(routeAdventure\)/);
+ assert.match(adventure,/id:"dinosaur"/);
+ for(const id of ["dinosaur","animals","space","math","patterns","time","world","things","science","surprise"]){
+  assert.ok(adventure.includes('id:"'+id+'"'),"missing adventure "+id);
+  assert.ok(art.includes('id==="'+id+'"'),"missing vector art "+id);
+  assert.ok(locale.includes('"native.adventure.'+id+'":'),"missing EN/KO label "+id);
+ }
+ assert.match(card,/<AdventureArtwork/);
+ assert.match(art,/react-native-svg/);
+ assert.match(tabs,/<Tabs.Screen name="packs" options=\{\{href:null\}\}/);
+ assert.doesNotMatch(tabs,/\{name:"packs",label:/);
+ assert.doesNotMatch(source("src/useKidsAdventures.ts"),/QuizDipPublicApi|publicApi|Authorization:/);
 });
