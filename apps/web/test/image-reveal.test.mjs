@@ -44,5 +44,5 @@ test("Kids app supports the same reveal effects without duplicate media assets",
   assert.match(read("../kids/src/components/KidClueView.tsx"),/NativeImageReveal/);
   assert.match(read("../kids/src/components/KidClueView.tsx"),/blurRadius/);
   assert.match(read("../kids/src/components/KidClueView.tsx"),/spotlight/);
-  assert.match(read("../kids/app/game.tsx"),/image-reveal/);
+  assert.match(read("../kids/app/game.tsx"),/activeImageStage/);
 });
