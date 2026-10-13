@@ -883,3 +883,94 @@ a.feature-card:hover { border-color:#B4AEF7; transform:translateY(-3px); }
   border-radius:50%;background:#EEECFB;font-size:.82rem;font-weight:800; }
 .guess-option.selected .guess-option-letter { background:var(--purple);color:white; }
 @media(max-width:560px){.guess-option-grid{grid-template-columns:1fr;}}
+
+
+/* Admin report moderation: a compact daily queue and a separate policy editor. */
+.moderation-policy-toolbar {
+  display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap;
+  gap:14px; margin-bottom:18px; padding:15px 18px;
+  background:#fff; border:1px solid var(--border); border-radius:18px;
+}
+.moderation-policy-toolbar-status,.moderation-policy-status {
+  display:flex; align-items:center; flex-wrap:wrap; gap:10px;
+}
+.moderation-policy-page {padding-top:12px}
+.moderation-policy-intro {
+  padding:20px 24px; border:1px solid var(--border);
+  background:#fff; border-radius:24px; margin-bottom:24px;
+}
+.moderation-policy-intro > p {margin:12px 0 0; max-width:740px}
+.moderation-unsaved-tag {
+  background:#FFF3D3; color:#745110;
+}
+.moderation-policy-explainer {
+  border-top:1px solid var(--border); margin-top:16px; padding-top:14px;
+}
+.moderation-policy-explainer > summary {
+  cursor:pointer; color:var(--purple); font-weight:750;
+  display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px; align-items:center;
+}
+.moderation-policy-explainer > summary::marker {color:var(--purple)}
+.moderation-policy-explainer > summary .muted {font-size:.8rem;font-weight:500}
+.moderation-policy-explainer-body {padding-top:14px}
+.moderation-policy-explainer-body p {margin:9px 0 14px}
+.moderation-badge-row {display:flex; flex-wrap:wrap; gap:10px; margin:16px 0 18px}
+.moderation-help-badge {position:relative; display:inline-flex; vertical-align:middle; isolation:isolate}
+.moderation-help-badge:hover,.moderation-help-badge:focus-within,
+.moderation-help-badge.is-open {z-index:6}
+.moderation-help-pill {
+  font:inherit; font-size:.78rem; font-weight:800; white-space:nowrap;
+  background:#EEEBFF; color:#493CCA; border:1px solid #E1DBFF;
+  padding:6px 11px; cursor:help;
+}
+.moderation-help-dot {
+  border:0; border-radius:50%; background:#EEEBFF; color:#493CCA;
+  width:29px; height:29px; font-weight:800; font-size:.9rem;
+  cursor:help;
+}
+.moderation-help-pill:hover,.moderation-help-dot:hover,
+.moderation-help-pill[aria-expanded="true"],.moderation-help-dot[aria-expanded="true"] {
+  background:#DDD6FF; color:#34229D;
+}
+.moderation-help-popover {
+  position:absolute; top:calc(100% + 9px); left:0; min-width:225px;
+  width:max-content; max-width:min(320px,calc(100vw - 64px));
+  padding:12px 15px; border:1px solid #CFC6FF; border-radius:12px;
+  background:#fff; box-shadow:0 12px 32px #25264224;
+  color:var(--ink); font-size:.84rem; line-height:1.65;
+  font-weight:500; white-space:normal;
+  opacity:0; visibility:hidden; pointer-events:none;
+  transition:opacity .12s ease;
+}
+.moderation-help-badge:is(:hover,:focus-within,.is-open) > .moderation-help-popover {
+  opacity:1; visibility:visible; pointer-events:auto;
+}
+.moderation-badge-row > .moderation-help-badge:last-child .moderation-help-popover {
+  left:auto; right:0;
+}
+.moderation-settings-grid {
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));
+  gap:14px; margin:0 0 22px;
+}
+.moderation-setting-card {padding:22px; min-width:0; border-radius:22px}
+.moderation-setting-heading {display:flex; justify-content:space-between; align-items:center; gap:10px}
+.moderation-setting-heading label {font-weight:750; line-height:1.45}
+.moderation-setting-card input[type="number"] {
+  width:100%; min-width:0; height:49px; margin-top:14px;
+  border:1.5px solid #D6D1ED; border-radius:12px;
+  background:#FAF9FF; color:var(--ink); padding:10px 13px;
+  font-size:1.02rem;
+}
+.moderation-setting-card input[type="number"]:focus-visible {
+  outline:3px solid #C4BFFF; outline-offset:2px;
+}
+.moderation-setting-card p {min-height:0; margin:10px 0 0; font-size:.82rem; line-height:1.45}
+.moderation-policy-toggle {display:flex; gap:10px; align-items:center; font-weight:750; margin:20px 0 16px}
+.moderation-policy-toggle input {accent-color:var(--purple); width:20px; height:20px}
+.moderation-settings-actions {display:flex; gap:12px; flex-wrap:wrap; align-items:center}
+@media(max-width:600px) {
+  .moderation-policy-intro {padding:18px}
+  .moderation-help-popover {min-width:0; width:250px; max-width:min(280px,calc(100vw - 64px))}
+  .moderation-settings-grid {grid-template-columns:1fr}
+  .moderation-policy-explainer > summary .muted {display:none}
+}
