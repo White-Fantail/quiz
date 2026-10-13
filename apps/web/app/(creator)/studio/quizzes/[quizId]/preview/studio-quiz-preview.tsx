@@ -4,7 +4,7 @@ import Link from "next/link";
 import { ImageReveal, type RevealSettings } from "../../../../../../src/components/image-reveal";
 import { activeImageStage } from "@quizdip/domain";
 import { useEffect, useState, type FormEvent } from "react";
-import { isCorrectAnswer, scoreForClues } from "@quizdip/domain";
+import { isCorrectAnswer, scoreForAnswer } from "@quizdip/domain";
 import { RatingBadge } from "../../../../../../src/components/quiz-ratings";
 import type { RatingSummary } from "../../../../../../src/modules/quiz/rating-metadata";
 import { useLocale } from "../../../../../../src/i18n/provider";
@@ -21,7 +21,7 @@ type Clue={
 type Quiz={
   id:string;title:string;prompt:string;version:number;publication:string;locale:string;
   clueCount:number;clues:Clue[];promptMediaIds:string[];
-  answer:{canonical:string;aliases:string[]};ratings:RatingSummary;
+  answer:{canonical:string;aliases:string[];responseMode?:"text"|"multiple-choice";options?:string[]};ratings:RatingSummary;
 };
 type Media={id:string;kind:"image"|"audio"|"video";previewUrl?:string;alt?:string;status:string};
 type Result="ACTIVE"|"SOLVED"|"FAILED"|"REVEALED";
@@ -175,11 +175,19 @@ export default function StudioQuizPreview({quizId,detailHref}:{quizId:string;det
         {msg("Reveal another clue","힌트 하나 더 볼까?")}
       </button>}
       {result==="ACTIVE"&&<form className="guess-form" onSubmit={submit}>
-        <label htmlFor="preview-guess">{msg("What's your answer?","정답은 무엇일까요?")}</label>
+        <label id="preview-answer-label">{msg("What's your answer?","정답은 무엇일까요?")}</label>
+        {quiz.answer.responseMode==="multiple-choice"&&quiz.answer.options?.length?
+          <div className="guess-option-grid" role="group" aria-labelledby="preview-answer-label">
+            {quiz.answer.options.map((option,index)=><button key={option} type="button"
+              className={"guess-option"+(guess===option?" selected":"")} aria-pressed={guess===option}
+              disabled={needsNext} onClick={()=>setGuess(option)}>
+              <span className="guess-option-letter">{String.fromCharCode(65+index)}</span>{option}
+            </button>)}
+          </div>:
+          <input id="preview-guess" aria-labelledby="preview-answer-label" value={guess}
+            onChange={e=>setGuess(e.target.value)} disabled={needsNext} maxLength={200}
+            autoComplete="off" placeholder={msg("Type your answer","정답을 입력해 봐")}/>}
         <div className="guess-row">
-          <input id="preview-guess" value={guess} onChange={e=>setGuess(e.target.value)}
-            disabled={needsNext} maxLength={200} autoComplete="off"
-            placeholder={msg("Type your answer","정답을 입력해 봐")}/>
           <button className="btn btn-primary" type="submit" disabled={!guess.trim()||needsNext}>
             {msg("Check answer","정답 확인")}
           </button>
@@ -190,7 +198,7 @@ export default function StudioQuizPreview({quizId,detailHref}:{quizId:string;det
         {feedback}
         {result!=="ACTIVE"&&<p>{msg("Answer: ","정답: ")}
           <strong>{quiz.answer.canonical}</strong>
-          {result==="SOLVED"&&<> · {Math.round(scoreForClues(quiz.clues.length,clueIndex))}{msg(" pts (not saved)","점 (저장 안 함)")}</>}
+          {result==="SOLVED"&&<> · {scoreForAnswer(quiz.clues.length,clueIndex,quiz.answer.responseMode)}{msg(" pts (not saved)","점 (저장 안 함)")}</>}
         </p>}
       </div>}
       {result==="ACTIVE"&&<div className="studio-preview-answer-action">
