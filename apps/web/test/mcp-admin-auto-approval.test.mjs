@@ -39,3 +39,10 @@ test("Kids auto approval requires a Kids request, published quiz and approved me
   assert.match(quiz, /action:"quiz\.review"/);
   assert.match(read("src/modules/platform/translations.ts"), /isTrustedMcpAdmin\(user\)/);
 });
+
+test("bulk pack publication can auto approve opted-in draft questions but never the pack", () => {
+  const pack = read("src/modules/platform/social.ts");
+  assert.match(pack, /const autoKidsApproval = q\.kidsReviewStatus !== "NOT_REQUESTED" && isTrustedMcpAdmin\(user\)/);
+  assert.match(pack, /quiz\.review",objectId:q\.id/);
+  assert.match(pack, /kidsEligibility:"INDEPENDENT_REVIEW_REQUIRED"/);
+});
