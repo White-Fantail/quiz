@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const uuid = z.string().uuid();
 export const userId = z.string().min(8).max(200).regex(/^[a-zA-Z0-9_-]+$/);
-const answerTextKey = (value: string) => value.normalize("NFKC").trim().replace(/\\s+/g, " ").toLocaleLowerCase();
+const answerTextKey = (value: string) => value.normalize("NFKC").trim().replace(/\s+/g, " ").toLocaleLowerCase();
 export const answerSchema = z.object({
   canonical: z.string().trim().min(1).max(200),
   aliases: z.array(z.string().trim().min(1).max(200)).max(20).default([]),
