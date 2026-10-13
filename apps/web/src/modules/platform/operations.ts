@@ -6,7 +6,7 @@ import { fail, requireActor, type Actor } from "./auth";
 import { moderationPolicyGet, moderationPolicyUpdate, moderationQueue, moderationContentReview, publisherGet, publisherSet } from "./moderation";
 import { myModerationInbox, myModerationRead, myModerationAppeal, adminModerationDetail, adminModerationAppeals, adminModerationAppealReview } from "./moderation-appeals";
 import { quizList, quizGet, quizCreate, quizUpdate, quizPublish, quizKidsRequest, quizLanguageSet, quizReview, quizReviewGet, adminQuizReviewList } from "./quiz";
-import { playStart, playClue, playGuess } from "./play";
+import { playStart, playClue, playGuess, playReview } from "./play";
 import { runStart,runCurrent,runFinish,runHistory,runFeedback } from "./runs";
 import { reviewsList, reviewUpsert, reviewRemove, reportCreate, reportsMine, packCreate, packList, packGet, myPackGet, packPreflight, packUpdate, packLanguageSet, packLanguages, packTranslationUpsert, packPublishPreview, packPublish, packKidsRequest } from "./social";
 import { quizStats, myStats, me, leaderboard, rankingOptin, adultVerify } from "./analytics";
@@ -94,6 +94,7 @@ export async function execute(name: Operation, raw: unknown, actor: Actor | null
     case "play_start": return playStart(p, actor);
     case "play_clue": return playClue(p, actor);
     case "play_guess": return playGuess(p, actor);
+    case "play_review": return playReview(p, actor);
     case "reviews_list": return reviewsList(p);
     case "review_upsert": return reviewUpsert(p, actor);
     case "review_remove": return reviewRemove(p, actor);
