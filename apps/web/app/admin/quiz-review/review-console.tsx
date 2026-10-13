@@ -82,7 +82,7 @@ export default function QuizReviewConsole(){
             {q.kidsEligible?" · Kids ✓":""}
           </small></span>
         <span className="review-entry-right">
-          <span className="small-tag">{q.safetyStatus==="RESTRICTED"?msg("Restricted","제한됨"):q.seriousReportCount>0?msg("Urgent report","우선 신고"):q.kidsReviewStatus==="REQUESTED"?msg("Kids review","Kids 심사"):msg("Visible","공개 중")}</span>
+          <span className="small-tag">{q.safetyStatus==="UNDER_REVIEW"?msg("On hold","보류됨"):q.safetyStatus==="RESTRICTED"?msg("Restricted","제한됨"):q.seriousReportCount>0?msg("Urgent report","우선 신고"):q.kidsReviewStatus==="REQUESTED"?msg("Kids review","Kids 심사"):msg("Visible","공개 중")}</span>
           <span aria-hidden="true">›</span>
         </span>
       </Link>)}
