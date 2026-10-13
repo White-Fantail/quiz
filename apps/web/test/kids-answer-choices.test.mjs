@@ -58,6 +58,7 @@ test("pack neighbors take priority over unrelated animals", () => {
 
 test("aliases and case/whitespace variations cannot create duplicate or ambiguous answers", () => {
   const options = choices({
+    preferredQuizIds: new Set(["owl"]),
     answer: { canonical: "Parrot", aliases: ["  Scarlet   Macaw "] },
     candidates: [
       candidate("macaw", "SCARLET MACAW"),
