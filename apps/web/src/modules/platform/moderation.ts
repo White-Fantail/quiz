@@ -14,6 +14,7 @@ function staff(actor: Actor | null): Actor {
 
 export async function requirePublishingPermission(actor: Actor | null) {
   const user = requireActor(actor);
+  if(user.childScope)fail(403,"child_publishing_disabled","Child-scoped sessions cannot publish content");
   if (user.role === "ADMIN") return user;
   const account = await db().user.findUnique({where:{id:user.id},
     select:{publishingStatus:true,publishingRestrictedUntil:true}});
@@ -32,6 +33,7 @@ export async function requirePublishingPermission(actor: Actor | null) {
 
 /** A row lock held through the publication transaction serializes against ADMIN account restrictions. */
 export async function assertPublishingAllowedInTx(tx:any, user:Actor) {
+  if(user.childScope)fail(403,"child_publishing_disabled","Child-scoped sessions cannot publish content");
   if (user.role==="ADMIN") return;
   const rows=await tx.$queryRaw`SELECT "publishingStatus","publishingRestrictedUntil" FROM "User" WHERE "id"=${user.id} FOR SHARE` as
     {publishingStatus:string;publishingRestrictedUntil:Date|null}[];
@@ -153,11 +155,14 @@ export async function submitReport(kind:TargetKind,p:Record<string,any>,actor:Ac
       if(!loc||loc.status!=="PUBLISHED")
         fail(404,"locale_unavailable","Quiz pack is not published in this language");
     }
-    const existing=kind==="QUIZ"
-      ?await tx.report.findFirst({where:{quizId:id,reporterId:user.id,status:"OPEN"}})
-      :await tx.packReport.findFirst({where:{packId:id,reporterId:user.id,status:"OPEN"}});
-    if(existing)fail(409,"already_reported","You have already reported this content");
+    // A recently cleared report cannot be immediately re-filed by the same account.
     const since=new Date(Date.now()-86400000);
+    const existing=kind==="QUIZ"
+      ?await tx.report.findFirst({where:{quizId:id,reporterId:user.id,
+        OR:[{status:"OPEN"},{createdAt:{gte:since}}]}})
+      :await tx.packReport.findFirst({where:{packId:id,reporterId:user.id,
+        OR:[{status:"OPEN"},{createdAt:{gte:since}}]}});
+    if(existing)fail(409,"already_reported","You recently reported this content");
     const [quizCount,packCount]=await Promise.all([
       tx.report.count({where:{reporterId:user.id,createdAt:{gte:since}}}),
       tx.packReport.count({where:{reporterId:user.id,createdAt:{gte:since}}})
