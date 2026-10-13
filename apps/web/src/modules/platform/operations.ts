@@ -23,6 +23,7 @@ export async function execute(name: Operation, raw: unknown, actor: Actor | null
   switch (name) {
     case "catalog": return { modes: ["progressive-clues"],
       answerTypes: ["person","animal","place","thing","event","concept","other"],
+      responseModes: ["text","multiple-choice"], multipleChoice: { minOptions:2,maxOptions:6,canonicalInOptions:true,scoreFactor:0.75 },
       topics: { model:"unified", tool:"quizdip_topic_list", maxPerQuiz:12, normalizes:true },
       clueTypes: ["text", "image", "image-reveal", "audio", "video", "map"], mediaReference: "mediaId", promptMediaIds: true,
       mediaLimitsBytes: { image: 12582912, audio: 26214400, video: 67108864 }, minClues: 1, maxClues: 15,
