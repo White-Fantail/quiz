@@ -3,6 +3,7 @@ import sharp from "sharp";
 import { db } from "./db";
 import { fail, requireActor, type Actor } from "./auth";
 import { isTrustedMcpAdmin } from "./auto-approval";
+import { isExemptFromDailyMediaLimit } from "./media-upload-policy";
 import {
   LIMITS, MIME_KIND, CHUNK_SIZE, partKey, readChunks, uploadTicket, previewUrl, putObject,
   deleteObject, readObject, checkSize, sniff, importExternal, objectExists,
@@ -28,9 +29,13 @@ export function mediaSummary(item: any) {
     alt: item.alt, transcript: item.transcript, attribution: item.attribution, license: item.license,
     sourceUrl: item.sourceUrl, parentId: item.parentId, createdAt: item.createdAt, updatedAt: item.updatedAt, uploadExpiresAt: item.uploadExpiresAt };
 }
-async function dailyLimit(ownerId: string) {
+async function dailyLimit(user: Actor) {
+  // Role comes only from the verified server-side identity, never request payload.
+  // Administrators may bulk import and transform media without daily-count limits;
+  // all media size, MIME, ownership and storage safety checks still apply.
+  if (isExemptFromDailyMediaLimit(user)) return;
   const count = await db().mediaAsset.count({
-    where: { ownerId, createdAt: { gte: new Date(Date.now() - 86400000) } },
+    where: { ownerId: user.id, createdAt: { gte: new Date(Date.now() - 86400000) } },
   });
   if (count >= 150) fail(429, "media_quota", "Daily media upload limit reached");
 }
@@ -39,7 +44,7 @@ export async function mediaUpload(p: Record<string, any>, actor: Actor | null) {
   if (MIME_KIND[p.mimeType] !== p.kind)
     fail(400, "type_mismatch", "Declared MIME type is not valid for media kind");
   checkSize(p.kind, p.sizeBytes);
-  await dailyLimit(user.id);
+  await dailyLimit(user);
   const id = randomUUID();
   const uploadKey = `uploads/${user.id}/${id}/${randomUUID()}`;
   const storageKey = `assets/${id}/original`;
@@ -106,7 +111,7 @@ export async function mediaComplete(p: Record<string, any>, actor: Actor | null)
 }
 export async function mediaImport(p: Record<string, any>, actor: Actor | null) {
   const user = requireActor(actor);
-  await dailyLimit(user.id);
+  await dailyLimit(user);
   // Import is disabled unless MEDIA_IMPORT_HOSTS explicitly permits the hostname.
   const fetched = await importExternal(p.url, LIMITS[p.kind], p.kind);
   checkSize(p.kind, fetched.bytes.length);
@@ -342,7 +347,7 @@ export async function mediaTransform(p: Record<string, any>, actor: Actor | null
   const origin = await asset(p.id, actor);
   if (origin.status !== "READY" || origin.kind !== "image" || origin.moderationStatus === "RESTRICTED")
     fail(409, "not_transformable", "Ready unrestricted images only");
-  await dailyLimit(user.id);
+  await dailyLimit(user);
   const bytes = await readObject(origin.storageKey, LIMITS.image);
   const photo = sharp(bytes, { limitInputPixels: 30000000, failOn: "error" });
   const dimensions = await photo.metadata();
