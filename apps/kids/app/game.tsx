@@ -213,7 +213,7 @@ export default function KidGameScreen(){
    {error?<Text accessibilityRole="alert" style={styles.warning}>{error}</Text>:null}
    {!ended?<>
      {question.canGuess?<>
-       {age!=="OLDER" && (question.options?.length??0)>=2?
+       {(question.responseMode==="multiple-choice" || age!=="OLDER") && (question.options?.length??0)>=2?
          <View style={styles.options}>
            {(question.options??[]).map(option=>
              <Pressable key={option} disabled={pending} accessibilityRole="button"
