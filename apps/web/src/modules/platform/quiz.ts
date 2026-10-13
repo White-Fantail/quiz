@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { db } from "./db";
-import { requirePublishingPermission, moderationContentReview } from "./moderation";
+import { requirePublishingPermission, assertPublishingAllowedInTx, moderationContentReview } from "./moderation";
 import { ratingsForQuizzes, ratingsForQuiz } from "./ratings";
 import { fail, requireActor, type Actor } from "./auth";
 import { validateMediaReferences } from "./media";
@@ -123,6 +123,7 @@ export async function quizUpdate(p: Record<string, any>, actor: Actor | null) {
   if (old.safetyStatus === "RESTRICTED")
     fail(403, "restricted_quiz", "Restricted quizzes require trusted moderation clearance");
   await db().$transaction(async tx => {
+    if(old.publication==="PUBLISHED") await assertPublishingAllowedInTx(tx,user);
     const changed = await tx.quiz.updateMany({
       where: { id: old.id, authorId: user.id, currentVersion: p.expectedVersion, safetyStatus:old.safetyStatus },
       data: { currentVersion: { increment: 1 }, kidsEligible: autoKidsApproval,
@@ -172,6 +173,7 @@ export async function quizPublish(p: Record<string, any>, actor: Actor | null) {
     if (recent >= 100) fail(429, "rate_limit", "Daily publication limit reached");
   }
   await db().$transaction(async tx => {
+    await assertPublishingAllowedInTx(tx,user);
     const checked=await tx.quiz.updateMany({
       where:{id:old.id,authorId:user.id,currentVersion:old.currentVersion,
         safetyStatus:old.safetyStatus,publication:old.publication},
@@ -223,6 +225,7 @@ export async function quizLanguageSet(p: Record<string, any>, actor: Actor | nul
   const published=await db().quiz.findFirst({where:{id:p.id,authorId:owner.id},select:{publication:true}});
   if(published?.publication==="PUBLISHED") await requirePublishingPermission(actor);
   const result = await db().$transaction(async tx => {
+    if(published?.publication==="PUBLISHED")await assertPublishingAllowedInTx(tx,owner);
     const quiz = await tx.quiz.findFirst({where:{id:p.id,authorId:owner.id}});
     if(!quiz) fail(404,"not_found","Quiz not found");
     if(quiz.sourceLocale===p.locale) return {id:quiz.id,locale:p.locale,alreadySet:true};
