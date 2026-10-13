@@ -340,7 +340,8 @@ export default function PlayPage({packId}:{packId?:string}={}) {
         {!isDone&&round.clueIndex<round.clueCount&&
           <button type="button" className="btn btn-outline" disabled={busy} onClick={()=>void reveal()}>
             {msg("Reveal another clue","단서 하나 더 보기")}</button>}
-        {!isDone&&<form ref={guessFormRef} className="guess-form" onSubmit={e=>void check(e)}>
+        {!isDone&&<form ref={guessFormRef} className="guess-form" onSubmit={e=>void check(e)}
+          onKeyDown={e=>{if(e.key==="Enter"&&(e.nativeEvent.isComposing||e.nativeEvent.keyCode===229))e.preventDefault();}}>
           <label id="quizdip-answer-label">{msg("What's your answer?","정답은 무엇일까요?")}</label>
           {round.responseMode==="multiple-choice"&&round.options?.length?
             <div className="guess-option-grid" role="group" aria-labelledby="quizdip-answer-label">
