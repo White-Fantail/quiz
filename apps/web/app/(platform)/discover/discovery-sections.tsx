@@ -57,7 +57,7 @@ export default function DiscoverySections(){
         {item.type==="PACK"&&<span className="muted">{item.questionCount}{ko?"문제":" questions"}</span>}
       </div>
       <h4>{item.title}</h4>
-      <p>{item.type==="PACK"?item.subtitle:""}</p>
+      {item.type==="PACK"&&item.subtitle&&<p className="discover-card-description">{item.subtitle}</p>}
       <p className="muted">{ko?"제작자":"By"}: {item.creator}</p>
       {item.ratings.positivePercent!==null&&<p>👍 {item.ratings.positivePercent}% · {item.ratings.total}{ko?"명 평가":" ratings"}</p>}
       {section.key==="difficult"&&item.difficultyPercent!==null&&<p>🔥 {ko?"오답률":"Incorrect rate"} {item.difficultyPercent}%</p>}
