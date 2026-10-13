@@ -7,6 +7,7 @@ import { runTargetCount } from "./run-length";
 import { orderPackQuestions } from "./pack-order";
 import { playableQuizWhere } from "./content-locale";
 import { safePack } from "./feature-eligibility";
+import { publicAnswerFormat } from "./answer-options";
 import type { Locale } from "../../i18n/core";
 
 export type Lane = "GENERAL" | "KIDS";
@@ -306,6 +307,7 @@ export async function runCurrent(p:Record<string,any>,actor:Actor|null):Promise<
     clueIndex:session.usedClues,clueCount:clues.length,
     clues:clues.slice(0,session.usedClues),sessionStatus:session.status,
     canGuess:session.status==="ACTIVE"&&session.wrongGuesses<session.usedClues,
+    ...publicAnswerFormat(revision.answer, session.id),
     ...(session.status!=="ACTIVE"?{scoreThisQuestion:session.score}:{}),
   };
 }
