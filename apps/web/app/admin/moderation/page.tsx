@@ -19,8 +19,8 @@ export default async function ModerationPage(){
     <ManagementHeader eyebrow="QUIZDIP ADMIN · TRUST & SAFETY"
       title={bilingual(locale,"Report moderation","신고 및 게시 제한 관리")}
       description={bilingual(locale,
-        "Adjust report thresholds, review held content, and restrict abusive publishing accounts. No AI decisions.",
-        "신고 임계치를 변경하고 보류된 콘텐츠를 검토하며 악성 게시자의 공개 권한을 제한합니다. AI 자동 판정은 사용하지 않습니다.")}/>
+        "Review held and reported content, handle appeals, and manage abusive publishing accounts. Automatic hold rules are in Settings.",
+        "보류 및 신고 콘텐츠를 심사하고, 이의신청과 제작자의 게시 제한을 관리합니다. 자동 보류 기준은 별도 설정 화면에서 변경합니다.")}/>
     <ModerationConsole/>
   </main>;
 }
