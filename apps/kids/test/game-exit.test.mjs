@@ -6,7 +6,7 @@ const source=(path)=>readFileSync(new URL("../"+path,import.meta.url),"utf8");
 
 test("Kids game offers a visible leave control during loading and gameplay",()=>{
  const game=source("app/game.tsx");
- assert.match(game,/const leaveButton=<Pressable accessibilityRole="button"/);
+ assert.match(game,/const leaveButton=<KidsTap accessibilityRole="button"/);
  assert.match(game,/accessibilityLabel=\{t\("native\.play\.leave"\)\}/);
  assert.match(game,/title=\{t\("native\.play\.loading"\)\} headerAction=\{leaveButton\}/);
  assert.match(game,/title=\{question\.title\} subtitle=\{question\.prompt\} headerAction=\{leaveButton\}/);
