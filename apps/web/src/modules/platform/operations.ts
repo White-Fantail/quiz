@@ -7,6 +7,7 @@ import { moderationPolicyGet, moderationPolicyUpdate, moderationQueue, moderatio
 import { myModerationInbox, myModerationRead, myModerationAppeal, adminModerationDetail, adminModerationAppeals, adminModerationAppealReview } from "./moderation-appeals";
 import { quizList, quizGet, quizCreate, quizUpdate, quizPublish, quizKidsRequest, quizLanguageSet, quizReview, quizReviewGet, adminQuizReviewList } from "./quiz";
 import { playStart, playClue, playGuess, playReview } from "./play";
+import { localRunBundle,localRunSync,localRunMedia,localSingleBundle,localSingleStart,localSingleSync,localSingleMedia } from "./local-play";
 import { runStart,runCurrent,runFinish,runHistory,runFeedback } from "./runs";
 import { reviewsList, reviewUpsert, reviewRemove, reportCreate, reportsMine, packCreate, packList, packGet, myPackGet, packPreflight, packUpdate, packLanguageSet, packLanguages, packTranslationUpsert, packPublishPreview, packPublish, packKidsRequest } from "./social";
 import { quizStats, myStats, me, leaderboard, rankingOptin, adultVerify } from "./analytics";
@@ -124,6 +125,13 @@ export async function execute(name: Operation, raw: unknown, actor: Actor | null
     case "media_review_get": return mediaReviewGet(p,actor);
     case "media_review": return mediaReview(p, actor);
     case "play_media": return signedPlayMedia(p, actor);
+    case "local_run_bundle": return localRunBundle(p,actor);
+    case "local_run_sync": return localRunSync(p,actor);
+    case "local_run_media": return localRunMedia(p,actor);
+    case "local_single_start": return localSingleStart(p,actor);
+    case "local_single_bundle": return localSingleBundle(p,actor);
+    case "local_single_sync": return localSingleSync(p,actor);
+    case "local_single_media": return localSingleMedia(p,actor);
     case "run_start": return runStart(p,actor);
     case "run_current": return runCurrent(p,actor);
     case "run_finish": return runFinish(p,actor);
