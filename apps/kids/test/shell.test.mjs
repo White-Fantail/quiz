@@ -107,7 +107,7 @@ test("Play opens dedicated worlds and all-packs screens without leaving surprise
  assert.doesNotMatch(world,/RANDOM_FIVE|Surprise me|worldsToShow/);
  assert.match(world,/packs\.filter\(pack=>adventureForPack\(pack\)===item\.id\)/);
  assert.match(all,/packs\.map/);
- assert.match(all,/!item\.inKidsPack/);
+ assert.match(all,/item\.inKidsPack===false/);
  assert.match(counter,/Count a pack once/);
  assert.doesNotMatch(counter,/\.length\+\s*quizzes/);
  assert.match(browser,/while\\(live&&nextOffset!==null\\)/);
