@@ -90,6 +90,7 @@ export default function KidGameScreen(){
   let active=true;
   setQuestion(null);setSummary(null);setResult(null);setSelectedAnswer(null);setError("");setLoading(true);
   void (async()=>{
+   const beganAt=Date.now();
    try{
     let ref:Ref|null=null;
     if(params.packId&&uuid.test(params.packId)){
