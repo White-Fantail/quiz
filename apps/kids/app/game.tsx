@@ -2,6 +2,7 @@ import { useCallback,useEffect,useRef,useState, type PropsWithChildren } from "r
 import { ActivityIndicator,Alert,Animated,BackHandler,ScrollView,StyleSheet,Text,TextInput,View } from "react-native";
 import { Redirect,useLocalSearchParams,useRouter } from "expo-router";
 import * as SecureStore from "expo-secure-store";
+import { useAudioPlayer } from "expo-audio";
 import type { KidQuestion,KidRunResult,KidGuessResult } from "@quizdip/api-client";
 import { ApiError } from "@quizdip/api-client";
 import { activeImageStage } from "@quizdip/domain";
@@ -16,6 +17,10 @@ import { kidsApi } from "../src/services/api";
 import { theme } from "../src/theme";
 
 const SAVED="quizdip-kids-active-game-v1";
+// Tiny bundled cues need no network access. Audio failure never blocks gameplay.
+function playCue(player:ReturnType<typeof useAudioPlayer>){
+ void player.seekTo(0).then(()=>player.play()).catch(()=>{});
+}
 function PopIn({children,celebrate=false}:PropsWithChildren<{celebrate?:boolean}>) {
  const motion=useRef(new Animated.Value(0)).current;
  useEffect(()=>{
@@ -56,6 +61,12 @@ export default function KidGameScreen(){
  const params=useLocalSearchParams<{quizId?:string;packId?:string;mode?:string}>();
  const kid=useKidsSession(),{t}=useKidsLocale(),router=useRouter();
  const time=useKidsTime();
+ const clueCue=useAudioPlayer(require("../assets/feedback-clue.wav"),{updateInterval:1200});
+ const successCue=useAudioPlayer(require("../assets/feedback-success.wav"),{updateInterval:1200});
+ const retryCue=useAudioPlayer(require("../assets/feedback-try-again.wav"),{updateInterval:1200});
+ useEffect(()=>{
+  clueCue.volume=0.22;successCue.volume=0.30;retryCue.volume=0.22;
+ },[clueCue,successCue,retryCue]);
  const [reference,setReference]=useState<Ref|null>(null);
  const [question,setQuestion]=useState<KidQuestion|null>(null);
  const [summary,setSummary]=useState<KidRunResult|null>(null);
@@ -143,6 +154,7 @@ export default function KidGameScreen(){
    if(!token||!question||!kidsApi)return;
    const next=await kidsApi.nextClue(token,question.sessionId,question.sessionToken);
    focusClue.current=next.clueIndex;
+   playCue(clueCue);
    setQuestion(prev=>prev&&prev.sessionId===question.sessionId?{
       ...prev,clues:[...prev.clues,next.clue],clueIndex:next.clueIndex,clueCount:next.clueCount,canGuess:true
    }:prev);
@@ -153,6 +165,7 @@ export default function KidGameScreen(){
    if(!token||!question||!kidsApi||!question.canGuess)return;
    const v=await kidsApi.guess(token,question.sessionId,question.sessionToken,answer);
    setResult(v);setGuess("");
+   playCue(v.correct?successCue:retryCue);
    setQuestion(prev=>prev?{...prev,sessionStatus:v.status,canGuess:false}:prev);
  });
  const sendReport=(reason:"UNSAFE"|"INCORRECT"|"BROKEN_MEDIA")=>{
