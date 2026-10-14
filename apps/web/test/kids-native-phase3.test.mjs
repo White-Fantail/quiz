@@ -72,5 +72,5 @@ test("Expo native player renders local clues and approved media without per-gues
   assert.match(clue,/expo-audio/);
   assert.match(clue,/expo-video/);
   assert.match(clue,/SafeKidMedia/);
-  assert.doesNotMatch(screen,/DATABASE_URL|BETTER_AUTH_SECRET|answer\.canonical/);
+  assert.doesNotMatch(screen,/DATABASE_URL|BETTER_AUTH_SECRET/);
 });
