@@ -75,6 +75,7 @@ export default function PlayPage({packId}:{packId?:string}={}) {
   const msg=(en:string,ko:string)=>bilingual(locale,en,ko);
   const request=(path:string,method:"GET"|"POST"="GET",body?:unknown)=>api(path,method,body,locale);
   const localBundleRef=useRef<LocalPack|null>(null);
+  const localRunTokenRef=useRef("");
   const localProgressRef=useRef<Record<number,LocalProgress>>({});
   const [lane,setLane]=useState<Lane>("GENERAL");
   const [pack,setPack]=useState<{id:string;title:string;description:string;questionCount:number;author:{displayName:string}}|null>(null);
@@ -137,7 +138,7 @@ export default function PlayPage({packId}:{packId?:string}={}) {
     const results=Object.entries(localProgressRef.current).filter(([,p])=>p.status!=="ACTIVE")
       .map(([position,p])=>({position:Number(position),cluesUsed:p.clueIndex,status:p.status as "SOLVED"|"FAILED",score:p.score}));
     if(!results.length)return;
-    await request("/runs/"+bundle.runId+"/sync","POST",{runToken:run?.runToken,results});
+    await request("/runs/"+bundle.runId+"/sync","POST",{runToken:localRunTokenRef.current,results});
   };
   const loadLocalMedia=(r:RunInfo,position:number,ids:string[])=>{
     void Promise.all([...new Set(ids)].filter(Boolean).map(async mediaId=>{
@@ -151,6 +152,8 @@ export default function PlayPage({packId}:{packId?:string}={}) {
   const showRound=useCallback(async (r:RunInfo) => {
     setRemainingClues(null);setReviewOpen(false);setReviewError("");
     if(r.mode!=="INFINITE"){
+      localRunTokenRef.current=r.runToken;
+      if(packId)try{sessionStorage.setItem("quizdip-pack-run:"+packId+":"+locale,JSON.stringify(r));}catch{}
       let bundle=localBundleRef.current;
       if(!bundle||bundle.runId!==r.runId){
         let stored:LocalSaved|null=null;
@@ -173,12 +176,15 @@ export default function PlayPage({packId}:{packId?:string}={}) {
         solved:summary.solved,failed:summary.failed,
         status:position<0?"FINISHED" as const:"ACTIVE" as const};
       setRun(nextRun);saveLocal();
-      if(position<0){setRound(null);setFeedback("");setMedia({});void syncLocal().catch(()=>{});return;}
+      if(position<0){
+        if(packId)try{sessionStorage.removeItem("quizdip-pack-run:"+packId+":"+locale);}catch{}
+        setRound(null);setFeedback("");setMedia({});void syncLocal().catch(()=>{});return;
+      }
       const q=questions[position],p=localProgressRef.current[q.position]??initialLocalProgress();
       const next:Round={...nextRun,sessionId:"local:"+q.quizId,
         sessionToken:r.runToken,round:q.position+1,quizId:q.quizId,title:q.title,
         prompt:q.prompt,promptMediaIds:q.promptMediaIds,
-        clues:q.clues.slice(0,p.clueIndex) as Clue[],clueIndex:p.clueIndex,
+        clues:q.clues.slice(0,p.clueIndex) as unknown as Clue[],clueIndex:p.clueIndex,
         clueCount:q.clues.length,sessionStatus:p.status,canGuess:!p.mustReveal&&p.status==="ACTIVE",
         responseMode:q.answer.responseMode??"text",options:q.answer.options};
       rememberQuiz(next.quizId);setRound(next);setGuess("");setFeedback("");setAnswer("");
@@ -249,7 +255,7 @@ export default function PlayPage({packId}:{packId?:string}={}) {
         const previous=localProgressRef.current[q.position]??initialLocalProgress();
         const updated=revealLocalClue(q,previous);
         localProgressRef.current[q.position]=updated;saveLocal();
-        setRound({...round,clues:q.clues.slice(0,updated.clueIndex) as Clue[],
+        setRound({...round,clues:q.clues.slice(0,updated.clueIndex) as unknown as Clue[],
           clueIndex:updated.clueIndex,canGuess:true});
         setMustReveal(false);setFeedback("");setGuess("");
         loadLocalMedia(run!,q.position,[q.clues[updated.clueIndex-1]?.mediaId].filter((v):v is string=>!!v));
@@ -298,7 +304,7 @@ export default function PlayPage({packId}:{packId?:string}={}) {
     if (remainingClues) return;
     if(run?.mode!=="INFINITE"&&localBundleRef.current){
       const q=localBundleRef.current.questions[round.round-1];
-      const unseen=q.clues.slice(round.clueIndex) as Clue[];
+      const unseen=q.clues.slice(round.clueIndex) as unknown as Clue[];
       setRemainingClues(unseen);
       loadLocalMedia(run,q.position,unseen.map(c=>c.mediaId).filter((id):id is string=>!!id));
       return;
@@ -307,7 +313,7 @@ export default function PlayPage({packId}:{packId?:string}={}) {
     try {
       const result = await request("/play/" + round.sessionId + "/review", "POST",
         { sessionToken: round.sessionToken });
-      const unseen = result.clues as Clue[];
+      const unseen = result.clues as unknown as Clue[];
       setRemainingClues(unseen);
       await Promise.all([...new Set(unseen.map(clue => clue.mediaId).filter((id):id is string => !!id))].map(async id => {
         try {
