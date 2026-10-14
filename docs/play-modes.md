@@ -35,3 +35,10 @@ Do not reintroduce weekly modes, weekly reservations, fixed-five editorial const
 ## Rollout
 
 New production migrations are run by the main-branch deployment build plan, not automatically by development CI. Before main deployment, confirm migration order and apply migrations against a staging database snapshot; manually test complete `RANDOM_FIVE`, `INFINITE`, `PACK`, and child-device playback with real published revisions and approved media.
+
+
+## Shareable web pack results
+
+After the web player finishes a **PACK** run, the result screen creates a portrait PNG card (1080 × 1350) showing the localized pack title, the run's reported total score, number correct, number completed, and QuizDip branding. The card includes the public pack URL as readable text; **no QR code is used**. A Share Result button uses browser-native Web Share (PNG + message + public pack URL when supported), while Save Image and Copy Pack Link are always visible fallbacks. Some share targets discard URLs sent alongside image files, so the UI explicitly prompts players to copy the link when necessary. Desktop browsers without file sharing can still save the image and copy the link.
+
+The exported image is a visual recap, **not a verified leaderboard claim**. Scores originate from an already completed server-authoritative run; client-generated cards cannot edit those records. Do not expose run/session tokens, unrevealed clues, answer keys or private links. Only public pack detail URLs are used. Sharing is a browser-only formatting/action feature with **no new REST operations or MCP tools**; the existing authoritative `run_current` result and `pack_get` are unchanged. There is no database migration or media upload and no server-side publication of player results.
