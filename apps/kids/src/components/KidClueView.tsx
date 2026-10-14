@@ -1,5 +1,6 @@
+import { KidsTap } from "./KidsTap";
 import { useEffect,useId,useState } from "react";
-import { ActivityIndicator,Platform,Pressable,StyleSheet,Text,View } from "react-native";
+import { ActivityIndicator,Platform,StyleSheet,Text,View } from "react-native";
 import Svg,{Circle,Defs,Mask,Rect} from "react-native-svg";
 import { Image } from "expo-image";
 import { useAudioPlayer } from "expo-audio";
@@ -12,9 +13,9 @@ import { nativeRevealBlurRadius } from "./reveal-blur";
 
 function AudioPlayer({url}:{url:string}){
   const player=useAudioPlayer(url);
-  return <Pressable accessibilityRole="button" style={styles.play} onPress={()=>{void player.seekTo(0);player.play();}}>
+  return <KidsTap accessibilityRole="button" style={styles.play} onPress={()=>{void player.seekTo(0);player.play();}}>
     <Text style={styles.playText}>🔊 ▶</Text>
-  </Pressable>;
+  </KidsTap>;
 }
 function VideoPlayer({url}:{url:string}){
   const player=useVideoPlayer(url);
@@ -67,8 +68,8 @@ export function SafeKidMedia({token,sessionId,sessionToken,mediaId,reveal}:{
     return ()=>{live=false;};
   },[token,sessionId,sessionToken,mediaId,retry]);
   if(state==="loading")return <ActivityIndicator color={theme.colors.accent}/>;
-  if(state==="error"||!media)return <Pressable accessibilityRole="button"
-    onPress={()=>setRetry(x=>x+1)} style={styles.play}><Text>{t("native.media.retry")}</Text></Pressable>;
+  if(state==="error"||!media)return <KidsTap accessibilityRole="button"
+    onPress={()=>setRetry(x=>x+1)} style={styles.play}><Text>{t("native.media.retry")}</Text></KidsTap>;
   return <View style={styles.media}>
     {media.kind==="image"?(reveal ?
        <NativeImageReveal url={media.url} reveal={reveal} label={t("native.media.image")}/> :
