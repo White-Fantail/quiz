@@ -1,5 +1,5 @@
-import { useCallback,useEffect,useRef,useState } from "react";
-import { ActivityIndicator,Alert,BackHandler,Pressable,StyleSheet,Text,TextInput,View } from "react-native";
+import { useCallback,useEffect,useRef,useState, type PropsWithChildren } from "react";
+import { ActivityIndicator,Alert,Animated,BackHandler,ScrollView,StyleSheet,Text,TextInput,View } from "react-native";
 import { Redirect,useLocalSearchParams,useRouter } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import type { KidQuestion,KidRunResult,KidGuessResult } from "@quizdip/api-client";
@@ -7,6 +7,7 @@ import { ApiError } from "@quizdip/api-client";
 import { activeImageStage } from "@quizdip/domain";
 import { Screen } from "../src/components/Screen";
 import { KidsEmojiIcon } from "../src/components/KidsIcon";
+import { KidsTap } from "../src/components/KidsTap";
 import { KidClueView,SafeKidMedia } from "../src/components/KidClueView";
 import { useKidsLocale } from "../src/state/locale";
 import { useKidsSession } from "../src/state/session";
@@ -15,6 +16,17 @@ import { kidsApi } from "../src/services/api";
 import { theme } from "../src/theme";
 
 const SAVED="quizdip-kids-active-game-v1";
+function PopIn({children}:PropsWithChildren) {
+ const motion=useRef(new Animated.Value(0)).current;
+ useEffect(()=>{
+  const animation=Animated.spring(motion,{toValue:1,tension:125,friction:10,useNativeDriver:true});
+  animation.start();
+  return ()=>animation.stop();
+ },[motion]);
+ return <Animated.View style={{opacity:motion,transform:[{
+  translateY:motion.interpolate({inputRange:[0,1],outputRange:[12,0]})
+ }]}}>{children}</Animated.View>;
+}
 type Ref= {kind:"run";runId:string;runToken:string;mode:"RANDOM_FIVE"|"PACK"} |
           {kind:"single";sessionId:string;sessionToken:string};
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -53,6 +65,11 @@ export default function KidGameScreen(){
  const [reportOpen,setReportOpen]=useState(false);
  const [dismissedBreak,setDismissedBreak]=useState(-1);
  const [pending,setPending]=useState(false);
+ const pendingRef=useRef(false);
+ const [busyAction,setBusyAction]=useState<"clue"|"guess"|"next"|null>(null);
+ const [selectedAnswer,setSelectedAnswer]=useState<string|null>(null);
+ const scrollRef=useRef<ScrollView>(null);
+ const focusClue=useRef(0);
  const [loading,setLoading]=useState(true);
  const [error,setError]=useState("");
  const boot=useRef("");
@@ -71,7 +88,7 @@ export default function KidGameScreen(){
   if(boot.current===key)return;
   boot.current=key;
   let active=true;
-  setQuestion(null);setSummary(null);setResult(null);setError("");setLoading(true);
+  setQuestion(null);setSummary(null);setResult(null);setSelectedAnswer(null);setError("");setLoading(true);
   void (async()=>{
    try{
     let ref:Ref|null=null;
@@ -101,9 +118,9 @@ export default function KidGameScreen(){
   })();
   return ()=>{active=false;};
  },[token,params.quizId,params.packId,params.mode,retrieve,t]);
- const guarded=async(task:()=>Promise<void>)=>{
-  if(pending)return;
-  setPending(true);setError("");
+ const guarded=async(action:"clue"|"guess"|"next",task:()=>Promise<void>)=>{
+  if(pendingRef.current)return;
+  pendingRef.current=true;setPending(true);setBusyAction(action);setError("");
   try{await task();}
   catch(e){
     const withdrawn=e instanceof ApiError &&
@@ -112,17 +129,19 @@ export default function KidGameScreen(){
     if(e instanceof ApiError && [401,403].includes(e.status??0))void kid.reload();
     setError(withdrawn?t("native.play.withdrawn"):t("native.play.error"));
   }
-  finally{setPending(false);}
+  finally{pendingRef.current=false;setPending(false);setBusyAction(null);setSelectedAnswer(null);}
  };
- const clue=()=>void guarded(async()=>{
+ const clue=()=>void guarded("clue",async()=>{
    if(!token||!question||!kidsApi)return;
    const next=await kidsApi.nextClue(token,question.sessionId,question.sessionToken);
+   focusClue.current=next.clueIndex;
    setQuestion(prev=>prev&&prev.sessionId===question.sessionId?{
       ...prev,clues:[...prev.clues,next.clue],clueIndex:next.clueIndex,clueCount:next.clueCount,canGuess:true
    }:prev);
    setResult(null);
  });
- const submit=(answer:string)=>void guarded(async()=>{
+ const submit=(answer:string)=>void guarded("guess",async()=>{
+   setSelectedAnswer(answer);
    if(!token||!question||!kidsApi||!question.canGuess)return;
    const v=await kidsApi.guess(token,question.sessionId,question.sessionToken,answer);
    setResult(v);setGuess("");
@@ -135,15 +154,16 @@ export default function KidGameScreen(){
    void kidsApi.report(token,id,reason).then(()=>setReportNotice(t("native.report.thanks")))
      .catch(()=>setReportNotice(t("native.report.failed")));
  };
- const next=()=>void guarded(async()=>{
+ const next=()=>void guarded("next",async()=>{
    if(!token||!reference)return;
    if(reference.kind==="single"){
      await save(null);
      router.replace("/explore");
      return;
    }
-   setResult(null);setGuess("");
    await retrieve(reference,token);
+   setResult(null);setGuess("");
+   scrollRef.current?.scrollTo({y:0,animated:false});
  });
  // Leaving a game is a child-safe in-app action, not an exit from Kids mode.
  // The signed game reference is already stored in SecureStore for Challenge > Resume.
@@ -162,55 +182,60 @@ export default function KidGameScreen(){
    });
    return ()=>subscription.remove();
  },[kid.status,time.status,summary,confirmLeave]);
- const leaveButton=<Pressable accessibilityRole="button"
+ const leaveButton=<KidsTap accessibilityRole="button"
     accessibilityLabel={t("native.play.leave")} onPress={confirmLeave}
     style={({pressed})=>[styles.exitButton,{opacity:pressed?0.75:1}]}>
     <KidsEmojiIcon emoji="🏠" size={19} color={theme.colors.accent}/>
     <Text style={styles.exitText}>{t("native.play.leave")}</Text>
- </Pressable>;
+ </KidsTap>;
  if(kid.status!=="active"){
    if(kid.status==="checking")return <Screen title="QuizDip Kids"><ActivityIndicator/></Screen>;
    return <Redirect href="/setup"/>;
  }
  if(time.status==="blocked")return <Redirect href="/time-up" />;
  if(time.status==="checking")return <Screen title={t("native.session.checking")}><ActivityIndicator/></Screen>;
- if(loading)return <Screen title={t("native.play.loading")} headerAction={leaveButton}><ActivityIndicator color={theme.colors.accent}/></Screen>;
+ if(loading)return <Screen title={t("native.play.loading")} headerAction={leaveButton}>
+   <View style={styles.waiting}><ActivityIndicator size="large" color={theme.colors.accent}/>
+     <Text style={styles.waitingText}>{t("native.play.loading")}</Text></View>
+ </Screen>;
  if(error&&!question&&!summary)return <Screen title={t("native.play.error")}>
    <Text style={styles.note}>{error}</Text>
-   <Pressable accessibilityRole="button" style={styles.button} onPress={()=>router.replace("/explore")}>
+   <KidsTap accessibilityRole="button" style={styles.button} onPress={()=>router.replace("/explore")}>
      <Text style={styles.buttonText}>{t("native.play.back")}</Text>
-   </Pressable>
+   </KidsTap>
  </Screen>;
  if(summary)return <Screen title={t("native.play.complete")}>
+   <PopIn>
    <View style={styles.results}>
      <KidsEmojiIcon emoji="🏆" size={65} color={theme.colors.accent}/>
      <Text style={styles.heading}>{t("native.play.wellDone")}</Text>
      <Text style={styles.score}>{summary.score} {t("native.play.points")}</Text>
      <Text style={styles.note}>{summary.solved} / {summary.completed} {t("native.play.correct")}</Text>
    </View>
-   <Pressable accessibilityRole="button" onPress={()=>router.replace("/treasures")} style={styles.button}>
+   </PopIn>
+   <KidsTap accessibilityRole="button" onPress={()=>router.replace("/treasures")} style={styles.button}>
      <View style={styles.inline}><KidsEmojiIcon emoji="⭐" size={20} color="#FFFFFF"/><Text style={styles.buttonText}>{t("kids.nav.treasures")}</Text></View>
-   </Pressable>
-   <Pressable accessibilityRole="button" onPress={()=>router.replace(reference?.kind==="run"&&reference.mode==="PACK"?"/packs":"/challenge")} style={styles.secondary}>
+   </KidsTap>
+   <KidsTap accessibilityRole="button" onPress={()=>router.replace(reference?.kind==="run"&&reference.mode==="PACK"?"/packs":"/challenge")} style={styles.secondary}>
      <Text style={styles.secondaryText}>{t("native.play.back")}</Text>
-   </Pressable>
+   </KidsTap>
  </Screen>;
  if(!question)return <Screen title={t("native.play.noActive")}>
-   <Pressable accessibilityRole="button" onPress={()=>router.replace(reference?.kind==="run"&&reference.mode==="PACK"?"/packs":"/challenge")} style={styles.button}>
+   <KidsTap accessibilityRole="button" onPress={()=>router.replace(reference?.kind==="run"&&reference.mode==="PACK"?"/packs":"/challenge")} style={styles.button}>
      <Text style={styles.buttonText}>{t("native.play.back")}</Text>
-   </Pressable>
+   </KidsTap>
  </Screen>;
  const ended=result?.status==="SOLVED"||result?.status==="FAILED"||
    question.sessionStatus==="SOLVED"||question.sessionStatus==="FAILED";
  const age=kid.session.profile.ageBand;
  const reminderEvery=time.time?.limits.breakEveryMinutes??0;
  const reminderNumber=reminderEvery>0?Math.floor((time.time?.sessionMinutesUsed??0)/reminderEvery):0;
- return <Screen title={question.title} subtitle={question.prompt} headerAction={leaveButton}>
-   {reminderNumber>0 && reminderNumber!==dismissedBreak?<Pressable accessibilityRole="button"
+ return <Screen title={question.title} subtitle={question.prompt} headerAction={leaveButton} scrollRef={scrollRef}>
+   {reminderNumber>0 && reminderNumber!==dismissedBreak?<KidsTap accessibilityRole="button"
      style={styles.restNotice} onPress={()=>setDismissedBreak(reminderNumber)}>
      <View style={styles.inline}><KidsEmojiIcon emoji="🍎" size={22}/><Text style={styles.restText}>{t("native.time.reminder")}</Text></View>
      <Text style={styles.note}>{t("native.time.dismiss")}</Text>
-   </Pressable>:null}
+   </KidsTap>:null}
    <View style={styles.progress}>
      <Text style={styles.progressText}>{question.round?
        t("native.play.question")+" "+question.round+" / "+(question.total??5):t("native.play.single")}</Text>
@@ -222,60 +247,71 @@ export default function KidGameScreen(){
    {(question.clues??[]).map((clue,i)=>{
      const stage=activeImageStage(question.clues,i);
      if(!stage&&!clue.text&&!clue.map)return null;
-     return <View key={clue.id??String(i)} style={{gap:8}}>
+     return <View key={clue.id??String(i)} onLayout={e=>{
+      if(focusClue.current===i+1){focusClue.current=0;
+       scrollRef.current?.scrollTo({y:Math.max(0,e.nativeEvent.layout.y+95),animated:true});
+      }
+    }}><PopIn>
      <View style={styles.inline}><KidsEmojiIcon emoji="✨" size={18} color={theme.colors.accent}/><Text style={styles.hintLabel}>{t("native.play.hint")} {i+1}</Text></View>
      <KidClueView clue={clue} mediaStage={stage} token={token!} sessionId={question.sessionId}
        sessionToken={question.sessionToken}/>
-   </View>})}
-   {result?<View style={[styles.feedback,result.correct?styles.success:styles.tryAgain]}>
+   </PopIn></View>})}
+   {result?<PopIn><View accessibilityLiveRegion="polite" style={[styles.feedback,result.correct?styles.success:styles.tryAgain]}>
+     <View style={styles.inline}><KidsEmojiIcon emoji={result.correct?"🎉":"💡"} size={32}/><Text style={styles.feedbackTitle}>{result.correct?"★ ★ ★":"✦ ✦ ✦"}</Text></View>
      <Text style={styles.feedbackText}>{result.correct?t("native.play.correctMessage"):
        ended?t("native.play.tryNextTime"):t("native.play.nextHint")}</Text>
      {result.answer?<Text style={styles.note}>{t("native.play.answer")} {result.answer}</Text>:null}
      {ended?<Text style={styles.note}>+{result.score} {t("native.play.points")}</Text>:null}
-   </View>:null}
+   </View></PopIn>:null}
    {error?<Text accessibilityRole="alert" style={styles.warning}>{error}</Text>:null}
    {!ended?<>
      {question.canGuess?<>
        {(question.responseMode==="multiple-choice" || age!=="OLDER") && (question.options?.length??0)>=2?
          <View style={styles.options}>
            {(question.options??[]).map(option=>
-             <Pressable key={option} disabled={pending} accessibilityRole="button"
-               style={styles.option} onPress={()=>submit(option)}>
-               <Text style={styles.optionText}>{option}</Text>
-             </Pressable>)}
+             <KidsTap key={option} disabled={pending} accessibilityRole="button"
+               accessibilityState={{busy:pending&&selectedAnswer===option,selected:selectedAnswer===option}}
+                style={[styles.option,selectedAnswer===option&&styles.optionSelected]} onPress={()=>submit(option)}>
+               <View style={styles.optionRow}><Text style={styles.optionText}>{option}</Text>
+                 {selectedAnswer===option&&pending?<ActivityIndicator color={theme.colors.accent}/>:null}</View>
+             </KidsTap>)}
          </View>:
          <View style={styles.answer}>
            <TextInput value={guess} onChangeText={setGuess} maxLength={200}
              autoCorrect={false} placeholder={t("native.play.placeholder")}
              accessibilityLabel={t("native.play.placeholder")} style={styles.field}/>
-           <Pressable accessibilityRole="button" disabled={pending||!guess.trim()} style={styles.button}
-             onPress={()=>submit(guess.trim())}><Text style={styles.buttonText}>{t("native.play.guess")}</Text></Pressable>
+           <KidsTap accessibilityRole="button" disabled={pending||!guess.trim()} style={styles.button}
+             onPress={()=>submit(guess.trim())}><View style={styles.inline}>
+               {busyAction==="guess"?<ActivityIndicator color="#FFFFFF"/>:null}
+               <Text style={styles.buttonText}>{t("native.play.guess")}</Text></View></KidsTap>
          </View>}
      </>:null}
      {question.clueIndex<question.clueCount?
-       <Pressable accessibilityRole="button" disabled={pending} style={styles.secondary} onPress={clue}>
-         <View style={styles.inline}><KidsEmojiIcon emoji="✨" size={19}/><Text style={styles.secondaryText}>{t("native.play.reveal")}</Text></View>
-       </Pressable>:null}
+       <KidsTap accessibilityRole="button" disabled={pending} style={styles.secondary} onPress={clue}>
+         <View style={styles.inline}>{busyAction==="clue"?<ActivityIndicator color={theme.colors.accent}/>:<KidsEmojiIcon emoji="✨" size={19}/>}
+           <Text style={styles.secondaryText}>{t("native.play.reveal")}</Text></View>
+       </KidsTap>:null}
    </>:null}
    {reportNotice?<Text accessibilityRole="alert" style={styles.note}>{reportNotice}</Text>:null}
-   <Pressable accessibilityRole="button" onPress={()=>setReportOpen(v=>!v)} style={styles.reportButton}>
+   <KidsTap accessibilityRole="button" onPress={()=>setReportOpen(v=>!v)} style={styles.reportButton}>
      <View style={styles.inline}><KidsEmojiIcon emoji="🛡️" size={18} color={theme.colors.muted}/><Text style={styles.reportText}>{t("native.report.title")}</Text></View>
-   </Pressable>
+   </KidsTap>
    {reportOpen?<View style={styles.reportChoices}>
      <Text style={styles.note}>{t("native.report.help")}</Text>
      {([["UNSAFE","native.report.unsafe"],["INCORRECT","native.report.incorrect"],
        ["BROKEN_MEDIA","native.report.broken"]] as const).map(([reason,label])=>
-       <Pressable key={reason} accessibilityRole="button" style={styles.secondary}
+       <KidsTap key={reason} accessibilityRole="button" style={styles.secondary}
          onPress={()=>sendReport(reason)}>
          <Text style={styles.secondaryText}>{t(label)}</Text>
-       </Pressable>)}
-     <Pressable accessibilityRole="button" onPress={()=>setReportOpen(false)}>
+       </KidsTap>)}
+     <KidsTap accessibilityRole="button" onPress={()=>setReportOpen(false)}>
        <Text style={styles.note}>{t("kids.guardian.cancel")}</Text>
-     </Pressable>
+     </KidsTap>
    </View>:null}
-   {ended?<Pressable accessibilityRole="button" disabled={pending} style={styles.button} onPress={next}>
-     <Text style={styles.buttonText}>{reference?.kind==="single"?t("native.play.back"):t("native.play.continue")}</Text>
-   </Pressable>:null}
+   {ended?<KidsTap accessibilityRole="button" disabled={pending} style={styles.button} onPress={next}>
+     <View style={styles.inline}>{busyAction==="next"?<ActivityIndicator color="#FFFFFF"/>:null}
+      <Text style={styles.buttonText}>{reference?.kind==="single"?t("native.play.back"):t("native.play.continue")}</Text></View>
+   </KidsTap>:null}
  </Screen>;
 }
 const styles=StyleSheet.create({
@@ -299,7 +335,10 @@ const styles=StyleSheet.create({
  buttonText:{fontSize:18,fontWeight:"900",color:"#FFFFFF"},
  secondary:{padding:17,borderRadius:18,backgroundColor:theme.colors.mint,alignItems:"center"},
  secondaryText:{fontSize:17,fontWeight:"800",color:theme.colors.ink},
- options:{gap:12},
+ options:{gap:12},optionSelected:{borderColor:theme.colors.accent,borderWidth:3,backgroundColor:theme.colors.lilac},
+ optionRow:{flexDirection:"row",justifyContent:"space-between",alignItems:"center",gap:10},
+ feedbackTitle:{fontSize:18,fontWeight:"900",color:theme.colors.accent},
+ waiting:{padding:48,gap:18,alignItems:"center"},waitingText:{fontSize:18,fontWeight:"800",color:theme.colors.muted},
  option:{backgroundColor:theme.colors.peach,minHeight:60,padding:16,borderRadius:17,justifyContent:"center"},
  optionText:{color:theme.colors.ink,fontSize:19,fontWeight:"800",textAlign:"center"},
  answer:{gap:12},field:{borderWidth:1,borderColor:theme.colors.outline,borderRadius:14,
