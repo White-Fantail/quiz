@@ -188,7 +188,11 @@ export async function kidTreasures(kid:Kid){
     revision:{is:{localization:{is:{
       locale:kid.profile.locale,status:"PUBLISHED",origin:{in:approvedOrigins}
     }}}}};
-  const [solved,completed,latest,uniqueSolved]=await Promise.all([
+  const packScope={lane:"KIDS",mode:"PACK",status:"FINISHED",
+    packId:{not:null},kidOwnership:{is:{profileId}},
+    pack:{is:{publication:"PUBLISHED",kidsEligible:true,kidsReviewStatus:"APPROVED",
+      safetyStatus:{not:"RESTRICTED"}}}};
+  const [solved,completed,latest,uniqueSolved,recentRuns]=await Promise.all([
     db().playSession.count({where:{...own,status:"SOLVED"}}),
     db().playSession.count({where:{...own,status:{in:["SOLVED","FAILED"]}}}),
     db().playSession.findMany({where:{...own,...safe,status:"SOLVED"},
@@ -197,8 +201,23 @@ export async function kidTreasures(kid:Kid){
         title:true,version:true,localization:{select:{publishedVersion:true}}
       }}}}),
     db().playSession.findMany({where:{...own,status:"SOLVED"},select:{quizId:true},
-      distinct:["quizId"],take:10})
+      distinct:["quizId"],take:10}),
+    db().playRun.findMany({where:packScope,orderBy:{completedAt:"desc"},
+      distinct:["packId"],take:8,select:{packId:true,score:true,solved:true,
+      targetCount:true,completedAt:true,pack:{select:{title:true,localizations:{
+        where:{locale:kid.profile.locale,status:"PUBLISHED"},select:{title:true}
+      }}}}})
   ]);
+  const bestScores=recentRuns.length?await db().playRun.groupBy({
+    by:["packId"],where:{...packScope,packId:{in:recentRuns.map(run=>run.packId!)}},
+    _max:{score:true}
+  }):[];
+  const bestByPack=new Map(bestScores.map(entry=>[entry.packId,entry._max.score??0]));
+  const recentPacks=recentRuns.filter(run=>run.packId&&run.pack).map(run=>({
+    packId:run.packId!,title:run.pack!.localizations[0]?.title||run.pack!.title,
+    score:run.score,bestScore:bestByPack.get(run.packId)??run.score,
+    solved:run.solved,total:run.targetCount??0,at:run.completedAt
+  }));
   const seen=new Set<string>();
   const discoveries=latest.filter(s=>{
     if(s.revision.localization?.publishedVersion!==s.revision.version || seen.has(s.quizId))return false;
@@ -210,7 +229,7 @@ export async function kidTreasures(kid:Kid){
     {id:"five",required:5,label:"Curious explorer",emoji:"🧭"},
     {id:"ten",required:10,label:"Treasure hunter",emoji:"🏆"}
   ].filter(x=>uniqueSolved.length>=x.required);
-  return {solved,completed,discoveries,badges};
+  return {solved,completed,recentPacks,discoveries,badges};
 }
 
 /** Children can flag ONLY questions assigned or played on their own private profile.

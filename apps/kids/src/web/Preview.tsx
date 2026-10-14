@@ -63,9 +63,7 @@ export default function Preview({initialTab="home"}:{initialTab?:Tab}){
   if(round===examples.length-1){setFinished(true);return;}
   setRound(n=>n+1);setQuestion(round+1);setHint(1);setAnswer(null);
  };
- const tabs=[["home","🏠","kids.nav.home"],["explore","🧭","kids.nav.explore"],
-  ["packs","📚","kids.nav.packs"],
-  ["challenge","🧩","kids.nav.challenge"],["treasures","⭐","kids.nav.treasures"]] as const;
+ const tabs=[["home","🏠","kids.nav.play"],["treasures","⭐","kids.nav.stars"]] as const;
  return <View style={styles.shell}>
   <View style={styles.header}>
    <Text style={styles.brand}>QuizDip <Text style={{color:theme.colors.ink}}>Kids ✨</Text></Text>
@@ -85,7 +83,9 @@ export default function Preview({initialTab="home"}:{initialTab?:Tab}){
     <Text style={styles.pillText}>{emoji} {t(label)}</Text>
   </Pressable>)}</View>
   {tab==="home"?<Screen title={t("kids.welcome")} subtitle={t("kids.subtitle")}>
-   <Banner emoji="✨" title="QuizDip Kids" detail={t("native.choose")}/>
+   <Pressable accessibilityRole="button" style={styles.action} onPress={()=>start(0,true)}>
+    <Text style={styles.actionText}>{t("native.playTab.surprise")} · {t("native.playTab.surpriseDetail")} ▶</Text>
+   </Pressable>
    <View style={styles.card}><Text style={styles.title}>🧒 {s.profile}</Text><Text style={styles.detail}>{s.about}</Text></View>
    <Text style={styles.heading}>{t("kids.chooseTopic")}</Text>
    <View style={styles.grid}>{([

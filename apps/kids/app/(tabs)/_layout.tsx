@@ -7,10 +7,8 @@ import { useKidsLocale } from "../../src/state/locale";
 import { theme } from "../../src/theme";
 
 const tabs = [
- {name:"index",label:"kids.nav.home",emoji:"🏠"},
- {name:"explore",label:"kids.nav.explore",emoji:"🧭"},
- {name:"challenge",label:"kids.nav.challenge",emoji:"🧩"},
- {name:"treasures",label:"kids.nav.treasures",emoji:"⭐"},
+ {name:"index",label:"kids.nav.play",emoji:"🏠"},
+ {name:"treasures",label:"kids.nav.stars",emoji:"⭐"},
 ] as const;
 
 export default function KidsTabs(){
@@ -27,6 +25,8 @@ export default function KidsTabs(){
   tabBarLabelStyle:{fontSize:12,fontWeight:"700"},
  }}>
   <Tabs.Screen name="packs" options={{href:null}} />
+  <Tabs.Screen name="explore" options={{href:null}} />
+  <Tabs.Screen name="challenge" options={{href:null}} />
   {tabs.map(tab=><Tabs.Screen key={tab.name} name={tab.name}
     options={{title:t(tab.label),tabBarAccessibilityLabel:t(tab.label),
       tabBarIcon:({color})=> <KidsEmojiIcon emoji={tab.emoji} size={26}
