@@ -21,7 +21,7 @@ The project's three 2026-10-11 source materials (product proposal, brand guideli
 QuizDip is a friendly quiz playground centered on progressive clues and the joy of discovery. External name: **QuizDip (퀴즈딥)**; repository name: `quizdip`. Follow [docs/brand.md](docs/brand.md).
 
 ## QuizDip Kids native app (Phases 1–5)
-- Native app: `apps/kids` (Expo/React Native) with server-only `apps/web` unchanged. Shared pure `@quizdip/domain`, `@quizdip/i18n`, `@quizdip/api-client` may be used by both; native must NEVER import Prisma, web server modules, credentials or answer keys.
+- Native app: `apps/kids` (Expo/React Native) with server-only `apps/web` unchanged. Shared pure `@quizdip/domain`, `@quizdip/i18n`, `@quizdip/api-client` may be used by both; native must NEVER import Prisma, web server modules or server credentials. Downloadable published play bundles intentionally contain approved answer keys.
 - Native Kids Phase 1 was a preview shell. Phase 2 adds **source-level** one-time parent PIN pairing and mobile child-session authorization; never claim full deployment or live device success until database migration and real-device tests pass. Gameplay, rewards and daily limits remain Phase 3/4.
 - Phase 5 source removes legacy web Kids gameplay/layout/CSS/child activation. Adult bootstrap resides at `/account/kids`; legacy locked browsers require guardian PIN via `/account/kids/legacy-unlock`. Keep Kids moderation, native API, language rules, data and media; there is no Kids weekly lane.
 
@@ -53,7 +53,7 @@ QuizDip is a friendly quiz playground centered on progressive clues and the joy 
 - All media, whether added by Studio, REST, MCP or AI, must be stored in **private Cloudflare R2** as a first-class `MediaAsset` with an immutable ID; clues and prompts reference `mediaId`/`promptMediaIds`, not arbitrary uncontrolled file URLs.
 - Provide both presigned binary uploads and a client-compatible MCP **chunked base64** fallback. Uploaded bytes must be verified server-side for size, SHA-256 and MIME signature before becoming READY. Never treat a staged/expired upload as a validated file.
 - On any new media feature or format, update together: Prisma + migration, validated contracts, owner/policy services, REST route, MCP tool, `docs/media-r2.md` and parity tests. Media derivatives must create new assets; never overwrite an existing READY object.
-- Never expose pending/restricted media to public players. Public playback requires approved asset and revealed-clue/session authorization; Kids requires separate quiz approval. An admin-reviewed asset must not silently become APPROVED after metadata edits or transformations.
+- Never expose pending/restricted media to public players. Public playback requires approved asset and authorized downloaded-game context; Kids requires separate quiz approval. An admin-reviewed asset must not silently become APPROVED after metadata edits or transformations.
 - Only allowlisted HTTPS import hosts; defend against SSRF / DNS rebinding / unbounded streaming; preserve attribution/rights metadata. Configure R2 as private, use short-lived signed URLs and expire transient uploads.
 - Media upload ticket/URL alone is not proof of success. Test against a real dev Cloudflare bucket, including hash mismatch, unsupported types, expired tickets, unapproved uploads, cross-account access and progressive reveals, before declaring deployed functionality.
 
@@ -87,7 +87,7 @@ MCP is a full QuizDip product interface, **not just an authoring connector**. Ev
 - Both interfaces MUST call `execute()` in `apps/web/src/modules/platform/operations.ts` with the same server-enforced access control and business rules. Do not write an MCP-only database implementation or bypass safety, publication, creator ownership, version checks, ranking privacy or spam limits.
 - **MCP tool coverage is a release requirement**, not optional follow-up work. If a dangerous/privileged action is deliberately omitted, document precisely why and expose its safe read-only alternative where possible.
 - Every agent's change report must state affected REST paths, matching MCP tool names, tests run, and any deliberate parity exceptions. Do not mark a feature done when it lacks its MCP counterpart.
-- Never return answer keys/unrevealed clues to public clients. Adults-only public ranking requires separately verified eligibility; Kids exposure requires an affirmative platform safety decision, independent from a creator's age intent.
+- Only downloadable, approved play bundles may include answers and unrevealed clues (intentionally local-first); never expose draft/restricted/private content. Adults-only public ranking requires separately verified eligibility; Kids exposure requires an affirmative platform safety decision, independent from a creator's age intent.
 - Treat publication, bulk edits, sensitive changes and deletions as high-impact and require explicit user authorization/confirmation. Do not let client-supplied safety status or user role override platform policy.
 - Keep in mind that exposing a tool is not proof it works: verify production-authenticated MCP invocations and REST parity, not only tools/list.
 
@@ -111,14 +111,14 @@ MCP is a full QuizDip product interface, **not just an authoring connector**. Ev
 ## Kids native Phase 3 trust boundary
 
 - The private `KidPlayRun` / `KidPlaySingle` join models bind run/session ownership to child profile + native device. `getPlaySession` and `checkedRun` must reject child-owned capabilities from ordinary General REST/MCP, even with a correct session token.
-- Native gameplay uses the existing `execute`, `runCurrent`, `playClue`, `playGuess`, `signedPlayMedia` paths and server-side grading. Only a verified server-internal child actor may resume or mutate a child run. Do not start child runs with adult `User` identity.
-- Guard quiz revision, Kids affirmative safety, guardian-pinned locale, published version and each media asset on **every** protected game request. Never use unapproved translation/media after a review reset.
+- Native gameplay uses the shared local reducer and authorized question-bundle / result-sync endpoints. Legacy server round-trip endpoints remain for compatibility. Only a verified server-internal child actor may resume or mutate a child run. Do not start child runs with adult `User` identity.
+- Guard quiz revision, Kids affirmative safety, guardian-pinned locale, published version and each media asset on bundle download and signed media access. Never use unapproved translation/media after a review reset.
 - Save child play capabilities only in SecureStore; on approval revocation hide cached content. Child progress/badges stay private. Deleting a child profile clears child-specific play history; no child standings.
 - Map coordinates are a placeholder for a native map view. Never call Phase 3 production-ready without migration `20261012200000_kids_native_play`, builds and real-device R2/media/security tests. Retire web Kids only after Phase 4/5 gates.
 
 ## Kids native Phase 4 privacy, time and release gates
 
-- Child usage is the server's UTC-minute ledger, unique per child across devices, with guardian-chosen local day. Every Kids play/media, catalogue and treasure endpoint must require a recent verified time heartbeat; offline is fail-closed.
+- Child usage is the server's UTC-minute ledger, unique per child across devices, with guardian-chosen local day. Kids time budgeting is advisory and local to the device; the backend supplies guardian settings and stores activity, without enforcing heartbeat gates.
 - The existing `sessionMinutes` is legacy web expiry; native uses separate `dailyMinutes`, `playSessionMinutes`, `breakEveryMinutes`, `timeZone`. A soft break reminder does not replace a server-enforced daily or continuous-session cap.
 - In-app guardian control requires short-lived PIN-elevated `KidParentAccess` bound to an active child device and stored only in RAM; it must not authorize general REST/MCP and must be cleared on background. Guardian-controlled deletion/revocation is ownership-checked server-side.
 - App store Kids/Families/privacy compliance is **not certified** by static SDK permissions. Publish an accurate privacy policy, configure `CRON_SECRET` and authenticated daily retention cleanup, run real device/security tests, and document proof before rollout.
