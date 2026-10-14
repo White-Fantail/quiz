@@ -112,12 +112,21 @@ export default function KidGameScreen(){
     const results=Object.entries(progress).filter(([,p])=>p.status!=="ACTIVE")
       .map(([position,p])=>({position:Number(position),cluesUsed:p.clueIndex,
         status:p.status as "SOLVED"|"FAILED",score:p.score}));
-    if(results.length)void kidsApi.runSync(deviceToken,ref.runId,ref.runToken,results).catch(()=>{});
+    if(results.length)void kidsApi.runSync(deviceToken,ref.runId,ref.runToken,results)
+      .then(async()=>{
+        if(localContent.current?.id!==ref.runId ||
+           results.length!==localContent.current.questions.length)return;
+        const stored=await read();
+        if(stored?.kind==="run"&&stored.runId===ref.runId)await save(null);
+      }).catch(()=>{});
   }else{
     const p=progress[0];
     if(p?.status==="SOLVED"||p?.status==="FAILED")
       void kidsApi.singleSync(deviceToken,ref.sessionId,ref.sessionToken,{
         cluesUsed:p.clueIndex,status:p.status,score:p.score
+      }).then(async()=>{
+        const stored=await read();
+        if(stored?.kind==="single"&&stored.sessionId===ref.sessionId)await save(null);
       }).catch(()=>{});
   }
  };
@@ -162,7 +171,7 @@ export default function KidGameScreen(){
     const totals=localSummary(Object.values(localProgress.current));
     setSummary({runId:id,status:"FINISHED",completed:totals.completed,total:content.questions.length,
       score:totals.score,solved:totals.solved,failed:totals.failed,official:false});
-    setQuestion(null);syncLocal(ref,deviceToken);await save(null);return;
+    setQuestion(null);syncLocal(ref,deviceToken);return;
   }
   const q=content.questions[index],p=localProgress.current[q.position]??initialLocalProgress();
   // Reuse the existing native UI model while gameplay is entirely local.
@@ -278,7 +287,6 @@ export default function KidGameScreen(){
  const next=()=>void guarded("next",async()=>{
    if(!token||!reference)return;
    if(reference.kind==="single"){
-     await save(null);
      router.replace("/explore");
      return;
    }
