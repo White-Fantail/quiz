@@ -65,8 +65,8 @@ function PopIn({children,celebrate=false}:PropsWithChildren<{celebrate?:boolean}
   translateY:motion.interpolate({inputRange:[0,1],outputRange:[12,0]})
  },{scale:motion.interpolate({inputRange:[0,1],outputRange:[celebrate?0.77:0.97,1]})}]}}>{children}</Animated.View>;
 }
-type Ref= {kind:"run";runId:string;runToken:string;mode:"RANDOM_FIVE"|"PACK"} |
-          {kind:"single";sessionId:string;sessionToken:string;options?:string[]};
+type Ref= {kind:"run";runId:string;runToken:string;mode:"RANDOM_FIVE"|"PACK";packId?:string} |
+          {kind:"single";sessionId:string;sessionToken:string;options?:string[];quizId?:string};
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function finished(v:KidQuestion|KidRunResult):v is KidRunResult {
  return "status" in v && v.status==="FINISHED" && !("sessionId" in v);
@@ -226,11 +226,11 @@ export default function KidGameScreen(){
     let ref:Ref|null=null;
     if(params.packId&&uuid.test(params.packId)){
       const started=await kidsApi!.startPack(token,params.packId);
-      ref={kind:"run",runId:started.runId,runToken:started.runToken,mode:"PACK"};
+      ref={kind:"run",runId:started.runId,runToken:started.runToken,mode:"PACK",packId:params.packId};
       // Save alongside initial question lookup below.
     }else if(params.quizId && uuid.test(params.quizId)){
       const started=await kidsApi!.startSingle(token,params.quizId);
-      ref={kind:"single",sessionId:started.sessionId,sessionToken:started.sessionToken,options:started.options};
+      ref={kind:"single",sessionId:started.sessionId,sessionToken:started.sessionToken,options:started.options,quizId:params.quizId};
       // Save alongside initial question lookup below.
     }else if(params.mode==="RANDOM_FIVE"){
       const started=await kidsApi!.startRun(token,params.mode);
@@ -311,7 +311,7 @@ export default function KidGameScreen(){
  const next=()=>void guarded("next",async()=>{
    if(!token||!reference)return;
    if(reference.kind==="single"){
-     router.replace("/explore");
+     router.replace("/");
      return;
    }
    await retrieve(reference,token);
@@ -353,28 +353,44 @@ export default function KidGameScreen(){
  </Screen>;
  if(error&&!question&&!summary)return <Screen title={t("native.play.error")}>
    <Text style={styles.note}>{error}</Text>
-   <KidsTap accessibilityRole="button" style={styles.button} onPress={()=>router.replace("/explore")}>
+   <KidsTap accessibilityRole="button" style={styles.button} onPress={()=>router.replace("/")}>
      <Text style={styles.buttonText}>{t("native.play.back")}</Text>
    </KidsTap>
  </Screen>;
  if(summary)return <Screen title={t("native.play.complete")}>
    <PopIn celebrate>
    <View style={styles.results}>
-     <KidsEmojiIcon emoji="🏆" size={65} color={theme.colors.accent}/>
-     <Text style={styles.heading}>{t("native.play.wellDone")}</Text>
+     <Text style={styles.heading}>{t("native.play.wellDone")} 🎉</Text>
+     <View style={styles.inline}>
+      <KidsEmojiIcon emoji="⭐" size={48} color="#E5AA19"/>
+      <KidsEmojiIcon emoji="⭐" size={65} color="#E5AA19"/>
+      <KidsEmojiIcon emoji="⭐" size={48} color="#E5AA19"/>
+     </View>
      <Text style={styles.score}>{summary.score} {t("native.play.points")}</Text>
-     <Text style={styles.note}>{summary.solved} / {summary.completed} {t("native.play.correct")}</Text>
+     <Text style={styles.note}>{summary.solved} / {summary.total} {t("native.play.correct")}</Text>
    </View>
    </PopIn>
-   <KidsTap accessibilityRole="button" onPress={()=>router.replace("/treasures")} style={styles.button}>
-     <View style={styles.inline}><KidsEmojiIcon emoji="⭐" size={20} color="#FFFFFF"/><Text style={styles.buttonText}>{t("kids.nav.treasures")}</Text></View>
+   {reference?.kind==="run"&&reference.mode==="RANDOM_FIVE"?<KidsTap accessibilityRole="button"
+     style={styles.button} onPress={()=>router.replace({pathname:"/game",params:{mode:"RANDOM_FIVE"}})}>
+     <Text style={styles.buttonText}>{t("native.stars.playAgain")} ▶</Text>
+   </KidsTap>:null}
+   {reference?.kind==="run"&&reference.mode==="PACK"&&reference.packId?<KidsTap accessibilityRole="button"
+     style={styles.button} onPress={()=>router.replace({pathname:"/game",params:{packId:reference.packId!}})}>
+     <Text style={styles.buttonText}>{t("native.stars.playAgain")} ▶</Text>
+   </KidsTap>:null}
+   {reference?.kind==="single"&&reference.quizId?<KidsTap accessibilityRole="button"
+     style={styles.button} onPress={()=>router.replace({pathname:"/game",params:{quizId:reference.quizId!}})}>
+     <Text style={styles.buttonText}>{t("native.stars.playAgain")} ▶</Text>
+   </KidsTap>:null}
+   <KidsTap accessibilityRole="button" onPress={()=>router.replace("/")} style={styles.secondary}>
+     <Text style={styles.secondaryText}>{t("native.stars.moreGames")}</Text>
    </KidsTap>
-   <KidsTap accessibilityRole="button" onPress={()=>router.replace(reference?.kind==="run"&&reference.mode==="PACK"?"/packs":"/challenge")} style={styles.secondary}>
-     <Text style={styles.secondaryText}>{t("native.play.back")}</Text>
+   <KidsTap accessibilityRole="button" onPress={()=>router.replace("/treasures")} style={styles.secondary}>
+     <Text style={styles.secondaryText}>{t("kids.nav.stars")} ⭐</Text>
    </KidsTap>
  </Screen>;
  if(!question)return <Screen title={t("native.play.noActive")}>
-   <KidsTap accessibilityRole="button" onPress={()=>router.replace(reference?.kind==="run"&&reference.mode==="PACK"?"/packs":"/challenge")} style={styles.button}>
+   <KidsTap accessibilityRole="button" onPress={()=>router.replace("/")} style={styles.button}>
      <Text style={styles.buttonText}>{t("native.play.back")}</Text>
    </KidsTap>
  </Screen>;
