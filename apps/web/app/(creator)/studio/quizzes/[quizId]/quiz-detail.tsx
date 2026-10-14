@@ -8,7 +8,7 @@ import { localizeHref } from "../../../../../src/i18n/core";
 import { bilingual } from "../../../../../src/i18n/view-copy";
 
 type Topic = { name:string; isSpoiler?:boolean };
-type VisualClue = {type:string;mediaId?:string;text?:string;reveal?:{effect:"blur"|"zoom"|"spotlight";strength:number;focusX?:number;focusY?:number}};
+type VisualClue = {type:string;mediaId?:string;text?:string;reveal?:{effect:"zoom"|"spotlight";strength:number;focusX?:number;focusY?:number}};
 type AgeRange = { minimum?:number; maximum?:number };
 type Quiz = {
   id:string;title:string;prompt:string;version:number;publication:string;locale?:string;
@@ -96,7 +96,7 @@ export default function StudioQuizDetail({quizId,backHref}:{quizId:string;backHr
   const [saving,setSaving]=useState(false);
   const [notice,setNotice]=useState("");
   const [imageSource,setImageSource]=useState("");
-  const [effect,setEffect]=useState<"blur"|"zoom"|"spotlight">("blur");
+  const [effect,setEffect]=useState<"zoom"|"spotlight">("zoom");
   const [stages,setStages]=useState(3);
   const [focusX,setFocusX]=useState(50);
   const [focusY,setFocusY]=useState(50);
@@ -339,8 +339,8 @@ export default function StudioQuizDetail({quizId,backHref}:{quizId:string;backHr
 
     {tab==="visual"&&<section className="placeholder-panel studio-reveal-editor">
       <h2>{msg("Progressive Image Reveal","이미지 한 장으로 단계별 공개")}</h2>
-      <p className="muted">{msg("Choose an existing image clue as the original. Blur, Zoom or Spotlight is applied at play time in web and Kids. No duplicate images are created.",
-        "기존 이미지 단서 중 원본 한 장을 선택하세요. 웹과 Kids 앱에서 블러·확대·스포트라이트를 적용하므로 이미지를 여러 장 만들 필요가 없어요.")}</p>
+      <p className="muted">{msg("Choose an existing image clue as the original. Zoom or Spotlight is applied at play time in web and Kids. No duplicate images are created.",
+        "기존 이미지 단서 중 원본 한 장을 선택하세요. 웹과 Kids 앱에서 확대·스포트라이트를 적용하므로 이미지를 여러 장 만들 필요가 없어요.")}</p>
       {!quiz.clues.some(c=>c.type==="image"||c.type==="image-reveal")?
         <p className="muted">{msg("Add an image clue using the media library or API first.","먼저 미디어 라이브러리 또는 API에서 이미지 단서를 등록해 주세요.")}</p>:
         <div className="studio-form-grid">
@@ -352,8 +352,7 @@ export default function StudioQuizDetail({quizId,backHref}:{quizId:string;backHr
             </select>
           </label>
           <label>{msg("Reveal effect","공개 효과")}
-            <select value={effect} onChange={e=>setEffect(e.target.value as "blur"|"zoom"|"spotlight")}>
-              <option value="blur">{msg("Blur → Clear","흐림 → 선명")}</option>
+            <select value={effect} onChange={e=>setEffect(e.target.value as "zoom"|"spotlight")}>
               <option value="zoom">{msg("Zoom out → Full","부분 확대 → 전체")}</option>
               <option value="spotlight">{msg("Spotlight → Full","작은 영역 → 전체")}</option>
             </select>
@@ -363,14 +362,12 @@ export default function StudioQuizDetail({quizId,backHref}:{quizId:string;backHr
               {[2,3,4,5].map(count=><option key={count} value={count}>{count}</option>)}
             </select>
           </label>
-          {effect!=="blur"&&<>
             <label>{msg("Focus X (%)","중심 X (%)")}
               <input type="number" min={0} max={100} value={focusX} onChange={e=>setFocusX(Math.max(0,Math.min(100,Number(e.target.value))))}/>
             </label>
             <label>{msg("Focus Y (%)","중심 Y (%)")}
               <input type="number" min={0} max={100} value={focusY} onChange={e=>setFocusY(Math.max(0,Math.min(100,Number(e.target.value))))}/>
             </label>
-          </>}
           <p className="studio-wide muted">{msg("Preview strengths: ","단계별 공개 강도: ")}
             {Array.from({length:stages},(_,i)=>Math.round(95*(stages-1-i)/(stages-1))).join(" → ")}
             {msg(" (0 is the fully revealed image). All existing image clues are replaced; text and other media clues remain.",

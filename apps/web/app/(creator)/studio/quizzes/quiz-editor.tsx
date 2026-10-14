@@ -9,7 +9,7 @@ import { bilingual } from "../../../../src/i18n/view-copy";
 import MediaPicker from "./quiz-media-picker";
 
 type ClueType = "text" | "image" | "audio" | "video" | "image-reveal" | "map";
-type Reveal = { effect:"blur"|"zoom"|"spotlight"; strength:number;focusX:number;focusY:number };
+type Reveal = { effect:"zoom"|"spotlight"; strength:number;focusX:number;focusY:number };
 type MapData = { latitude:number;longitude:number;zoom:number };
 type Clue = { key:string;type:ClueType;text:string;mediaId:string;reveal:Reveal;map:MapData };
 type AnswerType = "person"|"animal"|"place"|"thing"|"event"|"concept"|"other";
@@ -32,13 +32,19 @@ let sequence=0;
 function newClue(type:ClueType="text"):Clue {
   sequence++;
   return {key:"clue-"+sequence,type,text:"",mediaId:"",
-    reveal:{effect:"blur",strength:60,focusX:50,focusY:50},
+    reveal:{effect:"zoom",strength:60,focusX:50,focusY:50},
     map:{latitude:0,longitude:0,zoom:10}};
 }
 function blankForm(locale:Language):Form {
   return {title:"",prompt:"",locale,answerType:"other",canonical:"",responseMode:"text",distractors:"",aliases:"",topics:"",
     clues:[newClue()],creatorMin:"",creatorMax:"",creatorNote:"",
     suggestedMin:"",suggestedMax:"",difficulty:"",promptMediaIds:[]};
+}
+function normalizeReveal(reveal?: Reveal): Reveal {
+  if(!reveal) return {effect:"zoom",strength:60,focusX:50,focusY:50};
+  if(reveal.effect==="zoom"||reveal.effect==="spotlight") return {...reveal};
+  // Archived unknown effects should show the unmodified original image.
+  return {effect:"zoom",strength:0,focusX:50,focusY:50};
 }
 function fromQuiz(quiz:Quiz):Form {
   return {title:quiz.title,prompt:quiz.prompt,locale:quiz.locale,answerType:quiz.answerType,
@@ -47,7 +53,7 @@ function fromQuiz(quiz:Quiz):Form {
     distractors:(quiz.answer.options??[]).filter(text=>text.normalize("NFKC").trim().toLocaleLowerCase()!==quiz.answer.canonical.normalize("NFKC").trim().toLocaleLowerCase()).join("\n"),
     topics:quiz.topics.map(t=>t.name).join(", "),
     clues:quiz.clues.map(c=>({...newClue(c.type),text:c.text??"",mediaId:c.mediaId??"",
-      reveal:c.reveal?{...c.reveal}:{effect:"blur",strength:60,focusX:50,focusY:50},
+      reveal:normalizeReveal(c.reveal),
       map:c.map?{latitude:c.map.latitude,longitude:c.map.longitude,zoom:c.map.zoom??10}:{latitude:0,longitude:0,zoom:10}})),
     creatorMin:quiz.creatorIntent?.ageRange?.minimum?.toString()??"",
     creatorMax:quiz.creatorIntent?.ageRange?.maximum?.toString()??"",
@@ -313,7 +319,6 @@ export default function QuizEditor({quizId,backHref}:{quizId?:string;backHref?:s
             {clue.type==="image-reveal"&&<>
               <label>{msg("Reveal effect","공개 효과")}
                 <select value={clue.reveal.effect} onChange={e=>updateClue(clue.key,{reveal:{...clue.reveal,effect:e.target.value as Reveal["effect"]}})}>
-                  <option value="blur">{msg("Blur → clear","흐림 → 선명")}</option>
                   <option value="zoom">{msg("Zoom out","확대 → 전체")}</option>
                   <option value="spotlight">{msg("Spotlight","작은 부분 → 전체")}</option>
                 </select>
@@ -322,12 +327,10 @@ export default function QuizEditor({quizId,backHref}:{quizId?:string;backHref?:s
                 <input type="number" min={0} max={100} step={1} value={clue.reveal.strength}
                   onChange={e=>updateClue(clue.key,{reveal:{...clue.reveal,strength:Number(e.target.value)}})}/>
               </label>
-              {clue.reveal.effect!=="blur"&&<>
                 <label>{msg("Focus X (%)","중심 X (%)")}<input type="number" min={0} max={100} value={clue.reveal.focusX}
                   onChange={e=>updateClue(clue.key,{reveal:{...clue.reveal,focusX:Number(e.target.value)}})}/></label>
                 <label>{msg("Focus Y (%)","중심 Y (%)")}<input type="number" min={0} max={100} value={clue.reveal.focusY}
                   onChange={e=>updateClue(clue.key,{reveal:{...clue.reveal,focusY:Number(e.target.value)}})}/></label>
-              </>}
             </>}
             {clue.type==="map"&&<>
               {(["latitude","longitude","zoom"] as const).map(field=><label key={field}>{field}

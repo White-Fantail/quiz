@@ -210,15 +210,6 @@ export default function MediaLibrary() {
     } catch(e){if (detailRequest.current === requestId) setError(e instanceof Error?e.message:msg("Could not load media details.","상세 정보를 불러오지 못했어요."));}
     finally{if (detailRequest.current === requestId) setDetailsLoading(false);}
   }
-  async function blur(item: Media) {
-    setBusy(true);setError("");
-    try {
-      const variant = await request("/media/"+item.id+"/transform","POST",{blur:8});
-      setNotice(msg("Blurred clue created. New media ID: ","흐림 단서를 생성했습니다. 새 미디어 ID: ")+variant.id);
-      setPage(0);reload();
-    }catch(e){setError(e instanceof Error?e.message:msg("Could not transform the image.","이미지를 변환할 수 없어요."));}
-    finally{setBusy(false);}
-  }
   async function remove(item: Media) {
     if (!window.confirm(msg("Delete this file? Active quiz versions, unexpired play sessions and upcoming weekly challenges are protected. Historical usage records remain.","이 파일을 삭제할까요? 현재 버전·만료 전 플레이·예정된 주간 챌린지에서 사용하는 파일은 보호됩니다. 과거 사용 이력은 유지돼요."))) return;
     setBusy(true);setError("");
@@ -341,7 +332,6 @@ export default function MediaLibrary() {
               {expandedId===item.id?msg("Collapse","접기"):msg("Details · Preview","상세 · 미리보기")}
             </button>
             <button className="text-button" type="button" onClick={()=>void copyId(item.id)}>{msg("Copy ID","ID 복사")}</button>
-            {item.kind==="image" && item.status==="READY" && <button className="text-button" type="button" disabled={busy} onClick={()=>void blur(item)}>{msg("Blurred clue","흐림 단서")}</button>}
             <button className="text-button" type="button" disabled={busy} onClick={()=>void remove(item)}>{msg("Delete","삭제")}</button>
           </div>
           {expandedId===item.id && <div className="media-details" aria-live="polite">
