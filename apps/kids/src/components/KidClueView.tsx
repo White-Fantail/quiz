@@ -62,7 +62,15 @@ export function SafeKidMedia({token,sessionId,sessionToken,mediaId,reveal}:{
     let live=true;
     setMedia(null);setState("loading");
     if(!kidsApi){setState("error");return;}
-    void kidsApi.playMedia(token,sessionId,sessionToken,mediaId).then(result=>{
+    const nativeRequest=sessionId.startsWith("local-run:")
+      ? (()=>{
+          const parts=sessionId.split(":");
+          return kidsApi.runLocalMedia(token,parts[1],sessionToken,Number(parts[2]),mediaId);
+        })()
+      :sessionId.startsWith("local-single:")
+        ? kidsApi.singleLocalMedia(token,sessionId.slice("local-single:".length),sessionToken,mediaId)
+        :kidsApi.playMedia(token,sessionId,sessionToken,mediaId);
+    void nativeRequest.then(result=>{
       if(live){setMedia(result);setState("ready");}
     }).catch(()=>{if(live)setState("error");});
     return ()=>{live=false;};
