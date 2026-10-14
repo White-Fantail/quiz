@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { ImageReveal, type RevealSettings } from "../../../../src/components/image-reveal";
 import { RemainingClues } from "../../../../src/components/remaining-clues";
-import { activeImageStage } from "@quizdip/domain";
+import { activeImageStage,initialLocalProgress,revealLocalClue,guessLocalAnswer,
+  type LocalQuestion,type LocalProgress } from "@quizdip/domain";
 import { useLocale } from "../../../../src/i18n/provider";
 import { localizeHref } from "../../../../src/i18n/core";
 import { bilingual } from "../../../../src/i18n/view-copy";
@@ -41,6 +42,8 @@ export default function SingleQuizPage() {
   const msg=(en:string,ko:string)=>bilingual(locale,en,ko);
   const request=(path:string,body:unknown)=>api(path,body,locale);
   const { quizId } = useParams<{ quizId: string }>();
+  const localQuestion=useRef<LocalQuestion|null>(null);
+  const localProgress=useRef<LocalProgress>(initialLocalProgress());
   const [session, setSession] = useState<Session | null>(null);
   const [clues, setClues] = useState<Clue[]>([]);
   const [media, setMedia] = useState<Record<string, Media>>({});
@@ -66,14 +69,17 @@ export default function SingleQuizPage() {
     setGuess(""); setFeedback(""); setMustReveal(false); setAnswer(""); setScore(0); setStatus("ACTIVE");
     setRemainingClues(null); setReviewOpen(false); setReviewBusy(false); setReviewError("");
     const kids = new URLSearchParams(window.location.search).get("kids") === "true";
-    void request("/play", { quizId, kids, locale }).then((next:Session) => {
+    void request("/local-play/single/start", { quizId, kids, locale })
+      .then((next:Session&{question:LocalQuestion}) => {
       if (!active) return;
       setSession(next);
-      setClues([next.clue]);
-      const ids = [...next.promptMediaIds, next.clue.mediaId].filter((id):id is string => !!id);
+      localQuestion.current=next.question;
+      localProgress.current=initialLocalProgress();
+      setClues([next.question.clues[0] as Clue]);
+      const ids = [...next.promptMediaIds,next.question.clues[0]?.mediaId].filter((id):id is string => !!id);
       void Promise.all([...new Set(ids)].map(async id => {
         try {
-          const asset = await request("/play/" + next.sessionId + "/media",
+          const asset = await request("/local-play/single/media",
             { sessionToken: next.sessionToken, mediaId: id });
           if (active) setMedia(old => ({ ...old, [id]: asset }));
         } catch { /* Missing or restricted assets are never treated as public URLs. */ }
@@ -84,32 +90,35 @@ export default function SingleQuizPage() {
   }, [quizId,locale]);
 
   async function reveal() {
-    if (!session) return;
-    setBusy(true); setError("");
-    try {
-      const result = await request("/play/" + session.sessionId + "/clue",
-        { sessionToken: session.sessionToken });
-      const clue = result.clue as Clue;
-      setClues(old => [...old, clue]);
-      setSession(old => old ? { ...old, clueIndex: result.clueIndex } : old);
-      setMustReveal(false); setFeedback(""); setGuess("");
-      if (clue.mediaId) {
-        try {
-          const asset = await request("/play/" + session.sessionId + "/media",
-            { sessionToken: session.sessionToken, mediaId: clue.mediaId });
-          setMedia(old => ({ ...old, [clue.mediaId!]: asset }));
-        } catch { /* Keep the revealed clue even if its media cannot load. */ }
-      }
-    } catch (e) { setError(e instanceof Error ? e.message : msg("Could not reveal the next clue.","단서를 열지 못했어요.")); }
-    finally { setBusy(false); }
+    if(!session||!localQuestion.current)return;
+    setError("");
+    const p=revealLocalClue(localQuestion.current,localProgress.current);
+    localProgress.current=p;
+    const clue=localQuestion.current.clues[p.clueIndex-1] as Clue;
+    setClues(localQuestion.current.clues.slice(0,p.clueIndex) as unknown as Clue[]);
+    setSession(previous=>previous?{...previous,clueIndex:p.clueIndex}:previous);
+    setMustReveal(false);setFeedback("");setGuess("");
+    if(clue?.mediaId){
+      void request("/local-play/single/media",{sessionId:session.sessionId,
+        sessionToken:session.sessionToken,mediaId:clue.mediaId}).then(asset=>
+        setMedia(previous=>({...previous,[clue.mediaId!]:asset}))).catch(()=>{});
+    }
   }
   async function submitGuess(selectedAnswer: string) {
     if (!session || !selectedAnswer.trim() || mustReveal || busy || status !== "ACTIVE" || submittingRef.current) return;
     submittingRef.current = true;
     setBusy(true); setError("");
     try {
-      const result = await request("/play/" + session.sessionId + "/guess",
-        { sessionToken: session.sessionToken, guess: selectedAnswer.trim() });
+      if(!localQuestion.current)return;
+      const attempt=guessLocalAnswer(localQuestion.current,localProgress.current,selectedAnswer.trim());
+      if(!attempt)return;
+      localProgress.current=attempt.progress;
+      const result=attempt.result;
+      if(result.status!=="ACTIVE")void request("/local-play/single/sync",{
+        sessionId:session.sessionId,sessionToken:session.sessionToken,
+        cluesUsed:attempt.progress.clueIndex,status:attempt.progress.status,
+        score:attempt.progress.score
+      }).catch(()=>{});
       if (result.status === "ACTIVE") {
         setFeedback(msg("Not quite! Reveal the next clue and try again.","아직 아니야! 다음 단서를 보고 다시 추리해 봐."));
         setMustReveal(true);
@@ -127,6 +136,19 @@ export default function SingleQuizPage() {
     if (reviewOpen) { setReviewOpen(false); return; }
     setReviewOpen(true);
     if (remainingClues) return;
+    if(localQuestion.current){
+      const unseen=localQuestion.current.clues.slice(session.clueIndex) as unknown as Clue[];
+      setRemainingClues(unseen);
+      void Promise.all([...new Set(unseen.map(c=>c.mediaId).filter((id):id is string=>!!id))]
+        .map(async id=>{
+          try{
+            const asset=await request("/local-play/single/media",{
+              sessionId:session.sessionId,sessionToken:session.sessionToken,mediaId:id
+            });setMedia(previous=>({...previous,[id]:asset}));
+          }catch{}
+        }));
+      return;
+    }
     setReviewBusy(true); setReviewError("");
     try {
       const result = await request("/play/" + session.sessionId + "/review",
