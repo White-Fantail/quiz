@@ -42,7 +42,7 @@ async function checkMedia(revisions:any[]){
     moderationStatus:"APPROVED",deletedAt:null}});
   if(count!==ids.size)fail(409,"media_unavailable","A media clue is currently unavailable");
 }
-export async function localRunBundle(p:{runId:string;runToken:string},actor:Actor|null){
+export async function localRunBundle(p:Record<string,any>,actor:Actor|null){
   const run=await checkedRun(p.runId,p.runToken,actor);
   const rows=await db().playRunQuestion.findMany({where:{runId:run.id},orderBy:{position:"asc"},
     include:{quiz:true,revision:{include:{localization:true}}}});
@@ -60,12 +60,12 @@ export async function localRunBundle(p:{runId:string;runToken:string},actor:Acto
       status:s.status,score:s.score,mustReveal:s.status==="ACTIVE"&&s.wrongGuesses>=s.usedClues
     }))};
 }
-export async function localRunSync(p:{runId:string;runToken:string;results:Result[]},actor:Actor|null){
+export async function localRunSync(p:Record<string,any>,actor:Actor|null){
   const run=await checkedRun(p.runId,p.runToken,actor);
   const questions=await db().playRunQuestion.findMany({where:{runId:run.id},
     select:{position:true,quizId:true,revisionId:true}});
   const lookup=new Map(questions.map(q=>[q.position,q]));
-  for(const result of p.results)if(!lookup.has(result.position))
+  for(const result of p.results as Result[])if(!lookup.has(result.position))
     fail(400,"invalid_round","Question is not part of this run");
   return db().$transaction(async tx=>{
     for(const result of p.results){
@@ -109,7 +109,7 @@ export async function localRunSync(p:{runId:string;runToken:string;results:Resul
     return {runId:run.id,completed,score,solved,failed,status:finished?"FINISHED":"ACTIVE"};
   });
 }
-export async function localSingleBundle(p:{sessionId:string;sessionToken:string},actor:Actor|null){
+export async function localSingleBundle(p:Record<string,any>,actor:Actor|null){
   const session=await getPlaySession(p,actor,{allowCompletedRun:true});
   const quiz=await db().quiz.findUnique({where:{id:session.quizId}});
   allowedQuiz(quiz,session.revision,actor?.childScope?"KIDS":"GENERAL",session.locale);
@@ -120,13 +120,11 @@ export async function localSingleBundle(p:{sessionId:string;sessionToken:string}
       status:session.status,score:session.score,
       mustReveal:session.status==="ACTIVE"&&session.wrongGuesses>=session.usedClues}};
 }
-export async function localSingleStart(p:{quizId:string;locale:string;kids?:boolean},actor:Actor|null){
+export async function localSingleStart(p:Record<string,any>,actor:Actor|null){
   const session=await playStart(p,actor);
   return {...session,...await localSingleBundle({sessionId:session.sessionId,sessionToken:session.sessionToken},actor)};
 }
-export async function localSingleSync(p:{
-  sessionId:string;sessionToken:string;cluesUsed:number;status:"SOLVED"|"FAILED";score:number
-},actor:Actor|null){
+export async function localSingleSync(p:Record<string,any>,actor:Actor|null){
   const session=await getPlaySession(p,actor,{allowCompletedRun:true});
   if(session.runId)fail(400,"invalid_session","Use run synchronization for run questions");
   if(session.status==="ACTIVE"){
@@ -151,14 +149,14 @@ async function signedMedia(revision:any,mediaId:string){
   return {mediaId:media.id,url:await previewUrl(media.storageKey,media.mimeType),
     expiresInSeconds:60,kind:media.kind,mimeType:media.mimeType};
 }
-export async function localRunMedia(p:{runId:string;runToken:string;position:number;mediaId:string},actor:Actor|null){
+export async function localRunMedia(p:Record<string,any>,actor:Actor|null){
   const run=await checkedRun(p.runId,p.runToken,actor);
   const round=await db().playRunQuestion.findUnique({where:{runId_position:{
     runId:run.id,position:p.position}},include:{revision:true}});
   if(!round)fail(404,"round_not_found","Question was not found");
   return signedMedia(round.revision,p.mediaId);
 }
-export async function localSingleMedia(p:{sessionId:string;sessionToken:string;mediaId:string},actor:Actor|null){
+export async function localSingleMedia(p:Record<string,any>,actor:Actor|null){
   const session=await getPlaySession(p,actor,{allowCompletedRun:true});
   return signedMedia(session.revision,p.mediaId);
 }
