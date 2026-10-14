@@ -21,7 +21,7 @@ export default function AllPacks(){
  };
  const {packs,loaded,loading,error,reload}=useKidsPackBrowse();
  const singles=useKidsAdventures();
- const independent=singles.quizzes.filter(item=>!item.inKidsPack);
+ const independent=singles.quizzes.filter(item=>item.inKidsPack===false);
  return <Screen title={t("native.browse.allPacks")} subtitle={t("native.browse.allPacksLead")}>
    <BrowseBack onPress={goBack}/>
    {loading&&!loaded?<ActivityIndicator size="large" color={theme.colors.accent}/>:null}
