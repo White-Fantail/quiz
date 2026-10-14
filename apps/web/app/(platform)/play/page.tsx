@@ -404,8 +404,9 @@ export default function PlayPage({packId}:{packId?:string}={}) {
           event.preventDefault();
           const option=round.options[index];
           setGuess(option);
-          // Submit the actual option, not the previous React state from before setGuess.
-          void submitGuess(option);
+          // Number shortcuts select only. Enter submits as it does for text answers.
+          // Move focus from an older choice button to avoid reactivating that button.
+          guessFormRef.current?.focus({preventScroll:true});
           return;
         }
       }
@@ -413,7 +414,10 @@ export default function PlayPage({packId}:{packId?:string}={}) {
       const target=event.target;
       if(target instanceof HTMLElement){
         const interactive=target.closest('input,textarea,select,a,button,[role="button"],[contenteditable="true"]');
-        if(interactive&&interactive!==answerInputRef.current)return;
+        const focusedChoice=target.closest<HTMLButtonElement>('button[data-quizdip-choice]');
+        // Enter activates a focused, unselected choice before it can submit.
+        if(focusedChoice&&round.options?.[Number(focusedChoice.dataset.quizdipChoice)]!==guess)return;
+        if(interactive&&interactive!==answerInputRef.current&&!focusedChoice)return;
       }
       // Ctrl/Command+Enter advances without submitting an answer.
       if(event.ctrlKey||event.metaKey){
@@ -515,13 +519,13 @@ export default function PlayPage({packId}:{packId?:string}={}) {
         {!isDone&&round.clueIndex<round.clueCount&&
           <button type="button" className="btn btn-outline" disabled={busy} onClick={()=>void reveal()}>
             {msg("Reveal another clue","단서 하나 더 보기")}</button>}
-        {!isDone&&<form ref={guessFormRef} className="guess-form" onSubmit={e=>{e.preventDefault();void submitGuess(guess);}}
+        {!isDone&&<form ref={guessFormRef} className="guess-form" tabIndex={-1} onSubmit={e=>{e.preventDefault();void submitGuess(guess);}}
           onKeyDown={e=>{if(e.key==="Enter"&&(e.nativeEvent.isComposing||e.nativeEvent.keyCode===229))e.preventDefault();}}>
           <label id="quizdip-answer-label">{msg("What's your answer?","정답은 무엇일까요?")}</label>
           {round.responseMode==="multiple-choice"&&round.options?.length?
             <div className="guess-option-grid" role="group" aria-labelledby="quizdip-answer-label">
               {round.options.map((option,index)=><button type="button" key={option}
-                className={"guess-option"+(guess===option?" selected":"")} aria-pressed={guess===option}
+                className={"guess-option"+(guess===option?" selected":"")} aria-pressed={guess===option} data-quizdip-choice={index}
                 disabled={busy||mustReveal} onClick={()=>setGuess(option)}>
                 <span className="guess-option-letter">{index+1}</span>{option}
               </button>)}
@@ -555,9 +559,9 @@ export default function PlayPage({packId}:{packId?:string}={}) {
         </button>}
         <p className="play-keyboard-help"><span aria-hidden="true">⌨</span>{" "}
           {!isDone&&round.responseMode==="multiple-choice"&&round.options?.length&&<>
-            <kbd>1–{round.options.length}</kbd> {msg("Choose & submit (number pad too)","숫자키·키패드로 선택 즉시 제출")} <span className="shortcut-divider">·</span>{" "}
+            <kbd>1–{round.options.length}</kbd> {msg("Select an answer (number pad too)","숫자키·키패드로 보기 선택")} <span className="shortcut-divider">·</span>{" "}
           </>}
-          <kbd>Enter</kbd> {isDone?msg("Next question / results","다음 문제 / 결과 보기"):msg("Check answer · no selection: next clue","정답 확인 · 선택이 없으면 다음 단서")} <span className="shortcut-divider">·</span> <kbd>Ctrl/⌘ + Enter</kbd> {isDone?msg("Next","다음"):msg("Reveal next clue","다음 단서")}</p>
+          <kbd>Enter</kbd> {isDone?msg("Next question / results","다음 문제 / 결과 보기"):round.responseMode==="multiple-choice"?msg("Submit selected answer · none: next clue","선택한 답 제출 · 미선택 시 다음 단서"):msg("Check answer · empty field: next clue","정답 확인 · 빈칸이면 다음 단서") <span className="shortcut-divider">·</span> <kbd>Ctrl/⌘ + Enter</kbd> {isDone?msg("Next","다음"):msg("Reveal next clue","다음 단서")}</p>
       </>:<>
         <div className="round-finish">
           <div className="round-finish-symbol">✦</div>

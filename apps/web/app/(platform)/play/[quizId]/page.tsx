@@ -188,7 +188,8 @@ export default function SingleQuizPage() {
           event.preventDefault();
           const option=session.options[index];
           setGuess(option);
-          void submitGuess(option);
+          // Keep Enter as the separate confirmation action.
+          guessFormRef.current?.focus({preventScroll:true});
           return;
         }
       }
@@ -196,7 +197,10 @@ export default function SingleQuizPage() {
       const target=event.target;
       if(target instanceof HTMLElement){
         const interactive=target.closest('input,textarea,select,a,button,[role="button"],[contenteditable="true"]');
-        if(interactive&&interactive!==answerInputRef.current)return;
+        const focusedChoice=target.closest<HTMLButtonElement>('button[data-quizdip-choice]');
+        // Enter activates a focused, unselected choice before it can submit.
+        if(focusedChoice&&session.options?.[Number(focusedChoice.dataset.quizdipChoice)]!==guess)return;
+        if(interactive&&interactive!==answerInputRef.current&&!focusedChoice)return;
       }
       if(event.ctrlKey||event.metaKey){
         if(session.clueIndex<session.clueCount){event.preventDefault();void reveal();}
@@ -257,13 +261,13 @@ export default function SingleQuizPage() {
       {status === "ACTIVE" && session.clueIndex < session.clueCount &&
         <button type="button" className="btn btn-outline" disabled={busy}
           onClick={() => void reveal()}>{msg("Reveal another clue","힌트 하나 더 볼까?")}</button>}
-      {status === "ACTIVE" && <form ref={guessFormRef} className="guess-form" onSubmit={e => {e.preventDefault();void submitGuess(guess);}}
+      {status === "ACTIVE" && <form ref={guessFormRef} className="guess-form" tabIndex={-1} onSubmit={e => {e.preventDefault();void submitGuess(guess);}}
         onKeyDown={e=>{if(e.key==="Enter"&&(e.nativeEvent.isComposing||e.nativeEvent.keyCode===229))e.preventDefault();}}>
         <label id="single-quiz-answer-label">{msg("What's your answer?","정답은 무엇일까요?")}</label>
         {session.responseMode==="multiple-choice"&&session.options?.length?
           <div className="guess-option-grid" role="group" aria-labelledby="single-quiz-answer-label">
             {session.options.map((option,index)=><button key={option} type="button"
-              className={"guess-option"+(guess===option?" selected":"")} aria-pressed={guess===option}
+              className={"guess-option"+(guess===option?" selected":"")} aria-pressed={guess===option} data-quizdip-choice={index}
               disabled={busy||mustReveal} onClick={()=>setGuess(option)}>
               <span className="guess-option-letter">{index+1}</span>{option}
             </button>)}
@@ -279,9 +283,9 @@ export default function SingleQuizPage() {
       </form>}
       {status === "ACTIVE" && <p className="play-keyboard-help"><span aria-hidden="true">⌨</span>{" "}
         {session.responseMode==="multiple-choice"&&session.options?.length&&<>
-          <kbd>1–{session.options.length}</kbd> {msg("Choose & submit (number pad too)","숫자키·키패드로 선택 즉시 제출")} <span className="shortcut-divider">·</span>{" "}
+          <kbd>1–{session.options.length}</kbd> {msg("Select an answer (number pad too)","숫자키·키패드로 보기 선택")} <span className="shortcut-divider">·</span>{" "}
         </>}
-        <kbd>Enter</kbd> {msg("Check answer · no selection: next clue","정답 확인 · 선택이 없으면 다음 단서")} <span className="shortcut-divider">·</span> <kbd>Ctrl/⌘ + Enter</kbd> {msg("Reveal next clue","다음 단서")}</p>}
+        <kbd>Enter</kbd> {session.responseMode==="multiple-choice"?msg("Submit selected answer · none: next clue","선택한 답 제출 · 미선택 시 다음 단서"):msg("Check answer · empty field: next clue","정답 확인 · 빈칸이면 다음 단서")} <span className="shortcut-divider">·</span> <kbd>Ctrl/⌘ + Enter</kbd> {msg("Reveal next clue","다음 단서")}</p>}
       {feedback && <div className={"feedback" + (status === "SOLVED" ? " success" : "")} role="status">
         {feedback}
         {status !== "ACTIVE" && <p>{msg("Answer: ","정답: ")}<strong>{answer}</strong> · {score}{msg(" pts","점")}</p>}

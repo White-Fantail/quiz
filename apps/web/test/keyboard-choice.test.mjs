@@ -22,12 +22,18 @@ test("shortcuts do not steal modifiers, repeated keys, IME or navigation",()=>{
   }
 });
 
-test("pack and single quiz use numbered choices, immediate submission and an in-flight guard",()=>{
+test("pack and single quiz select by number, submit with Enter, and guard in-flight responses",()=>{
   for(const file of ["app/(platform)/play/page.tsx","app/(platform)/play/[quizId]/page.tsx"]){
     const source=readFileSync(new URL("../"+file,import.meta.url),"utf8");
     assert.match(source,/className="guess-option-letter">\{index\+1\}/,file);
     assert.match(source,/answerShortcutIndex\(event\)/,file);
-    assert.match(source,/setGuess\(option\);[\s\S]{0,160}void submitGuess\(option\)/,file);
+    assert.match(source,/setGuess\(option\);[\s\S]{0,350}guessFormRef\.current\?\.focus\(\{preventScroll:true\}\)/,file);
+    assert.doesNotMatch(source,/void submitGuess\(option\)/,file);
+    assert.match(source,/tabIndex=\{-1\}/,file);
+    assert.match(source,/data-quizdip-choice=\{index\}/,file);
+    assert.match(source,/focusedChoice/,file);
+    assert.match(source,/event\.key!=="Enter"/,file);
+    assert.match(source,/guessFormRef\.current\?\.requestSubmit\(\)/,file);
     assert.match(source,/submittingRef\.current/,file);
     assert.match(source,/onSubmit=\{e\s*=>\s*\{e\.preventDefault\(\);void submitGuess\(guess\);\}\}/,file);
     assert.doesNotMatch(source,/String\.fromCharCode\(65\+index\)/,file);
