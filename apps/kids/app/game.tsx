@@ -49,7 +49,7 @@ function PopIn({children,celebrate=false}:PropsWithChildren<{celebrate?:boolean}
  },{scale:motion.interpolate({inputRange:[0,1],outputRange:[celebrate?0.77:0.97,1]})}]}}>{children}</Animated.View>;
 }
 type Ref= {kind:"run";runId:string;runToken:string;mode:"RANDOM_FIVE"|"PACK"} |
-          {kind:"single";sessionId:string;sessionToken:string};
+          {kind:"single";sessionId:string;sessionToken:string;options?:string[]};
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function finished(v:KidQuestion|KidRunResult):v is KidRunResult {
  return "status" in v && v.status==="FINISHED" && !("sessionId" in v);
@@ -128,7 +128,29 @@ export default function KidGameScreen(){
     const data=ref.kind==="run"
       ?await kidsApi.runBundle(deviceToken,ref.runId,ref.runToken)
       :await kidsApi.singleBundle(deviceToken,ref.sessionId,ref.sessionToken);
-    localContent.current={id,questions:ref.kind==="run"?data.questions:[data.question]};
+    const questions:LocalBundleQuestion[]=ref.kind==="run"?data.questions:[data.question];
+    const age=kid.status==="active"?kid.session.profile.ageBand:"OLDER";
+    if(age!=="OLDER"){
+      for(const q of questions){
+        if(q.answer.responseMode==="multiple-choice")continue;
+        const correct=q.answer.canonical;
+        const decoys=[...new Set(questions.filter(item=>item.quizId!==q.quizId)
+          .map(item=>item.answer.canonical).filter(value=>value!==correct))];
+        const needed=age==="EARLY"?1:2;
+        if(decoys.length>=needed){
+          const options=[correct,...decoys.slice(0,Math.min(3,decoys.length))];
+          // Display multiple-choice without altering the original question's scoring rule.
+          const shift=q.position%options.length;
+          q.options=[...options.slice(shift),...options.slice(0,shift)];
+          q.responseMode="multiple-choice";
+        }
+      }
+    }
+    if(ref.kind==="single"&&ref.options?.length){
+      questions[0].options=ref.options;
+      questions[0].responseMode="multiple-choice";
+    }
+    localContent.current={id,questions};
     localProgress.current=await savedProgress(id);
     for(const p of (ref.kind==="run"?data.progress:[data.progress]))
       if(!localProgress.current[p.position])localProgress.current[p.position]=p;
@@ -151,13 +173,13 @@ export default function KidGameScreen(){
     clues:q.clues.slice(0,p.clueIndex) as unknown as KidClue[],clueIndex:p.clueIndex,
     clueCount:q.clues.length,sessionStatus:p.status,
     canGuess:p.status==="ACTIVE"&&!p.mustReveal,
-    responseMode:q.answer.responseMode??"text",options:q.answer.options,
+    responseMode:q.responseMode??q.answer.responseMode??"text",options:q.options??q.answer.options,
     ...(ref.kind==="run"?{runId:ref.runId,runToken:ref.runToken,
       round:q.position+1,total:content.questions.length}:{})};
   setSummary(null);setQuestion(current);
   setResult(null);setGuess("");
   syncLocal(ref,deviceToken);
- },[]);
+ },[kid.status,kid.status==="active"?kid.session.profile.ageBand:null]);
  useEffect(()=>{
   if(!token || !kidsApi)return;
   const key=token+":"+(params.quizId??"")+":"+(params.packId??"")+":"+(params.mode??"");
@@ -175,7 +197,7 @@ export default function KidGameScreen(){
       // Save alongside initial question lookup below.
     }else if(params.quizId && uuid.test(params.quizId)){
       const started=await kidsApi!.startSingle(token,params.quizId);
-      ref={kind:"single",sessionId:started.sessionId,sessionToken:started.sessionToken};
+      ref={kind:"single",sessionId:started.sessionId,sessionToken:started.sessionToken,options:started.options};
       // Save alongside initial question lookup below.
     }else if(params.mode==="RANDOM_FIVE"){
       const started=await kidsApi!.startRun(token,params.mode);
