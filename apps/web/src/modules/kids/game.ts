@@ -220,7 +220,11 @@ export async function kidReport(kid:Kid,quizId:string,reason:"UNSAFE"|"INCORRECT
     {run:{is:{kidOwnership:{is:{profileId:kid.profileId}}}}},
     {kidSingle:{is:{profileId:kid.profileId}}}
   ]},select:{id:true}});
-  if(!played)fail(403,"kid_report_forbidden","Only your own played questions can be reported");
+  // In local-first runs the completed PlaySession is uploaded asynchronously.
+  // The pinned, device-owned run allocation is sufficient to report a displayed question.
+  const allocated=!played?await db().playRunQuestion.findFirst({where:{quizId,
+    run:{is:{kidOwnership:{is:{profileId:kid.profileId,deviceId:kid.id}}}}},select:{quizId:true}}):null;
+  if(!played&&!allocated)fail(403,"kid_report_forbidden","Only your own played questions can be reported");
   await db().kidSafetyReport.upsert({where:{profileId_quizId_reason:{
     profileId:kid.profileId,quizId,reason
   }},create:{profileId:kid.profileId,quizId,reason},update:{}});
