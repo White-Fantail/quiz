@@ -3,9 +3,10 @@ import { ActivityIndicator,Alert,Animated,BackHandler,ScrollView,StyleSheet,Text
 import { Redirect,useLocalSearchParams,useRouter } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { useAudioPlayer } from "expo-audio";
-import type { KidQuestion,KidRunResult,KidGuessResult } from "@quizdip/api-client";
+import type { KidQuestion,KidRunResult,KidGuessResult,KidClue,LocalBundleQuestion } from "@quizdip/api-client";
 import { ApiError } from "@quizdip/api-client";
-import { activeImageStage } from "@quizdip/domain";
+import { activeImageStage, initialLocalProgress, guessLocalAnswer, revealLocalClue, localSummary,
+ type LocalProgress } from "@quizdip/domain";
 import { Screen } from "../src/components/Screen";
 import { KidsEmojiIcon } from "../src/components/KidsIcon";
 import { KidsTap } from "../src/components/KidsTap";
@@ -17,6 +18,21 @@ import { kidsApi } from "../src/services/api";
 import { theme } from "../src/theme";
 
 const SAVED="quizdip-kids-active-game-v1";
+type LocalContent={id:string;questions:LocalBundleQuestion[]};
+const progressKey=(id:string)=>"quizdip-kids-progress:"+id;
+async function savedProgress(id:string):Promise<Record<number,LocalProgress>>{
+ try {
+   const value=await SecureStore.getItemAsync(progressKey(id));
+   return value?JSON.parse(value):{};
+ }catch{return {};}
+}
+async function persistProgress(id:string,progress:Record<number,LocalProgress>){
+ try{
+   // Store compact progress only; large question bundles stay in memory and are refetched on relaunch.
+   const compact=JSON.stringify(progress);
+   await SecureStore.setItemAsync(progressKey(id),compact);
+ }catch{/* The game remains playable when persistent storage is unavailable. */}
+}
 // Tiny bundled cues need no network access. Audio failure never blocks gameplay.
 function playCue(player:ReturnType<typeof useAudioPlayer>){
  void player.seekTo(0).then(()=>player.play()).catch(()=>{});
@@ -67,6 +83,8 @@ export default function KidGameScreen(){
  useEffect(()=>{
   clueCue.volume=0.22;successCue.volume=0.30;retryCue.volume=0.22;
  },[clueCue,successCue,retryCue]);
+ const localContent=useRef<LocalContent|null>(null);
+ const localProgress=useRef<Record<number,LocalProgress>>({});
  const [reference,setReference]=useState<Ref|null>(null);
  const [question,setQuestion]=useState<KidQuestion|null>(null);
  const [summary,setSummary]=useState<KidRunResult|null>(null);
@@ -85,13 +103,60 @@ export default function KidGameScreen(){
  const [error,setError]=useState("");
  const boot=useRef("");
  const token=kid.status==="active"?kid.token:null;
+ const syncLocal=(ref:Ref,deviceToken:string)=>{
+  if(!kidsApi)return;
+  const progress=localProgress.current;
+  const id=ref.kind==="run"?ref.runId:ref.sessionId;
+  void persistProgress(id,progress);
+  if(ref.kind==="run"){
+    const results=Object.entries(progress).filter(([,p])=>p.status!=="ACTIVE")
+      .map(([position,p])=>({position:Number(position),cluesUsed:p.clueIndex,
+        status:p.status as "SOLVED"|"FAILED",score:p.score}));
+    if(results.length)void kidsApi.runSync(deviceToken,ref.runId,ref.runToken,results).catch(()=>{});
+  }else{
+    const p=progress[0];
+    if(p?.status==="SOLVED"||p?.status==="FAILED")
+      void kidsApi.singleSync(deviceToken,ref.sessionId,ref.sessionToken,{
+        cluesUsed:p.clueIndex,status:p.status,score:p.score
+      }).catch(()=>{});
+  }
+ };
  const retrieve=useCallback(async(ref:Ref,deviceToken:string)=>{
   if(!kidsApi)throw new ApiError("missing_api_origin");
-  const current=ref.kind==="run"
-    ? await kidsApi.currentRun(deviceToken,ref.runId,ref.runToken)
-    : await kidsApi.currentSingle(deviceToken,ref.sessionId,ref.sessionToken);
-  if(finished(current)){setSummary(current);setQuestion(null);await save(null);}
-  else {setSummary(null);setQuestion(current);}
+  const id=ref.kind==="run"?ref.runId:ref.sessionId;
+  if(localContent.current?.id!==id){
+    const data=ref.kind==="run"
+      ?await kidsApi.runBundle(deviceToken,ref.runId,ref.runToken)
+      :await kidsApi.singleBundle(deviceToken,ref.sessionId,ref.sessionToken);
+    localContent.current={id,questions:ref.kind==="run"?data.questions:[data.question]};
+    localProgress.current=await savedProgress(id);
+    for(const p of (ref.kind==="run"?data.progress:[data.progress]))
+      if(!localProgress.current[p.position])localProgress.current[p.position]=p;
+  }
+  const content=localContent.current;
+  const index=content.questions.findIndex(q=>
+    !localProgress.current[q.position]||localProgress.current[q.position].status==="ACTIVE");
+  if(index<0){
+    const totals=localSummary(Object.values(localProgress.current));
+    setSummary({runId:id,status:"FINISHED",completed:totals.completed,total:content.questions.length,
+      score:totals.score,solved:totals.solved,failed:totals.failed,official:false});
+    setQuestion(null);syncLocal(ref,deviceToken);await save(null);return;
+  }
+  const q=content.questions[index],p=localProgress.current[q.position]??initialLocalProgress();
+  // Reuse the existing native UI model while gameplay is entirely local.
+  const sessionId=ref.kind==="run"
+    ?`local-run:${ref.runId}:${q.position}`:`local-single:${ref.sessionId}`;
+  const current:KidQuestion={sessionId,sessionToken:ref.kind==="run"?ref.runToken:ref.sessionToken,
+    quizId:q.quizId,title:q.title,prompt:q.prompt,promptMediaIds:q.promptMediaIds,
+    clues:q.clues.slice(0,p.clueIndex) as unknown as KidClue[],clueIndex:p.clueIndex,
+    clueCount:q.clues.length,sessionStatus:p.status,
+    canGuess:p.status==="ACTIVE"&&!p.mustReveal,
+    responseMode:q.answer.responseMode??"text",options:q.answer.options,
+    ...(ref.kind==="run"?{runId:ref.runId,runToken:ref.runToken,
+      round:q.position+1,total:content.questions.length}:{})};
+  setSummary(null);setQuestion(current);
+  setResult(null);setGuess("");
+  syncLocal(ref,deviceToken);
  },[]);
  useEffect(()=>{
   if(!token || !kidsApi)return;
@@ -152,21 +217,34 @@ export default function KidGameScreen(){
  };
  const clue=()=>void guarded("clue",async()=>{
    if(!token||!question||!kidsApi)return;
-   const next=await kidsApi.nextClue(token,question.sessionId,question.sessionToken);
+   if(!reference||!localContent.current)return;
+   const q=localContent.current.questions.find(v=>v.quizId===question.quizId);
+   if(!q)return;
+   const next=revealLocalClue(q,localProgress.current[q.position]??initialLocalProgress());
+   localProgress.current[q.position]=next;
    focusClue.current=next.clueIndex;
    playCue(clueCue);
    setQuestion(prev=>prev&&prev.sessionId===question.sessionId?{
-      ...prev,clues:[...prev.clues,next.clue],clueIndex:next.clueIndex,clueCount:next.clueCount,canGuess:true
+      ...prev,clues:q.clues.slice(0,next.clueIndex) as unknown as KidClue[],
+      clueIndex:next.clueIndex,clueCount:q.clues.length,canGuess:true
    }:prev);
+   syncLocal(reference,token);
    setResult(null);
  });
  const submit=(answer:string)=>void guarded("guess",async()=>{
    setSelectedAnswer(answer);
    if(!token||!question||!kidsApi||!question.canGuess)return;
-   const v=await kidsApi.guess(token,question.sessionId,question.sessionToken,answer);
+   if(!reference||!localContent.current)return;
+   const q=localContent.current.questions.find(v=>v.quizId===question.quizId);
+   if(!q)return;
+   const attempt=guessLocalAnswer(q,localProgress.current[q.position]??initialLocalProgress(),answer);
+   if(!attempt)return;
+   localProgress.current[q.position]=attempt.progress;
+   const v:KidGuessResult=attempt.result;
    setResult(v);setGuess("");
    playCue(v.correct?successCue:retryCue);
    setQuestion(prev=>prev?{...prev,sessionStatus:v.status,canGuess:false}:prev);
+   syncLocal(reference,token);
  });
  const sendReport=(reason:"UNSAFE"|"INCORRECT"|"BROKEN_MEDIA")=>{
    if(!token||!question||!kidsApi)return;
