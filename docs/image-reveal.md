@@ -1,6 +1,6 @@
 # Image Reveal clues
 
-An image can be reused as multiple progressively revealing clues, without generating crops or duplicate blurred media files.
+An image can be reused as multiple progressively revealing clues, without generating crops or duplicate media files.
 
 ## Contract
 
@@ -11,13 +11,13 @@ Each step is one normal ordered clue, for scoring and wrong-guess limits.
   "type": "image-reveal",
   "mediaId": "94f0792a-18e6-40c0-a480-0be6d46dbb37",
   "text": "Look more closely",
-  "reveal": {"effect": "blur", "strength": 95, "focusX": 50, "focusY": 50}
+  "reveal": {"effect": "zoom", "strength": 95, "focusX": 50, "focusY": 50}
 }
 ```
 
-- `effect`: `blur`, `zoom`, `spotlight`
+- `effect`: `zoom`, `spotlight`
 - `strength`: integer 0–100, where 0 is fully revealed. Suggested stages: 95, 55, 0.
-- `focusX` and `focusY`: percent 0–100, default 50. Used by zoom and spotlight.
+- `focusX` and `focusY`: percent 0–100, default 50. Used by both effects.
 - **Spotlight** reveals a small circular detail at high strengths and expands as strength decreases. At strength `87`, a typical iPad image frame reveals a circle of about **23 px radius**, not most of the subject. Web and native use the same curve and normalized-diagonal geometry; strength `0` removes the mask completely.
 - The `mediaId` must be an owned, ready **image** asset. All normal publication and Kids moderation rules still apply.
 - Repeating one `mediaId` is intentional. Previous reveal steps for the same image are visually superseded, but still count as clues.
@@ -31,4 +31,6 @@ The Studio wizard replaces *all* image/image-reveal clues with a contiguous sequ
 
 ## Limitations and security
 
-Blur/zoom/spotlight run on the client for fast interaction. The full original image is transferred to web/app upon the first image reveal and can be recovered using developer tools; not appropriate as an anti-cheat mechanism for competitive/high-stakes games. For such games, serve per-stage image transforms through a protected server endpoint. No database migration is required: quiz revisions store clues as JSON.
+Zoom and spotlight run on the client for fast interaction. The full original image is transferred to web/app upon the first image reveal and can be recovered using developer tools; not appropriate as an anti-cheat mechanism for competitive/high-stakes games. For such games, serve per-stage image transforms through a protected server endpoint. No database migration is required: quiz revisions store clues as JSON.
+
+Archived quiz revisions and unfinished sessions can contain retired `blur` settings. Players display these using the unmodified original image; new revisions using the old effect are rejected by the shared REST/MCP validator.

@@ -4,11 +4,11 @@ import { activeImageStage,spotlightRevealRadiusPercent,spotlightRevealRadiusPixe
 
 const frog = "frog-image", owl = "owl-image";
 const sequence = [
-  {type:"image-reveal",mediaId:frog,text:"Who is hiding?",reveal:{effect:"blur",strength:24}},
+  {type:"image-reveal",mediaId:frog,text:"Who is hiding?",reveal:{effect:"zoom",strength:24}},
   {type:"image",mediaId:frog,text:"Ribbit! I can jump and hop!"}
 ];
 
-test("a later plain image updates the first blurred photo in place",()=>{
+test("a later plain image updates the first partly revealed photo in place",()=>{
   assert.equal(activeImageStage(sequence.slice(0,1),0)?.reveal?.strength,24);
   assert.equal(activeImageStage(sequence,0),sequence[1]);
   assert.equal(activeImageStage(sequence,1),null);
@@ -16,10 +16,10 @@ test("a later plain image updates the first blurred photo in place",()=>{
   assert.equal(sequence[1].text,"Ribbit! I can jump and hop!");
 });
 
-test("blur / zoom / spotlight sequences share the first image slot",()=>{
-  const stages=[{type:"image-reveal",mediaId:frog,reveal:{effect:"blur",strength:95}},
-    {type:"image-reveal",mediaId:frog,reveal:{effect:"blur",strength:55}},
-    {type:"image-reveal",mediaId:frog,reveal:{effect:"blur",strength:0}}];
+test("zoom / spotlight sequences share the first image slot",()=>{
+  const stages=[{type:"image-reveal",mediaId:frog,reveal:{effect:"zoom",strength:95}},
+    {type:"image-reveal",mediaId:frog,reveal:{effect:"spotlight",strength:55}},
+    {type:"image-reveal",mediaId:frog,reveal:{effect:"zoom",strength:0}}];
   for(const count of [1,2,3]){
     const revealed=stages.slice(0,count);
     assert.equal(activeImageStage(revealed,0),stages[count-1]);
