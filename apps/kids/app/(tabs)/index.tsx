@@ -107,7 +107,7 @@ export default function KidsHome(){
   {shownPacks.length>0?<View style={styles.section}>
    <View style={styles.headingRow}>
     <Text style={styles.heading}>{t("native.adventure.packs")}</Text>
-    {<KidsTap accessibilityRole="button" onPress={()=>go("/all-packs")}>
+    <KidsTap accessibilityRole="button" onPress={()=>go("/all-packs")}>
      <Text style={styles.link}>{t("native.adventure.all")} →</Text>
     </KidsTap>
    </View>
@@ -131,7 +131,7 @@ const styles=StyleSheet.create({
  resumeTitle:{color:theme.colors.ink,fontWeight:"900",fontSize:19},
  arrow:{fontSize:25,fontWeight:"900",color:theme.colors.accent},
  worldGrid:{flexDirection:"row",flexWrap:"wrap",justifyContent:"space-between",rowGap:11},
- world:{width:"48.7%",borderRadius:23,borderWidth:3,minHeight:175,
+ world:{width:"48.7%",borderRadius:23,minHeight:175,
    padding:9,alignItems:"center",justifyContent:"center",gap:6},
  worldTitle:{fontSize:18,fontWeight:"900",lineHeight:22,textAlign:"center",color:theme.colors.ink},
  worldCount:{fontSize:12,fontWeight:"800",color:theme.colors.accent},
