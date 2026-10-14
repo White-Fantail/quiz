@@ -134,10 +134,17 @@ export default function KidGameScreen(){
   if(!kidsApi)throw new ApiError("missing_api_origin");
   const id=ref.kind==="run"?ref.runId:ref.sessionId;
   if(localContent.current?.id!==id){
-    const data=ref.kind==="run"
-      ?await kidsApi.runBundle(deviceToken,ref.runId,ref.runToken)
-      :await kidsApi.singleBundle(deviceToken,ref.sessionId,ref.sessionToken);
-    const questions:LocalBundleQuestion[]=ref.kind==="run"?data.questions:[data.question];
+    let questions:LocalBundleQuestion[];
+    let progressOnServer:Array<LocalProgress&{position:number}>;
+    if(ref.kind==="run"){
+      const data=await kidsApi.runBundle(deviceToken,ref.runId,ref.runToken);
+      questions=data.questions;
+      progressOnServer=data.progress;
+    }else{
+      const data=await kidsApi.singleBundle(deviceToken,ref.sessionId,ref.sessionToken);
+      questions=[data.question];
+      progressOnServer=[data.progress];
+    }
     const age=kid.status==="active"?kid.session.profile.ageBand:"OLDER";
     if(age!=="OLDER"){
       for(const q of questions){
@@ -161,7 +168,7 @@ export default function KidGameScreen(){
     }
     localContent.current={id,questions};
     localProgress.current=await savedProgress(id);
-    for(const p of (ref.kind==="run"?data.progress:[data.progress]))
+    for(const p of progressOnServer)
       if(!localProgress.current[p.position])localProgress.current[p.position]=p;
   }
   const content=localContent.current;
