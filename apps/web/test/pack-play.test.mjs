@@ -43,7 +43,8 @@ test("public pack links do not expose answers and the shared player supports res
  assert.doesNotMatch(pack.slice(pack.indexOf("export async function packGet")),/answer:/);
  const player=read("app/(platform)/play/page.tsx");
  assert.match(player,/sessionStorage\.setItem\("quizdip-pack-run:/);
- assert.match(player,/mode:"PACK"/);
+ assert.match(player,/localBundleRef/);
+ assert.match(player,/syncLocal/);
  assert.match(player,/start\("PACK",true\)/);
  assert.match(player,/run\.mode!=="PACK"/);
  assert.match(read("src/modules/platform/play.ts"),/run\.mode==="PACK"/);
