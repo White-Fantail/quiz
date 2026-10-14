@@ -1,4 +1,4 @@
-/** A sequence can reuse one approved image for blurred, clearer and plain-image clues. */
+/** A sequence can reuse one approved image for progressive and plain-image clues. */
 export type ImageClueStage = { type: string; mediaId?: string };
 
 function isImageStage(clue: ImageClueStage | undefined): boolean {

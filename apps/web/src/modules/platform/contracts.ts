@@ -31,7 +31,7 @@ export const clueSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("text"), text: z.string().trim().min(1).max(3000) }),
   z.object({ type: z.enum(["image", "audio", "video"]), mediaId, text: z.string().max(1000).optional() }),
   z.object({ type: z.literal("image-reveal"), mediaId, text: z.string().max(1000).optional(),
-    reveal: z.object({effect:z.enum(["blur","zoom","spotlight"]),
+    reveal: z.object({effect:z.enum(["zoom","spotlight"]),
       strength:z.number().int().min(0).max(100),
       focusX:z.number().min(0).max(100).default(50),
       focusY:z.number().min(0).max(100).default(50)}) }),
@@ -240,11 +240,11 @@ export const operations = {
   media_get: { public: false, description: "Get a media asset, owner preview, thumbnail and quiz usage", schema: z.object({ id: mediaId, purpose: z.enum(["detail", "thumbnail"]).default("detail") }) },
   media_update: { public: false, description: "Edit attribution or accessible text of my media; normal edits reset moderation", schema: z.object({ id: mediaId, ...mediaMetadata }) },
   media_delete: { public: false, description: "Delete media not needed by current revisions or unexpired plays; keep historical revision records; requires confirmation", schema: z.object({ id: mediaId, confirm: z.literal(true) }) },
-  media_transform: { public: false, description: "Create an immutable derived image crop, blur or progressive reveal", schema: z.object({
+  media_transform: { public: false, description: "Create an immutable derived image crop or resized variant", schema: z.object({
     id: mediaId, crop: z.object({ left: z.number().int().min(0), top: z.number().int().min(0),
       width: z.number().int().positive(), height: z.number().int().positive() }).optional(),
-    blur: z.number().min(0.3).max(20).optional(), resizeWidth: z.number().int().min(64).max(2048).optional()
-  }).refine(p => !!(p.crop || p.blur || p.resizeWidth), { message: "Choose at least one image transform" }) },
+    resizeWidth: z.number().int().min(64).max(2048).optional()
+  }).strict().refine(p => !!(p.crop || p.resizeWidth), { message: "Choose at least one image transform" }) },
   admin_media_review_list: { public:false, description:"ADMIN ONLY: paginate ready media pending review and previously moderated media", schema:z.object({
     ...paging, search:z.string().trim().max(120).default(""),
     kind:z.enum(["all","image","audio","video"]).default("all"),

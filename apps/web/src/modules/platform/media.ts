@@ -357,7 +357,6 @@ export async function mediaTransform(p: Record<string, any>, actor: Actor | null
   let result = sharp(bytes, { limitInputPixels: 30000000, failOn: "error" }).rotate();
   if (p.crop) result = result.extract(p.crop);
   if (p.resizeWidth) result = result.resize({ width: p.resizeWidth, withoutEnlargement: true });
-  if (p.blur) result = result.blur(p.blur);
   const transformed = await result.webp({ quality: 82 }).toBuffer();
   checkSize("image", transformed.length);
   const id = randomUUID(); const storageKey = `assets/${id}/original`;
