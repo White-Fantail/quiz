@@ -134,20 +134,20 @@ export function StudioAiSetup({ mcpUrl }: { mcpUrl: string }) {
       <h2>{bilingual(locale, "2. Connect in ChatGPT", "2. ChatGPT에서 연결하기")}</h2>
       <ol className="studio-ai-steps">
         <li>{bilingual(locale,
-          "Open ChatGPT settings and find Plugins / Apps. Choose Add custom MCP server, if available on your account.",
-          "ChatGPT의 설정에서 플러그인(앱)을 열고, 제공되는 경우 사용자 지정 MCP 서버 추가를 선택하세요.")}</li>
+          "Open ChatGPT Plugins using the button below, click Add (+), then Add custom MCP server.",
+          "아래 버튼으로 ChatGPT 플러그인 페이지를 열고, 추가(+) → 사용자 지정 MCP 서버 추가를 선택하세요.")}</li>
         <li>{bilingual(locale,
-          "Paste the copied URL and continue with the connection process.",
-          "복사한 MCP 주소를 붙여넣고 연결을 진행하세요.")}</li>
+          "Give the connection a name (QuizDip), paste the MCP URL, and choose OAuth authentication when prompted.",
+          "연결 이름을 QuizDip으로 정하고 MCP 주소를 붙여넣으세요. 인증 방식을 선택한다면 OAuth를 사용하세요.")}</li>
         <li>{bilingual(locale,
           "Sign in with your QuizDip account and approve the requested access after reviewing it.",
           "QuizDip 계정으로 로그인한 다음, 요청된 접근 권한을 확인하고 동의하세요.")}</li>
         <li>{bilingual(locale,
-          "In a ChatGPT conversation, select the connected QuizDip tool and ask it to create your quiz.",
-          "ChatGPT 대화에서 연결한 QuizDip 도구를 선택하고 원하는 퀴즈 제작을 요청하세요.")}</li>
+          "Create and install the plugin, then select QuizDip in a ChatGPT conversation to request your quiz.",
+          "플러그인을 생성하고 설치한 다음, ChatGPT 대화에서 QuizDip을 선택해 퀴즈 제작을 요청하세요.")}</li>
       </ol>
-      <a className="btn btn-outline" href="https://chatgpt.com/" target="_blank" rel="noopener noreferrer">
-        {bilingual(locale, "Open ChatGPT ↗", "ChatGPT 열기 ↗")}
+      <a className="btn btn-outline" href="https://chatgpt.com/plugins" target="_blank" rel="noopener noreferrer">
+        {bilingual(locale, "Open ChatGPT Plugins ↗", "ChatGPT 플러그인 페이지 열기 ↗")}
       </a>
       <p className="studio-ai-small-note">{bilingual(locale,
         "ChatGPT controls custom server availability and the exact labels. If you don't see this option, custom MCP connections may not be available on your account yet.",

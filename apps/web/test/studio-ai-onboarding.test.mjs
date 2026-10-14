@@ -33,5 +33,6 @@ test("AI creator offers URL copy, explicit feedback and a clipboard fallback", (
   assert.match(intro, /window\.localStorage\.getItem/);
   assert.match(intro, /"guest"/);
   assert.match(intro, /베타 제공 중/);
-  assert.match(intro, /ChatGPT 열기/);
+  assert.match(intro, /ChatGPT 플러그인 페이지 열기/);
+  assert.match(intro, /https:\/\/chatgpt\.com\/plugins/);
 });
