@@ -18,6 +18,7 @@ Each step is one normal ordered clue, for scoring and wrong-guess limits.
 - `effect`: `blur`, `zoom`, `spotlight`
 - `strength`: integer 0–100, where 0 is fully revealed. Suggested stages: 95, 55, 0.
 - `focusX` and `focusY`: percent 0–100, default 50. Used by zoom and spotlight.
+- **Spotlight** reveals a small circular detail at high strengths and expands as strength decreases. At strength `87`, a typical iPad image frame reveals a circle of about **23 px radius**, not most of the subject. Web and native use the same curve and normalized-diagonal geometry; strength `0` removes the mask completely.
 - The `mediaId` must be an owned, ready **image** asset. All normal publication and Kids moderation rules still apply.
 - Repeating one `mediaId` is intentional. Previous reveal steps for the same image are visually superseded, but still count as clues.
 - Existing `image` clues remain unchanged. Both formats can coexist in a quiz.
