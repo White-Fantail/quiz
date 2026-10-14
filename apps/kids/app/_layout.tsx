@@ -16,6 +16,6 @@ function PinLocaleToGuardian(){
 export default function RootLayout(){
  return <SafeAreaProvider><KidsLocaleProvider><KidsSessionProvider><KidsParentProvider><KidsTimeProvider><PinLocaleToGuardian/>
   <StatusBar style="dark"/>
-  <Stack screenOptions={{headerShown:false}} />
+  <Stack screenOptions={{headerShown:false}}><Stack.Screen name="game" options={{gestureEnabled:false}} /></Stack>
  </KidsTimeProvider></KidsParentProvider></KidsSessionProvider></KidsLocaleProvider></SafeAreaProvider>;
 }
