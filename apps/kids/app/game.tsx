@@ -16,16 +16,16 @@ import { kidsApi } from "../src/services/api";
 import { theme } from "../src/theme";
 
 const SAVED="quizdip-kids-active-game-v1";
-function PopIn({children}:PropsWithChildren) {
+function PopIn({children,celebrate=false}:PropsWithChildren<{celebrate?:boolean}>) {
  const motion=useRef(new Animated.Value(0)).current;
  useEffect(()=>{
-  const animation=Animated.spring(motion,{toValue:1,tension:125,friction:10,useNativeDriver:true});
+  const animation=Animated.spring(motion,{toValue:1,tension:celebrate?175:125,friction:celebrate?7:10,useNativeDriver:true});
   animation.start();
   return ()=>animation.stop();
  },[motion]);
  return <Animated.View style={{opacity:motion,transform:[{
   translateY:motion.interpolate({inputRange:[0,1],outputRange:[12,0]})
- }]}}>{children}</Animated.View>;
+ },{scale:motion.interpolate({inputRange:[0,1],outputRange:[celebrate?0.77:0.97,1]})}]}}>{children}</Animated.View>;
 }
 type Ref= {kind:"run";runId:string;runToken:string;mode:"RANDOM_FIVE"|"PACK"} |
           {kind:"single";sessionId:string;sessionToken:string};
@@ -213,7 +213,7 @@ export default function KidGameScreen(){
    </KidsTap>
  </Screen>;
  if(summary)return <Screen title={t("native.play.complete")}>
-   <PopIn>
+   <PopIn celebrate>
    <View style={styles.results}>
      <KidsEmojiIcon emoji="🏆" size={65} color={theme.colors.accent}/>
      <Text style={styles.heading}>{t("native.play.wellDone")}</Text>
@@ -268,7 +268,7 @@ export default function KidGameScreen(){
      <KidClueView clue={clue} mediaStage={stage} token={token!} sessionId={question.sessionId}
        sessionToken={question.sessionToken}/>
    </PopIn></View>})}
-   {result?<PopIn><View accessibilityLiveRegion="polite" style={[styles.feedback,result.correct?styles.success:styles.tryAgain]}>
+   {result?<PopIn celebrate={result.correct}><View accessibilityLiveRegion="polite" style={[styles.feedback,result.correct?styles.success:styles.tryAgain]}>
      <View style={styles.inline}><KidsEmojiIcon emoji={result.correct?"🎉":"💡"} size={32}/><Text style={styles.feedbackTitle}>{result.correct?"★ ★ ★":"✦ ✦ ✦"}</Text></View>
      <Text style={styles.feedbackText}>{result.correct?t("native.play.correctMessage"):
        ended?t("native.play.tryNextTime"):t("native.play.nextHint")}</Text>
