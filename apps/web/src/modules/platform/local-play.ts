@@ -122,7 +122,7 @@ export async function localSingleBundle(p:{sessionId:string;sessionToken:string}
 }
 export async function localSingleStart(p:{quizId:string;locale:string;kids?:boolean},actor:Actor|null){
   const session=await playStart(p,actor);
-  return localSingleBundle({sessionId:session.sessionId,sessionToken:session.sessionToken},actor);
+  return {...session,...await localSingleBundle({sessionId:session.sessionId,sessionToken:session.sessionToken},actor)};
 }
 export async function localSingleSync(p:{
   sessionId:string;sessionToken:string;cluesUsed:number;status:"SOLVED"|"FAILED";score:number
