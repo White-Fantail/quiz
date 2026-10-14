@@ -45,3 +45,20 @@ test("Kids game cards use navigation tap guards on Home, Explore, and Challenge"
   assert.match(tab,/<KidsTap\b/,path);
  }
 });
+
+test("Kids feedback sounds are tiny bundled offline WAV files",()=>{
+ const game=source("app/game.tsx");
+ assert.match(game,/useAudioPlayer\(require\("\.\.\/assets\/feedback-success\.wav"\)/);
+ assert.match(game,/playCue\(clueCue\)/);
+ assert.match(game,/playCue\(v\.correct\?successCue:retryCue\)/);
+ for(const name of ["feedback-success.wav","feedback-clue.wav","feedback-try-again.wav"]){
+  const wav=readFileSync(new URL("../assets/"+name,import.meta.url));
+  assert.equal(wav.toString("ascii",0,4),"RIFF");
+  assert.equal(wav.toString("ascii",8,12),"WAVE");
+  assert.equal(wav.toString("ascii",36,40),"data");
+  assert.equal(wav.readUInt32LE(4),wav.length-8);
+  assert.equal(wav.readUInt32LE(40),wav.length-44);
+  assert.equal(wav.readUInt16LE(34),8);
+  assert.ok(wav.length<5000);
+ }
+});
