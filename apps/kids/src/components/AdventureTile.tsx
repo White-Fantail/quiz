@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+import { KidsTap } from "./KidsTap";
 import type {AdventureId} from "../adventures";
 import { theme } from "../theme";
 import { KidsEmojiIcon } from "./KidsIcon";
@@ -8,7 +9,7 @@ export function AdventureTile({id,emoji,title,detail,tint,count,playLabel,onPres
  id:AdventureId;emoji:string;title:string;detail:string;tint:string;
  count:number;playLabel:string;onPress:()=>void;
 }) {
- return <Pressable onPress={onPress} accessibilityRole="button"
+ return <KidsTap onPress={onPress} accessibilityRole="button"
    accessibilityLabel={title+". "+count+" "+playLabel}
    style={({pressed})=>[styles.tile,{backgroundColor:tint,opacity:pressed?0.85:1}]}>
   <View style={styles.top}>
@@ -21,7 +22,7 @@ export function AdventureTile({id,emoji,title,detail,tint,count,playLabel,onPres
    <Text numberOfLines={2} style={styles.detail}>{detail}</Text>
    <Text style={styles.count}>{count} {playLabel} ›</Text>
   </View>
- </Pressable>;
+ </KidsTap>;
 }
 const styles=StyleSheet.create({
  tile:{minHeight:248,borderRadius:28,padding:19,overflow:"hidden",justifyContent:"space-between"},
