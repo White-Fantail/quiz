@@ -1,7 +1,9 @@
 import {useEffect,useState} from "react";
-import {useLocalSearchParams,useRouter} from "expo-router";
-import {ActivityIndicator,Pressable,ScrollView,StyleSheet,Text,View,useWindowDimensions} from "react-native";
+import {useLocalSearchParams} from "expo-router";
+import {useKidsNavigation} from "../../src/useKidsNavigation";
+import {ActivityIndicator,ScrollView,StyleSheet,Text,View,useWindowDimensions} from "react-native";
 import {Screen} from "../../src/components/Screen";
+import {KidsTap} from "../../src/components/KidsTap";
 import {KidsEmojiIcon} from "../../src/components/KidsIcon";
 import {AdventureArtwork} from "../../src/components/AdventureArtwork";
 import {adventures,adventureById,adventureForPack,adventureForQuiz,type AdventureId} from "../../src/adventures";
@@ -11,7 +13,7 @@ import {theme} from "../../src/theme";
 
 type Selection=AdventureId|"all";
 export default function ExploreScreen(){
- const router=useRouter(),{width}=useWindowDimensions();
+ const go=useKidsNavigation(),{width}=useWindowDimensions();
  const {adventure:routeAdventure}=useLocalSearchParams<{adventure?:string}>();
  const {t}=useKidsLocale();
  const [selected,setSelected]=useState<Selection>(()=>adventureById(routeAdventure)?.id||"all");
@@ -31,37 +33,37 @@ export default function ExploreScreen(){
   </View>
   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categories}
     accessibilityLabel={t("kids.explore.filters")}>
-    <Pressable accessibilityRole="button" accessibilityState={{selected:selected==="all"}}
+    <KidsTap accessibilityRole="button" accessibilityState={{selected:selected==="all"}}
        onPress={()=>choose("all")} style={[styles.category,selected==="all"&&styles.categorySelected]}>
        <View style={styles.categoryArt}><KidsEmojiIcon emoji="✨" size={55} color={theme.colors.accent}/></View>
        <Text numberOfLines={2} style={styles.categoryText}>{t("native.adventure.allWorlds")}</Text>
-    </Pressable>
-    {adventures.map(item=><Pressable key={item.id} accessibilityRole="button"
+    </KidsTap>
+    {adventures.map(item=><KidsTap key={item.id} accessibilityRole="button"
        accessibilityState={{selected:selected===item.id}} onPress={()=>choose(item.id)}
        style={[styles.category,{backgroundColor:item.tint},selected===item.id&&styles.categorySelected]}>
        <AdventureArtwork id={item.id} size={84}/>
        <Text numberOfLines={2} style={styles.categoryText}>{t(item.labelKey)}</Text>
-    </Pressable>)}
+    </KidsTap>)}
   </ScrollView>
   {selected!=="all"?<View style={styles.selection}>
      <Text style={styles.selectionText}>{t(adventureById(selected)!.labelKey)}</Text>
-     <Pressable accessibilityRole="button" onPress={()=>choose("all")}>
+     <KidsTap accessibilityRole="button" onPress={()=>choose("all")}>
        <Text style={styles.action}>{t("native.adventure.allWorlds")} ×</Text>
-     </Pressable>
+     </KidsTap>
    </View>:null}
   {loading&&!loaded?<View style={styles.loading}>
     <ActivityIndicator color={theme.colors.accent} size="large"/>
     <Text style={styles.muted}>{t("native.adventure.loading")}</Text>
    </View>:null}
-  {error?<Pressable accessibilityRole="button" onPress={reload} style={styles.notice}>
+  {error?<KidsTap accessibilityRole="button" onPress={reload} style={styles.notice}>
     <Text style={styles.noticeText}>{t("native.adventure.error")} {t("native.adventure.retry")} ↻</Text>
-   </Pressable>:null}
+   </KidsTap>:null}
   {loaded&&shownPacks.length===0&&shownQuizzes.length===0&&!loading?<View style={styles.empty}>
     <AdventureArtwork id={selected==="all"?"surprise":selected} size={125}/>
     <Text style={styles.emptyText}>{selected==="all"?t("native.adventure.empty"):t("native.adventure.emptyWorld")}</Text>
-    {selected!=="all"?<Pressable accessibilityRole="button" onPress={()=>choose("all")}>
+    {selected!=="all"?<KidsTap accessibilityRole="button" onPress={()=>choose("all")}>
      <Text style={styles.action}>{t("native.adventure.allWorlds")} →</Text>
-    </Pressable>:null}
+    </KidsTap>:null}
    </View>:null}
   {shownPacks.length>0?<View style={styles.section}>
      <View style={styles.headingRow}>
@@ -69,8 +71,8 @@ export default function ExploreScreen(){
        <Text style={styles.headingHint}>{t("native.adventure.showPacks")}</Text>
      </View>
      <View style={styles.grid}>
-       {shownPacks.map(pack=><Pressable key={pack.id} accessibilityRole="button" accessibilityLabel={pack.title}
-         onPress={()=>router.push({pathname:"/game",params:{packId:pack.id}})}
+       {shownPacks.map(pack=><KidsTap key={pack.id} accessibilityRole="button" accessibilityLabel={pack.title}
+         onPress={()=>go({pathname:"/game",params:{packId:pack.id}})}
          style={[styles.packCard,{width:wide?"48.7%":"100%"}]}>
          <View style={[styles.cardArt,{backgroundColor:adventureById(adventureForPack(pack))?.tint||"#ECE2FF"}]}>
            <AdventureArtwork id={adventureForPack(pack)} size={116}/>
@@ -83,13 +85,13 @@ export default function ExploreScreen(){
              <View style={styles.playPill}><Text style={styles.playText}>{t("native.adventure.open")} ▶</Text></View>
            </View>
          </View>
-       </Pressable>)}
+       </KidsTap>)}
      </View>
    </View>:null}
   {shownQuizzes.length>0?<View style={styles.section}>
      <Text style={styles.heading}>✨ {t("native.adventure.quizzes")}</Text>
      <View style={styles.grid}>
-       {shownQuizzes.map(quiz=><Pressable key={quiz.id} accessibilityRole="button" accessibilityLabel={quiz.title}
+       {shownQuizzes.map(quiz=><KidsTap key={quiz.id} accessibilityRole="button" accessibilityLabel={quiz.title}
          onPress={()=>router.push({pathname:"/game",params:{quizId:quiz.id}})}
          style={[styles.quizCard,{width:wide?"48.7%":"100%"}]}>
          <View style={[styles.quizArt,{backgroundColor:adventureById(adventureForQuiz(quiz))?.tint||"#ECE2FF"}]}>
@@ -100,13 +102,13 @@ export default function ExploreScreen(){
            <Text numberOfLines={2} style={styles.cardDetail}>{quiz.prompt}</Text>
            <Text style={styles.action}>{t("native.adventure.open")} ▶</Text>
          </View>
-       </Pressable>)}
+       </KidsTap>)}
      </View>
    </View>:null}
-  {loaded&&hasMore?<Pressable accessibilityRole="button" disabled={loading} onPress={loadMore}
+  {loaded&&hasMore?<KidsTap accessibilityRole="button" disabled={loading} onPress={loadMore}
     style={[styles.moreButton,loading&&styles.disabled]}>
     <Text style={styles.moreText}>{loading?t("native.adventure.loading"):t("native.adventure.more")}</Text>
-   </Pressable>:null}
+   </KidsTap>:null}
  </Screen>;
 }
 const styles=StyleSheet.create({
