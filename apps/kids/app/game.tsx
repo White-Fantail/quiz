@@ -241,6 +241,10 @@ export default function KidGameScreen(){
        t("native.play.question")+" "+question.round+" / "+(question.total??5):t("native.play.single")}</Text>
      <Text style={styles.progressText}>{t("native.play.hint")} {question.clueIndex} / {question.clueCount}</Text>
    </View>
+   <View accessibilityLabel={t("native.play.hint")+" "+question.clueIndex+" / "+question.clueCount}
+     style={styles.clueTrack}>
+     <View style={[styles.clueFill,{width:`${Math.round(100*question.clueIndex/Math.max(1,question.clueCount))}%` as const}]}/>
+   </View>
    {(Array.isArray(question.promptMediaIds)?question.promptMediaIds:[]).map(id=>
       <SafeKidMedia key={"prompt:"+id} token={token!} mediaId={id}
         sessionId={question.sessionId} sessionToken={question.sessionToken}/>)}
@@ -326,6 +330,8 @@ const styles=StyleSheet.create({
  reportText:{fontSize:14,fontWeight:"700",color:theme.colors.muted},
  restNotice:{backgroundColor:theme.colors.peach,borderRadius:17,padding:17,gap:6},
  restText:{color:theme.colors.ink,fontSize:17,fontWeight:"800"},
+ clueTrack:{height:9,borderRadius:9,overflow:"hidden",backgroundColor:theme.colors.outline},
+ clueFill:{height:"100%",backgroundColor:theme.colors.accent,borderRadius:9},
  progress:{flexDirection:"row",justifyContent:"space-between",backgroundColor:theme.colors.lilac,padding:16,borderRadius:16,gap:10},
  progressText:{fontSize:15,fontWeight:"800",color:theme.colors.ink},
  hintLabel:{color:theme.colors.accent,fontWeight:"800",fontSize:15,paddingStart:5},
