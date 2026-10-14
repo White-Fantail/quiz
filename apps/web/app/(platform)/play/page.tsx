@@ -119,8 +119,10 @@ export default function PlayPage({packId}:{packId?:string}={}) {
     if(!run||run.status!=="FINISHED"||round)return;
     let alive=true;
     setRatingBusy(true);setRatingError("");
-    void request("/runs/"+run.runId+"/feedback","POST",{runToken:run.runToken})
-      .then(data=>{if(alive)setQuestionsToRate(data.items??[]);})
+    void (async()=>{
+      if(run.mode!=="INFINITE"&&localBundleRef.current)await syncLocal();
+      return request("/runs/"+run.runId+"/feedback","POST",{runToken:run.runToken});
+    })().then(data=>{if(alive)setQuestionsToRate(data.items??[]);})
       .catch(e=>{if(alive)setRatingError(e instanceof Error?e.message:msg("Could not load the questions for review.","평가할 문제를 불러오지 못했어요."));})
       .finally(()=>{if(alive)setRatingBusy(false);});
     return ()=>{alive=false;};
