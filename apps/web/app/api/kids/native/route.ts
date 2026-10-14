@@ -4,6 +4,7 @@ import { execute } from "../../../../src/modules/platform/operations";
 import { requirePlayable } from "../../../../src/modules/kids/time";
 import { nativeKidFromHeaders,redeemNativePairTicket,releaseNativeKidDevice } from "../../../../src/modules/kids/service";
 import { kidPacksCatalog,kidFeatures } from "../../../../src/modules/kids/packs";
+import { db } from "../../../../src/modules/platform/db";
 
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
@@ -54,7 +55,21 @@ export async function GET(request:Request) {
     return 0;
   };
   const items=(result as any)?.items;
-  if(Array.isArray(items)) return response({...(result as Record<string,unknown>),items:[...items].sort((a,b)=>fit(a)-fit(b))});
+  if(Array.isArray(items)){
+    // Mark approved pack questions to prevent duplicate game cards in Kids browsing.
+    // This is display metadata only; the quiz's original safety gate is unchanged.
+    const ids=items.map(item=>item?.id).filter((id):id is string=>typeof id==="string");
+    const members=ids.length?await db().packQuestion.findMany({where:{
+      quizId:{in:ids},pack:{publication:"PUBLISHED",sourceLocale:kid.profile.locale,
+        kidsEligible:true,kidsReviewStatus:"APPROVED",safetyStatus:{not:"RESTRICTED"},
+        localizations:{some:{locale:kid.profile.locale,status:"PUBLISHED"}}}
+    },select:{quizId:true},distinct:["quizId"]}):[];
+    const included=new Set(members.map(item=>item.quizId));
+    return response({...(result as Record<string,unknown>),
+      items:[...items].sort((a,b)=>fit(a)-fit(b)).map(item=>({
+        ...item,inKidsPack:included.has(item.id)
+      }))});
+  }
   return response(result);
  }catch(error){return errorResponse(error);}
 }

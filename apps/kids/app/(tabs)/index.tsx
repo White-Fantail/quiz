@@ -1,20 +1,21 @@
-import {useCallback,useEffect,useState} from "react";
+import {useCallback,useState} from "react";
 import {ActivityIndicator,StyleSheet,Text,View,useWindowDimensions} from "react-native";
-import {useFocusEffect,useLocalSearchParams} from "expo-router";
+import {useFocusEffect} from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import {useKidsNavigation} from "../../src/useKidsNavigation";
 import {Screen} from "../../src/components/Screen";
 import {KidsTap} from "../../src/components/KidsTap";
 import {AdventureArtwork} from "../../src/components/AdventureArtwork";
 import {KidsEmojiIcon} from "../../src/components/KidsIcon";
-import {adventures,adventureById,adventureCount,adventureForPack,adventureForQuiz,type AdventureId} from "../../src/adventures";
-import {useKidsAdventures} from "../../src/useKidsAdventures";
+import {adventures,adventureCount} from "../../src/adventures";
+import {KidsPackCard,packGrid} from "../../src/components/KidsPackCard";
+import {useKidsPackBrowse} from "../../src/useKidsPackBrowse";
+
 import {useKidsLocale} from "../../src/state/locale";
 import {useKidsSession} from "../../src/state/session";
 import {theme} from "../../src/theme";
 
 const SAVED_GAME="quizdip-kids-active-game-v1";
-type Selection=AdventureId|"all"|null;
 type Resume={kind:"run"|"single";packId?:string;round?:number;total?:number};
 async function savedResume():Promise<Resume|null>{
  try{
@@ -45,23 +46,16 @@ export default function KidsHome(){
  const go=useKidsNavigation(),{width}=useWindowDimensions(),{t}=useKidsLocale();
  const kid=useKidsSession();
  const nickname=kid.status==="active"?kid.session.profile.nickname.trim():"";
- const {adventure}=useLocalSearchParams<{adventure?:string}>();
- const [selected,setSelected]=useState<Selection>(null);
  const [resume,setResume]=useState<Resume|null>(null);
- const {packs,quizzes,loading,loaded,error,hasMore,loadMore,reload}=useKidsAdventures();
- useEffect(()=>{if(adventure)setSelected(adventureById(adventure)?.id??null);},[adventure]);
+ const {packs,loading,loaded,error,reload}=useKidsPackBrowse();
  useFocusEffect(useCallback(()=>{
   let live=true;
   void savedResume().then(value=>{if(live)setResume(value);});
   return ()=>{live=false;};
  },[]));
- const available=adventures.filter(item=>adventureCount(item.id,packs,quizzes)>0);
- const worldsToShow=selected==="all"?available:selected?
-   available.filter(item=>item.id===selected):available.slice(0,4);
- const filteredPacks=selected&&selected!=="all"?packs.filter(p=>adventureForPack(p)===selected):packs;
- const filteredQuizzes=selected&&selected!=="all"?quizzes.filter(q=>adventureForQuiz(q)===selected):quizzes;
- const shownPacks=selected?filteredPacks:filteredPacks.slice(0,8);
- const shownQuizzes=selected?filteredQuizzes:filteredQuizzes.slice(0,4);
+ const available=adventures.filter(item=>adventureCount(item.id,packs,[])>0);
+ const worldsToShow=available.slice(0,4);
+ const shownPacks=packs.slice(0,8);
  const wide=width>=720;
  const resumeTitle=packs.find(p=>p.id===resume?.packId)?.title;
  return <Screen title={nickname?t("native.home.hello")+", "+nickname+"!":t("kids.welcome")}
@@ -82,7 +76,7 @@ export default function KidsHome(){
   <View style={styles.section}>
    <View style={styles.headingRow}>
     <Text style={styles.heading}>{t("native.playTab.pickWorld")}</Text>
-    <KidsTap accessibilityRole="button" onPress={()=>setSelected("all")}>
+    <KidsTap accessibilityRole="button" onPress={()=>go("/worlds")}>
      <Text style={styles.link}>{t("native.adventure.all")} →</Text>
     </KidsTap>
    </View>
@@ -90,15 +84,15 @@ export default function KidsHome(){
    {error?<KidsTap accessibilityRole="button" onPress={reload} style={styles.notice}>
     <Text style={styles.noticeText}>{t("native.adventure.error")} {t("native.adventure.retry")} ↻</Text>
    </KidsTap>:null}
-   {loaded&&available.length===0&&!loading?<Text style={styles.muted}>{t("native.adventure.empty")}</Text>:null}
+   {loaded&&available.length===0&&!loading?<KidsTap accessibilityRole="button" onPress={()=>go("/all-packs")}><Text style={styles.link}>{t("native.browse.allPacks")} →</Text></KidsTap>:null}
    <View style={styles.worldGrid}>
     {worldsToShow.map(item=><KidsTap key={item.id} accessibilityRole="button"
-      accessibilityLabel={t(item.labelKey)} accessibilityState={{selected:selected===item.id}}
-      onPress={()=>setSelected(item.id)}
-      style={[styles.world,{backgroundColor:item.tint,borderColor:selected===item.id?theme.colors.accent:"transparent"}]}>
+      accessibilityLabel={t(item.labelKey)}
+      onPress={()=>go({pathname:"/world",params:{id:item.id,from:"home"}})}
+      style={[styles.world,{backgroundColor:item.tint}]}>
       <AdventureArtwork id={item.id} size={wide?125:96}/>
       <Text numberOfLines={2} style={styles.worldTitle}>{t(item.labelKey)}</Text>
-      <Text style={styles.worldCount}>{adventureCount(item.id,packs,quizzes)} {t("native.adventure.toPlay")}</Text>
+      <Text style={styles.worldCount}>{adventureCount(item.id,packs,[])} {t("native.adventure.toPlay")}</Text>
     </KidsTap>)}
    </View>
   </View>
@@ -110,54 +104,17 @@ export default function KidsHome(){
     <Text style={styles.muted}>{t("native.playTab.surpriseDetail")}</Text>
    </View><Text style={styles.arrow}>→</Text>
   </KidsTap>
-  {selected?<KidsTap accessibilityRole="button" onPress={()=>setSelected(null)} style={styles.filter}>
-   <Text style={styles.link}>{selected==="all"?t("native.adventure.allWorlds"):t(adventureById(selected)!.labelKey)} ×</Text>
-  </KidsTap>:null}
   {shownPacks.length>0?<View style={styles.section}>
    <View style={styles.headingRow}>
     <Text style={styles.heading}>{t("native.adventure.packs")}</Text>
-    {!selected?<KidsTap accessibilityRole="button" onPress={()=>setSelected("all")}>
+    {<KidsTap accessibilityRole="button" onPress={()=>go("/all-packs")}>
      <Text style={styles.link}>{t("native.adventure.all")} →</Text>
-    </KidsTap>:null}
+    </KidsTap>
    </View>
-   <View style={styles.packGrid}>
-    {shownPacks.map(pack=><KidsTap key={pack.id} accessibilityRole="button"
-      accessibilityLabel={pack.title} onPress={()=>go({pathname:"/game",params:{packId:pack.id}})}
-      style={[styles.pack,{width:wide?"48.7%":"100%"}]}>
-      <View style={[styles.art,{backgroundColor:adventureById(adventureForPack(pack))?.tint||theme.colors.lilac}]}>
-       <AdventureArtwork id={adventureForPack(pack)} size={wide?110:90}/>
-      </View>
-      <View style={styles.copy}>
-       <Text numberOfLines={2} style={styles.packTitle}>{pack.title}</Text>
-       <Text style={styles.muted}>{pack.questionCount} {t("native.adventure.questions")}</Text>
-       <Text style={styles.link}>{t("native.adventure.open")} ▶</Text>
-      </View>
-    </KidsTap>)}
+   <View style={packGrid}>
+    {shownPacks.map(pack=><KidsPackCard key={pack.id} pack={pack}/>)}
    </View>
   </View>:null}
-  {shownQuizzes.length>0?<View style={styles.section}>
-   <Text style={styles.heading}>{t("native.adventure.quizzes")}</Text>
-   <View style={styles.packGrid}>
-    {shownQuizzes.map(quiz=><KidsTap key={quiz.id} accessibilityRole="button" accessibilityLabel={quiz.title}
-      onPress={()=>go({pathname:"/game",params:{quizId:quiz.id}})}
-      style={[styles.pack,{width:wide?"48.7%":"100%"}]}>
-      <View style={[styles.art,{backgroundColor:adventureById(adventureForQuiz(quiz))?.tint||theme.colors.lilac}]}>
-       <AdventureArtwork id={adventureForQuiz(quiz)} size={90}/>
-      </View>
-      <View style={styles.copy}>
-       <Text numberOfLines={2} style={styles.packTitle}>{quiz.title}</Text>
-       <Text style={styles.muted}>{t("native.play.single")}</Text>
-       <Text style={styles.link}>{t("native.adventure.open")} ▶</Text>
-      </View>
-    </KidsTap>)}
-   </View>
-  </View>:null}
-  {selected&&loaded&&!loading&&filteredPacks.length===0&&filteredQuizzes.length===0?<View style={styles.notice}>
-   <Text style={styles.noticeText}>{t("native.adventure.emptyWorld")}</Text>
-  </View>:null}
-  {loaded&&hasMore?<KidsTap accessibilityRole="button" disabled={loading} onPress={loadMore} style={styles.more}>
-   <Text style={styles.link}>{loading?t("native.adventure.loading"):t("native.adventure.more")}</Text>
-  </KidsTap>:null}
  </Screen>;
 }
 const styles=StyleSheet.create({

@@ -4,7 +4,7 @@ import type { Locale } from "@quizdip/i18n";
 /** Public, read-only Kids preview contracts. Child device auth arrives in Phase 2. */
 export type KidsCatalogItem = {
   id: string; title: string; prompt: string; answerType: AnswerType;
-  clueCount: number; kidsEligible: true;
+  clueCount: number; kidsEligible: true; inKidsPack?: boolean;
 };
 export type KidsCatalogPage = { items: KidsCatalogItem[]; hasMore: boolean };
 export type KidPackItem = { id:string;title:string;description:string;questionCount:number;
