@@ -26,7 +26,7 @@ type Round = RunInfo & {sessionId:string;sessionToken:string;round:number;quizId
   prompt:string;promptMediaIds:string[];clues:Clue[];clueIndex:number;clueCount:number;
   sessionStatus:string;canGuess?:boolean;responseMode?:"text"|"multiple-choice";options?:string[];ratings?:RatingSummary;myRating?:number|null;ratingAccess?:RatingAccess};
 type LocalPack = {runId:string;questions:(LocalQuestion&{position:number;responseMode?:"text"|"multiple-choice";options?:string[]})[]};
-type LocalSaved = {bundle:LocalPack;progress:Record<number,LocalProgress>};
+type LocalSaved = {bundle:LocalPack;progress:Record<number,LocalProgress>;runToken:string;synced?:boolean};
 const localKey=(id:string)=>"quizdip-local-play-v1:"+id;
 type FeedbackItem = {quizId:string;round:number;title:string;ratings:RatingSummary;myRating:number|null;ratingAccess:RatingAccess;isTranslation?:boolean;myTranslationRating?:number|null};
 type MediaPreview = {url:string;kind:string;mimeType:string;mediaId:string};
@@ -131,7 +131,8 @@ export default function PlayPage({packId}:{packId?:string}={}) {
   const saveLocal=()=>{
     if(!localBundleRef.current)return;
     try{localStorage.setItem(localKey(localBundleRef.current.runId),JSON.stringify({
-      bundle:localBundleRef.current,progress:localProgressRef.current
+      bundle:localBundleRef.current,progress:localProgressRef.current,
+      runToken:localRunTokenRef.current,synced:false
     } satisfies LocalSaved));}catch{/* Storage can be disabled: play still works. */}
   };
   const syncLocal=async()=>{
@@ -141,7 +142,38 @@ export default function PlayPage({packId}:{packId?:string}={}) {
       .map(([position,p])=>({position:Number(position),cluesUsed:p.clueIndex,status:p.status as "SOLVED"|"FAILED",score:p.score}));
     if(!results.length)return;
     await request("/runs/"+bundle.runId+"/sync","POST",{runToken:localRunTokenRef.current,results});
+    try{
+      const key=localKey(bundle.runId);
+      const saved=JSON.parse(localStorage.getItem(key)||"null") as LocalSaved|null;
+      const latest=Object.values(saved?.progress??{}).filter(p=>p.status!=="ACTIVE").length;
+      if(saved&&latest===results.length)localStorage.setItem(key,JSON.stringify({...saved,synced:true}));
+    }catch{}
   };
+  useEffect(()=>{
+    // Replay pending, idempotent results after browser restarts or network recovery.
+    const flush=()=>{
+      for(let i=0;i<localStorage.length;i++){
+        const key=localStorage.key(i);
+        if(!key?.startsWith("quizdip-local-play-v1:"))continue;
+        try{
+          const saved=JSON.parse(localStorage.getItem(key)||"null") as LocalSaved|null;
+          if(!saved?.runToken||saved.synced)continue;
+          const results=Object.entries(saved.progress).filter(([,p])=>p.status!=="ACTIVE")
+            .map(([position,p])=>({position:Number(position),cluesUsed:p.clueIndex,
+              status:p.status,score:p.score}));
+          if(!results.length)continue;
+          void api("/runs/"+saved.bundle.runId+"/sync","POST",
+            {runToken:saved.runToken,results},locale).then(()=>{
+              const current=JSON.parse(localStorage.getItem(key)||"null") as LocalSaved|null;
+              const count=Object.values(current?.progress??{}).filter(p=>p.status!=="ACTIVE").length;
+              if(current&&count===results.length)localStorage.setItem(key,JSON.stringify({...current,synced:true}));
+            }).catch(()=>{});
+        }catch{}
+      }
+    };
+    flush();window.addEventListener("online",flush);
+    return ()=>window.removeEventListener("online",flush);
+  },[locale]);
   const loadLocalMedia=(r:RunInfo,position:number,ids:string[])=>{
     void Promise.all([...new Set(ids)].filter(Boolean).map(async mediaId=>{
       try{
