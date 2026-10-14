@@ -1,6 +1,7 @@
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
-import { useRouter } from "expo-router";
+import { ActivityIndicator,  ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { useKidsNavigation } from "../../src/useKidsNavigation";
 import { Screen } from "../../src/components/Screen";
+import { KidsTap } from "../../src/components/KidsTap";
 import { AdventureTile } from "../../src/components/AdventureTile";
 import { AdventureArtwork } from "../../src/components/AdventureArtwork";
 import { KidsEmojiIcon } from "../../src/components/KidsIcon";
@@ -11,7 +12,7 @@ import { useKidsSession } from "../../src/state/session";
 import { theme } from "../../src/theme";
 
 export default function KidsHome(){
- const router=useRouter(),{width}=useWindowDimensions();
+ const go=useKidsNavigation(),{width}=useWindowDimensions();
  const {t}=useKidsLocale();
  const kid=useKidsSession();
  const nickname=kid.status==="active"?kid.session.profile.nickname.trim():"";
@@ -28,18 +29,18 @@ export default function KidsHome(){
    quizzes[0]?{id:quizzes[0].id,title:quizzes[0].title,description:quizzes[0].prompt,
     count:1,type:"QUIZ" as const,adventure:adventureForQuiz(quizzes[0])}:null;
  const available=adventures.filter(item=>adventureCount(item.id,packs,quizzes)>0);
- const openGame=(id:string,type:"PACK"|"QUIZ")=>router.push(type==="PACK"?
+ const openGame=(id:string,type:"PACK"|"QUIZ")=>go(type==="PACK"?
    {pathname:"/game",params:{packId:id}}:{pathname:"/game",params:{quizId:id}});
  const columns=width>=720?2:1;
  return <Screen title={nickname?t("native.home.hello")+", "+nickname+"!":t("kids.welcome")}
    subtitle={t("native.adventure.homeLead")}
-   headerAction={<Pressable accessibilityRole="button"
+   headerAction={<KidsTap accessibilityRole="button"
      accessibilityLabel={t("native.guardian.open")}
      accessibilityHint={t("native.guardian.detail")}
      onPress={()=>router.push("/parent")} style={styles.parentsButton}>
      <Text style={styles.parentsText}>{t("native.guardian.open")}</Text>
-   </Pressable>}>
-   {hero?<Pressable accessibilityRole="button"
+   </KidsTap>}>
+   {hero?<KidsTap accessibilityRole="button"
       accessibilityLabel={hero.title+". "+t("native.adventure.play")}
       onPress={()=>openGame(hero.id,hero.type)}
       style={({pressed})=>[styles.hero,{opacity:pressed?.85:1}]}>
@@ -50,23 +51,23 @@ export default function KidsHome(){
         <View style={styles.heroButton}><Text style={styles.heroButtonText}>{t("native.adventure.play")}</Text></View>
       </View>
       <View pointerEvents="none" style={styles.heroArt}><AdventureArtwork id={hero.adventure} size={width>=720?200:151}/></View>
-   </Pressable>:null}
+   </KidsTap>:null}
    {loading&&!loaded?<View style={styles.loading}><ActivityIndicator size="large" color={theme.colors.accent}/>
       <Text style={styles.muted}>{t("native.adventure.loading")}</Text></View>:null}
-   {error?<Pressable accessibilityRole="button" onPress={reload} style={styles.notice}>
+   {error?<KidsTap accessibilityRole="button" onPress={reload} style={styles.notice}>
       <Text style={styles.noticeText}>{t("native.adventure.error")}  {t("native.adventure.retry")} ↻</Text>
-   </Pressable>:null}
+   </KidsTap>:null}
    {loaded&&available.length===0&&!loading?<View style={styles.empty}>
      <KidsEmojiIcon emoji="✨" size={42} color={theme.colors.accent}/>
      <Text style={styles.emptyText}>{t("native.adventure.empty")}</Text>
-     <Pressable accessibilityRole="button" onPress={reload}><Text style={styles.link}>{t("native.adventure.retry")} ↻</Text></Pressable>
+     <KidsTap accessibilityRole="button" onPress={reload}><Text style={styles.link}>{t("native.adventure.retry")} ↻</Text></KidsTap>
    </View>:null}
    {available.length>0?<View style={styles.section}>
       <View style={styles.sectionHeader}>
         <Text style={styles.heading}>{t("native.adventure.choose")}</Text>
-        <Pressable accessibilityRole="button" onPress={()=>router.push("/explore")}>
+        <KidsTap accessibilityRole="button" onPress={()=>router.push("/explore")}>
           <Text style={styles.link}>{t("native.adventure.all")} →</Text>
-        </Pressable>
+        </KidsTap>
       </View>
       <View style={styles.grid}>
        {available.map(item=><View key={item.id} style={{width:columns===2?"48.8%":"100%"}}>
@@ -79,16 +80,16 @@ export default function KidsHome(){
    {packs.length>0?<View style={styles.section}>
      <View style={styles.sectionHeader}>
        <Text style={styles.heading}>{t("native.adventure.ready")}</Text>
-       <Pressable accessibilityRole="button" onPress={()=>router.push("/explore")}><Text style={styles.link}>{t("native.adventure.all")} →</Text></Pressable>
+       <KidsTap accessibilityRole="button" onPress={()=>router.push("/explore")}><Text style={styles.link}>{t("native.adventure.all")} →</Text></KidsTap>
      </View>
      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.packList}>
-       {packs.slice(0,8).map(pack=><Pressable key={pack.id} accessibilityRole="button"
+       {packs.slice(0,8).map(pack=><KidsTap key={pack.id} accessibilityRole="button"
          accessibilityLabel={pack.title} onPress={()=>openGame(pack.id,"PACK")}
          style={styles.packCard}>
          <View style={styles.packArt}><AdventureArtwork id={adventureForPack(pack)} size={90}/></View>
          <Text style={styles.packTitle} numberOfLines={2}>{pack.title}</Text>
          <Text style={styles.packMeta}>{pack.questionCount} {t("native.adventure.questions")}  ·  ▶</Text>
-       </Pressable>)}
+       </KidsTap>)}
      </ScrollView>
    </View>:null}
  </Screen>;
