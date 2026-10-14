@@ -145,7 +145,7 @@ test("Treasures are a private, server-backed collection with honest earned and l
  assert.match(treasures,/badgeSlots\.map/);
  assert.match(treasures,/earned\.has\(badge\.id\)/);
  assert.match(treasures,/data\.discoveries\.map/);
- assert.match(treasures,/router\.push\("\/explore"\)/);
+ assert.match(treasures,/go\("\/explore"\)/);
  for(const id of ["first","five","ten"]) {
    assert.ok(treasures.includes('id:"'+id+'"'));
    assert.ok(server.includes('id:"'+id+'"'));
