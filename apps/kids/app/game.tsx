@@ -1,5 +1,5 @@
 import { useCallback,useEffect,useRef,useState } from "react";
-import { ActivityIndicator,Pressable,StyleSheet,Text,TextInput,View } from "react-native";
+import { ActivityIndicator,Alert,BackHandler,Pressable,StyleSheet,Text,TextInput,View } from "react-native";
 import { Redirect,useLocalSearchParams,useRouter } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import type { KidQuestion,KidRunResult,KidGuessResult } from "@quizdip/api-client";
@@ -145,13 +145,36 @@ export default function KidGameScreen(){
    setResult(null);setGuess("");
    await retrieve(reference,token);
  });
+ // Leaving a game is a child-safe in-app action, not an exit from Kids mode.
+ // The signed game reference is already stored in SecureStore for Challenge > Resume.
+ const confirmLeave=useCallback(()=>{
+   Alert.alert(t("native.play.leaveTitle"),
+     t(reference?"native.play.leaveMessage":"native.play.leaveLoadingMessage"),[
+       {text:t("kids.guardian.cancel"),style:"cancel"},
+       {text:t("native.play.leave"),onPress:()=>router.replace("/")}
+     ],{cancelable:true});
+ },[reference,router,t]);
+ useEffect(()=>{
+   if(kid.status!=="active" || time.status!=="allowed" || summary)return;
+   const subscription=BackHandler.addEventListener("hardwareBackPress",()=>{
+     confirmLeave();
+     return true;
+   });
+   return ()=>subscription.remove();
+ },[kid.status,time.status,summary,confirmLeave]);
+ const leaveButton=<Pressable accessibilityRole="button"
+    accessibilityLabel={t("native.play.leave")} onPress={confirmLeave}
+    style={({pressed})=>[styles.exitButton,{opacity:pressed?0.75:1}]}>
+    <KidsEmojiIcon emoji="🏠" size={19} color={theme.colors.accent}/>
+    <Text style={styles.exitText}>{t("native.play.leave")}</Text>
+ </Pressable>;
  if(kid.status!=="active"){
    if(kid.status==="checking")return <Screen title="QuizDip Kids"><ActivityIndicator/></Screen>;
    return <Redirect href="/setup"/>;
  }
  if(time.status==="blocked")return <Redirect href="/time-up" />;
  if(time.status==="checking")return <Screen title={t("native.session.checking")}><ActivityIndicator/></Screen>;
- if(loading)return <Screen title={t("native.play.loading")}><ActivityIndicator color={theme.colors.accent}/></Screen>;
+ if(loading)return <Screen title={t("native.play.loading")} headerAction={leaveButton}><ActivityIndicator color={theme.colors.accent}/></Screen>;
  if(error&&!question&&!summary)return <Screen title={t("native.play.error")}>
    <Text style={styles.note}>{error}</Text>
    <Pressable accessibilityRole="button" style={styles.button} onPress={()=>router.replace("/explore")}>
@@ -182,7 +205,7 @@ export default function KidGameScreen(){
  const age=kid.session.profile.ageBand;
  const reminderEvery=time.time?.limits.breakEveryMinutes??0;
  const reminderNumber=reminderEvery>0?Math.floor((time.time?.sessionMinutesUsed??0)/reminderEvery):0;
- return <Screen title={question.title} subtitle={question.prompt}>
+ return <Screen title={question.title} subtitle={question.prompt} headerAction={leaveButton}>
    {reminderNumber>0 && reminderNumber!==dismissedBreak?<Pressable accessibilityRole="button"
      style={styles.restNotice} onPress={()=>setDismissedBreak(reminderNumber)}>
      <View style={styles.inline}><KidsEmojiIcon emoji="🍎" size={22}/><Text style={styles.restText}>{t("native.time.reminder")}</Text></View>
@@ -256,6 +279,9 @@ export default function KidGameScreen(){
  </Screen>;
 }
 const styles=StyleSheet.create({
+ exitButton:{minHeight:44,flexDirection:"row",alignItems:"center",justifyContent:"center",
+   gap:5,backgroundColor:theme.colors.lilac,borderRadius:18,paddingHorizontal:13,paddingVertical:9},
+ exitText:{fontSize:15,fontWeight:"800",color:theme.colors.accent},
  inline:{flexDirection:"row",alignItems:"center",justifyContent:"center",gap:8},
  reportButton:{alignItems:"center",padding:14,borderRadius:14,backgroundColor:theme.colors.card},
  reportChoices:{backgroundColor:theme.colors.card,padding:16,borderRadius:18,gap:12},
