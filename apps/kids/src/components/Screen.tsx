@@ -1,13 +1,13 @@
-import type { PropsWithChildren, ReactNode } from "react";
+import type { PropsWithChildren, ReactNode, Ref } from "react";
 import { ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { theme } from "../theme";
 import { KidsEmojiIcon } from "./KidsIcon";
 
-export function Screen({title,subtitle,headerAction,children}:PropsWithChildren<{title:string;subtitle?:string;headerAction?:ReactNode}>) {
+export function Screen({title,subtitle,headerAction,scrollRef,children}:PropsWithChildren<{title:string;subtitle?:string;headerAction?:ReactNode;scrollRef?:Ref<ScrollView>}>) {
   const {width}=useWindowDimensions();
   return <SafeAreaView style={styles.safe} edges={["top","left","right"]}>
-    <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{paddingHorizontal:width>=700?32:18,paddingBottom:34,flexGrow:1}}>
+    <ScrollView ref={scrollRef} keyboardShouldPersistTaps="handled" contentContainerStyle={{paddingHorizontal:width>=700?32:18,paddingBottom:34,flexGrow:1}}>
       <View style={styles.body}>
         <View style={styles.headerRow}>
           <Text accessibilityRole="header" numberOfLines={2}
