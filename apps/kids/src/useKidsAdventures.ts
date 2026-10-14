@@ -1,5 +1,6 @@
 import {useEffect,useState} from "react";
 import type {KidPackItem,KidsCatalogItem,KidsFeaturedItem} from "@quizdip/api-client";
+import type { Locale } from "@quizdip/i18n";
 import {kidsApi} from "./services/api";
 import {useKidsSession} from "./state/session";
 import {useKidsTime} from "./state/time";
@@ -14,14 +15,14 @@ const empty:Data={packs:[],quizzes:[],featured:[],loading:true,error:false,loade
 const initialCache=new Map<string,{until:number;data:Data}>();
 const inFlight=new Map<string,Promise<Data>>();
 
-function keyFor(token:string,locale:string){return token+":"+locale;}
+function keyFor(token:string,locale:Locale){return token+":"+locale;}
 function cached(key:string):Data|null {
  const value=initialCache.get(key);
  if(!value)return null;
  if(Date.now()>value.until){initialCache.delete(key);return null;}
  return value.data;
 }
-function loadInitial(token:string,locale:string,force:boolean):Promise<Data>{
+function loadInitial(token:string,locale:Locale,force:boolean):Promise<Data>{
  const key=keyFor(token,locale);
  // Multiple tabs share one child-scoped request and do not fetch again on navigation.
  if(!force){const hit=cached(key);if(hit)return Promise.resolve(hit);}
