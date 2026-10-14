@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import MediaAddButton from "./media-add-button";
 import { useLocale } from "../../../../src/i18n/provider";
 import { bilingual } from "../../../../src/i18n/view-copy";
 import { formatMediaBytes, mediaUploadLabel, mediaModerationLabel } from "../../../../src/lib/media-view";
@@ -25,17 +26,7 @@ type FilterUsage = "all" | "used" | "unused";
 type Sort = "newest" | "oldest" | "name" | "size";
 
 const PAGE_SIZE = 24;
-const limits: Record<Kind,number> = { image: 12 * 1024 * 1024, audio: 25 * 1024 * 1024, video: 64 * 1024 * 1024 };
-const kinds: Record<string,Kind> = {
-  "image/jpeg":"image", "image/png":"image", "image/webp":"image",
-  "audio/mpeg":"audio", "audio/wav":"audio", "audio/ogg":"audio",
-  "video/mp4":"video", "video/webm":"video",
-};
-
 const kindNames: Record<Kind,[string,string]> = { image:["Image","이미지"], audio:["Audio","오디오"], video:["Video","동영상"] };
-function hex(bytes: ArrayBuffer): string {
-  return [...new Uint8Array(bytes)].map(byte => byte.toString(16).padStart(2, "0")).join("");
-}
 async function api(path: string, method="GET", body?: object,locale:"en"|"ko"="en"): Promise<any> {
   const response = await fetch("/api/v1"+path, {
     method, credentials:"same-origin", cache:"no-store",
@@ -119,14 +110,6 @@ export default function MediaLibrary() {
   };
   const [search,setSearch] = useState("");
   const [refresh,setRefresh] = useState(0);
-  const [selected,setSelected] = useState<File|null>(null);
-  const [importUrl,setImportUrl] = useState("");
-  const [importAlt,setImportAlt] = useState("");
-  const [importCredit,setImportCredit] = useState("");
-  const [importLicense,setImportLicense] = useState("");
-  const [importRights,setImportRights] = useState(false);
-  const [alt,setAlt] = useState("");
-  const [attribution,setAttribution] = useState("");
   const [details,setDetails] = useState<MediaDetails|null>(null);
   const [detailsLoading,setDetailsLoading] = useState(false);
   const detailRequest = useRef(0);
@@ -157,49 +140,6 @@ export default function MediaLibrary() {
 
   function reload() { setRefresh(n=>n+1); }
   function newFilter(update: () => void) { detailRequest.current++;setPage(0);setExpandedId(null);setDetails(null);update(); }
-  async function upload() {
-    if (!selected) return;
-    setBusy(true); setError(""); setNotice("");
-    try {
-      const mime = selected.type==="audio/x-wav" ? "audio/wav" : selected.type;
-      const fileKind = kinds[mime];
-      if (!fileKind) throw new Error(msg("Unsupported file type. Use JPEG/PNG/WebP, MP3/WAV/OGG or MP4/WebM.","지원하는 파일 형식이 아니에요. JPEG/PNG/WebP, MP3/WAV/OGG, MP4/WebM을 이용해 주세요."));
-      if (selected.size > limits[fileKind]) throw new Error(msg("The file exceeds the size limit for this format.","파일 형식별 크기 제한을 초과했어요."));
-      const digest = hex(await crypto.subtle.digest("SHA-256", await selected.arrayBuffer()));
-      const ticket = await request("/media/upload","POST",{
-        kind:fileKind,mimeType:mime,filename:selected.name,sizeBytes:selected.size,sha256:digest,alt,attribution,
-      });
-      const put = await fetch(ticket.upload.url, {
-        method:ticket.upload.method,headers:ticket.upload.headers,body:selected,
-      });
-      if (!put.ok) throw new Error(msg("R2 upload failed. Check bucket CORS and permissions.","R2 업로드에 실패했어요. 버킷 CORS 및 접근 권한을 확인해 주세요."));
-      await request("/media/"+ticket.id+"/complete","POST",{});
-      setSelected(null);setAlt("");setAttribution("");
-      setNotice(msg("Upload complete! Media cannot be used in public quizzes until safety review.","업로드 완료! 안전 검토 전에는 공개 퀴즈에 사용할 수 없어요."));
-      setPage(0);reload();
-    } catch(e){setError(e instanceof Error?e.message:msg("Upload failed.","업로드에 실패했어요."));}
-    finally{setBusy(false);}
-  }
-  async function importImage() {
-    setBusy(true);setError("");setNotice("");
-    try {
-      const source = new URL(importUrl.trim());
-      if (source.protocol !== "https:" || source.username || source.password)
-        throw new Error(msg("Enter a direct HTTPS image URL.","이미지 파일의 HTTPS 직접 주소를 입력해 주세요."));
-      if (!importRights || !importCredit.trim() || !importLicense.trim())
-        throw new Error(msg("Confirm usage rights and provide a source and licence.","사용 권한 확인과 출처, 라이선스 정보를 입력해 주세요."));
-      const filename = (source.pathname.split("/").pop() || "imported-image").slice(0,200);
-      await request("/media/import","POST",{
-        url:source.href,kind:"image",filename,alt:importAlt.trim(),
-        attribution:importCredit.trim(),license:importLicense.trim(),
-      });
-      setImportUrl("");setImportAlt("");setImportCredit("");setImportLicense("");setImportRights(false);
-      setNotice(msg("Image saved to your private library. Safety approval is still required before public use.",
-        "이미지를 비공개 보관함에 저장했어요. 공개 사용 전 안전 검토가 필요합니다."));
-      setPage(0);reload();
-    } catch(e) {setError(e instanceof Error ? e.message : msg("Could not import the image.","이미지를 가져오지 못했어요."));}
-    finally {setBusy(false);}
-  }
   async function show(item: Media) {
     const requestId=++detailRequest.current;
     if (expandedId === item.id) { setExpandedId(null);setDetails(null);setDetailsLoading(false);return; }
@@ -227,54 +167,6 @@ export default function MediaLibrary() {
   }
   const pages=Math.max(1,Math.ceil(total/PAGE_SIZE));
   return <div className="media-workspace">
-    <section className="placeholder-panel">
-      <h2>{msg("Add media","파일 추가")}</h2>
-      <div className="media-editor">
-        <label>{msg("Choose image, audio or video","이미지 · 음원 · 영상 선택")}
-          <input type="file" accept=".jpg,.jpeg,.png,.webp,.mp3,.wav,.ogg,.mp4,.webm"
-            onChange={e=>setSelected(e.currentTarget.files?.[0] || null)} disabled={busy}/>
-        </label>
-        <label>{msg("Alt text / short description","대체 텍스트 / 간단한 설명")}
-          <input value={alt} maxLength={500} onChange={e=>setAlt(e.target.value)} placeholder={msg("Describe media for accessibility","접근성을 위한 설명")}/>
-        </label>
-        <label>{msg("Source / copyright holder","출처 · 저작권자")}
-          <input value={attribution} maxLength={500} onChange={e=>setAttribution(e.target.value)} placeholder={msg("Original work or source","직접 제작 또는 출처")}/>
-        </label>
-      </div>
-      <p className="muted">{msg("Images up to 12MB, audio 25MB and video 64MB. Make sure you have permission to use third-party content.","이미지 최대 12MB · 음원 25MB · 영상 64MB. 타인의 콘텐츠는 사용 권한을 확인해 주세요.")}</p>
-      <button className="btn btn-primary" type="button" disabled={!selected || busy} onClick={()=>void upload()}>
-        {busy?msg("Working…","처리 중…"):msg("Upload to Cloudflare R2","Cloudflare R2에 업로드")}
-      </button>
-    </section>
-    <section className="placeholder-panel">
-      <h2>{msg("Import an image from a URL","이미지 URL로 가져오기")}</h2>
-      <p className="muted">{msg("Paste the direct file URL, not a search page. Wikimedia Commons, Unsplash, Pexels and Pixabay image CDNs are supported by default. Other sites may require an administrator to approve the exact host.","검색 결과 페이지가 아닌 이미지 파일의 직접 주소를 입력하세요. Wikimedia Commons, Unsplash, Pexels, Pixabay 이미지 CDN을 기본 지원합니다. 그 외 출처는 관리자의 정확한 호스트 허용이 필요합니다.")}</p>
-      <div className="media-editor">
-        <label>{msg("Direct HTTPS image URL","HTTPS 이미지 파일 주소")}
-          <input type="url" value={importUrl} maxLength={2000} placeholder="https://upload.wikimedia.org/…" onChange={e=>setImportUrl(e.target.value)} disabled={busy}/>
-        </label>
-        <label>{msg("Description (for accessible clues)","이미지 설명 (접근성 단서)")}
-          <input value={importAlt} maxLength={500} onChange={e=>setImportAlt(e.target.value)} placeholder={msg("Describe what is visible","이미지에 보이는 내용을 설명해 주세요.")} disabled={busy}/>
-        </label>
-        <label>{msg("Photographer / credit / source","사진가 · 출처 · 저작자")}
-          <input value={importCredit} maxLength={500} onChange={e=>setImportCredit(e.target.value)} placeholder={msg("Author and source page","저작자와 출처 페이지")} disabled={busy}/>
-        </label>
-        <label>{msg("Licence or permission","라이선스 또는 사용 허가")}
-          <input value={importLicense} maxLength={200} onChange={e=>setImportLicense(e.target.value)} placeholder={msg("e.g. CC BY 4.0, CC0, Unsplash License","예: CC BY 4.0, CC0, Unsplash License")} disabled={busy}/>
-        </label>
-      </div>
-      <label><input type="checkbox" checked={importRights} onChange={e=>setImportRights(e.target.checked)} disabled={busy}/> {msg("I checked that the licence or permission allows my intended use and provided the required credit.","사용 목적에 맞는 라이선스·사용 허가 및 출처 표시 의무를 확인했습니다.")}</label>
-      <p className="muted">{msg("Find a suitable image at one of these sites, then copy its direct image URL:","아래 사이트에서 이미지를 검색한 뒤 이미지 파일의 직접 주소를 복사하세요:")}{" "}
-        <a target="_blank" rel="noopener noreferrer" href="https://commons.wikimedia.org/wiki/Special:MediaSearch?type=image">Wikimedia Commons</a>{" · "}
-        <a target="_blank" rel="noopener noreferrer" href="https://unsplash.com/s/photos/nature">Unsplash</a>{" · "}
-        <a target="_blank" rel="noopener noreferrer" href="https://www.pexels.com/search/animals/">Pexels</a>{" · "}
-        <a target="_blank" rel="noopener noreferrer" href="https://pixabay.com/images/search/animals/">Pixabay</a>
-      </p>
-      <p className="muted">{msg("If an image host is unavailable, download the appropriately licensed file and use the upload option above. This does not bypass copyright requirements.","허용되지 않은 호스트라면 정당한 사용 권한이 있는 파일을 다운로드하여 위의 직접 업로드를 이용하세요. 저작권 확인 의무는 동일합니다.")}</p>
-      <button className="btn btn-primary" type="button" disabled={!importUrl.trim() || !importCredit.trim() || !importLicense.trim() || !importRights || busy} onClick={()=>void importImage()}>
-        {busy?msg("Working…","처리 중…"):msg("Import into private media library","비공개 미디어 보관함으로 가져오기")}
-      </button>
-    </section>
     {error && <p role="alert" className="feedback">{error}</p>}
     {notice && <p role="status" className="feedback success">{notice}</p>}
     <section className="section">
@@ -313,7 +205,13 @@ export default function MediaLibrary() {
           </select>
         </label>
       </div>
-      {!loading && !items.length && <p className="media-empty">{msg("No media matches these filters.","조건에 맞는 미디어가 없습니다.")}</p>}
+      {!loading && !error && !items.length && (total===0 && !searchInput.trim() && kind==="all" && moderation==="all" && status==="all" && usage==="all"
+        ? <div className="media-empty media-empty-start">
+            <h3>{msg("No media yet","아직 등록된 미디어가 없습니다")}</h3>
+            <p>{msg("Add an image, audio or video to reuse in your quizzes.","이미지, 음원 또는 동영상을 추가해 퀴즈에 사용해 보세요.")}</p>
+            <MediaAddButton>{msg("+ Add your first media","+ 첫 미디어 추가하기")}</MediaAddButton>
+          </div>
+        : <p className="media-empty">{msg("No media matches these filters.","조건에 맞는 미디어가 없습니다.")}</p>)}
       <div className="media-grid" aria-busy={loading}>
         {items.map(item=><article className="feature-card media-card" key={item.id}>
           {item.kind==="image" ? <MediaThumbnail item={item}/> :

@@ -1051,3 +1051,34 @@ a.feature-card:hover { border-color:#B4AEF7; transform:translateY(-3px); }
   .pack-result-share-actions .btn:first-child { grid-column:1/-1; }
   .pack-result-share-actions .btn { padding:10px 8px; }
 }
+
+
+/* Creator media upload flow is separate from the media management grid. */
+.media-create-page {max-width:960px;}
+.media-create-workspace {margin-top:24px;}
+.media-create-back {display:inline-block;font-weight:750;margin:0 0 14px;}
+.media-create-panel {margin-top:0;padding:clamp(20px,4vw,36px);}
+.media-create-tabs {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;padding:5px;margin-bottom:24px;border-radius:15px;background:#EEEAFE;}
+.media-create-tabs button {min-width:0;padding:13px 10px;border:0;border-radius:11px;background:transparent;color:#504D75;font:inherit;font-weight:800;cursor:pointer;}
+.media-create-tabs button.active {background:white;color:var(--purple);box-shadow:0 2px 8px #1b0e4e16;}
+.media-create-tabs button:focus-visible {outline:3px solid var(--purple);outline-offset:2px;}
+.media-create-fields .media-editor {max-width:100%;margin:18px 0;}
+.media-upload-dropzone {display:flex;flex-direction:column;align-items:center;gap:10px;padding:28px 18px;border:2px dashed #CBC7E4;border-radius:18px;background:#F9F8FF;text-align:center;cursor:pointer;}
+.media-upload-dropzone:focus-within {outline:3px solid var(--purple);outline-offset:2px;}
+.media-upload-dropzone strong {color:var(--ink);}
+.media-upload-dropzone .muted {font-size:.83rem;}
+.media-upload-icon {display:grid;place-items:center;width:44px;height:44px;border-radius:50%;background:#EBE7FF;color:var(--purple);font-size:1.5rem;font-weight:900;}
+.media-upload-dropzone input[type=file] {width:100%;max-width:340px;min-width:0;font:inherit;font-size:.83rem;}
+.media-upload-selected {max-width:100%;overflow-wrap:anywhere;color:var(--purple);font-size:.85rem;font-weight:750;}
+.media-create-note {font-size:.87rem;line-height:1.6;}
+.media-create-panel .media-create-note {margin:16px 0;}
+.media-rights-confirm {display:flex;gap:10px;align-items:flex-start;margin:15px 0;font-size:.9rem;font-weight:650;}
+.media-rights-confirm input {margin-top:5px;accent-color:var(--purple);}
+.media-create-complete .actions,.media-create-fields .actions {display:flex;flex-wrap:wrap;gap:12px;}
+.media-empty-start h3 {margin-top:0;color:var(--ink);}
+.media-empty-start p {margin:0 0 18px;}
+@media(max-width:600px) {
+ .media-create-tabs button {font-size:.85rem;padding:11px 5px;}
+ .media-create-panel .btn {width:100%;text-align:center;}
+ .media-upload-dropzone {padding:20px 12px;}
+}
