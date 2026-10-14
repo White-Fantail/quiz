@@ -1,6 +1,8 @@
+import {useKidsNavigation} from "../../src/useKidsNavigation";
+import { KidsTap } from "../../src/components/KidsTap";
 import {useCallback,useState} from "react";
-import {ActivityIndicator,Pressable,StyleSheet,Text,View,useWindowDimensions} from "react-native";
-import {useFocusEffect,useRouter} from "expo-router";
+import {ActivityIndicator,StyleSheet,Text,View,useWindowDimensions} from "react-native";
+import {useFocusEffect} from "expo-router";
 import type {KidTreasures} from "@quizdip/api-client";
 import {Screen} from "../../src/components/Screen";
 import {KidsEmojiIcon} from "../../src/components/KidsIcon";
@@ -19,7 +21,7 @@ const badgeSlots=[
 ];
 
 export default function TreasuresScreen(){
- const {t}=useKidsLocale(),kid=useKidsSession(),router=useRouter(),{width}=useWindowDimensions();
+ const {t}=useKidsLocale(),kid=useKidsSession(),go=useKidsNavigation(),{width}=useWindowDimensions();
  const token=kid.status==="active"?kid.token:null;
  const [data,setData]=useState<KidTreasures|null>(null);
  const [error,setError]=useState(false),[loading,setLoading]=useState(true),[retry,setRetry]=useState(0);
@@ -52,9 +54,9 @@ export default function TreasuresScreen(){
      <ActivityIndicator size="large" color={theme.colors.accent}/>
      <Text style={styles.note}>{t("native.treasure.loading")}</Text>
    </View>:null}
-   {error?<Pressable accessibilityRole="button" onPress={()=>setRetry(x=>x+1)} style={styles.error}>
+   {error?<KidsTap accessibilityRole="button" onPress={()=>setRetry(x=>x+1)} style={styles.error}>
      <Text style={styles.errorText}>{t("native.treasure.error")} ↻</Text>
-   </Pressable>:null}
+   </KidsTap>:null}
    {data?<View style={styles.sections}>
      <View style={styles.stats}>
        <View style={[styles.stat,{backgroundColor:"#FFEBD6"}]}>
@@ -106,11 +108,11 @@ export default function TreasuresScreen(){
            <Text style={styles.emptyText}>{t("native.treasure.empty")}</Text>
          </View>}
      </View>
-     <Pressable accessibilityRole="button" onPress={()=>router.push("/explore")} style={styles.nextButton}>
+     <KidsTap accessibilityRole="button" onPress={()=>go("/explore")} style={styles.nextButton}>
        <KidsEmojiIcon emoji="🧭" size={22} color="#FFFFFF"/>
        <Text style={styles.nextText}>{t("native.treasure.more")}</Text>
        <Text style={styles.nextArrow}>→</Text>
-     </Pressable>
+     </KidsTap>
    </View>:null}
  </Screen>;
 }
