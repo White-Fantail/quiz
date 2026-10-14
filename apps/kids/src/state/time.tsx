@@ -21,10 +21,8 @@ export function KidsTimeProvider({children}:PropsWithChildren){
  const [status,setStatus]=useState<"checking"|"allowed"|"blocked">("checking");
  const [reason,setReason]=useState<string|null>(null);
  const stateRef=useRef<KidTimeState|null>(null);
- const baseTime=useRef(0);
  const activeFrom=useRef<number|null>(null);
  const countedActiveMs=useRef(0);
- const [tick,setTick]=useState(0);
  const nowUsed=()=>{
    const p=stateRef.current;
    if(!p)return null;
@@ -41,7 +39,7 @@ export function KidsTimeProvider({children}:PropsWithChildren){
  };
  const apply=useCallback((state:KidTimeState)=>{
    stateRef.current=state;
-   baseTime.current=Date.now();countedActiveMs.current=0;
+   countedActiveMs.current=0;
    activeFrom.current=AppState.currentState==="active"?Date.now():null;
    setTime(state);setReason(null);
    setStatus("allowed");
@@ -76,7 +74,7 @@ export function KidsTimeProvider({children}:PropsWithChildren){
      if(!stateRef.current)return;
      const next=nowUsed();
      if(!next)return;
-     setTime(next);setTick(v=>v+1);
+     setTime(next);
      if(next.limitReached||(next.limits.playSessionMinutes>0&&
         next.sessionMinutesUsed>=next.limits.playSessionMinutes)){
        setStatus("blocked");setReason(next.limitReached?"kid_daily_limit":"kid_session_limit");
@@ -95,7 +93,7 @@ export function KidsTimeProvider({children}:PropsWithChildren){
      }
    });
    return ()=>{clearInterval(timer);sub.remove();};
- },[token,tick===-1]);
+ },[token]);
  const value=useMemo(()=>({status,time,reason,refresh}),[status,time,reason,refresh]);
  return <Context.Provider value={value}>{children}</Context.Provider>;
 }
