@@ -115,7 +115,7 @@ export default function PlayPage({packId}:{packId?:string}={}) {
     setRemainingClues(null);setReviewOpen(false);setReviewBusy(false);setReviewError("");
     if(!packId)void request("/runs?limit=5").then(value=>{if(alive)setMyHistory(value.items||[])}).catch(()=>{});
     return ()=>{alive=false;};
-  },[lane,locale]);
+  },[lane,locale,packId]);
 
   useEffect(()=>{
     if(!run||run.status!=="FINISHED"||round)return;
