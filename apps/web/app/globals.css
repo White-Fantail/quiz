@@ -1015,3 +1015,30 @@ a.feature-card:hover { border-color:#B4AEF7; transform:translateY(-3px); }
     gap:8px clamp(12px,3vw,22px); font-size:.86rem;
   }
 }
+
+
+/* Shareable quiz pack result card: responsive preview, fixed-size export. */
+.pack-result-share {
+  width:min(100%,650px);margin:30px auto 32px;padding:24px;border:1px solid #ddd9f4;
+  border-radius:26px;background:#f9f7ff;text-align:center;
+}
+.pack-result-share-heading h3 { margin:0 0 4px;font-size:1.5rem;color:var(--ink); }
+.pack-result-share-heading p { margin:0 0 19px;color:var(--muted);font-size:.94rem; }
+.pack-result-share-preview {
+  display:block;width:min(100%,380px);height:auto;aspect-ratio:4/5;margin:0 auto 20px;
+  border-radius:18px;box-shadow:0 16px 40px #30258e3d;
+}
+.pack-result-share-placeholder {
+  display:grid;place-items:center;width:min(100%,380px);aspect-ratio:4/5;margin:0 auto 20px;
+  border-radius:18px;background:#eeeaff;color:#5247d7;padding:25px;
+}
+.pack-result-share-actions { display:flex;gap:10px;justify-content:center;flex-wrap:wrap; }
+.pack-result-share-actions .btn { min-height:46px; }
+.pack-result-share-note { max-width:500px;margin:15px auto 0;color:var(--muted);font-size:.8rem; }
+.pack-result-share-notice { overflow-wrap:anywhere;font-size:.86rem;color:#5144c9;margin:12px 0 0; }
+@media (max-width:640px) {
+  .pack-result-share { padding:17px 12px;border-radius:19px; }
+  .pack-result-share-actions { display:grid;grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .pack-result-share-actions .btn:first-child { grid-column:1/-1; }
+  .pack-result-share-actions .btn { padding:10px 8px; }
+}
