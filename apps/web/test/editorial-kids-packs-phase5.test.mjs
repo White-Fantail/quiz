@@ -48,7 +48,7 @@ test("whole-pack safety approval is distinct from author publication and resets 
  const schema=read("../../prisma/schema.prisma");
  assert.match(schema,/kidsEligible\s+Boolean\s+@default\(false\)/);
  const social=read("src/modules/platform/social.ts");
- assert.ok(social.includes('safetyStatus:old.safetyStatus==="RESTRICTED"?"RESTRICTED":"ACTIVE"'));
+ assert.ok(social.includes('safetyStatus:old.safetyStatus')); // Every non-active moderation state survives creator edits.
  assert.match(social,/kidsReviewStatus:"NOT_REQUESTED"/);
  assert.match(social,/restricted_pack/);
  assert.match(social,/publication:"PUBLISHED",safetyStatus:"ACTIVE",kidsEligible:false,kidsReviewStatus:"NOT_REQUESTED"/);
