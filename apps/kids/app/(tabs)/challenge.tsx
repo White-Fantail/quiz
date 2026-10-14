@@ -15,7 +15,7 @@ import {theme} from "../../src/theme";
 const SAVED_GAME="quizdip-kids-active-game-v1";
 
 export default function ChallengeScreen(){
- const {t}=useKidsLocale(),router=useRouter(),{width}=useWindowDimensions();
+ const {t}=useKidsLocale(),go=useKidsNavigation(),{width}=useWindowDimensions();
  const {packs,loading,error,reload}=useKidsAdventures();
  const [canResume,setCanResume]=useState(false);
  useFocusEffect(useCallback(()=>{
@@ -50,7 +50,7 @@ export default function ChallengeScreen(){
      </View>
    </KidsTap>
 
-   {canResume?<KidsTap accessibilityRole="button" onPress={()=>router.push("/game")}
+   {canResume?<KidsTap accessibilityRole="button" onPress={()=>go("/game")}
      style={({pressed})=>[styles.resume,{opacity:pressed?.8:1}]}>
       <View style={styles.resumeIcon}><KidsEmojiIcon emoji="🧭" size={25} color={theme.colors.accent}/></View>
       <View style={{flex:1,gap:4}}>
@@ -66,7 +66,7 @@ export default function ChallengeScreen(){
          <Text style={styles.heading}>{t("native.challenge.packHeading")}</Text>
          <Text style={styles.subheading}>{t("native.challenge.packLead")}</Text>
        </View>
-       <KidsTap accessibilityRole="button" onPress={()=>router.push("/explore")}
+       <KidsTap accessibilityRole="button" onPress={()=>go("/explore")}
          style={styles.browse}><Text style={styles.browseText}>{t("native.adventure.all")} →</Text></KidsTap>
      </View>
      {loading&&ready.length===0?<ActivityIndicator color={theme.colors.accent}/>:null}
@@ -77,7 +77,7 @@ export default function ChallengeScreen(){
        {ready.map(pack=>{
          const adventure=adventureForPack(pack);
          return <KidsTap key={pack.id} accessibilityRole="button" accessibilityLabel={pack.title}
-           onPress={()=>router.push({pathname:"/game",params:{packId:pack.id}})}
+           onPress={()=>go({pathname:"/game",params:{packId:pack.id}})}
            style={({pressed})=>[styles.packCard,{width:wide?"48.8%":"100%",opacity:pressed?.83:1}]}>
            <View style={[styles.packArt,{backgroundColor:adventureById(adventure)?.tint||theme.colors.lilac}]}>
               <AdventureArtwork id={adventure} size={104}/>
@@ -90,7 +90,7 @@ export default function ChallengeScreen(){
          </KidsTap>;
        })}
      </View>
-     {ready.length===0&&!loading?<KidsTap accessibilityRole="button" onPress={()=>router.push("/explore")}
+     {ready.length===0&&!loading?<KidsTap accessibilityRole="button" onPress={()=>go("/explore")}
        style={styles.exploreBox}>
         <View style={styles.exploreArt}><AdventureArtwork id="dinosaur" size={116}/></View>
         <View style={{flex:1,gap:8}}>
