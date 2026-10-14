@@ -40,7 +40,7 @@ export function useKidsPackBrowse(){
    return()=>{live=false;};
   }
   let packs=fresh?.packs??[];
-  let nextOffset=fresh?.nextOffset??0;
+  let nextOffset:number|null=fresh?.nextOffset??0;
   setState({packs,nextOffset,loading:true,error:false,loaded:!!fresh});
   void (async()=>{
    try{
