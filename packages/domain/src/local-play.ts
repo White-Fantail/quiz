@@ -1,4 +1,4 @@
-import { isCorrectAnswer, scoreForAnswer } from "./game.ts";
+import { isCorrectAnswer, scoreForAnswer, normalizeAnswer } from "./game.ts";
 
 export type LocalAnswer = { canonical:string; aliases:string[]; responseMode?:"text"|"multiple-choice"; options?:string[] };
 export type LocalClue = { id?:string; type:string; text?:string; mediaId?:string; [key:string]:unknown };
@@ -25,8 +25,7 @@ export function guessLocalAnswer(question:LocalQuestion,state:LocalProgress,gues
   if(state.status!=="ACTIVE"||state.mustReveal||!guess.trim())return null;
   const answer=question.answer;
   if(answer.responseMode==="multiple-choice" &&
-     !(answer.options??[]).some(option=>option.normalize("NFKC").trim().toLowerCase()===
-       guess.normalize("NFKC").trim().toLowerCase()))return null;
+     !(answer.options??[]).some(option=>normalizeAnswer(option)===normalizeAnswer(guess)))return null;
   const correct=isCorrectAnswer(answer,guess);
   const failed=!correct&&state.clueIndex>=question.clues.length;
   const status=correct?"SOLVED":failed?"FAILED":"ACTIVE";
