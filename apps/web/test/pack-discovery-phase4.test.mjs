@@ -54,7 +54,7 @@ test("pack social actions require completed play and separate ratings from indiv
   assert.match(social,/play_required/);
   assert.match(social,/packId_authorId_locale/);
   assert.match(social,/child_reviews_disabled/);
-  assert.match(social,/packReport\.create/);
+  assert.match(social,/submitReport\("PACK",p,actor\)/); // Reports use centralized moderation.
   const schema=read("../../prisma/schema.prisma");
   assert.match(schema,/model PackReview/);
   assert.match(schema,/@@unique\(\[packId, authorId, locale\]\)/);
