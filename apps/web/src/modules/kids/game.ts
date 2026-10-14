@@ -17,7 +17,7 @@ const approvedOrigins=["ORIGINAL","LEGACY"];
 
 function owner(kid:Kid){return {profileId:kid.profileId,deviceId:kid.id};}
 /** Constructed solely after nativeKidFromHeaders verified the device bearer. */
-function childActor(kid:Kid):Actor {
+export function childActor(kid:Kid):Actor {
   return {id:"native-child",role:"KID",displayName:"",leaderboardEligible:false,
     leaderboardOptIn:false,childScope:owner(kid)};
 }
