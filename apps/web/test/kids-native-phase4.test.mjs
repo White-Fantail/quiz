@@ -31,36 +31,27 @@ test("native guardian access requires a PIN and binds to original child's device
  assert.match(route,/device_revoke/);
  assert.match(route,/history_delete/);
 });
-test("server applies time budgets to discovery, games and private treasures",()=>{
- const time=file("src/modules/kids/time.ts");
- assert.match(time,/localChildDay/);
- assert.match(file("../../packages/domain/src/kids-time.ts"),/DateTimeFormat/);
- assert.match(time,/kidUsageMinute\.count/);
- assert.match(time,/utcMinute:minute/);
- assert.match(time,/isolationLevel:"Serializable"/);
- assert.match(time,/kid_daily_limit/);
- assert.match(time,/kid_session_limit/);
- assert.match(time,/kid_break_required/);
- assert.match(time,/kid_heartbeat_required/);
- assert.match(time,/STALE_MS/);
- assert.match(time,/createdAt:\{lt:new Date\(now.getTime\(\)-90\*DAY_MS\)\}/);
- const catalog=file("app/api/kids/native/route.ts");
- const play=file("app/api/kids/native/play/route.ts");
- assert.match(catalog,/await requirePlayable\(kid\)/);
- assert.ok((play.match(/await requirePlayable\(kid\)/g)??[]).length>=2);
+test("Kids play budget is calculated locally without a required heartbeat",()=>{
+ const server=file("src/modules/kids/time.ts");
+ const native=file("../kids/src/state/time.tsx");
+ const clock=file("../../packages/domain/src/kids-time.ts");
+ assert.match(server,/export async function requirePlayable/);
+ assert.match(clock,/DateTimeFormat/);
+ assert.match(native,/localChildDay/);
+ assert.match(native,/setInterval\(pulse,15000\)/);
+ assert.match(native,/kidsApi.time\(token,false\)/);
+ assert.match(native,/AppState.addEventListener/);
+ assert.match(native,/limitReached/);
+ assert.match(native,/SecureStore.setItemAsync/);
 });
-test("native shell locks offline, out-of-time and background sessions",()=>{
+test("native shell still enforces locally calculated budget",()=>{
  const root=file("../kids/app/_layout.tsx");
  const tabs=file("../kids/app/(tabs)/_layout.tsx");
  const game=file("../kids/app/game.tsx");
- const time=file("../kids/src/state/time.tsx");
  const access=file("../kids/src/state/parent.tsx");
  assert.match(root,/KidsTimeProvider/);
  assert.match(tabs,/time.status==="blocked"/);
  assert.match(game,/time.status==="blocked"/);
- assert.match(time,/AppState.addEventListener/);
- assert.match(time,/kidsApi.time\(token,true\)/);
- assert.match(time,/HEARTBEAT_MS=45000/);
  assert.match(access,/if\(s!=="active"\)clear\(\)/);
  assert.doesNotMatch(access,/SecureStore|AsyncStorage/);
 });
