@@ -165,8 +165,9 @@ export default function PackResultShare({ packId, title, score, completed, solve
   }, [packId, title, score, completed, solved, packUrl, korean]);
 
   const shareText = korean
-    ? `퀴즈딥에서 「${title}」 도전 완료! ${score}점 · ${solved}/${completed} 정답. 당신도 도전해 보세요!\n${packUrl}`
-    : `I finished "${title}" on QuizDip! ${score} points · ${solved}/${completed} correct. Try it yourself!\n${packUrl}`;
+    ? `퀴즈딥에서 「${title}」 도전 완료! ${score}점 · ${solved}/${completed} 정답. 당신도 도전해 보세요!`
+    : `I finished "${title}" on QuizDip! ${score} points · ${solved}/${completed} correct. Try it yourself!`;
+  const shareCaptionWithLink = shareText + "\\n" + packUrl;
 
   async function copyLink() {
     if (!packUrl) return;
@@ -203,10 +204,10 @@ export default function PackResultShare({ packId, title, score, completed, solve
       } else {
         if (asset) downloadImage();
         try {
-          await navigator.clipboard.writeText(shareText);
+          await navigator.clipboard.writeText(shareCaptionWithLink);
           setNotice(korean ? "이미지를 저장하고 공유 문구와 링크를 복사했어요." : "Image saved and share caption with link copied.");
         } catch {
-          setNotice(shareText);
+          setNotice(shareCaptionWithLink);
         }
       }
     } catch (error) {
