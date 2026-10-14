@@ -82,6 +82,14 @@ export type KidQuestion = {sessionId:string;sessionToken:string;quizId:string;
   title:string;prompt:string;promptMediaIds:string[];
   clues:KidClue[];clueIndex:number;clueCount:number;sessionStatus:"ACTIVE"|"SOLVED"|"FAILED";
   canGuess:boolean;responseMode?:"text"|"multiple-choice";options?:string[];round?:number;total?:number;score?:number;runId?:string;runToken?:string};
+export type LocalBundleQuestion = import("@quizdip/domain").LocalQuestion & {position:number;responseMode:"text"|"multiple-choice";options?:string[]};
+export type LocalBundleProgress = import("@quizdip/domain").LocalProgress & {position:number};
+export type KidLocalRunBundle = {runId:string;mode:"RANDOM_FIVE"|"PACK";lane:"KIDS";
+  total:number;completed:number;score:number;questions:LocalBundleQuestion[];progress:LocalBundleProgress[]};
+export type KidLocalSingleBundle = {sessionId:string;sessionToken:string;
+  question:LocalBundleQuestion;progress:LocalBundleProgress};
+export type LocalSyncResult = {position:number;cluesUsed:number;status:"SOLVED"|"FAILED";score:number};
+
 export type KidRunStart = {runId:string;runToken:string;mode:"RANDOM_FIVE"|"PACK";
   lane:"KIDS";locale:Locale;status:string;total:number;completed:number;score:number};
 export type KidRunResult = {runId:string;status:"FINISHED";completed:number;total:number;
@@ -246,6 +254,24 @@ export class QuizDipKidsDeviceApi {
   }
   async startRun(token:string,mode:"RANDOM_FIVE",avoidQuizIds:string[]=[]):Promise<KidRunStart> {
     return this.playRequest(token,{action:"run_start",mode,avoidQuizIds});
+  }
+  async runBundle(token:string,runId:string,runToken:string):Promise<KidLocalRunBundle> {
+    return this.playRequest(token,{action:"run_bundle",runId,runToken});
+  }
+  async runSync(token:string,runId:string,runToken:string,results:LocalSyncResult[]):Promise<void> {
+    await this.playRequest(token,{action:"run_sync",runId,runToken,results});
+  }
+  async singleBundle(token:string,sessionId:string,sessionToken:string):Promise<KidLocalSingleBundle> {
+    return this.playRequest(token,{action:"single_bundle",sessionId,sessionToken});
+  }
+  async singleSync(token:string,sessionId:string,sessionToken:string,progress:Omit<LocalSyncResult,"position">):Promise<void> {
+    await this.playRequest(token,{action:"single_sync",sessionId,sessionToken,...progress});
+  }
+  async runLocalMedia(token:string,runId:string,runToken:string,position:number,mediaId:string):Promise<KidPlayMedia>{
+    return this.playRequest(token,{action:"run_local_media",runId,runToken,position,mediaId});
+  }
+  async singleLocalMedia(token:string,sessionId:string,sessionToken:string,mediaId:string):Promise<KidPlayMedia>{
+    return this.playRequest(token,{action:"single_local_media",sessionId,sessionToken,mediaId});
   }
   async currentRun(token:string,runId:string,runToken:string):Promise<KidQuestion|KidRunResult> {
     return this.playRequest(token,{action:"run_current",runId,runToken});
