@@ -96,9 +96,16 @@ function route(method: string, segments: string[]): Match | null {
   if (a === "packs" && b && c === "languages" && d && !e && method === "PUT") return { op: "pack_translation_upsert", args:{id:b,locale:d} };
   if (a === "packs" && b && c === "language" && !d && method === "POST") return { op: "pack_language_set", args: { id: b } };
   if (a === "packs" && b && !c && method === "PATCH") return { op: "pack_update", args: { id: b } };
+  if (a === "local-play" && b === "single" && c === "start" && method === "POST") return {op:"local_single_start",args:{}};
+  if (a === "local-play" && b === "single" && c === "bundle" && method === "POST") return {op:"local_single_bundle",args:{}};
+  if (a === "local-play" && b === "single" && c === "sync" && method === "POST") return {op:"local_single_sync",args:{}};
+  if (a === "local-play" && b === "single" && c === "media" && method === "POST") return {op:"local_single_media",args:{}};
   if (a === "runs") {
     if (!b && method === "POST") return { op: "run_start", args: {} };
     if (!b && method === "GET") return { op: "run_history", args: {} };
+    if (b && c === "bundle" && method === "POST") return {op:"local_run_bundle",args:{runId:b}};
+    if (b && c === "sync" && method === "POST") return {op:"local_run_sync",args:{runId:b}};
+    if (b && c === "local-media" && method === "POST") return {op:"local_run_media",args:{runId:b}};
     if (b && c === "current" && method === "POST") return { op: "run_current", args: { runId:b } };
     if (b && c === "finish" && method === "POST") return { op: "run_finish", args: { runId:b } };
     if (b && c === "feedback" && method === "POST") return { op: "run_feedback", args: { runId:b } };
