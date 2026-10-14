@@ -68,8 +68,8 @@ test("pack play opens directly without a second start screen and preserves guest
  assert.match(play,/packStartStatus==="error"/);
  assert.match(play,/run&&\(!packId\|\|packStartStatus==="ready"\)/);
  assert.doesNotMatch(play,/Start or resume pack →/);
- assert.match(play,/onClick=>\(\)=>void start\("RANDOM_FIVE"\)/);
- assert.match(play,/onClick=>\(\)=>void start\("INFINITE"\)/);
+ assert.match(play,/onClick=\{\(\)=>void start\("RANDOM_FIVE"\)\}/);
+ assert.match(play,/onClick=\{\(\)=>void start\("INFINITE"\)\}/);
  // A failed resume must not clear sessionStorage silently.
  const boot=play.slice(play.indexOf("const bootPack="),play.indexOf("  async function start("));
  assert.doesNotMatch(boot,/sessionStorage\.removeItem/);
