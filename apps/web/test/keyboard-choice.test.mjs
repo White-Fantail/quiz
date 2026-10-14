@@ -22,6 +22,12 @@ test("shortcuts do not steal modifiers, repeated keys, IME or navigation",()=>{
   }
 });
 
+test("keyboard focus does not outline the entire answer form, while choices retain focus indicators",()=>{
+  const css=readFileSync(new URL("../app/globals.css",import.meta.url),"utf8");
+  assert.match(css,/\.guess-form:focus-visible\s*\{\s*outline:\s*none\s*;/);
+  assert.match(css,/\.guess-option:focus-visible\s*\{\s*outline:\s*3px/);
+});
+
 test("pack and single quiz select by number, submit with Enter, and guard in-flight responses",()=>{
   for(const file of ["app/(platform)/play/page.tsx","app/(platform)/play/[quizId]/page.tsx"]){
     const source=readFileSync(new URL("../"+file,import.meta.url),"utf8");

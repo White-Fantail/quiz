@@ -61,6 +61,9 @@ a.feature-card:hover { border-color:#B4AEF7; transform:translateY(-3px); }
 .clue-list li { position:relative; padding:16px 18px 16px 58px; border-radius:16px; background:#F4F2FF; counter-increment:clue; }
 .clue-list li::before { content:counter(clue); display:grid; place-items:center; position:absolute; left:16px; top:14px; width:28px; height:28px; background:var(--purple); color:#fff; border-radius:10px; font-weight:bold; }
 .guess-form { margin-top:28px; }
+/* Numeric shortcuts focus the form so Enter submits. The container is not
+   itself an interactive control: highlight the selected choice, not its box. */
+.guess-form:focus-visible { outline:none; }
 .guess-form label { display:block; font-weight:750; margin-bottom:8px; }
 .guess-row { display:flex; gap:10px; }
 .guess-input { display:block;box-sizing:border-box;width:100%;min-width:0;min-height:54px;
