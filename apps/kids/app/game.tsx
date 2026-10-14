@@ -114,12 +114,16 @@ export default function KidGameScreen(){
     if(e instanceof ApiError && [401,403,404,409,410].includes(e.status??0))await save(null);
     setError(e instanceof ApiError && e.code==="not_enough_questions"
       ?t("native.play.notEnough"):t("native.play.error"));
-   }finally{if(active)setLoading(false);}
+   }finally{
+     if(__DEV__ && Date.now()-beganAt>300)console.info("[Kids perf] load game",Date.now()-beganAt,"ms");
+     if(active)setLoading(false);
+   }
   })();
   return ()=>{active=false;};
  },[token,params.quizId,params.packId,params.mode,retrieve,t]);
  const guarded=async(action:"clue"|"guess"|"next",task:()=>Promise<void>)=>{
   if(pendingRef.current)return;
+  const beganAt=Date.now();
   pendingRef.current=true;setPending(true);setBusyAction(action);setError("");
   try{await task();}
   catch(e){
@@ -129,7 +133,10 @@ export default function KidGameScreen(){
     if(e instanceof ApiError && [401,403].includes(e.status??0))void kid.reload();
     setError(withdrawn?t("native.play.withdrawn"):t("native.play.error"));
   }
-  finally{pendingRef.current=false;setPending(false);setBusyAction(null);setSelectedAnswer(null);}
+  finally{
+    if(__DEV__ && Date.now()-beganAt>300)console.info("[Kids perf]",action,Date.now()-beganAt,"ms");
+    pendingRef.current=false;setPending(false);setBusyAction(null);setSelectedAnswer(null);
+  }
  };
  const clue=()=>void guarded("clue",async()=>{
    if(!token||!question||!kidsApi)return;
