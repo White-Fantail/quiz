@@ -14,15 +14,15 @@ Creators can set a pack's `orderMode` to `CREATOR` (default) or `RANDOM`. Random
 
 ## Eligibility and safety
 
-- The public `GENERAL` lane accepts only published, localized, non-restricted questions with playable media. It rechecks moderation and publication before each server-authoritative round, clue and guess.
+- The public `GENERAL` lane accepts only published, localized, non-restricted questions with playable media. It checks moderation and publication when selecting and downloading playable questions; clue reveals and guesses run locally.
 - Native Kids requires a parent-approved device and a guardian-pinned child profile. Every question, version, media item and entire pack must pass Kids safety eligibility. Child progress never participates in public ratings or leaderboards.
-- `PlayRun`, `PlayRunQuestion` and `PlaySession` are the authoritative server records. Never trust client-submitted scores, quiz order or unlock progress.
+- `PlayRun`, `PlayRunQuestion` and `PlaySession` remain stored history. The downloaded order/revisions are server-selected; local scoring is intentionally trusted as a casual-game record. Batch results are idempotent, not anti-cheat verified.
 - Children cannot access general audience features by passing a different lane; adult REST/MCP endpoints never accept native Kids bearer tokens.
 
 ## Feedback and discovery
 
 - After a completed five-question run, rate questions on the result screen. One-off Discover questions can be rated as soon as they finish.
-- After each scored question, players can optionally reveal unused text, map, image, audio and video clues without changing their score. The signed session token grants read-only review of that question’s pinned revision only after `SOLVED` or `FAILED`; live future clues stay hidden.
+- After each scored question, players can optionally reveal unused text, map, image, audio and video clues without changing their score. The signed session token grants read-only review of that question’s pinned revision only after `SOLVED` or `FAILED`; the downloadable play bundle intentionally contains all clues and answer keys; UI still reveals clues progressively.
 - Full packs have separate completion-gated pack feedback, reports and creator performance analytics, independently of question reviews.
 - Discover highlights evidence-based popularity, quality and difficulty separately from explicit, ADMIN-selected `Editor's Pick` placements.
 
@@ -48,3 +48,9 @@ New production migrations are run by the main-branch deployment build plan, not 
 After the web player finishes a **PACK** run, the result screen creates a portrait PNG card (1080 × 1350) showing the localized pack title, the run's reported total score, number correct, number completed, and QuizDip branding. The card includes the public pack URL as readable text; **no QR code is used**. A Share Result button uses browser-native Web Share (PNG + message + public pack URL when supported), while Save Image and Copy Pack Link are always visible fallbacks. Some share targets discard URLs sent alongside image files, so the UI explicitly prompts players to copy the link when necessary. Desktop browsers without file sharing can still save the image and copy the link.
 
 The exported image is a visual recap, **not a verified leaderboard claim**. Scores originate from an already completed server-authoritative run; client-generated cards cannot edit those records. Do not expose run/session tokens, unrevealed clues, answer keys or private links. Only public pack detail URLs are used. Sharing is a browser-only formatting/action feature with **no new REST operations or MCP tools**; the existing authoritative `run_current` result and `pack_get` are unchanged. There is no database migration or media upload and no server-side publication of player results.
+
+## Local-first runtime (October 2026)
+
+Finite `PACK` and `RANDOM_FIVE` runs download pinned question revisions, all clue metadata and answer keys through `local_run_bundle`. A shared deterministic `@quizdip/domain` reducer immediately reveals clues, checks answers and computes existing scores. The player uses `local_run_sync` to store completed rounds in batches, with idempotency keyed to run position. Standalone questions use `local_single_start` and `local_single_sync`. `INFINITE` retains incremental server selection. Short-lived signed media URLs are resolved separately on demand without a clue-reveal server step.
+
+Local state persists on web; native saves compact progress with SecureStore and re-downloads the bundle on re-open. Native device time limits are advisory, counted from foreground use. The system does not claim competitive-grade integrity or fully offline media playback. Keep legacy per-clue/per-guess operations until installed older clients no longer require them.
