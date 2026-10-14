@@ -7,11 +7,12 @@ import {KidsPackCard,packGrid} from "../../src/components/KidsPackCard";
 import {AdventureArtwork} from "../../src/components/AdventureArtwork";
 import {adventureById,adventureForPack} from "../../src/adventures";
 import {useKidsPackBrowse} from "../../src/useKidsPackBrowse";
+import {useKidsNavigation} from "../../src/useKidsNavigation";
 import {useKidsLocale} from "../../src/state/locale";
 import {theme} from "../../src/theme";
 export default function KidsWorld(){
  const {id,from}=useLocalSearchParams<{id?:string;from?:string}>();
- const router=useRouter(),{t}=useKidsLocale(),item=adventureById(id);
+ const router=useRouter(),go=useKidsNavigation(),{t}=useKidsLocale(),item=adventureById(id);
  const {packs,loading,loaded,error,reload}=useKidsPackBrowse();
  const matched=item?packs.filter(pack=>adventureForPack(pack)===item.id):[];
  const back=()=>router.replace(from==="worlds"?"/worlds":"/");
@@ -31,7 +32,7 @@ export default function KidsWorld(){
       {matched.map(pack=><KidsPackCard key={pack.id} pack={pack}/>)}
    </View>
    {loaded&&!loading&&matched.length===0?<Text style={styles.empty}>{t("native.adventure.emptyWorld")}</Text>:null}
-   <KidsTap accessibilityRole="button" onPress={()=>router.push("/all-packs")} style={styles.all}>
+   <KidsTap accessibilityRole="button" onPress={()=>go({pathname:"/all-packs",params:{from:"world",id:item?.id??"",backTo:from==="worlds"?"worlds":"home"}})} style={styles.all}>
      <Text style={styles.retry}>{t("native.browse.allPacks")} →</Text>
    </KidsTap>
  </Screen>;

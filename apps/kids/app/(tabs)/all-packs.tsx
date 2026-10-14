@@ -13,12 +13,17 @@ import {useKidsLocale} from "../../src/state/locale";
 import {theme} from "../../src/theme";
 export default function AllPacks(){
  const router=useRouter(),go=useKidsNavigation(),{t}=useKidsLocale(),{width}=useWindowDimensions();
- const {from}=useLocalSearchParams<{from?:string}>();
+ const {from,id,backTo}=useLocalSearchParams<{from?:string;id?:string;backTo?:string}>();
+ const goBack=()=>{
+   if(from==="world"&&adventureById(id)){
+     router.replace({pathname:"/world",params:{id:id!,from:backTo==="worlds"?"worlds":"home"}});
+   }else router.replace(from==="worlds"?"/worlds":"/");
+ };
  const {packs,loaded,loading,error,reload}=useKidsPackBrowse();
  const singles=useKidsAdventures();
  const independent=singles.quizzes.filter(item=>!item.inKidsPack);
  return <Screen title={t("native.browse.allPacks")} subtitle={t("native.browse.allPacksLead")}>
-   <BrowseBack onPress={()=>router.replace(from==="worlds"?"/worlds":"/")}/>
+   <BrowseBack onPress={goBack}/>
    {loading&&!loaded?<ActivityIndicator size="large" color={theme.colors.accent}/>:null}
    {error?<KidsTap accessibilityRole="button" onPress={reload} style={styles.notice}>
      <Text style={styles.link}>{t("native.adventure.retry")} ↻</Text>
