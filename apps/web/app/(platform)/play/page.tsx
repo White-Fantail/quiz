@@ -561,7 +561,7 @@ export default function PlayPage({packId}:{packId?:string}={}) {
           {!isDone&&round.responseMode==="multiple-choice"&&round.options?.length&&<>
             <kbd>1–{round.options.length}</kbd> {msg("Select an answer (number pad too)","숫자키·키패드로 보기 선택")} <span className="shortcut-divider">·</span>{" "}
           </>}
-          <kbd>Enter</kbd> {isDone?msg("Next question / results","다음 문제 / 결과 보기"):round.responseMode==="multiple-choice"?msg("Submit selected answer · none: next clue","선택한 답 제출 · 미선택 시 다음 단서"):msg("Check answer · empty field: next clue","정답 확인 · 빈칸이면 다음 단서") <span className="shortcut-divider">·</span> <kbd>Ctrl/⌘ + Enter</kbd> {isDone?msg("Next","다음"):msg("Reveal next clue","다음 단서")}</p>
+          <kbd>Enter</kbd> {isDone?msg("Next question / results","다음 문제 / 결과 보기"):round.responseMode==="multiple-choice"?msg("Submit selected answer · none: next clue","선택한 답 제출 · 미선택 시 다음 단서"):msg("Check answer · empty field: next clue","정답 확인 · 빈칸이면 다음 단서")} <span className="shortcut-divider">·</span> <kbd>Ctrl/⌘ + Enter</kbd> {isDone?msg("Next","다음"):msg("Reveal next clue","다음 단서")}</p>
       </>:<>
         <div className="round-finish">
           <div className="round-finish-symbol">✦</div>
