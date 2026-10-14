@@ -37,3 +37,11 @@ test("image-reveal uses Expo Image's cross-platform blur and refreshes on stage 
   assert.match(imageClue,/reveal\.effect==="spotlight"/);
   assert.match(imageClue,/reveal\.effect==="zoom"/);
 });
+
+test("native spotlight radius uses shared normalized-diagonal geometry rather than a large width-scaled hole",()=>{
+  assert.match(imageClue,/spotlightRevealRadiusPixels\(strength,layout\.width,layout\.height\)/);
+  assert.doesNotMatch(imageClue,/strength\*0\.9/);
+  const webImage=readFileSync(new URL("../../web/src/components/image-reveal.tsx",import.meta.url),"utf8");
+  assert.match(webImage,/spotlightRevealRadiusPercent\(strength\)/);
+  assert.doesNotMatch(webImage,/strength\*0\.9/);
+});

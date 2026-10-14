@@ -98,6 +98,7 @@ export type KidGuessResult = {status:"ACTIVE"|"SOLVED"|"FAILED";correct:boolean;
   score:number;cluesUsed:number;answer?:string;next?:string};
 export type KidPlayMedia = {mediaId:string;url:string;expiresInSeconds:number;kind:"image"|"audio"|"video";mimeType:string};
 export type KidTreasures = {solved:number;completed:number;
+  recentPacks:{packId:string;title:string;score:number;bestScore:number;solved:number;total:number;at:string}[];
   discoveries:{quizId:string;title:string;score:number;at:string}[];
   badges:{id:string;required:number;label:string;emoji:string}[]};
 

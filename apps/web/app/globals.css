@@ -124,6 +124,12 @@ a.feature-card:hover { border-color:#B4AEF7; transform:translateY(-3px); }
 
 /* Play modes: the weekly five-question spotlight is the primary experience. */
 .play-experience { max-width:960px; }
+.play-pack-intro { display:flex; align-items:baseline; flex-wrap:wrap; gap:8px 14px; margin:0 0 20px; }
+.play-pack-intro .eyebrow { margin:0; white-space:nowrap; }
+.play-pack-intro h1 { font-size:clamp(1.2rem,2.3vw,1.7rem); line-height:1.4; margin:0; overflow-wrap:anywhere; }
+.play-pack-status { background:#fff; border:1px solid var(--border); border-radius:20px; padding:24px; margin:18px 0; }
+.play-pack-status p { margin:0 0 14px; }
+.play-pack-status .actions { align-items:center; }
 .play-intro h1 { max-width:850px; }
 .lane-picker { display:flex; gap:8px; background:#EEEAFE; border-radius:18px; padding:7px; margin:28px 0; width:fit-content; }
 .lane-choice { background:transparent; border:0; padding:11px 25px; color:#504D75; font-weight:800; border-radius:13px; }

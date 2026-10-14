@@ -86,6 +86,8 @@ export default function PlayPage({packId}:{packId?:string}={}) {
   const guessFormRef=useRef<HTMLFormElement>(null);
   const submittingRef=useRef(false);
   const [busy,setBusy]=useState(false);
+  const packStartKeyRef=useRef<string|null>(null);
+  const [packStartStatus,setPackStartStatus]=useState<"loading"|"ready"|"error">(packId?"loading":"ready");
   const [error,setError]=useState("");
   const [feedback,setFeedback]=useState("");
   const [answer,setAnswer]=useState("");
@@ -113,7 +115,7 @@ export default function PlayPage({packId}:{packId?:string}={}) {
     setRemainingClues(null);setReviewOpen(false);setReviewBusy(false);setReviewError("");
     if(!packId)void request("/runs?limit=5").then(value=>{if(alive)setMyHistory(value.items||[])}).catch(()=>{});
     return ()=>{alive=false;};
-  },[lane,locale]);
+  },[lane,locale,packId]);
 
   useEffect(()=>{
     if(!run||run.status!=="FINISHED"||round)return;
@@ -248,26 +250,57 @@ export default function PlayPage({packId}:{packId?:string}={}) {
   useEffect(()=>{
     if(!packId)return;
     let active=true;
-    setMode("PACK");setLane("GENERAL");
+    setMode("PACK");setLane("GENERAL");setPack(null);
     void request("/packs/"+packId+"?locale="+locale).then(value=>{
       if(active)setPack(value);
     }).catch(e=>{if(active)setError(e instanceof Error?e.message:String(e));});
-    // Guest capabilities only persist in the same browser tab. Signed-in users
-    // can additionally resume from a different device via POST /runs PACK.
+    return ()=>{active=false;};
+  },[packId,locale]);
+
+  const bootPack=useCallback(async (key:string,restart=false)=>{
+    if(!packId)return;
+    setPackStartStatus("loading");setError("");
+    const storageKey="quizdip-pack-run:"+packId+":"+locale;
     try {
-      const saved=sessionStorage.getItem("quizdip-pack-run:"+packId+":"+locale);
-      if(saved){
-        const r=JSON.parse(saved) as RunInfo;
-        if(r.mode==="PACK"&&r.runId&&r.runToken){
-          void showRound(r).catch(()=>{
-            sessionStorage.removeItem("quizdip-pack-run:"+packId+":"+locale);
-            if(active)setError(msg("Saved progress is no longer available. You can restart the pack.","저장한 진행 기록을 사용할 수 없어요. 퀴즈팩을 다시 시작할 수 있어요."));
-          });
+      // Resume local guest capabilities first; signed-in users can also resume
+      // across devices through the idempotent PACK run_start endpoint.
+      let saved:RunInfo|null=null;
+      if(!restart)try{
+        const raw=sessionStorage.getItem(storageKey);
+        if(raw){
+          const candidate=JSON.parse(raw) as RunInfo;
+          if(candidate.mode==="PACK"&&candidate.runId&&candidate.runToken&&
+              (!candidate.packId||candidate.packId===packId))saved=candidate;
         }
+      }catch{/* Unavailable or malformed browser storage never blocks new play. */}
+      if(saved){
+        // On transient network errors, keep the saved capability for Retry.
+        // Never silently discard progress or create a second guest run.
+        await showRound(saved);
+      }else{
+        const started=await api("/runs","POST",
+          {mode:"PACK",lane:"GENERAL",packId,locale,...(restart?{restart:true}:{})},locale);
+        if(packStartKeyRef.current!==key)return;
+        await showRound(started);
       }
-    }catch{/* Unavailable storage never prevents public play. */}
-    return ()=>{active=false};
+      if(packStartKeyRef.current===key)setPackStartStatus("ready");
+    }catch(e){
+      if(packStartKeyRef.current===key){
+        setPackStartStatus("error");
+        setError(e instanceof Error?e.message:bilingual(locale,"Could not load the quiz pack.","퀴즈팩을 불러오지 못했어요."));
+      }
+    }
   },[packId,locale,showRound]);
+
+  useEffect(()=>{
+    if(!packId)return;
+    const key=packId+":"+locale;
+    // React Strict Mode can run mount effects twice. Only bootstrap once per
+    // pack and language, otherwise guest players get duplicate runs.
+    if(packStartKeyRef.current===key)return;
+    packStartKeyRef.current=key;
+    void bootPack(key);
+  },[packId,locale,bootPack]);
 
   async function start(nextMode:Mode, restart=false) {
     setBusy(true);setError("");setFeedback("");setQuestionsToRate([]);setRatingError("");
@@ -439,11 +472,14 @@ export default function PlayPage({packId}:{packId?:string}={}) {
   },[round,isDone,busy,mustReveal,guess]);
 
   return <main className="container inner-page play-experience">
-    <div className="play-intro">
+    {packId?<div className="play-pack-intro">
       <span className="eyebrow">QUIZDIP · PLAY</span>
-      <h1>{packId?(pack?.title||msg("Quiz pack","퀴즈팩")):msg("Discover and play at your pace.","흥미로운 퀴즈를 발견하고 자유롭게 플레이하세요.")}</h1>
-      <p className="lead">{packId?(pack?.description||msg("Play every question in this creator-curated collection.","제작자가 구성한 모든 문제를 순서대로 플레이하세요.")):msg("Try five quick questions, keep exploring at random, or find quiz packs in Discover.","가볍게 랜덤 5문제로 시작하거나 계속 풀어보세요. Discover에서 다양한 퀴즈팩을 탐색할 수도 있어요.")}</p>
-    </div>
+      <h1>{pack?.title||msg("Quiz pack","퀴즈팩")}</h1>
+    </div>:<div className="play-intro">
+      <span className="eyebrow">QUIZDIP · PLAY</span>
+      <h1>{msg("Discover and play at your pace.","흥미로운 퀴즈를 발견하고 자유롭게 플레이하세요.")}</h1>
+      <p className="lead">{msg("Try five quick questions, keep exploring at random, or find quiz packs in Discover.","가볍게 랜덤 5문제로 시작하거나 계속 풀어보세요. Discover에서 다양한 퀴즈팩을 탐색할 수도 있어요.")}</p>
+    </div>}
 
     {!packId&&<div className="lane-picker" role="group" aria-label={msg("Play audience","플레이 대상 선택")}>
       <button type="button" disabled={busy} aria-pressed={lane==="GENERAL"}
@@ -452,12 +488,22 @@ export default function PlayPage({packId}:{packId?:string}={}) {
         className={"lane-choice "+(lane==="KIDS"?"active":"")} onClick={()=>setLane("KIDS")}>{msg("Kids play","어린이 플레이")}</button>
     </div>}
 
-    {!run&&packId&&<section className="play-practice"><article className="feature-card">
-      <h2>{pack?.title||msg("Quiz pack","퀴즈팩")}</h2>
-      <p>{pack?.questionCount||"—"} {msg("questions · progress is saved after every answer.","문제 · 각 문제를 풀면 진행 상황이 저장됩니다.")}</p>
-      <button type="button" className="btn btn-primary" disabled={busy||!pack} onClick={()=>void start("PACK")}>{msg("Start or resume pack →","퀴즈팩 시작 / 이어 풀기 →")}</button>
-      <p><Link href={localizeHref("/packs/"+packId,locale)}>{msg("Back to pack details","퀴즈팩 상세 보기")}</Link></p>
-    </article></section>}
+    {packId&&packStartStatus==="loading"&&<section className="play-pack-status" role="status">
+      {msg("Preparing your quiz pack…","퀴즈팩을 준비하고 있어요…")}
+    </section>}
+    {packId&&packStartStatus==="error"&&<section className="play-pack-status" role="alert">
+      <p>{error||msg("Could not load the quiz pack.","퀴즈팩을 불러오지 못했어요.")}</p>
+      <div className="actions">
+        <button type="button" className="btn btn-primary"
+          onClick={()=>void bootPack(packId+":"+locale)}>{msg("Try again","다시 시도")}</button>
+        <button type="button" className="btn btn-outline" onClick={()=>{
+          try{sessionStorage.removeItem("quizdip-pack-run:"+packId+":"+locale);}catch{}
+          localBundleRef.current=null;localProgressRef.current={};
+          void bootPack(packId+":"+locale,true);
+        }}>{msg("Start a new game","새로 시작")}</button>
+        <Link href={localizeHref("/packs/"+packId,locale)}>{msg("Back to pack details","퀴즈팩 상세 보기")}</Link>
+      </div>
+    </section>}
 
     {!run && !packId && <>
       <section className="play-practice">
@@ -489,7 +535,7 @@ export default function PlayPage({packId}:{packId?:string}={}) {
       </section>}
     </>}
 
-    {run&&<section className="play-panel play-live" aria-live="polite">
+    {run&&(!packId||packStartStatus==="ready")&&<section className="play-panel play-live" aria-live="polite">
       <div className="play-top">
         <span className="small-tag">{mode==="PACK"?msg("Quiz pack","퀴즈팩"):mode==="RANDOM_FIVE"?msg("Quick five","랜덤 5문제"):msg("Continuous play","연속 플레이")}</span>
         <span className="clue-count">{run.completed}{msg(" quizzes finished · ","문제 완료 · ")}{run.score}{msg(" pts","점")}</span>
@@ -606,7 +652,7 @@ export default function PlayPage({packId}:{packId?:string}={}) {
       </div>
     </section>}
 
-    {error&&<p className="feedback" role="alert">{error}</p>}
+    {error&&(!packId||packStartStatus!=="error")&&<p className="feedback" role="alert">{error}</p>}
 
     {lane==="KIDS"&&<p className="muted">{msg("Kids play only includes safety-approved questions and never displays public individual rankings.","어린이 모드는 플랫폼에서 안전성을 확인한 문제만 제공하고, 공개 개인 순위는 표시하지 않아요.")}</p>}
     <div className="play-bottom"><Link href={localizeHref("/discover", locale)}>{msg("Discover more quizzes →","다른 퀴즈 둘러보기 →")}</Link><Link href={localizeHref("/studio", locale)}>{msg("Create your own quiz →","퀴즈 만들기 →")}</Link></div>

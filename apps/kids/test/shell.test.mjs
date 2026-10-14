@@ -86,38 +86,23 @@ test("native Kids decorative icons are font-independent SVGs",()=>{
 });
 
 
-test("Home and Explore use one adventure taxonomy with pack-first discovery",()=>{
- const home=source("app/(tabs)/index.tsx");
- const explore=source("app/(tabs)/explore.tsx");
- const adventure=source("src/adventures.ts");
- const art=source("src/components/AdventureArtwork.tsx");
- const card=source("src/components/AdventureTile.tsx");
+test("Play combines category exploration with packs, quick quizzes and surprise mode",()=>{
+ const play=source("app/(tabs)/index.tsx");
  const tabs=source("app/(tabs)/_layout.tsx");
- const locale=source("../../packages/i18n/src/kids.ts");
- assert.match(home,/adventures\.filter/);
- assert.match(home,/adventureCount/);
- assert.match(home,/params:\{adventure:item\.id\}/);
- assert.match(home,/useKidsAdventures/);
- assert.match(explore,/adventures\.map/);
- assert.match(explore,/useKidsAdventures/);
- assert.match(explore,/shownPacks\.map/);
- assert.match(explore,/shownQuizzes\.map/);
- assert.ok(explore.indexOf("shownPacks.map")<explore.indexOf("shownQuizzes.map"),"show packs before single quizzes");
- assert.match(explore,/adventureById\(routeAdventure\)/);
- assert.match(adventure,/id:"dinosaur"/);
- for(const id of ["dinosaur","animals","space","math","patterns","time","world","things","science","surprise"]){
-  assert.ok(adventure.includes('id:"'+id+'"'),"missing adventure "+id);
-  assert.ok(art.includes('id==="'+id+'"'),"missing vector art "+id);
-  assert.ok(locale.includes('"native.adventure.'+id+'":'),"missing EN/KO label "+id);
- }
- assert.match(card,/<AdventureArtwork/);
- assert.match(art,/react-native-svg/);
- assert.match(tabs,/<Tabs.Screen name="packs" options=\{\{href:null\}\}/);
- assert.doesNotMatch(tabs,/\{name:"packs",label:/);
- assert.doesNotMatch(source("src/useKidsAdventures.ts"),/QuizDipPublicApi|publicApi|Authorization:/);
+ assert.match(play,/adventures\.filter/);
+ assert.match(play,/adventureCount/);
+ assert.match(play,/useKidsAdventures/);
+ assert.match(play,/shownPacks\.map/);
+ assert.match(play,/shownQuizzes\.map/);
+ assert.ok(play.indexOf("shownPacks.map")<play.indexOf("shownQuizzes.map"));
+ assert.match(play,/mode:"RANDOM_FIVE"/);
+ assert.match(play,/SecureStore\.getItemAsync\(SAVED_GAME\)/);
+ assert.match(tabs,/name="explore" options=\{\{href:null\}\}/);
+ assert.match(tabs,/name="challenge" options=\{\{href:null\}\}/);
+ assert.match(tabs,/kids.nav.play/);
+ assert.match(tabs,/kids.nav.stars/);
+ assert.doesNotMatch(tabs,/\{name:"explore",label:/);
 });
-
-
 test("Challenge missions reuse child-approved packs, saved progress, and native game routes",()=>{
  const challenge=source("app/(tabs)/challenge.tsx");
  const game=source("app/game.tsx");
@@ -135,23 +120,18 @@ test("Challenge missions reuse child-approved packs, saved progress, and native 
  assert.doesNotMatch(challenge,/publicApi|leaderboard|reviewUpsert/);
 });
 
-test("Treasures are a private, server-backed collection with honest earned and locked badges",()=>{
- const treasures=source("app/(tabs)/treasures.tsx");
+test("My Stars uses child-owned scores and offers repeat play",()=>{
+ const stars=source("app/(tabs)/treasures.tsx");
  const server=source("../web/src/modules/kids/game.ts");
- const artwork=source("src/components/TreasureChestArtwork.tsx");
- const locale=source("../../packages/i18n/src/kids.ts");
- assert.match(treasures,/useFocusEffect/);
- assert.match(treasures,/kidsApi\.treasures\(token\)/);
- assert.match(treasures,/badgeSlots\.map/);
- assert.match(treasures,/earned\.has\(badge\.id\)/);
- assert.match(treasures,/data\.discoveries\.map/);
- assert.match(treasures,/go\("\/explore"\)/);
- for(const id of ["first","five","ten"]) {
-   assert.ok(treasures.includes('id:"'+id+'"'));
-   assert.ok(server.includes('id:"'+id+'"'));
- }
- assert.match(artwork,/react-native-svg/);
- assert.doesNotMatch(treasures,/publicApi|leaderboard|AsyncStorage/);
- for(const key of ["native.treasure.collection","native.treasure.unlocked","native.treasure.locked","native.treasure.more"])
-   assert.ok(locale.includes('"'+key+'"'));
+ const game=source("app/game.tsx");
+ assert.match(stars,/kidsApi\.treasures\(token\)/);
+ assert.match(stars,/recentPacks\.map/);
+ assert.match(stars,/pack\.bestScore/);
+ assert.match(stars,/params:\{packId:pack\.packId\}/);
+ assert.match(stars,/badgeSlots\.map/);
+ assert.match(stars,/data\.discoveries/);
+ assert.match(game,/native\.stars\.playAgain/);
+ assert.match(server,/bestByPack/);
+ assert.match(server,/kidOwnership:\{is:\{profileId\}\}/);
+ assert.doesNotMatch(stars,/publicApi|leaderboard|AsyncStorage/);
 });

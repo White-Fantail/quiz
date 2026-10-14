@@ -6,6 +6,7 @@ import { Image } from "expo-image";
 import { useAudioPlayer } from "expo-audio";
 import { VideoView,useVideoPlayer } from "expo-video";
 import type { KidClue,KidPlayMedia,ImageRevealSettings } from "@quizdip/api-client";
+import { spotlightRevealRadiusPixels } from "@quizdip/domain";
 import { kidsApi } from "../services/api";
 import { useKidsLocale } from "../state/locale";
 import { theme } from "../theme";
@@ -30,7 +31,7 @@ function NativeImageReveal({url,reveal,label}:{url:string;reveal:ImageRevealSett
   const x=Math.max(0,Math.min(100,reveal.focusX??50));
   const y=Math.max(0,Math.min(100,reveal.focusY??50));
   const zoom=1+strength*0.03;
-  const radius=Math.max(10,(100-strength*0.9)*Math.max(layout.width,layout.height)*0.014);
+  const radius=spotlightRevealRadiusPixels(strength,layout.width,layout.height);
   return <View style={styles.imageWindow} onLayout={event=>{
     const {width,height}=event.nativeEvent.layout;
     if(width>0&&height>0&&Math.abs(width-layout.width)>1)setLayout({width,height});
