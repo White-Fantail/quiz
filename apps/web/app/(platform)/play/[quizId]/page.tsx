@@ -10,7 +10,8 @@ import { bilingual } from "../../../../src/i18n/view-copy";
 import { RatingBadge, RatingButtons, RatingSignIn, type RatingAccess } from "../../../../src/components/quiz-ratings";
 import type { RatingSummary } from "../../../../src/modules/quiz/rating-metadata";
 import { useParams } from "next/navigation";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState } from "react";
+import { answerShortcutIndex } from "../../../../src/modules/platform/keyboard-choice";
 
 type Clue = { type: "text" | "image" | "image-reveal" | "audio" | "video" | "map"; text?: string;
   mediaId?: string; reveal?: RevealSettings; map?: {latitude:number;longitude:number;zoom?:number} };
@@ -46,6 +47,7 @@ export default function SingleQuizPage() {
   const [guess, setGuess] = useState("");
   const answerInputRef = useRef<HTMLInputElement>(null);
   const guessFormRef = useRef<HTMLFormElement>(null);
+  const submittingRef = useRef(false);
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState("");
   const [feedback, setFeedback] = useState("");
@@ -101,13 +103,13 @@ export default function SingleQuizPage() {
     } catch (e) { setError(e instanceof Error ? e.message : msg("Could not reveal the next clue.","단서를 열지 못했어요.")); }
     finally { setBusy(false); }
   }
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!session || !guess.trim() || mustReveal) return;
+  async function submitGuess(selectedAnswer: string) {
+    if (!session || !selectedAnswer.trim() || mustReveal || busy || status !== "ACTIVE" || submittingRef.current) return;
+    submittingRef.current = true;
     setBusy(true); setError("");
     try {
       const result = await request("/play/" + session.sessionId + "/guess",
-        { sessionToken: session.sessionToken, guess: guess.trim() });
+        { sessionToken: session.sessionToken, guess: selectedAnswer.trim() });
       if (result.status === "ACTIVE") {
         setFeedback(msg("Not quite! Reveal the next clue and try again.","아직 아니야! 다음 단서를 보고 다시 추리해 봐."));
         setMustReveal(true);
@@ -118,7 +120,7 @@ export default function SingleQuizPage() {
         setFeedback(result.correct ? msg("Correct! You got it! 🎉","정답이야! 알아냈네! 🎉") : msg("That's the end of this quiz. Try another!","아쉽지만 이번 퀴즈는 여기까지야."));
       }
     } catch (e) { setError(e instanceof Error ? e.message : msg("Could not check your answer.","정답을 확인하지 못했어요.")); }
-    finally { setBusy(false); }
+    finally { submittingRef.current = false; setBusy(false); }
   }
   async function toggleRemainingClues() {
     if (!session || reviewBusy || status === "ACTIVE") return;
@@ -153,8 +155,22 @@ export default function SingleQuizPage() {
 
   useEffect(()=>{
     function handleKeyboard(event:KeyboardEvent) {
-      if(event.key!=="Enter"||event.repeat||event.isComposing||event.keyCode===229||
+      if(event.repeat||event.isComposing||event.keyCode===229||
          event.altKey||event.shiftKey||busy||status!=="ACTIVE"||!session)return;
+      if(!mustReveal&&session.responseMode==="multiple-choice"&&session.options){
+        const index=answerShortcutIndex(event);
+        const target=event.target;
+        const editing=target instanceof HTMLElement &&
+          !!target.closest('input,textarea,select,audio,video,[contenteditable="true"],[role="textbox"]');
+        if(index!==null&&index<session.options.length&&!editing){
+          event.preventDefault();
+          const option=session.options[index];
+          setGuess(option);
+          void submitGuess(option);
+          return;
+        }
+      }
+      if(event.key!=="Enter")return;
       const target=event.target;
       if(target instanceof HTMLElement){
         const interactive=target.closest('input,textarea,select,a,button,[role="button"],[contenteditable="true"]');
@@ -219,7 +235,7 @@ export default function SingleQuizPage() {
       {status === "ACTIVE" && session.clueIndex < session.clueCount &&
         <button type="button" className="btn btn-outline" disabled={busy}
           onClick={() => void reveal()}>{msg("Reveal another clue","힌트 하나 더 볼까?")}</button>}
-      {status === "ACTIVE" && <form ref={guessFormRef} className="guess-form" onSubmit={e => void submit(e)}
+      {status === "ACTIVE" && <form ref={guessFormRef} className="guess-form" onSubmit={e => {e.preventDefault();void submitGuess(guess);}}
         onKeyDown={e=>{if(e.key==="Enter"&&(e.nativeEvent.isComposing||e.nativeEvent.keyCode===229))e.preventDefault();}}>
         <label id="single-quiz-answer-label">{msg("What's your answer?","정답은 무엇일까요?")}</label>
         {session.responseMode==="multiple-choice"&&session.options?.length?
@@ -227,7 +243,7 @@ export default function SingleQuizPage() {
             {session.options.map((option,index)=><button key={option} type="button"
               className={"guess-option"+(guess===option?" selected":"")} aria-pressed={guess===option}
               disabled={busy||mustReveal} onClick={()=>setGuess(option)}>
-              <span className="guess-option-letter">{String.fromCharCode(65+index)}</span>{option}
+              <span className="guess-option-letter">{index+1}</span>{option}
             </button>)}
           </div>:
           <input ref={answerInputRef} className="guess-input" id="single-quiz-answer" aria-labelledby="single-quiz-answer-label" maxLength={200} autoComplete="off"
@@ -239,7 +255,11 @@ export default function SingleQuizPage() {
         </div>
         {mustReveal && <p className="muted">{msg("Reveal another clue before trying again.","새로운 단서를 열면 다시 답할 수 있어요.")}</p>}
       </form>}
-      {status === "ACTIVE" && <p className="play-keyboard-help"><span aria-hidden="true">⌨</span> <kbd>Enter</kbd> {msg("Check answer · empty field: next clue","정답 확인 · 빈칸이면 다음 단서")} <span className="shortcut-divider">·</span> <kbd>Ctrl/⌘ + Enter</kbd> {msg("Reveal next clue","다음 단서")}</p>}
+      {status === "ACTIVE" && <p className="play-keyboard-help"><span aria-hidden="true">⌨</span>{" "}
+        {session.responseMode==="multiple-choice"&&session.options?.length&&<>
+          <kbd>1–{session.options.length}</kbd> {msg("Choose & submit (number pad too)","숫자키·키패드로 선택 즉시 제출")} <span className="shortcut-divider">·</span>{" "}
+        </>}
+        <kbd>Enter</kbd> {msg("Check answer · no selection: next clue","정답 확인 · 선택이 없으면 다음 단서")} <span className="shortcut-divider">·</span> <kbd>Ctrl/⌘ + Enter</kbd> {msg("Reveal next clue","다음 단서")}</p>}
       {feedback && <div className={"feedback" + (status === "SOLVED" ? " success" : "")} role="status">
         {feedback}
         {status !== "ACTIVE" && <p>{msg("Answer: ","정답: ")}<strong>{answer}</strong> · {score}{msg(" pts","점")}</p>}

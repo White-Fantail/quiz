@@ -12,6 +12,7 @@ import PackFeedback from "../../../src/components/pack-feedback";
 import PackResultShare from "../../../src/components/pack-result-share";
 import type { RatingSummary } from "../../../src/modules/quiz/rating-metadata";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { answerShortcutIndex } from "../../../src/modules/platform/keyboard-choice";
 
 type Lane = "GENERAL" | "KIDS";
 type Mode = "RANDOM_FIVE" | "INFINITE" | "PACK";
@@ -76,6 +77,7 @@ export default function PlayPage({packId}:{packId?:string}={}) {
   const [guess,setGuess]=useState("");
   const answerInputRef=useRef<HTMLInputElement>(null);
   const guessFormRef=useRef<HTMLFormElement>(null);
+  const submittingRef=useRef(false);
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState("");
   const [feedback,setFeedback]=useState("");
@@ -184,13 +186,13 @@ export default function PlayPage({packId}:{packId?:string}={}) {
     }catch(e){setError(e instanceof Error?e.message:msg("Could not reveal the next clue.","다음 단서를 열지 못했어요."));}
     finally{setBusy(false);}
   }
-  async function check(event:React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if(!round||!guess.trim())return;
+  async function submitGuess(selectedAnswer:string) {
+    if(!round||!selectedAnswer.trim()||busy||mustReveal||round.sessionStatus!=="ACTIVE"||submittingRef.current)return;
+    submittingRef.current=true;
     setBusy(true);setError("");
     try{
       const result=await request("/play/"+round.sessionId+"/guess","POST",
-        {sessionToken:round.sessionToken,guess:guess.trim()});
+        {sessionToken:round.sessionToken,guess:selectedAnswer.trim()});
       if(result.status==="ACTIVE"){
         setFeedback(msg("Not quite. Reveal the next clue and try again.","아쉬워요. 다음 단서를 열어서 다시 맞혀 보세요."));
         setMustReveal(true);
@@ -205,7 +207,7 @@ export default function PlayPage({packId}:{packId?:string}={}) {
         }:null);
       }
     }catch(e){setError(e instanceof Error?e.message:msg("Could not check your answer.","정답을 확인하지 못했어요."));}
-    finally{setBusy(false);}
+    finally{submittingRef.current=false;setBusy(false);}
   }
   async function toggleRemainingClues() {
     if (!round || reviewBusy || round.sessionStatus === "ACTIVE") return;
@@ -261,15 +263,30 @@ export default function PlayPage({packId}:{packId?:string}={}) {
 
   useEffect(()=>{
     function handleKeyboard(event:KeyboardEvent) {
-      // Enter can also commit a Korean/other IME candidate: never treat that as an answer or action.
-      if(event.key!=="Enter"||event.repeat||event.isComposing||event.keyCode===229||
+      // Never interpret IME composition or a held key as a game action.
+      if(event.repeat||event.isComposing||event.keyCode===229||
          event.altKey||event.shiftKey||busy||!round)return;
+      if(!isDone&&!mustReveal&&round.responseMode==="multiple-choice"&&round.options){
+        const index=answerShortcutIndex(event);
+        const target=event.target;
+        const editing=target instanceof HTMLElement &&
+          !!target.closest('input,textarea,select,audio,video,[contenteditable="true"],[role="textbox"]');
+        if(index!==null&&index<round.options.length&&!editing){
+          event.preventDefault();
+          const option=round.options[index];
+          setGuess(option);
+          // Submit the actual option, not the previous React state from before setGuess.
+          void submitGuess(option);
+          return;
+        }
+      }
+      if(event.key!=="Enter")return;
       const target=event.target;
       if(target instanceof HTMLElement){
         const interactive=target.closest('input,textarea,select,a,button,[role="button"],[contenteditable="true"]');
         if(interactive&&interactive!==answerInputRef.current)return;
       }
-      // Ctrl/Command+Enter advances without submitting an answer, even when one is typed.
+      // Ctrl/Command+Enter advances without submitting an answer.
       if(event.ctrlKey||event.metaKey){
         if(isDone){event.preventDefault();void nextRound();}
         else if(round.clueIndex<round.clueCount){event.preventDefault();void reveal();}
@@ -277,12 +294,10 @@ export default function PlayPage({packId}:{packId?:string}={}) {
       }
       if(isDone){event.preventDefault();void nextRound();return;}
       if(!mustReveal&&guess.trim()){
-        // Native Enter submits the focused text input. Otherwise submit the selected choice.
         if(target!==answerInputRef.current){
           event.preventDefault();guessFormRef.current?.requestSubmit();
         }
       }else if(round.clueIndex<round.clueCount){
-        // Empty input (or a locked input after a wrong guess): reveal the next clue.
         event.preventDefault();void reveal();
       }
     }
@@ -371,7 +386,7 @@ export default function PlayPage({packId}:{packId?:string}={}) {
         {!isDone&&round.clueIndex<round.clueCount&&
           <button type="button" className="btn btn-outline" disabled={busy} onClick={()=>void reveal()}>
             {msg("Reveal another clue","단서 하나 더 보기")}</button>}
-        {!isDone&&<form ref={guessFormRef} className="guess-form" onSubmit={e=>void check(e)}
+        {!isDone&&<form ref={guessFormRef} className="guess-form" onSubmit={e=>{e.preventDefault();void submitGuess(guess);}}
           onKeyDown={e=>{if(e.key==="Enter"&&(e.nativeEvent.isComposing||e.nativeEvent.keyCode===229))e.preventDefault();}}>
           <label id="quizdip-answer-label">{msg("What's your answer?","정답은 무엇일까요?")}</label>
           {round.responseMode==="multiple-choice"&&round.options?.length?
@@ -379,7 +394,7 @@ export default function PlayPage({packId}:{packId?:string}={}) {
               {round.options.map((option,index)=><button type="button" key={option}
                 className={"guess-option"+(guess===option?" selected":"")} aria-pressed={guess===option}
                 disabled={busy||mustReveal} onClick={()=>setGuess(option)}>
-                <span className="guess-option-letter">{String.fromCharCode(65+index)}</span>{option}
+                <span className="guess-option-letter">{index+1}</span>{option}
               </button>)}
             </div>:
             <input ref={answerInputRef} className="guess-input" id="quizdip-answer" value={guess} onChange={e=>setGuess(e.target.value)}
@@ -409,7 +424,11 @@ export default function PlayPage({packId}:{packId?:string}={}) {
         {isDone&&<button type="button" className="btn btn-primary play-next-round" disabled={busy||reviewBusy} onClick={()=>void nextRound()}>
           {endReached?msg("View final results →","최종 결과 보기 →"):msg("Next question →","다음 문제 →")}
         </button>}
-        <p className="play-keyboard-help"><span aria-hidden="true">⌨</span> <kbd>Enter</kbd> {isDone?msg("Next question / results","다음 문제 / 결과 보기"):msg("Check answer · empty field: next clue","정답 확인 · 빈칸이면 다음 단서")} <span className="shortcut-divider">·</span> <kbd>Ctrl/⌘ + Enter</kbd> {isDone?msg("Next","다음"):msg("Reveal next clue","다음 단서")}</p>
+        <p className="play-keyboard-help"><span aria-hidden="true">⌨</span>{" "}
+          {!isDone&&round.responseMode==="multiple-choice"&&round.options?.length&&<>
+            <kbd>1–{round.options.length}</kbd> {msg("Choose & submit (number pad too)","숫자키·키패드로 선택 즉시 제출")} <span className="shortcut-divider">·</span>{" "}
+          </>}
+          <kbd>Enter</kbd> {isDone?msg("Next question / results","다음 문제 / 결과 보기"):msg("Check answer · no selection: next clue","정답 확인 · 선택이 없으면 다음 단서")} <span className="shortcut-divider">·</span> <kbd>Ctrl/⌘ + Enter</kbd> {isDone?msg("Next","다음"):msg("Reveal next clue","다음 단서")}</p>
       </>:<>
         <div className="round-finish">
           <div className="round-finish-symbol">✦</div>

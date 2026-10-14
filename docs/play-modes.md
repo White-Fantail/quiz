@@ -26,6 +26,12 @@ Creators can set a pack's `orderMode` to `CREATOR` (default) or `RANDOM`. Random
 - Full packs have separate completion-gated pack feedback, reports and creator performance analytics, independently of question reviews.
 - Discover highlights evidence-based popularity, quality and difficulty separately from explicit, ADMIN-selected `Editor's Pick` placements.
 
+## Keyboard-first browser play
+
+Web pack runs, random/continuous runs, and single-quiz pages display multiple-choice options as 1–N instead of A–D. Pressing the corresponding number-row or numpad key selects **and submits** that option in one action. The number shortcut is ignored during IME composition, while typing into editable controls, after a finished question, and while a response is pending or a new clue is required. Number-pad navigation with Num Lock off does not count as an answer. Mouse/touch choices retain the visible selection and separate Check Answer button; free-text questions are unchanged.
+
+Enter remains Check Answer (or next clue when no answer is selected), and advances to the next question/results after grading. Ctrl/Cmd+Enter reveals the next clue or advances after grading. This is client-side input behavior only: scoring and answer evaluation remain server-authoritative; no REST/MCP operations or persisted schema changes.
+
 ## Removed Weekly Five
 
 The previously proposed recurring weekly challenge **was never launched**. The challenge proposal/schedule, special standings, associated routes and MCP operations are removed. Migration `20261013040000_remove_unused_weekly_challenges` drops the unused weekly tables, `PlayRun.weeklyId`, and `PlayRun.officialEligible`, with a fail-closed guard that refuses to drop those objects if any weekly records or runs exist.
