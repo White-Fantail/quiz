@@ -1,6 +1,7 @@
+import {useKidsNavigation} from "../../src/useKidsNavigation";
+import { KidsTap } from "../../src/components/KidsTap";
 import {useEffect,useState} from "react";
-import {useRouter} from "expo-router";
-import {Pressable,StyleSheet,Text,View} from "react-native";
+import {StyleSheet,Text,View} from "react-native";
 import type {KidPackItem,KidsFeaturedItem} from "@quizdip/api-client";
 import {Screen} from "../../src/components/Screen";
 import {KidsEmojiIcon} from "../../src/components/KidsIcon";
@@ -12,7 +13,7 @@ import {theme} from "../../src/theme";
 
 const PAGE_SIZE=8;
 export default function KidsPacks(){
-  const router=useRouter(),{t}=useKidsLocale(),kid=useKidsSession(),time=useKidsTime();
+  const go=useKidsNavigation(),{t}=useKidsLocale(),kid=useKidsSession(),time=useKidsTime();
   const token=kid.status==="active"?kid.token:null;
   const [page,setPage]=useState(0),[retry,setRetry]=useState(0);
   const [items,setItems]=useState<KidPackItem[]>([]);
@@ -40,25 +41,25 @@ export default function KidsPacks(){
     {!!featured.length&&<View style={styles.section}>
       <View style={styles.inline}><KidsEmojiIcon emoji="✨" size={23}/><Text style={styles.heading}>{t("native.packs.featured")}</Text></View>
       <Text style={styles.note}>{t("native.packs.curated")}</Text>
-      {featured.map(item=><Pressable accessibilityRole="button" key={item.id} style={styles.feature}
-        onPress={()=>router.push(item.type==="PACK"?{pathname:"/game",params:{packId:item.id}}:
+      {featured.map(item=><KidsTap accessibilityRole="button" key={item.id} style={styles.feature}
+        onPress={()=>go(item.type==="PACK"?{pathname:"/game",params:{packId:item.id}}:
           {pathname:"/game",params:{quizId:item.id}})}>
         <View style={styles.inline}><KidsEmojiIcon emoji="⭐" size={20}/><Text style={[styles.title,{flex:1}]}>{item.headline||item.title}</Text></View>
         <Text style={styles.note}>{item.description}</Text>
         <Text style={styles.note}>{item.creator} · {item.questionCount} {t("native.packs.questions")}</Text>
-      </Pressable>)}
+      </KidsTap>)}
     </View>}
     {loading&&<Text style={styles.note}>{t("kids.explore.loading")}</Text>}
     {error&&<View style={styles.section}>
       <Text style={styles.note}>{t("kids.explore.error")}</Text>
-      <Pressable accessibilityRole="button" onPress={()=>setRetry(x=>x+1)}>
+      <KidsTap accessibilityRole="button" onPress={()=>setRetry(x=>x+1)}>
         <Text style={styles.link}>{t("native.retry")}</Text>
-      </Pressable>
+      </KidsTap>
     </View>}
     {!loading&&!error&&!items.length&&<Text style={styles.note}>{t("native.packs.empty")}</Text>}
-    <View style={styles.section}>{items.map(pack=><Pressable key={pack.id}
+    <View style={styles.section}>{items.map(pack=><KidsTap key={pack.id}
       accessibilityRole="button" accessibilityLabel={pack.title}
-      style={styles.card} onPress={()=>router.push({pathname:"/game",params:{packId:pack.id}})}>
+      style={styles.card} onPress={()=>go({pathname:"/game",params:{packId:pack.id}})}>
       <KidsEmojiIcon emoji="📚" size={34}/>
       <View style={{flex:1,gap:6}}>
        <Text style={styles.title}>{pack.title}</Text>
@@ -67,15 +68,15 @@ export default function KidsPacks(){
          pack.orderMode==="RANDOM"?t("native.packs.random"):t("native.packs.ordered")}</Text>
        <Text style={styles.link}>▶ {t("native.packs.play")}</Text>
       </View>
-    </Pressable>)}</View>
+    </KidsTap>)}</View>
     {!loading&&(page>0||more)&&<View style={styles.nav}>
-      <Pressable accessibilityRole="button" disabled={page===0} onPress={()=>setPage(p=>Math.max(0,p-1))}>
+      <KidsTap accessibilityRole="button" disabled={page===0} onPress={()=>setPage(p=>Math.max(0,p-1))}>
         <Text style={[styles.link,page===0&&styles.disabled]}>{t("kids.explore.previous")}</Text>
-      </Pressable>
+      </KidsTap>
       <Text style={styles.note}>{t("native.page")} {page+1}</Text>
-      <Pressable accessibilityRole="button" disabled={!more} onPress={()=>setPage(p=>p+1)}>
+      <KidsTap accessibilityRole="button" disabled={!more} onPress={()=>setPage(p=>p+1)}>
         <Text style={[styles.link,!more&&styles.disabled]}>{t("kids.explore.next")}</Text>
-      </Pressable>
+      </KidsTap>
     </View>}
     <Text style={styles.note}>{t("native.packs.noRatings")}</Text>
   </Screen>;
