@@ -1,10 +1,11 @@
 import ManagementHeader from "../../../src/components/management-header";
 import Link from "next/link";
 import { headers } from "next/headers";
-import { auth } from "../../../src/lib/auth";
+import { auth, mcpResource } from "../../../src/lib/auth";
 import { resolveLocale, localizeHref } from "../../../src/i18n/core";
 import { t } from "../../../src/i18n/messages";
 import StudioWorkspace from "./studio-workspace";
+import StudioAiOnboarding from "./studio-ai-onboarding";
 
 export const dynamic = "force-dynamic";
 
@@ -15,8 +16,10 @@ export default async function StudioPage() {
   const msg = (key: Parameters<typeof t>[1]) => t(locale, key);
   return <main className="container inner-page studio-home management-page">
     <ManagementHeader eyebrow="QUIZDIP STUDIO" title={msg("studio.title")} description={msg("studio.lead")}/>
+    <StudioAiOnboarding viewerId={session?.user.id ?? null} mcpUrl={mcpResource}/>
     <div className="actions studio-home-actions">
-      <Link href={localizeHref("/studio/quizzes/new", locale)} className="btn btn-primary">{locale==="ko"?"새 문제 만들기":"+ Create quiz"}</Link>
+      <Link href={localizeHref("/studio/ai", locale)} className="btn btn-primary">{locale==="ko"?"✦ AI로 만들기":"✦ Create with AI"}</Link>
+      <Link href={localizeHref("/studio/quizzes/new", locale)} className="btn btn-outline">{locale==="ko"?"새 문제 만들기":"+ Create quiz"}</Link>
       <Link href={localizeHref("/studio/packs/new", locale)} className="btn btn-outline">{locale==="ko"?"새 팩 만들기":"+ Create pack"}</Link>
       <Link href={localizeHref("/studio/packs", locale)} className="btn btn-outline">{locale==="ko"?"내 퀴즈팩":"My quiz packs"}</Link>
       <Link href={localizeHref("/studio/media", locale)} className="btn btn-outline">{msg("studio.media")}</Link>
