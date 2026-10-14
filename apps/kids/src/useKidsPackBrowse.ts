@@ -5,7 +5,7 @@ import {useKidsSession} from "./state/session";
 import {useKidsTime} from "./state/time";
 import {useKidsLocale} from "./state/locale";
 
-const PAGE_SIZE=28,CACHE_MS=60_000;
+const PAGE_SIZE=20,CACHE_MS=60_000; // The native Kids API accepts at most 20 packs per request.
 type Snapshot={packs:KidPackItem[];nextOffset:number|null};
 type State=Snapshot&{loading:boolean;error:boolean;loaded:boolean};
 const cache=new Map<string,{until:number;value:Snapshot}>();
