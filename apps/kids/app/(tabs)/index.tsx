@@ -37,7 +37,7 @@ export default function KidsHome(){
    headerAction={<KidsTap accessibilityRole="button"
      accessibilityLabel={t("native.guardian.open")}
      accessibilityHint={t("native.guardian.detail")}
-     onPress={()=>router.push("/parent")} style={styles.parentsButton}>
+     onPress={()=>go("/parent")} style={styles.parentsButton}>
      <Text style={styles.parentsText}>{t("native.guardian.open")}</Text>
    </KidsTap>}>
    {hero?<KidsTap accessibilityRole="button"
@@ -65,7 +65,7 @@ export default function KidsHome(){
    {available.length>0?<View style={styles.section}>
       <View style={styles.sectionHeader}>
         <Text style={styles.heading}>{t("native.adventure.choose")}</Text>
-        <KidsTap accessibilityRole="button" onPress={()=>router.push("/explore")}>
+        <KidsTap accessibilityRole="button" onPress={()=>go("/explore")}>
           <Text style={styles.link}>{t("native.adventure.all")} →</Text>
         </KidsTap>
       </View>
@@ -73,14 +73,14 @@ export default function KidsHome(){
        {available.map(item=><View key={item.id} style={{width:columns===2?"48.8%":"100%"}}>
          <AdventureTile id={item.id} emoji={item.emoji} title={t(item.labelKey)} detail={t(item.detailKey)}
           count={adventureCount(item.id,packs,quizzes)} playLabel={t("native.adventure.toPlay")}
-          tint={item.tint} onPress={()=>router.push({pathname:"/explore",params:{adventure:item.id}})}/>
+          tint={item.tint} onPress={()=>go({pathname:"/explore",params:{adventure:item.id}})}/>
        </View>)}
       </View>
    </View>:null}
    {packs.length>0?<View style={styles.section}>
      <View style={styles.sectionHeader}>
        <Text style={styles.heading}>{t("native.adventure.ready")}</Text>
-       <KidsTap accessibilityRole="button" onPress={()=>router.push("/explore")}><Text style={styles.link}>{t("native.adventure.all")} →</Text></KidsTap>
+       <KidsTap accessibilityRole="button" onPress={()=>go("/explore")}><Text style={styles.link}>{t("native.adventure.all")} →</Text></KidsTap>
      </View>
      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.packList}>
        {packs.slice(0,8).map(pack=><KidsTap key={pack.id} accessibilityRole="button"
