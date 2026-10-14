@@ -25,3 +25,26 @@ export function activeImageStage<T extends ImageClueStage>(clues: readonly T[], 
   }
   return clue;
 }
+
+
+/**
+ * Spotlight strength is inverse visibility: 100 reveals only a small detail,
+ * and 0 is the final, completely visible image (renderers remove the mask).
+ * The easing makes high-strength early clues genuinely small rather than
+ * exposing most of the object at the first stage.
+ *
+ * CSS circle(%) defines its radius using the box's normalized diagonal:
+ * hypot(width, height) / sqrt(2). Native SVG must use the same geometry.
+ */
+export function spotlightRevealRadiusPercent(strength: number): number {
+  const obscurity = Number.isFinite(strength)
+    ? Math.max(0, Math.min(100, strength))
+    : 100;
+  return Math.max(2, 100 * Math.pow(1 - obscurity / 100, 1.5));
+}
+
+export function spotlightRevealRadiusPixels(strength: number, width: number, height: number): number {
+  const w = Number.isFinite(width) ? Math.max(0, width) : 0;
+  const h = Number.isFinite(height) ? Math.max(0, height) : 0;
+  return spotlightRevealRadiusPercent(strength) / 100 * Math.hypot(w, h) / Math.SQRT2;
+}
