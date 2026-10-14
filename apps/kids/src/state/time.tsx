@@ -27,22 +27,32 @@ export function KidsTimeProvider({children}:PropsWithChildren){
    const p=stateRef.current;
    if(!p)return null;
    const current=Date.now();
-   const today=localChildDay(new Date(current),p.limits.timeZone);
+   if(p.blockedUntil){
+     if(Date.parse(p.blockedUntil)>current)return p;
+     // A ten-minute local break has ended; begin a fresh continuous session.
+     stateRef.current={...p,blockedUntil:null,sessionMinutesUsed:0};
+     countedActiveMs.current=0;
+     activeFrom.current=AppState.currentState==="active"?current:null;
+   }
+   const baseline=stateRef.current!;
+   const today=localChildDay(new Date(current),baseline.limits.timeZone);
    const extra=Math.floor((countedActiveMs.current+
       (activeFrom.current===null?0:current-activeFrom.current))/60000);
-   const rollover=today!==p.localDay;
-   const used=(rollover?0:p.usedMinutes)+extra;
-   const sessionMinutesUsed=p.sessionMinutesUsed+extra;
-   return {...p,localDay:today,usedMinutes:used,sessionMinutesUsed,
-     remainingMinutes:p.limits.dailyMinutes===0?null:Math.max(0,p.limits.dailyMinutes-used),
-     limitReached:p.limits.dailyMinutes>0&&used>=p.limits.dailyMinutes};
+   const rollover=today!==baseline.localDay;
+   const used=(rollover?0:baseline.usedMinutes)+extra;
+   const sessionMinutesUsed=baseline.sessionMinutesUsed+extra;
+   return {...baseline,localDay:today,usedMinutes:used,sessionMinutesUsed,
+     remainingMinutes:baseline.limits.dailyMinutes===0?null:Math.max(0,baseline.limits.dailyMinutes-used),
+     limitReached:baseline.limits.dailyMinutes>0&&used>=baseline.limits.dailyMinutes};
  };
  const apply=useCallback((state:KidTimeState)=>{
    stateRef.current=state;
    countedActiveMs.current=0;
    activeFrom.current=AppState.currentState==="active"?Date.now():null;
-   setTime(state);setReason(null);
-   setStatus("allowed");
+   setTime(state);
+   const blocked=state.limitReached || !!(state.blockedUntil&&Date.parse(state.blockedUntil)>Date.now());
+   setReason(blocked?(state.limitReached?"kid_daily_limit":"kid_session_limit"):null);
+   setStatus(blocked?"blocked":"allowed");
  },[]);
  const refresh=useCallback(async()=>{
    if(!token||!kidsApi){setStatus("checking");return;}
@@ -75,11 +85,16 @@ export function KidsTimeProvider({children}:PropsWithChildren){
  useEffect(()=>{
    const pulse=()=>{
      if(!stateRef.current)return;
-     const next=nowUsed();
+     let next=nowUsed();
      if(!next)return;
+     if(!next.limitReached && !next.blockedUntil &&
+        next.limits.playSessionMinutes>0 &&
+        next.sessionMinutesUsed>=next.limits.playSessionMinutes){
+       next={...next,blockedUntil:new Date(Date.now()+10*60_000).toISOString()};
+       stateRef.current=next;countedActiveMs.current=0;activeFrom.current=null;
+     }
      setTime(next);
-     if(next.limitReached||(next.limits.playSessionMinutes>0&&
-        next.sessionMinutesUsed>=next.limits.playSessionMinutes)){
+     if(next.limitReached||next.blockedUntil){
        setStatus("blocked");setReason(next.limitReached?"kid_daily_limit":"kid_session_limit");
      }else{setStatus("allowed");setReason(null);}
      if(token){
