@@ -1,8 +1,10 @@
 import {useCallback,useState} from "react";
-import {ActivityIndicator,Pressable,StyleSheet,Text,View,useWindowDimensions} from "react-native";
-import {useFocusEffect,useRouter} from "expo-router";
+import {ActivityIndicator,StyleSheet,Text,View,useWindowDimensions} from "react-native";
+import {useFocusEffect} from "expo-router";
+import {useKidsNavigation} from "../../src/useKidsNavigation";
 import * as SecureStore from "expo-secure-store";
 import {Screen} from "../../src/components/Screen";
+import {KidsTap} from "../../src/components/KidsTap";
 import {KidsEmojiIcon} from "../../src/components/KidsIcon";
 import {AdventureArtwork} from "../../src/components/AdventureArtwork";
 import {adventureForPack,adventureById} from "../../src/adventures";
@@ -31,8 +33,8 @@ export default function ChallengeScreen(){
  const ready=packs.slice(0,4);
  const wide=width>=720;
  return <Screen title={t("kids.challenge.title")} subtitle={t("native.challenge.lead")}>
-   <Pressable accessibilityRole="button" accessibilityLabel={t("native.play.fiveTitle")}
-      onPress={()=>router.push({pathname:"/game",params:{mode:"RANDOM_FIVE"}})}
+   <KidsTap accessibilityRole="button" accessibilityLabel={t("native.play.fiveTitle")}
+      onPress={()=>go({pathname:"/game",params:{mode:"RANDOM_FIVE"}})}
       style={({pressed})=>[styles.hero,{opacity:pressed?0.87:1}]}>
      <View style={styles.heroCopy}>
        <Text style={styles.eyebrow}>{t("native.challenge.surpriseLabel")}</Text>
@@ -46,9 +48,9 @@ export default function ChallengeScreen(){
      <View pointerEvents="none" style={styles.heroArt}>
        <AdventureArtwork id="surprise" size={wide?208:146}/>
      </View>
-   </Pressable>
+   </KidsTap>
 
-   {canResume?<Pressable accessibilityRole="button" onPress={()=>router.push("/game")}
+   {canResume?<KidsTap accessibilityRole="button" onPress={()=>router.push("/game")}
      style={({pressed})=>[styles.resume,{opacity:pressed?.8:1}]}>
       <View style={styles.resumeIcon}><KidsEmojiIcon emoji="🧭" size={25} color={theme.colors.accent}/></View>
       <View style={{flex:1,gap:4}}>
@@ -56,7 +58,7 @@ export default function ChallengeScreen(){
         <Text style={styles.resumeDetail}>{t("native.challenge.resumeDetail")}</Text>
       </View>
       <Text style={styles.rightArrow}>→</Text>
-   </Pressable>:null}
+   </KidsTap>:null}
 
    <View style={styles.section}>
      <View style={styles.headingRow}>
@@ -64,17 +66,17 @@ export default function ChallengeScreen(){
          <Text style={styles.heading}>{t("native.challenge.packHeading")}</Text>
          <Text style={styles.subheading}>{t("native.challenge.packLead")}</Text>
        </View>
-       <Pressable accessibilityRole="button" onPress={()=>router.push("/explore")}
-         style={styles.browse}><Text style={styles.browseText}>{t("native.adventure.all")} →</Text></Pressable>
+       <KidsTap accessibilityRole="button" onPress={()=>router.push("/explore")}
+         style={styles.browse}><Text style={styles.browseText}>{t("native.adventure.all")} →</Text></KidsTap>
      </View>
      {loading&&ready.length===0?<ActivityIndicator color={theme.colors.accent}/>:null}
-     {error?<Pressable accessibilityRole="button" onPress={reload} style={styles.notice}>
+     {error?<KidsTap accessibilityRole="button" onPress={reload} style={styles.notice}>
        <Text style={styles.noticeText}>{t("native.adventure.error")} {t("native.adventure.retry")} ↻</Text>
-     </Pressable>:null}
+     </KidsTap>:null}
      <View style={styles.grid}>
        {ready.map(pack=>{
          const adventure=adventureForPack(pack);
-         return <Pressable key={pack.id} accessibilityRole="button" accessibilityLabel={pack.title}
+         return <KidsTap key={pack.id} accessibilityRole="button" accessibilityLabel={pack.title}
            onPress={()=>router.push({pathname:"/game",params:{packId:pack.id}})}
            style={({pressed})=>[styles.packCard,{width:wide?"48.8%":"100%",opacity:pressed?.83:1}]}>
            <View style={[styles.packArt,{backgroundColor:adventureById(adventure)?.tint||theme.colors.lilac}]}>
@@ -85,10 +87,10 @@ export default function ChallengeScreen(){
               <Text style={styles.packCount}>{pack.questionCount} {t("native.adventure.questions")}</Text>
               <Text style={styles.packStart}>{t("native.challenge.start")} →</Text>
            </View>
-         </Pressable>;
+         </KidsTap>;
        })}
      </View>
-     {ready.length===0&&!loading?<Pressable accessibilityRole="button" onPress={()=>router.push("/explore")}
+     {ready.length===0&&!loading?<KidsTap accessibilityRole="button" onPress={()=>router.push("/explore")}
        style={styles.exploreBox}>
         <View style={styles.exploreArt}><AdventureArtwork id="dinosaur" size={116}/></View>
         <View style={{flex:1,gap:8}}>
@@ -96,7 +98,7 @@ export default function ChallengeScreen(){
           <Text style={styles.exploreDetail}>{t("native.challenge.exploreDetail")}</Text>
           <Text style={styles.packStart}>{t("native.adventure.findMore")} →</Text>
         </View>
-       </Pressable>:null}
+       </KidsTap>:null}
    </View>
  </Screen>;
 }
