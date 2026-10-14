@@ -27,6 +27,9 @@ export default function KidsTabs(){
   <Tabs.Screen name="packs" options={{href:null}} />
   <Tabs.Screen name="explore" options={{href:null}} />
   <Tabs.Screen name="challenge" options={{href:null}} />
+  <Tabs.Screen name="worlds" options={{href:null}} />
+  <Tabs.Screen name="world" options={{href:null}} />
+  <Tabs.Screen name="all-packs" options={{href:null}} />
   {tabs.map(tab=><Tabs.Screen key={tab.name} name={tab.name}
     options={{title:t(tab.label),tabBarAccessibilityLabel:t(tab.label),
       tabBarIcon:({color})=> <KidsEmojiIcon emoji={tab.emoji} size={26}
