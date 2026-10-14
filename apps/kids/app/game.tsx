@@ -95,20 +95,20 @@ export default function KidGameScreen(){
     if(params.packId&&uuid.test(params.packId)){
       const started=await kidsApi!.startPack(token,params.packId);
       ref={kind:"run",runId:started.runId,runToken:started.runToken,mode:"PACK"};
-      await save(ref);
+      // Save alongside initial question lookup below.
     }else if(params.quizId && uuid.test(params.quizId)){
       const started=await kidsApi!.startSingle(token,params.quizId);
       ref={kind:"single",sessionId:started.sessionId,sessionToken:started.sessionToken};
-      await save(ref);
+      // Save alongside initial question lookup below.
     }else if(params.mode==="RANDOM_FIVE"){
       const started=await kidsApi!.startRun(token,params.mode);
       ref={kind:"run",runId:started.runId,runToken:started.runToken,mode:params.mode};
-      await save(ref);
+      // Save alongside initial question lookup below.
     }else ref=await read();
     if(!active)return;
     if(!ref){setError(t("native.play.noActive"));return;}
     setReference(ref);
-    await retrieve(ref,token);
+    await Promise.all([params.packId||params.quizId||params.mode==="RANDOM_FIVE"?save(ref):Promise.resolve(),retrieve(ref,token)]);
    }catch(e){
     if(!active)return;
     if(e instanceof ApiError && [401,403,404,409,410].includes(e.status??0))await save(null);
@@ -278,7 +278,9 @@ export default function KidGameScreen(){
          </View>:
          <View style={styles.answer}>
            <TextInput value={guess} onChangeText={setGuess} maxLength={200}
-             autoCorrect={false} placeholder={t("native.play.placeholder")}
+             autoCorrect={false} returnKeyType="done"
+              onSubmitEditing={()=>{if(!pending&&guess.trim())submit(guess.trim());}}
+              placeholder={t("native.play.placeholder")}
              accessibilityLabel={t("native.play.placeholder")} style={styles.field}/>
            <KidsTap accessibilityRole="button" disabled={pending||!guess.trim()} style={styles.button}
              onPress={()=>submit(guess.trim())}><View style={styles.inline}>
