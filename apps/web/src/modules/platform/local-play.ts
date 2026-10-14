@@ -111,7 +111,8 @@ export async function localRunSync(p:{runId:string;runToken:string;results:Resul
 }
 export async function localSingleBundle(p:{sessionId:string;sessionToken:string},actor:Actor|null){
   const session=await getPlaySession(p,actor,{allowCompletedRun:true});
-  allowedQuiz(session.quiz,session.revision,actor?.childScope?"KIDS":"GENERAL",session.locale);
+  const quiz=await db().quiz.findUnique({where:{id:session.quizId}});
+  allowedQuiz(quiz,session.revision,actor?.childScope?"KIDS":"GENERAL",session.locale);
   await checkMedia([session.revision]);
   return {sessionId:session.id,sessionToken:p.sessionToken,
     question:questionData({position:0,quizId:session.quizId,revision:session.revision},session.id),
