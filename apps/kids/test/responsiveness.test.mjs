@@ -22,7 +22,7 @@ test("Kids reveal and answer moments animate without extra backend operations",(
  assert.match(game,/useNativeDriver:true/);
  assert.match(game,/focusClue\.current=next\.clueIndex/);
  assert.match(game,/scrollRef\.current\?\.scrollTo/);
- assert.match(game,/result\?<PopIn>/);
+ assert.match(game,/result\?<PopIn celebrate=\{result\.correct\}/);
  assert.match(game,/onSubmitEditing=/);
 });
 
