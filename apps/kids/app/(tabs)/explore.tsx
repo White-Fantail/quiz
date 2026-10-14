@@ -92,7 +92,7 @@ export default function ExploreScreen(){
      <Text style={styles.heading}>✨ {t("native.adventure.quizzes")}</Text>
      <View style={styles.grid}>
        {shownQuizzes.map(quiz=><KidsTap key={quiz.id} accessibilityRole="button" accessibilityLabel={quiz.title}
-         onPress={()=>router.push({pathname:"/game",params:{quizId:quiz.id}})}
+         onPress={()=>go({pathname:"/game",params:{quizId:quiz.id}})}
          style={[styles.quizCard,{width:wide?"48.7%":"100%"}]}>
          <View style={[styles.quizArt,{backgroundColor:adventureById(adventureForQuiz(quiz))?.tint||"#ECE2FF"}]}>
            <KidsEmojiIcon emoji={adventureById(adventureForQuiz(quiz))?.emoji||"✨"} size={38}/>
