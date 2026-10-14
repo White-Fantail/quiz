@@ -28,7 +28,7 @@ test("Kids reveal and answer moments animate without extra backend operations",(
 
 test("Kids tab catalog shares child-scoped first-page cache and in-flight requests",()=>{
  const catalog=source("src/useKidsAdventures.ts");
- assert.match(catalog,/keyFor\(token:string,locale:string\)/);
+ assert.match(catalog,/keyFor\(token:string,locale:Locale\)/);
  assert.match(catalog,/CACHE_MS=60_000/);
  assert.match(catalog,/inFlight\.get\(key\)/);
  assert.match(catalog,/initialCache\.set\(key/);
