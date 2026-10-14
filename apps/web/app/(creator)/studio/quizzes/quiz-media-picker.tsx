@@ -63,6 +63,7 @@ export default function MediaPicker({kind,selectedId,onSelect,onClose}:{
       <Link className="btn btn-outline" href={localizeHref("/studio/media",locale)} target="_blank" rel="noopener noreferrer">
         {msg("Open Media Library ↗","미디어 라이브러리 열기 ↗")}
       </Link>
+      <Link className="btn btn-outline" href={localizeHref("/studio/media/new",locale)} target="_blank" rel="noopener noreferrer">{msg("+ Add media ↗","+ 미디어 추가 ↗")}</Link>
       <button className="btn btn-outline" type="button" onClick={()=>setRefresh(n=>n+1)}>{msg("Refresh files","파일 새로고침")}</button>
     </div>
     {loading&&<p role="status">{msg("Loading media…","미디어 불러오는 중…")}</p>}

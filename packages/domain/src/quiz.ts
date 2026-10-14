@@ -18,7 +18,7 @@ export type Clue =
       order: number;
       type: "image-reveal";
       media: { url: string; alt?: string; attribution?: string };
-      reveal: { effect: "blur" | "zoom" | "spotlight"; strength: number; focusX?: number; focusY?: number };
+      reveal: { effect: "zoom" | "spotlight"; strength: number; focusX?: number; focusY?: number };
       text?: string;
     }
   | {

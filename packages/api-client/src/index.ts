@@ -75,7 +75,7 @@ export class QuizDipPublicApi {
 }
 
 
-export type ImageRevealSettings = {effect:"blur"|"zoom"|"spotlight";strength:number;focusX?:number;focusY?:number};
+export type ImageRevealSettings = {effect:"zoom"|"spotlight";strength:number;focusX?:number;focusY?:number};
 export type KidClue = {id:string;order:number;type:"text"|"image"|"image-reveal"|"audio"|"video"|"map";
   text?:string;mediaId?:string;reveal?:ImageRevealSettings;map?:{latitude:number;longitude:number;zoom?:number}};
 export type KidQuestion = {sessionId:string;sessionToken:string;quizId:string;

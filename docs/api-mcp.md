@@ -24,7 +24,7 @@ The web UI, REST API and MCP tools reuse `execute()` and the same policy layer. 
 | Import media by approved HTTPS hostname | POST /api/v1/media/import | quizdip_media_import |
 | My media asset library | GET /api/v1/media, GET /api/v1/media/:id | quizdip_media_list / quizdip_media_get |
 | Metadata update / confirmed deletion | PATCH /api/v1/media/:id, DELETE /api/v1/media/:id | quizdip_media_update / quizdip_media_delete |
-| Image crop/blur/resize | POST /api/v1/media/:id/transform | quizdip_media_transform |
+| Image crop/resize | POST /api/v1/media/:id/transform | quizdip_media_transform |
 | ADMIN-only media moderation | POST /api/v1/media/:id/review | quizdip_media_review |
 | Session-gated signed media URL | POST /api/v1/play/:id/media | quizdip_play_media |
 | List public / own / Kids-eligible quizzes | GET /api/v1/quizzes | quizdip_quiz_list |

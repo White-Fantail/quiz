@@ -22,7 +22,7 @@ Media is a **first-class asset** referenced by ID from both the quiz prompt and 
 | Read own asset + signed preview | GET /api/v1/media/:id | `quizdip_media_get` |
 | Change accessible text / attribution (resets approval) | PATCH /api/v1/media/:id | `quizdip_media_update` |
 | Delete playback-unneeded asset, explicitly confirmed | DELETE /api/v1/media/:id | `quizdip_media_delete` |
-| Create private crop / blur / resized image variant | POST /api/v1/media/:id/transform | `quizdip_media_transform` |
+| Create private cropped / resized image variant | POST /api/v1/media/:id/transform | `quizdip_media_transform` |
 | ADMIN ONLY: approve or restrict asset (human moderation) | POST /api/v1/media/:id/review | `quizdip_media_review` |
 | Retrieve authorized playback URL for revealed media | POST /api/v1/play/:sessionId/media | `quizdip_play_media` |
 
@@ -30,7 +30,7 @@ Media is a **first-class asset** referenced by ID from both the quiz prompt and 
 
 ## Creator-facing Studio media library
 
-The authenticated Studio web media library is available at `/studio/media`. A creator can choose a supported image/audio/video file, calculate SHA-256 in the browser, reserve a signed R2 upload through REST, send the file directly to the private bucket, finalize it through REST, list and preview their own assets, create blurred image variants, and delete unreferenced assets. The web interface and MCP operate on **the same `MediaAsset.id` values**. Quiz authoring itself is still primarily REST/MCP; the Studio quiz editor is not yet fully wired to the domain API.
+The authenticated Studio web media library is available at `/studio/media`. A creator can choose a supported image/audio/video file, calculate SHA-256 in the browser, reserve a signed R2 upload through REST, send the file directly to the private bucket, finalize it through REST, list and preview their own assets, and delete unreferenced assets. The web interface and MCP operate on **the same `MediaAsset.id` values**. Quiz authoring itself is still primarily REST/MCP; the Studio quiz editor is not yet fully wired to the domain API.
 
 ## How ChatGPT can create a multimedia quiz
 
@@ -45,7 +45,7 @@ The authenticated Studio web media library is available at `/studio/media`. A cr
 
 Size limits: **images 12 MiB**, **audio 25 MiB**, **video 64 MiB**. Accepted formats: JPEG, PNG, WebP, MP3, WAV, OGG audio, MP4, WebM. All require detectable matching binary signatures. Limits and upload expiration are server-enforced. The 150-media rolling 24-hour daily count applies to non-admin accounts; verified ADMIN accounts bypass only this daily count for uploads, HTTPS imports and image transforms. Admins still require server-authenticated permissions and remain subject to MIME checks, per-file size, storage validation, import host allowlists and independent content moderation.
 
-Image transformations support crops, Gaussian blur and resize (result WebP), with a 30-megapixel decode limit. These are **non-destructive new asset IDs** with a `parentId`. A progressive reveal can be implemented as multiple derived variants in order. Audio/video transcoding or waveform analysis is **not yet implemented**.
+Image transformations support cropping and resizing (result WebP), with a 30-megapixel decode limit. These are **non-destructive new asset IDs** with a `parentId`. A progressive reveal can be implemented as multiple derived variants in order. Audio/video transcoding or waveform analysis is **not yet implemented**.
 
 ## Cloudflare setup
 
