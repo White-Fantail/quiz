@@ -60,10 +60,12 @@ test("clues and guesses reuse server grading, with private non-public child rewa
   assert.match(game,/score:true,finishedAt:true/);
   assert.doesNotMatch(game,/leaderboardEligible:true|leaderboardOptIn:true/);
 });
-test("Expo native player renders server-revealed text, image, audio and video only",()=>{
+test("Expo native player renders local clues and approved media without per-guess server roundtrips",()=>{
   const screen=file("../kids/app/game.tsx"),clue=file("../kids/src/components/KidClueView.tsx");
-  assert.match(screen,/kidsApi\.nextClue/);
-  assert.match(screen,/kidsApi\.guess/);
+  assert.match(screen,/revealLocalClue/);
+  assert.match(screen,/guessLocalAnswer/);
+  assert.match(screen,/kidsApi\.runBundle/);
+  assert.match(screen,/kidsApi\.runSync/);
   assert.match(screen,/SecureStore\.setItemAsync/);
   assert.match(screen,/native\.play\.notEnough/);
   assert.match(clue,/expo-image/);
