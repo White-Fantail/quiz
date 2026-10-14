@@ -276,7 +276,7 @@ export class QuizDipKidsDeviceApi {
   async currentRun(token:string,runId:string,runToken:string):Promise<KidQuestion|KidRunResult> {
     return this.playRequest(token,{action:"run_current",runId,runToken});
   }
-  async startSingle(token:string,quizId:string):Promise<{sessionId:string;sessionToken:string}> {
+  async startSingle(token:string,quizId:string):Promise<{sessionId:string;sessionToken:string;options?:string[]}> {
     return this.playRequest(token,{action:"single_start",quizId});
   }
   async currentSingle(token:string,sessionId:string,sessionToken:string):Promise<KidQuestion> {
