@@ -110,7 +110,7 @@ test("Play opens dedicated worlds and all-packs screens without leaving surprise
  assert.match(all,/item\.inKidsPack===false/);
  assert.match(counter,/Count a pack once/);
  assert.doesNotMatch(counter,/\.length\+\s*quizzes/);
- assert.match(browser,/while\\(live&&nextOffset!==null\\)/);
+ assert.ok(browser.includes("while(live&&nextOffset!==null)"));
  assert.match(browser,/PAGE_SIZE=20/);
  for(const route of ["explore","challenge","worlds","world","all-packs"])
    assert.ok(tabs.includes('name="'+route+'" options={{href:null}}'));
