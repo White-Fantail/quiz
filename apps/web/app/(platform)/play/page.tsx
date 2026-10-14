@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { ImageReveal, type RevealSettings } from "../../../src/components/image-reveal";
 import { RemainingClues } from "../../../src/components/remaining-clues";
-import { activeImageStage } from "@quizdip/domain";
+import { activeImageStage, initialLocalProgress, revealLocalClue, guessLocalAnswer, localSummary,
+  type LocalQuestion, type LocalProgress } from "@quizdip/domain";
 import { useLocale } from "../../../src/i18n/provider";
 import { localizeHref } from "../../../src/i18n/core";
 import { bilingual } from "../../../src/i18n/view-copy";
@@ -24,6 +25,9 @@ type RunInfo = {runId:string;runToken:string;mode:Mode;lane:Lane;packId?:string|
 type Round = RunInfo & {sessionId:string;sessionToken:string;round:number;quizId:string;title:string;
   prompt:string;promptMediaIds:string[];clues:Clue[];clueIndex:number;clueCount:number;
   sessionStatus:string;canGuess?:boolean;responseMode?:"text"|"multiple-choice";options?:string[];ratings?:RatingSummary;myRating?:number|null;ratingAccess?:RatingAccess};
+type LocalPack = {runId:string;questions:(LocalQuestion&{position:number;responseMode?:"text"|"multiple-choice";options?:string[]})[]};
+type LocalSaved = {bundle:LocalPack;progress:Record<number,LocalProgress>};
+const localKey=(id:string)=>"quizdip-local-play-v1:"+id;
 type FeedbackItem = {quizId:string;round:number;title:string;ratings:RatingSummary;myRating:number|null;ratingAccess:RatingAccess;isTranslation?:boolean;myTranslationRating?:number|null};
 type MediaPreview = {url:string;kind:string;mimeType:string;mediaId:string};
 
@@ -70,6 +74,8 @@ export default function PlayPage({packId}:{packId?:string}={}) {
   const locale = useLocale();
   const msg=(en:string,ko:string)=>bilingual(locale,en,ko);
   const request=(path:string,method:"GET"|"POST"="GET",body?:unknown)=>api(path,method,body,locale);
+  const localBundleRef=useRef<LocalPack|null>(null);
+  const localProgressRef=useRef<Record<number,LocalProgress>>({});
   const [lane,setLane]=useState<Lane>("GENERAL");
   const [pack,setPack]=useState<{id:string;title:string;description:string;questionCount:number;author:{displayName:string}}|null>(null);
   const [run,setRun]=useState<RunInfo|null>(null);
@@ -119,26 +125,83 @@ export default function PlayPage({packId}:{packId?:string}={}) {
     return ()=>{alive=false;};
   },[run?.runId,run?.status,round]);
 
+  const saveLocal=()=>{
+    if(!localBundleRef.current)return;
+    try{localStorage.setItem(localKey(localBundleRef.current.runId),JSON.stringify({
+      bundle:localBundleRef.current,progress:localProgressRef.current
+    } satisfies LocalSaved));}catch{/* Storage can be disabled: play still works. */}
+  };
+  const syncLocal=async()=>{
+    const bundle=localBundleRef.current;
+    if(!bundle)return;
+    const results=Object.entries(localProgressRef.current).filter(([,p])=>p.status!=="ACTIVE")
+      .map(([position,p])=>({position:Number(position),cluesUsed:p.clueIndex,status:p.status as "SOLVED"|"FAILED",score:p.score}));
+    if(!results.length)return;
+    await request("/runs/"+bundle.runId+"/sync","POST",{runToken:run?.runToken,results});
+  };
+  const loadLocalMedia=(r:RunInfo,position:number,ids:string[])=>{
+    void Promise.all([...new Set(ids)].filter(Boolean).map(async mediaId=>{
+      try{
+        const asset=await request("/runs/"+r.runId+"/local-media","POST",
+          {runToken:r.runToken,position,mediaId});
+        setMedia(prev=>({...prev,[mediaId]:asset}));
+      }catch{/* A missing media file does not block gameplay. */}
+    }));
+  };
   const showRound=useCallback(async (r:RunInfo) => {
     setRemainingClues(null);setReviewOpen(false);setReviewError("");
-    const data=await request("/runs/"+r.runId+"/current","POST",{runToken:r.runToken,avoidQuizIds:rememberedQuizzes(),locale});
-    if(data.status==="FINISHED" && !data.sessionId){
-      if(packId)try{sessionStorage.removeItem("quizdip-pack-run:"+packId+":"+locale)}catch{}
-      setRun({...r,...data});setRound(null);setFeedback("");setMedia({});
+    if(r.mode!=="INFINITE"){
+      let bundle=localBundleRef.current;
+      if(!bundle||bundle.runId!==r.runId){
+        let stored:LocalSaved|null=null;
+        try{stored=JSON.parse(localStorage.getItem(localKey(r.runId))||"null");}catch{}
+        if(stored?.bundle?.runId===r.runId && Array.isArray(stored.bundle.questions)){
+          bundle=stored.bundle;localProgressRef.current=stored.progress??{};
+        }else{
+          const data=await request("/runs/"+r.runId+"/bundle","POST",{runToken:r.runToken});
+          bundle={runId:r.runId,questions:data.questions};localProgressRef.current={};
+          for(const entry of data.progress??[])localProgressRef.current[entry.position]=entry;
+        }
+        localBundleRef.current=bundle;
+      }
+      const questions=bundle.questions;
+      // The first unfinished question is also correct after a browser restart.
+      const position=questions.findIndex(q=>
+        !localProgressRef.current[q.position] || localProgressRef.current[q.position].status==="ACTIVE");
+      const summary=localSummary(Object.values(localProgressRef.current));
+      const nextRun={...r,completed:summary.completed,score:summary.score,
+        solved:summary.solved,failed:summary.failed,
+        status:position<0?"FINISHED" as const:"ACTIVE" as const};
+      setRun(nextRun);saveLocal();
+      if(position<0){setRound(null);setFeedback("");setMedia({});void syncLocal().catch(()=>{});return;}
+      const q=questions[position],p=localProgressRef.current[q.position]??initialLocalProgress();
+      const next:Round={...nextRun,sessionId:"local:"+q.quizId,
+        sessionToken:r.runToken,round:q.position+1,quizId:q.quizId,title:q.title,
+        prompt:q.prompt,promptMediaIds:q.promptMediaIds,
+        clues:q.clues.slice(0,p.clueIndex) as Clue[],clueIndex:p.clueIndex,
+        clueCount:q.clues.length,sessionStatus:p.status,canGuess:!p.mustReveal&&p.status==="ACTIVE",
+        responseMode:q.answer.responseMode??"text",options:q.answer.options};
+      rememberQuiz(next.quizId);setRound(next);setGuess("");setFeedback("");setAnswer("");
+      setRoundScore(p.score);setMustReveal(p.mustReveal);setMedia({});
+      loadLocalMedia(r,q.position,[...q.promptMediaIds,
+        ...q.clues.slice(0,p.clueIndex).map(c=>c.mediaId).filter((id):id is string=>!!id)]);
+      void syncLocal().catch(()=>{});
       return;
     }
+    const data=await request("/runs/"+r.runId+"/current","POST",
+      {runToken:r.runToken,avoidQuizIds:rememberedQuizzes(),locale});
+    if(data.status==="FINISHED" && !data.sessionId){
+      setRun({...r,...data});setRound(null);setFeedback("");setMedia({});return;
+    }
     const next=data as Round;
-    if(packId)try{sessionStorage.setItem("quizdip-pack-run:"+packId+":"+locale,JSON.stringify({runId:r.runId,runToken:r.runToken,mode:"PACK",lane:"GENERAL",completed:r.completed,total:r.total,score:r.score,status:"ACTIVE"}))}catch{}
     rememberQuiz(next.quizId);
     setRun({...r,...data});setRound(next);setGuess("");setFeedback("");setAnswer("");setRoundScore(0);
-    setMustReveal(!next.canGuess);
-    setMedia({});
-    const ids=[...(next.promptMediaIds||[]),...next.clues.map(c=>c.mediaId).filter((x):x is string=>!!x)];
-    await Promise.all([...new Set(ids)].map(async mediaId=>{
-      try{
-        const asset=await request("/play/"+next.sessionId+"/media","POST",{sessionToken:next.sessionToken,mediaId});
-        setMedia(previous=>({...previous,[mediaId]:asset}));
-      }catch{/* Missing or revoked media is shown as unavailable, never expose a storage key. */}
+    setMustReveal(!next.canGuess);setMedia({});
+    const ids=[...(next.promptMediaIds||[]),...next.clues.map(c=>c.mediaId).filter((id):id is string=>!!id)];
+    void Promise.all([...new Set(ids)].map(async mediaId=>{
+      try{const asset=await request("/play/"+next.sessionId+"/media","POST",
+        {sessionToken:next.sessionToken,mediaId});
+        setMedia(previous=>({...previous,[mediaId]:asset}));}catch{}
     }));
   },[packId,locale]);
 
@@ -181,8 +244,19 @@ export default function PlayPage({packId}:{packId?:string}={}) {
     if(!round)return;
     setBusy(true);setError("");
     try{
-      await request("/play/"+round.sessionId+"/clue","POST",{sessionToken:round.sessionToken});
-      await showRound(run!);setMustReveal(false);
+      if(run?.mode!=="INFINITE"&&localBundleRef.current){
+        const q=localBundleRef.current.questions[round.round-1];
+        const previous=localProgressRef.current[q.position]??initialLocalProgress();
+        const updated=revealLocalClue(q,previous);
+        localProgressRef.current[q.position]=updated;saveLocal();
+        setRound({...round,clues:q.clues.slice(0,updated.clueIndex) as Clue[],
+          clueIndex:updated.clueIndex,canGuess:true});
+        setMustReveal(false);setFeedback("");setGuess("");
+        loadLocalMedia(run!,q.position,[q.clues[updated.clueIndex-1]?.mediaId].filter((v):v is string=>!!v));
+      }else{
+        await request("/play/"+round.sessionId+"/clue","POST",{sessionToken:round.sessionToken});
+        await showRound(run!);setMustReveal(false);
+      }
     }catch(e){setError(e instanceof Error?e.message:msg("Could not reveal the next clue.","다음 단서를 열지 못했어요."));}
     finally{setBusy(false);}
   }
@@ -191,7 +265,15 @@ export default function PlayPage({packId}:{packId?:string}={}) {
     submittingRef.current=true;
     setBusy(true);setError("");
     try{
-      const result=await request("/play/"+round.sessionId+"/guess","POST",
+      let result:any;
+      if(run?.mode!=="INFINITE"&&localBundleRef.current){
+        const q=localBundleRef.current.questions[round.round-1];
+        const attempt=guessLocalAnswer(q,localProgressRef.current[q.position]??initialLocalProgress(),selectedAnswer.trim());
+        if(!attempt)return;
+        localProgressRef.current[q.position]=attempt.progress;saveLocal();
+        result=attempt.result;
+        if(result.status!=="ACTIVE")void syncLocal().catch(()=>{});
+      }else result=await request("/play/"+round.sessionId+"/guess","POST",
         {sessionToken:round.sessionToken,guess:selectedAnswer.trim()});
       if(result.status==="ACTIVE"){
         setFeedback(msg("Not quite. Reveal the next clue and try again.","아쉬워요. 다음 단서를 열어서 다시 맞혀 보세요."));
@@ -214,6 +296,13 @@ export default function PlayPage({packId}:{packId?:string}={}) {
     if (reviewOpen) { setReviewOpen(false); return; }
     setReviewOpen(true);
     if (remainingClues) return;
+    if(run?.mode!=="INFINITE"&&localBundleRef.current){
+      const q=localBundleRef.current.questions[round.round-1];
+      const unseen=q.clues.slice(round.clueIndex) as Clue[];
+      setRemainingClues(unseen);
+      loadLocalMedia(run,q.position,unseen.map(c=>c.mediaId).filter((id):id is string=>!!id));
+      return;
+    }
     setReviewBusy(true); setReviewError("");
     try {
       const result = await request("/play/" + round.sessionId + "/review", "POST",
