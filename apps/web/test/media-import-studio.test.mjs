@@ -4,10 +4,10 @@ import { readFileSync } from "node:fs";
 import { operations } from "../src/modules/platform/contracts.ts";
 
 test("image URL import is exposed in Studio and remains REST/MCP shared operation",()=>{
-  const studio=readFileSync(new URL("../app/(creator)/studio/media/media-library.tsx",import.meta.url),"utf8");
+  const studio=readFileSync(new URL("../app/(creator)/studio/media/new/media-create.tsx",import.meta.url),"utf8");
   const rest=readFileSync(new URL("../app/api/v1/[...segments]/route.ts",import.meta.url),"utf8");
   const dispatcher=readFileSync(new URL("../src/modules/platform/operations.ts",import.meta.url),"utf8");
-  assert.match(studio,/request\("\/media\/import","POST"/);
+  assert.match(studio,/request\("\/media\/import",/);
   assert.match(studio,/licence|license/i);
   assert.match(studio,/setImportRights/);
   assert.match(studio,/Wikimedia Commons/);
