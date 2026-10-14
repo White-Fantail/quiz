@@ -13,7 +13,7 @@ export type Adventure = {
   detailKey: KidsMessageKey;
 };
 
-// One set of adventure identifiers and labels powers Home and Explore.
+// One set of adventure identifiers and labels powers Play, All Worlds and pack discovery.
 // These are presentation groups, never child-safety or approval decisions.
 export const adventures: readonly Adventure[] = [
   {id:"dinosaur",emoji:"🦕",tint:"#E9DEFF",labelKey:"native.adventure.dinosaur",detailKey:"native.adventure.dinosaurDesc"},
@@ -70,6 +70,6 @@ export function adventureById(id:string|undefined):Adventure|null {
   return adventures.find(item=>item.id===id)||null;
 }
 export function adventureCount(id:AdventureId,packs:KidPackItem[],quizzes:KidsCatalogItem[]):number {
-  return packs.filter(item=>adventureForPack(item)===id).length+
-    quizzes.filter(item=>adventureForQuiz(item)===id).length;
+  // Count a pack once. Its constituent questions aren't additional games.
+  return packs.filter(item=>adventureForPack(item)===id).length;
 }

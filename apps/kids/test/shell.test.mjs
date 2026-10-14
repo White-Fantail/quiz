@@ -86,22 +86,35 @@ test("native Kids decorative icons are font-independent SVGs",()=>{
 });
 
 
-test("Play combines category exploration with packs, quick quizzes and surprise mode",()=>{
- const play=source("app/(tabs)/index.tsx");
+test("Play opens dedicated worlds and all-packs screens without leaving surprise mode in category",()=>{
+ const home=source("app/(tabs)/index.tsx");
+ const worlds=source("app/(tabs)/worlds.tsx");
+ const world=source("app/(tabs)/world.tsx");
+ const all=source("app/(tabs)/all-packs.tsx");
  const tabs=source("app/(tabs)/_layout.tsx");
- assert.match(play,/adventures\.filter/);
- assert.match(play,/adventureCount/);
- assert.match(play,/useKidsAdventures/);
- assert.match(play,/shownPacks\.map/);
- assert.match(play,/shownQuizzes\.map/);
- assert.ok(play.indexOf("shownPacks.map")<play.indexOf("shownQuizzes.map"));
- assert.match(play,/mode:"RANDOM_FIVE"/);
- assert.match(play,/SecureStore\.getItemAsync\(SAVED_GAME\)/);
- assert.match(tabs,/name="explore" options=\{\{href:null\}\}/);
- assert.match(tabs,/name="challenge" options=\{\{href:null\}\}/);
- assert.match(tabs,/kids.nav.play/);
- assert.match(tabs,/kids.nav.stars/);
- assert.doesNotMatch(tabs,/\{name:"explore",label:/);
+ const counter=source("src/adventures.ts");
+ const browser=source("src/useKidsPackBrowse.ts");
+ assert.match(home,/useKidsPackBrowse/);
+ assert.match(home,/go\("\/worlds"\)/);
+ assert.match(home,/pathname:"\/world"/);
+ assert.match(home,/go\("\/all-packs"\)/);
+ assert.match(home,/mode:"RANDOM_FIVE"/);
+ assert.doesNotMatch(home,/setSelected|shownQuizzes/);
+ assert.match(worlds,/pathname:"\/world"/);
+ assert.match(worlds,/BrowseBack/);
+ assert.match(world,/BrowseBack/);
+ assert.match(world,/router\.replace\(from==="worlds"\?"\/worlds":"\/"\)/);
+ assert.doesNotMatch(world,/RANDOM_FIVE|Surprise me|worldsToShow/);
+ assert.match(world,/packs\.filter\(pack=>adventureForPack\(pack\)===item\.id\)/);
+ assert.match(all,/packs\.map/);
+ assert.match(all,/item\.inKidsPack===false/);
+ assert.match(counter,/Count a pack once/);
+ assert.doesNotMatch(counter,/\.length\+\s*quizzes/);
+ assert.ok(browser.includes("while(live&&nextOffset!==null)"));
+ assert.match(browser,/PAGE_SIZE=20/);
+ for(const route of ["explore","challenge","worlds","world","all-packs"])
+   assert.ok(tabs.includes('name="'+route+'" options={{href:null}}'));
+ for(const label of ["kids.nav.play","kids.nav.stars"])assert.ok(tabs.includes(label));
 });
 test("Challenge missions reuse child-approved packs, saved progress, and native game routes",()=>{
  const challenge=source("app/(tabs)/challenge.tsx");
