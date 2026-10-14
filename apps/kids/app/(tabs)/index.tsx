@@ -56,6 +56,8 @@ export default function KidsHome(){
   return ()=>{live=false;};
  },[]));
  const available=adventures.filter(item=>adventureCount(item.id,packs,quizzes)>0);
+ const worldsToShow=selected==="all"?available:selected?
+   available.filter(item=>item.id===selected):available.slice(0,4);
  const filteredPacks=selected&&selected!=="all"?packs.filter(p=>adventureForPack(p)===selected):packs;
  const filteredQuizzes=selected&&selected!=="all"?quizzes.filter(q=>adventureForQuiz(q)===selected):quizzes;
  const shownPacks=selected?filteredPacks:filteredPacks.slice(0,8);
@@ -90,7 +92,7 @@ export default function KidsHome(){
    </KidsTap>:null}
    {loaded&&available.length===0&&!loading?<Text style={styles.muted}>{t("native.adventure.empty")}</Text>:null}
    <View style={styles.worldGrid}>
-    {available.map(item=><KidsTap key={item.id} accessibilityRole="button"
+    {worldsToShow.map(item=><KidsTap key={item.id} accessibilityRole="button"
       accessibilityLabel={t(item.labelKey)} accessibilityState={{selected:selected===item.id}}
       onPress={()=>setSelected(item.id)}
       style={[styles.world,{backgroundColor:item.tint,borderColor:selected===item.id?theme.colors.accent:"transparent"}]}>
