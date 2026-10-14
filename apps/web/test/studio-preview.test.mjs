@@ -34,7 +34,7 @@ test("preview reuses owner GET APIs with no server-side gameplay or rating mutat
   assert.doesNotMatch(player,/method:\s*["'](POST|PUT|PATCH|DELETE)["']/);
   assert.doesNotMatch(player,/localStorage|sessionStorage|navigator\.sendBeacon/);
   assert.match(player,/isCorrectAnswer/);
-  assert.match(player,/scoreForClues/);
+  assert.match(player,/scoreForAnswer/); // Preview honors response-mode scoring.
   assert.equal(operations.quiz_get.public,true);
   assert.equal(operations.media_get.public,false);
 });
