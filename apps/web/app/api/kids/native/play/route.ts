@@ -4,7 +4,9 @@ import { fail, PlatformError } from "../../../../../src/modules/platform/auth";
 import { requirePlayable } from "../../../../../src/modules/kids/time";
 import { startKidPack } from "../../../../../src/modules/kids/packs";
 import { startKidRun,startKidSingle,currentKidRun,currentKidSingle,
-  kidClue,kidGuess,kidMedia,kidTreasures,kidReport } from "../../../../../src/modules/kids/game";
+  kidClue,kidGuess,kidMedia,kidTreasures,kidReport,childActor } from "../../../../../src/modules/kids/game";
+
+import {localRunBundle,localRunSync,localRunMedia,localSingleBundle,localSingleSync,localSingleMedia} from "../../../../../src/modules/platform/local-play";
 
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
@@ -17,6 +19,16 @@ const actions=z.discriminatedUnion("action",[
     avoidQuizIds:z.array(uuid).max(1000).default([])}).strict(),
   z.object({action:z.literal("pack_start"),packId:uuid}).strict(),
   z.object({action:z.literal("run_current"),...run}).strict(),
+  z.object({action:z.literal("run_bundle"),...run}).strict(),
+  z.object({action:z.literal("run_sync"),...run,results:z.array(z.object({
+    position:z.number().int().min(0).max(10000),cluesUsed:z.number().int().min(1).max(15),
+    status:z.enum(["SOLVED","FAILED"]),score:z.number().int().min(0).max(100)
+  })).max(100)}).strict(),
+  z.object({action:z.literal("run_local_media"),...run,position:z.number().int().min(0),mediaId:uuid}).strict(),
+  z.object({action:z.literal("single_bundle"),...session}).strict(),
+  z.object({action:z.literal("single_sync"),...session,cluesUsed:z.number().int().min(1).max(15),
+    status:z.enum(["SOLVED","FAILED"]),score:z.number().int().min(0).max(100)}).strict(),
+  z.object({action:z.literal("single_local_media"),...session,mediaId:uuid}).strict(),
   z.object({action:z.literal("single_start"),quizId:uuid}).strict(),
   z.object({action:z.literal("single_current"),...session}).strict(),
   z.object({action:z.literal("clue"),...session}).strict(),
@@ -53,6 +65,12 @@ export async function POST(request:Request){
      case "run_start":return respond(await startKidRun(kid,data.mode,data.avoidQuizIds));
      case "pack_start":return respond(await startKidPack(kid,data.packId));
      case "run_current":return respond(await currentKidRun(kid,data.runId,data.runToken));
+     case "run_bundle":return respond(await localRunBundle(data,childActor(kid)));
+     case "run_sync":return respond(await localRunSync(data,childActor(kid)));
+     case "run_local_media":return respond(await localRunMedia(data,childActor(kid)));
+     case "single_bundle":return respond(await localSingleBundle(data,childActor(kid)));
+     case "single_sync":return respond(await localSingleSync(data,childActor(kid)));
+     case "single_local_media":return respond(await localSingleMedia(data,childActor(kid)));
      case "single_start":return respond(await startKidSingle(kid,data.quizId));
      case "single_current":return respond(await currentKidSingle(kid,data.sessionId,data.sessionToken));
      case "clue":return respond(await kidClue(kid,data.sessionId,data.sessionToken));
