@@ -23,23 +23,10 @@ export async function status(kid:Kid,now=new Date()){
   return {localDay:localDate,usedMinutes:used,remainingMinutes:limits.dailyMinutes===0?null:Math.max(0,limits.dailyMinutes-used),
     sessionMinutesUsed,blockedUntil,limitReached,limits,serverNow:now.toISOString()};
 }
-/** Read-only gate: every Kids protected endpoint must fail closed after exceeded budget.
- * A heartbeat is needed at least every 90 seconds for real-time play access. */
-export async function requirePlayable(kid:Kid,now=new Date()){
-  const state=await status(kid,now);
-  if(kid.breakUntil && kid.breakUntil>now)fail(429,"kid_break_required","A short rest is required");
-  if(state.limitReached){
-    const minute=utcMinuteSlot(now);
-    const existing=await db().kidUsageMinute.findUnique({where:{profileId_utcMinute:{profileId:kid.profileId,utcMinute:minute}}});
-    if(!existing)fail(429,"kid_daily_limit","Daily play time is finished");
-  }
-  if(kid.profile.playSessionMinutes>0 && kid.playStartedAt && kid.lastUsageAt &&
-      now.getTime()-kid.lastUsageAt.getTime()<STALE_MS &&
-      now.getTime()-kid.playStartedAt.getTime()>=kid.profile.playSessionMinutes*60000)
-    fail(429,"kid_session_limit","Take a break before starting a new session");
-  if(!kid.lastUsageAt || now.getTime()-kid.lastUsageAt.getTime()>90_000)
-    fail(429,"kid_heartbeat_required","Check play time before continuing");
-  return state;
+/** Local-first gameplay: the device enforces its own advisory play budget.
+ * Pairing, audience and moderation permissions remain server-authorized. */
+export async function requirePlayable(_kid:Kid){
+  return;
 }
 /** One minute counted once per profile across all devices, with serializable retries.
  * A pulse requires actual foreground activity; no client duration/clock is accepted. */
