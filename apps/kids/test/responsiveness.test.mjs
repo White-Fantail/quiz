@@ -8,7 +8,7 @@ test("Kids quiz input is single-flight and gives immediate feedback",()=>{
  const tap=source("src/components/KidsTap.tsx");
  assert.match(game,/if\(pendingRef\.current\)return;/);
  assert.match(game,/pendingRef\.current=true/);
- assert.match(game,/finally\{pendingRef\.current=false/);
+ assert.match(game,/pendingRef\.current=false/);
  assert.match(game,/selectedAnswer===option/);
  assert.match(game,/busyAction==="clue"/);
  assert.match(game,/busyAction==="next"/);
