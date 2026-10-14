@@ -304,7 +304,7 @@ export default function PlayPage({packId}:{packId?:string}={}) {
     if (reviewOpen) { setReviewOpen(false); return; }
     setReviewOpen(true);
     if (remainingClues) return;
-    if(run?.mode!=="INFINITE"&&localBundleRef.current){
+    if(run&&run.mode!=="INFINITE"&&localBundleRef.current){
       const q=localBundleRef.current.questions[round.round-1];
       const unseen=q.clues.slice(round.clueIndex) as unknown as Clue[];
       setRemainingClues(unseen);
