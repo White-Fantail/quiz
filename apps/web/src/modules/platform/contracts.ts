@@ -260,6 +260,30 @@ export const operations = {
   play_media: { public: true, description: "Renew signed playback URL for revealed or completed-round review media", schema: z.object({
     ...session, mediaId
   }) },
+  local_run_bundle: {public:true,description:"Download full pinned run questions, clues and answer keys for local play",schema:z.object({
+    runId:uuid,runToken:z.string().min(32).max(200)
+  })},
+  local_run_sync: {public:true,description:"Store locally completed run rounds idempotently",schema:z.object({
+    runId:uuid,runToken:z.string().min(32).max(200),results:z.array(z.object({
+      position:z.number().int().min(0).max(10000),cluesUsed:z.number().int().min(1).max(15),
+      status:z.enum(["SOLVED","FAILED"]),score:z.number().int().min(0).max(100)
+    })).max(100)
+  })},
+  local_run_media: {public:true,description:"Get a short-lived URL for media in my downloaded run",schema:z.object({
+    runId:uuid,runToken:z.string().min(32).max(200),
+    position:z.number().int().min(0).max(10000),mediaId
+  })},
+  local_single_start: {public:true,description:"Start a complete single question for local play",schema:z.object({
+    quizId:uuid,locale:optionalLocale,kids:z.boolean().default(false)
+  })},
+  local_single_bundle: {public:true,description:"Resume a downloaded single question",schema:z.object({...session})},
+  local_single_sync: {public:true,description:"Store a locally completed single question",schema:z.object({
+    ...session,cluesUsed:z.number().int().min(1).max(15),
+    status:z.enum(["SOLVED","FAILED"]),score:z.number().int().min(0).max(100)
+  })},
+  local_single_media: {public:true,description:"Get media for any clue of my local single question",schema:z.object({
+    ...session,mediaId
+  })},
   run_start: { public: true, description: "Start or resume a pack, quick-five or continuous random play", schema: z.object({
     mode: z.enum(["RANDOM_FIVE","INFINITE","PACK"]), packId:uuid.optional(), restart:z.boolean().default(false), lane: z.enum(["GENERAL","KIDS"]).default("GENERAL"),
     avoidQuizIds: z.array(uuid).max(1000).default([]), locale: optionalLocale
