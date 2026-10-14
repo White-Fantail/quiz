@@ -49,14 +49,17 @@ export function KidsTimeProvider({children}:PropsWithChildren){
    if(parent.access){return;}
    try{
      const next=await kidsApi.time(token,false);
-     apply({...next,blockedUntil:null,usedMinutes:0,sessionMinutesUsed:0,
-       remainingMinutes:next.limits.dailyMinutes===0?null:next.limits.dailyMinutes,
-       limitReached:false});
-     await SecureStore.setItemAsync(STORAGE,JSON.stringify({
-       token,state:{...next,blockedUntil:null,usedMinutes:0,sessionMinutesUsed:0,
-         remainingMinutes:next.limits.dailyMinutes===0?null:next.limits.dailyMinutes,limitReached:false},
-       at:Date.now()
-     } satisfies Saved));
+     const cached=JSON.parse(await SecureStore.getItemAsync(STORAGE)||"null") as Saved|null;
+     const sameDay=cached?.token===token&&
+       cached.state?.localDay===localChildDay(new Date(),next.limits.timeZone);
+     const usedMinutes=sameDay?cached.state.usedMinutes:0;
+     const sessionMinutesUsed=sameDay?cached.state.sessionMinutesUsed:0;
+     const local={...next,blockedUntil:sameDay?cached.state.blockedUntil:null,
+       usedMinutes,sessionMinutesUsed,
+       remainingMinutes:next.limits.dailyMinutes===0?null:Math.max(0,next.limits.dailyMinutes-usedMinutes),
+       limitReached:next.limits.dailyMinutes>0&&usedMinutes>=next.limits.dailyMinutes};
+     apply(local);
+     await SecureStore.setItemAsync(STORAGE,JSON.stringify({token,state:local,at:Date.now()} satisfies Saved));
    }catch{
      try{
        const cached=JSON.parse(await SecureStore.getItemAsync(STORAGE)||"null") as Saved|null;
