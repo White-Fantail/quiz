@@ -21,17 +21,34 @@ const SAVED="quizdip-kids-active-game-v1";
 type LocalContent={id:string;questions:LocalBundleQuestion[]};
 const progressKey=(id:string)=>"quizdip-kids-progress:"+id;
 async function savedProgress(id:string):Promise<Record<number,LocalProgress>>{
- try {
-   const value=await SecureStore.getItemAsync(progressKey(id));
-   return value?JSON.parse(value):{};
+ try{
+   const key=progressKey(id),raw=await SecureStore.getItemAsync(key);
+   if(!raw)return {};
+   if(!raw.startsWith("chunks:"))return JSON.parse(raw);
+   const count=Number(raw.slice(7));
+   if(!Number.isInteger(count)||count<1||count>100)return {};
+   const chunks=await Promise.all(Array.from({length:count},(_,i)=>
+     SecureStore.getItemAsync(key+":"+i)));
+   if(chunks.some(part=>part===null))return {};
+   return JSON.parse(chunks.join(""));
  }catch{return {};}
 }
 async function persistProgress(id:string,progress:Record<number,LocalProgress>){
  try{
-   // Store compact progress only; large question bundles stay in memory and are refetched on relaunch.
-   const compact=JSON.stringify(progress);
-   await SecureStore.setItemAsync(progressKey(id),compact);
- }catch{/* The game remains playable when persistent storage is unavailable. */}
+   // Chunk progress to avoid platform keychain value-size limitations.
+   const key=progressKey(id),json=JSON.stringify(progress),size=1100;
+   const chunks=json.match(new RegExp(".{1,"+size+"}","gs"))??["{}"];
+   await Promise.all(chunks.map((chunk,i)=>SecureStore.setItemAsync(key+":"+i,chunk)));
+   await SecureStore.setItemAsync(key,"chunks:"+chunks.length);
+ }catch{/* A failed save must not block a quiz answer. */}
+}
+async function clearProgress(id:string){
+ try{
+   const key=progressKey(id),raw=await SecureStore.getItemAsync(key);
+   const count=raw?.startsWith("chunks:")?Number(raw.slice(7)):0;
+   await SecureStore.deleteItemAsync(key);
+   for(let i=0;i<count&&i<100;i++)await SecureStore.deleteItemAsync(key+":"+i);
+ }catch{}
 }
 // Tiny bundled cues need no network access. Audio failure never blocks gameplay.
 function playCue(player:ReturnType<typeof useAudioPlayer>){
@@ -117,7 +134,7 @@ export default function KidGameScreen(){
         if(localContent.current?.id!==ref.runId ||
            results.length!==localContent.current.questions.length)return;
         const stored=await read();
-        if(stored?.kind==="run"&&stored.runId===ref.runId)await save(null);
+        if(stored?.kind==="run"&&stored.runId===ref.runId){await save(null);await clearProgress(ref.runId);}
       }).catch(()=>{});
   }else{
     const p=progress[0];
@@ -126,7 +143,7 @@ export default function KidGameScreen(){
         cluesUsed:p.clueIndex,status:p.status,score:p.score
       }).then(async()=>{
         const stored=await read();
-        if(stored?.kind==="single"&&stored.sessionId===ref.sessionId)await save(null);
+        if(stored?.kind==="single"&&stored.sessionId===ref.sessionId){await save(null);await clearProgress(ref.sessionId);}
       }).catch(()=>{});
   }
  };
