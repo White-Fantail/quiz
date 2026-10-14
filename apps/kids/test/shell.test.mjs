@@ -36,7 +36,7 @@ test("Phase 2 only opens child routes with a validated native credential",()=>{
  const home=source("app/(tabs)/index.tsx");
  const gate=source("app/(tabs)/_layout.tsx");
  const setup=source("app/setup.tsx");
- assert.match(home,/router.push\("\/parent"\)/);
+ assert.match(home,/go\("\/parent"\)/);
  assert.match(home,/native\.home\.hello/);
  assert.match(gate,/status!=="active"/);
  assert.match(setup,/session\.claimPair\(/);
@@ -61,8 +61,8 @@ test("Kids home uses a personal greeting and compact PIN-guarded parents entry",
  const gate=source("app/parent.tsx");
  const locales=source("../../packages/i18n/src/kids.ts");
  assert.match(home,/session\.profile\.nickname\.trim\(\)/);
- assert.match(home,/headerAction=\{<Pressable/);
- assert.match(home,/router\.push\("\/parent"\)/);
+ assert.match(home,/headerAction=\{<KidsTap/);
+ assert.match(home,/go\("\/parent"\)/);
  assert.doesNotMatch(home,/styles\.locale|native\.session\.pinned/);
  assert.match(screen,/headerAction\?:ReactNode/);
  assert.match(gate,/parent\.authorize\(pin\)/);
@@ -127,7 +127,7 @@ test("Challenge missions reuse child-approved packs, saved progress, and native 
  assert.match(challenge,/mode:"RANDOM_FIVE"/);
  assert.match(challenge,/packId:pack\.id/);
  assert.match(challenge,/SecureStore\.getItemAsync\(SAVED_GAME\)/);
- assert.match(challenge,/canResume\?<Pressable/);
+ assert.match(challenge,/canResume\?<KidsTap/);
  assert.match(game,/quizdip-kids-active-game-v1/);
  assert.match(challenge,/AdventureArtwork/);
  for(const key of ["native.challenge.start","native.challenge.packHeading","native.challenge.resumeDetail"])
