@@ -92,7 +92,7 @@ export default function KidsHome(){
       style={[styles.world,{backgroundColor:item.tint}]}>
       <AdventureArtwork id={item.id} size={wide?125:96}/>
       <Text numberOfLines={2} style={styles.worldTitle}>{t(item.labelKey)}</Text>
-      <Text style={styles.worldCount}>{adventureCount(item.id,packs,[])} {t("native.adventure.toPlay")}</Text>
+      <Text style={styles.worldCount}>{adventureCount(item.id,packs,[])} {t(adventureCount(item.id,packs,[])===1?"native.browse.packOne":"native.browse.packsCount")}</Text>
     </KidsTap>)}
    </View>
   </View>

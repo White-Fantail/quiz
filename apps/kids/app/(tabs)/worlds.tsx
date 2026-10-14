@@ -26,7 +26,7 @@ export default function AllWorlds(){
        style={[styles.tile,{backgroundColor:item.tint,width:width>=720?"31.9%":"48.5%"}]}>
        <AdventureArtwork id={item.id} size={width>=720?105:87}/>
        <Text numberOfLines={2} style={styles.title}>{t(item.labelKey)}</Text>
-       <Text style={styles.count}>{adventureCount(item.id,packs,[])} {t("native.browse.packsCount")}</Text>
+       <Text style={styles.count}>{adventureCount(item.id,packs,[])} {t(adventureCount(item.id,packs,[])===1?"native.browse.packOne":"native.browse.packsCount")}</Text>
      </KidsTap>)}
    </View>
    {loaded&&!loading&&available.length===0?<Text style={styles.muted}>{t("native.adventure.empty")}</Text>:null}
