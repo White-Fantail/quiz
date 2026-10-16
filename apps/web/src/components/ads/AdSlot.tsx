@@ -28,8 +28,9 @@ export default function AdSlot({placement,kids=false,fullRow=false}:{placement:A
     if(node.dataset.quizdipAdInitialized==="true")return;
     node.dataset.quizdipAdInitialized="true";
     try{
-      window.adsbygoogle=window.adsbygoogle||[];
-      window.adsbygoogle.push({});
+      const queue=window.adsbygoogle??([] as Record<string,never>[]);
+      window.adsbygoogle=queue;
+      queue.push({});
     }catch{
       // An ad blocker must never break the quiz, results, or navigation.
       node.dataset.quizdipAdFailed="true";
