@@ -28,15 +28,16 @@ export default function MyResults() {
   const recoveryStarted=useRef(false);
   const [recoverCount,setRecoverCount]=useState({done:0,total:0});
   const [recoveryReport,setRecoveryReport]=useState<RecoveryReport|null>(null);
+  const [serverRepaired,setServerRepaired]=useState(0);
   const load=useCallback(async ()=>{
     setLoading(true);setError("");
     try{setHistory(await api(`/runs?limit=${PAGE_SIZE}&offset=${offset}`));}
     catch(e){setError(e instanceof Error?e.message:String(e));}
     finally{setLoading(false);}
   },[offset]);
-  useEffect(()=>{void load();},[load]);
+  useEffect(()=>{if(!recovering)void load();},[load,recovering]);
   const recover=useCallback(async()=>{
-    setRecovering(true);setRecoveryReport(null);
+    setRecovering(true);setRecoveryReport(null);setServerRepaired(0);
     try{
       const result=await recoverCachedRuns({
         onProgress:(done,total)=>setRecoverCount({done,total})
@@ -44,7 +45,8 @@ export default function MyResults() {
       // Rebuild counters from already-persisted server sessions, even when
       // this browser no longer has the original answer cache.
       try{
-        await api("/runs/reconcile","POST",{limit:PAGE_SIZE,offset});
+        const fixed=await api("/runs/reconcile","POST",{limit:PAGE_SIZE,offset});
+        setServerRepaired(fixed.repaired??0);
       }catch(error){
         // Browser recovery is still meaningful if server reconciliation fails.
         console.warn("[QuizDip] Could not reconcile server history",error);
@@ -56,7 +58,7 @@ export default function MyResults() {
       }]});
     }finally{
       setRecovering(false);
-      await load(); // Refresh after older local results have been committed.
+      // React refreshes the history after reconciliation finishes.
     }
   },[load]);
   useEffect(()=>{if(recoveryStarted.current)return;recoveryStarted.current=true;void recover();},[]); // Initial history recovery, not on pagination.
@@ -71,13 +73,16 @@ export default function MyResults() {
       {korean?"기존 브라우저 기록을 서버와 동기화하는 중…":"Reconciling saved browser results…"}
       {recoverCount.total>0&&` ${recoverCount.done}/${recoverCount.total}`}
     </p>}
-    {!recovering&&recoveryReport&&recoveryReport.checked>0&&
+    {!recovering&&recoveryReport&&(recoveryReport.checked>0||serverRepaired>0)&&
       <section className="my-results-recovery" role="status">
         <p>{recoveryReport.failed>0
           ?(korean?`${recoveryReport.recovered}개 기록 동기화 완료, ${recoveryReport.failed}개는 아직 저장하지 못했어요. 브라우저 기록은 보존돼요.`:
             `${recoveryReport.recovered} results synchronized; ${recoveryReport.failed} could not be saved. Browser copies are preserved.`)
           :(korean?`${recoveryReport.recovered}개 기존 기록을 서버와 확인했어요.`:
             `${recoveryReport.recovered} saved results checked with the server.`)}</p>
+        {serverRepaired>0&&<p>{korean
+          ?`서버에 이미 저장된 문제 결과로 ${serverRepaired}개 기록의 점수와 완료 상태를 복구했어요.`
+          :`Rebuilt ${serverRepaired} server score records from saved question sessions.`}</p>}
         {recoveryReport.failed>0&&<button type="button" className="btn btn-outline" disabled={recovering}
           onClick={()=>void recover()}>
           {korean?"미저장 기록 다시 동기화":"Retry pending results"}
