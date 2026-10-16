@@ -16,7 +16,7 @@ test("results screen repairs local history and refreshes server rows after recov
   const history=read("app/account/results/page.tsx");
   const player=read("app/(platform)/play/page.tsx");
   assert.ok(history.includes("recoverCachedRuns("));
-  assert.ok(history.includes("await load()"));
+  assert.ok(history.includes("if(!recovering)void load()"));
   assert.ok(history.includes("Retry pending results"));
   assert.ok(player.includes("confirmedRunId===run.runId"));
   assert.ok(player.includes("syncCachedRun("));
