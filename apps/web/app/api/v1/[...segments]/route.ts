@@ -163,7 +163,10 @@ export async function handle(request: Request, context: Context): Promise<Respon
     const url = new URL(request.url);
     const size = Number(request.headers.get("content-length") ?? 0);
     if (size > 1000000) return Response.json({ error: "too_large" }, { status: 413 });
-    const body = request.method === "GET" || request.method === "DELETE"
+    // DELETE may include sensitive run capabilities in a JSON body; never require
+    // guests to put those credentials in URLs or access logs.
+    const body = request.method === "GET" ||
+      (request.method === "DELETE" && !request.headers.get("content-type")?.includes("application/json"))
       ? parseQuery(url.searchParams) : await request.json();
     if (!body || typeof body !== "object" || Array.isArray(body)) return Response.json({ error: "invalid_body" }, { status: 400 });
     requireSameOrigin(request);

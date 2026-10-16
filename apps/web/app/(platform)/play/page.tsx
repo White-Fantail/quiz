@@ -623,8 +623,11 @@ export default function PlayPage({packId}:{packId?:string}={}) {
             }}
             revokeShare={async()=>{
               // The REST DELETE endpoint reads confirmation from the query string.
-              const response=await fetch("/api/v1/runs/"+run.runId+"/share?confirm=true&runToken="+
-                encodeURIComponent(run.runToken),{method:"DELETE",credentials:"same-origin"});
+              const response=await fetch("/api/v1/runs/"+run.runId+"/share",{
+                method:"DELETE",credentials:"same-origin",
+                headers:{"Content-Type":"application/json"},
+                body:JSON.stringify({confirm:true,runToken:run.runToken})
+              });
               if(!response.ok)throw new Error("Could not revoke result share");
             }}/>}
           {run.mode==="PACK"&&packId&&<PackFeedback packId={packId}/>}
