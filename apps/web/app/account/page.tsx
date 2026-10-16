@@ -74,6 +74,14 @@ export default async function AccountPage() {
     <p className="muted">{msg("account.identity")}</p>
     <MyStatsPanel />
     <div className="placeholder-panel">
+      <h2>{locale==="ko"?"내 플레이 기록":"My play history"}</h2>
+      <p className="muted">{locale==="ko"?"이전에 완료한 퀴즈팩 결과를 찾아 다시 공유할 수 있어요.":
+        "Reopen your completed quiz pack results and share them again."}</p>
+      <Link className="btn btn-outline" href={localizeHref("/account/results",locale)}>
+        {locale==="ko"?"내 기록 및 결과 공유 →":"My results and sharing →"}
+      </Link>
+    </div>
+    <div className="placeholder-panel">
       <h2>{msg("account.settings")}</h2>
       <p className="muted">{msg("account.settingsHelp")}</p>
       <Link className="btn btn-outline" href={localizeHref("/account/settings",locale)}>{msg("account.openSettings")}</Link>

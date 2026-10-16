@@ -525,6 +525,7 @@ export default function PlayPage({packId}:{packId?:string}={}) {
 
       {myHistory.length>0&&<section className="play-recent">
         <h2>{msg("My recent games","최근 내 기록")}</h2>
+        <p><Link href={localizeHref("/account/results",locale)}>{msg("All results and reshare →","전체 기록과 다시 공유 →")}</Link></p>
         <div className="recent-results">
           {myHistory.map(item=><p key={item.runId}>
             {item.mode==="PACK"?msg("Quiz pack","퀴즈팩"):item.mode==="INFINITE"?msg("Continuous play","연속 플레이"):msg("Quick five","랜덤 5문제")}
@@ -615,7 +616,17 @@ export default function PlayPage({packId}:{packId?:string}={}) {
           <p>{msg("Total ","총 ")}<strong>{run.score}{msg(" pts","점")}</strong> · {run.completed}{msg(" quizzes · ","문제 · ")}{msg("Correct ","정답 ")}{run.solved||0}</p>
           {run.mode==="PACK"&&packId&&run.status==="FINISHED"&&<PackResultShare
             packId={packId} title={pack?.title||msg("Quiz pack","퀴즈팩")}
-            score={run.score} completed={run.completed} solved={run.solved||0}/>}
+            score={run.score} completed={run.completed} solved={run.solved||0}
+            createShareId={async()=>{
+              const shared=await request("/runs/"+run.runId+"/share","POST",{runToken:run.runToken});
+              return shared.shareId as string;
+            }}
+            revokeShare={async()=>{
+              // The REST DELETE endpoint reads confirmation from the query string.
+              const response=await fetch("/api/v1/runs/"+run.runId+"/share?confirm=true&runToken="+
+                encodeURIComponent(run.runToken),{method:"DELETE",credentials:"same-origin"});
+              if(!response.ok)throw new Error("Could not revoke result share");
+            }}/>}
           {run.mode==="PACK"&&packId&&<PackFeedback packId={packId}/>}
           {run.exhausted&&<p>{msg("You've finished all available new questions. Come back for more.","새로운 문제를 모두 풀었어요. 새 퀴즈가 등록되면 다시 즐겨 주세요.")}</p>}
           <details className="run-rating-review" open={run.mode!=="PACK"}>

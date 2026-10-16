@@ -1082,3 +1082,29 @@ a.feature-card:hover { border-color:#B4AEF7; transform:translateY(-3px); }
  .media-create-panel .btn {width:100%;text-align:center;}
  .media-upload-dropzone {padding:20px 12px;}
 }
+
+/* Player result sharing: the same social actions on the finish screen and history. */
+.pack-result-social {margin-top:20px;padding-top:20px;border-top:1px solid #ddd9f4;}
+.pack-result-social > span {display:block;font-weight:800;color:var(--ink);margin-bottom:10px;}
+.pack-result-social-buttons {display:flex;flex-wrap:wrap;justify-content:center;gap:9px;margin-bottom:12px;}
+.pack-result-social-buttons .btn {min-width:116px;}
+.pack-result-social .muted {margin:8px 0 16px;font-size:.85rem;line-height:1.6;}
+.my-results-page {max-width:960px;}
+.my-results-list {display:grid;gap:14px;margin:22px 0;}
+.my-result-entry {background:#fff;border:1px solid #e5e1f2;border-radius:20px;padding:20px;}
+.my-result-row {display:flex;align-items:center;justify-content:space-between;gap:18px;}
+.my-result-row h2 {font-size:1.2rem;margin:6px 0;overflow-wrap:anywhere;}
+.my-result-row p {margin:4px 0;}
+.my-result-entry .pack-result-share {width:100%;margin:20px auto 0;}
+.my-results-pagination {display:flex;align-items:center;justify-content:space-between;gap:12px;margin:22px 0;}
+.shared-result-page {max-width:950px;}
+.shared-result-detail {padding:20px;border-radius:24px;background:#f9f7ff;text-align:center;margin-bottom:36px;}
+.shared-result-detail img {display:block;width:100%;height:auto;aspect-ratio:40/21;object-fit:contain;border-radius:16px;}
+.shared-result-stats {display:flex;flex-direction:column;gap:5px;margin:20px auto;}
+.shared-result-stats strong {font-size:2rem;color:var(--purple);}
+@media (max-width:640px) {
+  .my-result-row {align-items:flex-start;flex-direction:column;}
+  .my-result-row .btn {width:100%;}
+  .pack-result-social-buttons .btn {flex:1 1 125px;}
+  .my-results-pagination {flex-wrap:wrap;}
+}
