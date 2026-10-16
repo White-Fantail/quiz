@@ -296,6 +296,9 @@ export const operations = {
   }) },
   run_feedback: { public: true, description: "Read up to five completed run questions and reaction status by signed run token", schema: z.object({runId:uuid,runToken:z.string().min(32).max(200)}) },
   run_history: { public: false, description: "My latest scores and completed quiz runs", schema: z.object(paging) },
+  run_share: { public: true, description: "Opt in to a public share link for my finished general pack result", schema:z.object({runId:uuid,runToken:z.string().min(32).max(200).optional()}) },
+  run_unshare: { public: true, description: "Revoke my shared pack result URL", schema:z.object({runId:uuid,runToken:z.string().min(32).max(200).optional(),confirm:z.literal(true)}) },
+  run_share_get: { public: true, description: "Read a voluntarily published pack result (no private score history)", schema:z.object({shareId:uuid}) },
   ranking_optin: { public: false, description: "Set my own public ranking consent, independent of staff adult verification", schema: z.object({ enabled: z.boolean(), confirm: z.literal(true) }) },
   adult_verify: { public: false, description: "ADMIN ONLY: independently verify or revoke an adult ranking eligibility status", schema: z.object({
     userId, verified: z.boolean(), reason: z.string().trim().min(8).max(1000), confirm: z.literal(true)
