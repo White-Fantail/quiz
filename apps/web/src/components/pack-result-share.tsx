@@ -191,18 +191,6 @@ export default function PackResultShare({ packId, title, score, completed, solve
   const shareText = korean
     ? `퀴즈딥에서 「${title}」 도전 완료! ${score}점 · ${solved}/${completed} 정답. 당신도 도전해 보세요!`
     : `I finished "${title}" on QuizDip! ${score} points · ${solved}/${completed} correct. Try it yourself!`;
-  const shareCaptionWithLink = shareText + "\n" + (resultUrl || packUrl);
-
-  async function copyLink() {
-    if (!packUrl) return;
-    try {
-      await navigator.clipboard.writeText(packUrl);
-      setNotice(korean ? "퀴즈팩 링크를 복사했어요." : "Pack link copied.");
-    } catch {
-      setNotice(packUrl);
-    }
-  }
-
   function downloadImage() {
     if (!asset) return;
     const anchor = document.createElement("a");
@@ -228,12 +216,12 @@ export default function PackResultShare({ packId, title, score, completed, solve
         await navigator.share({ title: title + " · QuizDip", text: shareText, url });
         setNotice(korean ? "링크를 공유했어요. 이미지는 별도로 저장할 수 있어요." : "Link shared. The image can be saved separately.");
       } else {
-        if (asset) downloadImage();
         try {
           await navigator.clipboard.writeText(shareText + "\n" + url);
-          setNotice(korean ? "이미지와 결과 링크를 준비했어요." : "Image and result link prepared.");
+          setNotice(korean ? "결과와 링크를 복사했어요. 공유하려는 앱에 붙여 넣으세요." :
+            "Result and link copied. Paste them into the app you want to use.");
         } catch {
-          setNotice(shareCaptionWithLink);
+          setNotice(shareText + "\n" + url);
         }
       }
     } catch (error) {
@@ -276,25 +264,30 @@ export default function PackResultShare({ packId, title, score, completed, solve
 
   /** Instagram has no normal web URL intent that can attach third-party image bytes. */
   async function shareInstagram() {
-    if(!asset)return;
+    if (!asset || !packUrl) return;
+    setShareBusy(true);
     setNotice("");
-    if(navigator.share && navigator.canShare?.({files:[asset.file]})) {
-      try {
-        // Initiate file share in the direct click handler to preserve native user activation.
-        await navigator.share({files:[asset.file],title:title+" · QuizDip",
-          text:shareText+"\n"+(resultUrl||packUrl)});
-        setNotice(korean ? "앱에서 이미지와 링크가 포함됐는지 확인해 주세요." :
-          "Check whether the destination included both image and link.");
-        return;
-      } catch(error) {
-        if(error instanceof DOMException&&error.name==="AbortError")return;
+    try {
+      const url = await publicResultUrl();
+      // Instagram has no URL share intent for attaching a photo from a website.
+      if (navigator.share && navigator.canShare?.({files:[asset.file]})) {
+        try {
+          await navigator.share({files:[asset.file],title:title+" · QuizDip",text:shareText+"\n"+url});
+          setNotice(korean ? "게시 전 사진과 링크를 확인해 주세요." : "Check the photo and link before posting.");
+          return;
+        } catch(error) {
+          if (error instanceof DOMException && error.name==="AbortError") return;
+        }
       }
-    }
-    downloadImage();
-    try {await navigator.clipboard.writeText(shareText+"\n"+(resultUrl||packUrl));}
-    catch {/* Image download remains useful even without clipboard support. */}
-    setNotice(korean ? "이미지를 저장했어요. Instagram에서 사진을 선택해 올리고 복사한 링크를 캡션에 추가하세요." :
-      "Image saved. Upload it in Instagram and add the copied link in the caption.");
+      downloadImage();
+      try {await navigator.clipboard.writeText(shareText+"\n"+url);}
+      catch {/* Download works even without clipboard access. */}
+      setNotice(korean ? "이미지를 저장하고 결과 링크를 복사했어요. Instagram에서 사진을 올려 주세요." :
+        "Image saved and result link copied. Upload the photo in Instagram.");
+    } catch {
+      setNotice(korean ? "결과 링크를 준비하지 못했어요. 다시 시도해 주세요." :
+        "Couldn't prepare the result link. Try again.");
+    } finally {setShareBusy(false);}
   }
 
   async function unshare() {
@@ -326,12 +319,12 @@ export default function PackResultShare({ packId, title, score, completed, solve
       <button type="button" className="btn btn-outline" onClick={downloadImage} disabled={!asset}>
         {korean ? "이미지 저장" : "Save image"}
       </button>
-      <button type="button" className="btn btn-outline" onClick={() => void copyLink()} disabled={!packUrl}>
-        {korean ? "팩 링크 복사" : "Copy pack link"}
+      <button type="button" className="btn btn-outline" onClick={() => void copyResultLink()} disabled={!packUrl||shareBusy}>
+        {korean ? "결과 링크 복사" : "Copy result link"}
       </button>
     </div>
     <div className="pack-result-social">
-      <span>{korean ? "소셜 미디어로 공유" : "Share to social media"}</span>
+      <span>{korean ? "소셜 미디어에 공유" : "Share to social media"}</span>
       <div className="pack-result-social-buttons">
         <button type="button" className="btn btn-outline" disabled={!packUrl||shareBusy}
           onClick={() => void shareSocial("facebook")}>Facebook ↗</button>
@@ -340,25 +333,21 @@ export default function PackResultShare({ packId, title, score, completed, solve
         <button type="button" className="btn btn-outline" disabled={!asset||shareBusy}
           onClick={() => void shareInstagram()}>Instagram ↗</button>
       </div>
-      <p className="muted">{korean
-        ? "Facebook·X는 결과 이미지가 있는 링크 미리보기로 게시됩니다. Instagram은 앱의 이미지 공유 또는 이미지 저장 후 업로드를 지원합니다."
-        : "Facebook and X post a result image link preview. For Instagram, use native image sharing or save and upload the photo."}</p>
-      <div className="pack-result-social-buttons">
-        <button type="button" className="btn btn-outline" disabled={!packUrl||shareBusy}
-          onClick={() => void copyResultLink()}>
-          {korean ? "결과 링크 복사" : "Copy result link"}
-        </button>
-        {resultUrl && <a className="btn btn-outline" target="_blank" rel="noopener noreferrer" href={resultUrl}>
-          {korean ? "공개 결과 보기 ↗" : "View shared result ↗"}</a>}
-        {resultUrl && revokeShare && <button className="btn btn-outline" type="button"
-          disabled={shareBusy} onClick={() => void unshare()}>
-          {korean ? "공유 취소" : "Stop sharing"}
+      <p className="pack-result-share-help">{korean
+        ? "Facebook·X는 결과 이미지 미리보기와 함께 링크를 공유합니다. Instagram은 이미지 업로드를 지원합니다."
+        : "Facebook and X share a link with the result image preview. Instagram uses a photo upload."}</p>
+      {resultUrl && <div className="pack-result-share-manage">
+        <a href={resultUrl} target="_blank" rel="noopener noreferrer">
+          {korean ? "공개 결과 확인 ↗" : "View shared result ↗"}
+        </a>
+        {revokeShare && <button type="button" disabled={shareBusy} onClick={() => void unshare()}>
+          {korean ? "공유 중지" : "Stop sharing"}
         </button>}
-      </div>
+      </div>}
     </div>
     <p className="pack-result-share-note">{korean
-      ? "공유 앱에 따라 사진과 링크가 함께 전달되지 않을 수 있어요. 그럴 땐 링크 복사를 이용해 주세요."
-      : "Some apps don't attach a link to shared photos. Use Copy pack link when needed."}</p>
+      ? "일부 앱은 사진과 링크를 함께 받지 못할 수 있어요. 이때는 결과 링크를 복사해 주세요."
+      : "Some apps don't support both a photo and a link. Copy the result link when needed."}</p>
     {notice && <p role="status" className="pack-result-share-notice">{notice}</p>}
   </section>;
 }

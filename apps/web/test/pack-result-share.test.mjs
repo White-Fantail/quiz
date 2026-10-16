@@ -30,7 +30,7 @@ test("Web Share includes quiz pack URL with portable image, plus explicit save a
   const component = read("src/components/pack-result-share.tsx");
   assert.match(component, /navigator\.canShare\?\.\(\{ files: \[asset\.file\] \}\)/);
   assert.match(component, /navigator\.share\(\{ title: title \+ " · QuizDip", text: shareText, url, files: \[asset\.file\] \}\)/);
-  assert.match(component, /navigator\.clipboard\.writeText\(packUrl\)/);
+  assert.match(component, /navigator\.clipboard\.writeText\(url\)/);
   assert.match(component, /anchor\.download = asset\.file\.name/);
   assert.match(component, /error\.name === "AbortError"/);
   assert.match(component, /"ko"/);
@@ -50,7 +50,8 @@ test("old and new pack results use one share component and OG URLs", () => {
   const finish=read("app/(platform)/play/page.tsx");
   const social=read("src/components/pack-result-share.tsx");
   const og=read("app/(platform)/results/[shareId]/page.tsx");
-  const img=read("app/(platform)/results/[shareId]/opengraph-image.tsx");
+  const img=read("src/modules/platform/result-og-image.tsx");
+  const route=read("app/(platform)/results/[shareId]/og/route.ts");
   assert.ok(finish.includes("createShareId={async"));
   assert.ok(history.includes("createShareId={async"));
   assert.ok(history.includes("<PackResultShare"));
@@ -63,6 +64,12 @@ test("old and new pack results use one share component and OG URLs", () => {
   assert.ok(og.includes("openGraph"));
   assert.ok(img.includes("ImageResponse"));
   assert.ok(img.includes("width:1200,height:630"));
+  assert.ok(route.includes("resultOgImage"));
+  assert.ok(og.includes("/og?v=2"));
+  assert.ok(img.includes("sharp("));
+  assert.ok(img.includes("image.arrayBuffer()"));
+  assert.equal((social.match(/Copy pack link/g)||[]).length,0);
+  assert.ok(social.includes("copyResultLink()"));
 });
 
 test("result publication is reversible and gated by completed pack and owner", () => {

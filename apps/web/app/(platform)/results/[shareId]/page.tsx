@@ -11,7 +11,9 @@ async function sharedResult(shareId:string) {
   try{return await runShareGet({shareId});}
   catch(error){if(error instanceof PlatformError && error.status===404)notFound();throw error;}
 }
-const origin=()=>process.env.PUBLIC_ORIGIN||process.env.BETTER_AUTH_URL||"https://quizdip.vercel.app";
+// Keep Facebook's crawler on the public host, not an internal auth or preview URL.
+const origin=()=>process.env.PUBLIC_ORIGIN||
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL ? "https://"+process.env.VERCEL_PROJECT_PRODUCTION_URL : "https://quizdip.vercel.app");
 
 export async function generateMetadata({params}:{params:Promise<{shareId:string}>}):Promise<Metadata> {
   const {shareId}=await params;
@@ -21,11 +23,11 @@ export async function generateMetadata({params}:{params:Promise<{shareId:string}
   const description=korean?`${result.completed}문제 중 ${result.solved}문제를 맞혔어요. 당신도 도전해 보세요!`:
     `${result.solved} correct out of ${result.completed} questions. Try the quiz pack!`;
   const url=new URL("/results/"+shareId,origin()).href;
-  const image=new URL("/results/"+shareId+"/opengraph-image",origin()).href;
+  const image=new URL("/results/"+shareId+"/og?v=2",origin()).href;
   return {title,description,metadataBase:new URL(origin()),alternates:{canonical:url},
-    robots:{index:false,follow:false},
+    robots:{index:false,follow:true},
     openGraph:{type:"website",title,description,url,siteName:"QuizDip",
-      images:[{url:image,width:1200,height:630,alt:title}]},
+      images:[{url:image,width:1200,height:630,type:"image/png",alt:title}]},
     twitter:{card:"summary_large_image",title,description,images:[image]}};
 }
 
@@ -41,7 +43,7 @@ export default async function SharedResult({params}:{params:Promise<{shareId:str
       <p className="lead">{result.title}</p>
     </div>
     <section className="shared-result-detail">
-      <img src={`/results/${shareId}/opengraph-image`}
+      <img src={`/results/${shareId}/og?v=2`}
         width={1200} height={630} alt={korean?`${result.title} · ${result.score}점`:`${result.title} · ${result.score} points`}/>
       <div className="shared-result-stats">
         <strong>{result.score.toLocaleString(korean?"ko-KR":"en-US")}{korean?"점":" pts"}</strong>
