@@ -67,6 +67,11 @@ export async function localRunSync(p:Record<string,any>,actor:Actor|null){
   const lookup=new Map(questions.map(q=>[q.position,q]));
   for(const result of p.results as Result[])if(!lookup.has(result.position))
     fail(400,"invalid_round","Question is not part of this run");
+  // Concurrent browser tabs and background saves can commit out of order.
+  // Serializable isolation makes each aggregate see a coherent PlaySession set.
+  // Retry serialization conflicts rather than allowing an older total to win.
+  for(let attempt=0;attempt<5;attempt++){
+    try {
   return db().$transaction(async tx=>{
     for(const result of p.results){
       const q=lookup.get(result.position)!;
@@ -107,7 +112,14 @@ export async function localRunSync(p:Record<string,any>,actor:Actor|null){
       ...(finished?{status:"FINISHED",completedAt:new Date()}:{})
     }});
     return {runId:run.id,completed,score,solved,failed,status:finished?"FINISHED":"ACTIVE"};
-  });
+  },{isolationLevel:"Serializable",maxWait:10000,timeout:20000});
+    } catch(error:unknown) {
+      const code=(error as {code?:string})?.code;
+      if((code==="P2034"||code==="P2002") && attempt<4)continue;
+      throw error;
+    }
+  }
+  fail(409,"run_sync_conflict","Could not save the run after retries");
 }
 export async function localSingleBundle(p:Record<string,any>,actor:Actor|null){
   const session=await getPlaySession(p,actor,{allowCompletedRun:true});
