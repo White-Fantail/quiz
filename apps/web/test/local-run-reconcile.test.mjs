@@ -22,3 +22,19 @@ test("results screen repairs local history and refreshes server rows after recov
   assert.ok(player.includes("syncCachedRun("));
   assert.ok(player.includes("Retry saving results"));
 });
+
+test("server can repair historical aggregate counters from persisted PlaySession records",()=>{
+  const runs=read("src/modules/platform/runs.ts");
+  const contracts=read("src/modules/platform/contracts.ts");
+  const api=read("app/api/v1/[...segments]/route.ts");
+  const operations=read("src/modules/platform/operations.ts");
+  const history=read("app/account/results/page.tsx");
+  assert.match(runs,/export async function runReconcile/);
+  assert.match(runs,/where:\{runId:run\.id,status:\{in:\["SOLVED","FAILED"\]\}\}/);
+  assert.match(runs,/isolationLevel:"Serializable"/);
+  assert.match(runs,/run\.userId|userId:user\.id/);
+  assert.match(contracts,/run_reconcile: \{ public: false/);
+  assert.match(api,/op:"run_reconcile"/);
+  assert.match(operations,/case "run_reconcile"/);
+  assert.match(history,/api\("\/runs\/reconcile"/);
+});
