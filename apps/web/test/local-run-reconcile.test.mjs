@@ -5,11 +5,11 @@ const read=path=>readFileSync(new URL("../"+path,import.meta.url),"utf8");
 
 test("run synchronization uses acknowledged serializable transactions and retries conflicts",()=>{
   const server=read("src/modules/platform/local-play.ts");
-  assert.match(server,/return await db\(\)\.\$transaction/);
+  assert.match(server,/withSerializableWriteRetry\(\(\)=>db\(\)\.\$transaction/);
   assert.match(server,/isolationLevel:"Serializable"/);
-  assert.match(server,/code==="P2034"/);
-  assert.match(server,/code==="P2002"/);
+  assert.match(server,/current\.currentIndex!==completed/);
   assert.match(server,/currentIndex:completed,score,solved,failed/);
+  assert.match(server,/fail\(503,"run_sync_busy"/);
 });
 
 test("results screen repairs local history and refreshes server rows after recovery",()=>{

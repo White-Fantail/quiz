@@ -90,6 +90,33 @@ function receiptMatches(receipt:SyncReceipt,results:CompletedResult[],saved:Cach
   const finished=results.length===saved.bundle.questions.length;
   return !finished||receipt.status==="FINISHED";
 }
+/** Retry only temporary transport/server errors. Never repeat a 4xx validation
+ * or authorization failure, and never mark a cache saved before acknowledgement.
+ */
+async function postSnapshotWithRetry(runId:string,body:string):Promise<any> {
+  for(let attempt=0;attempt<3;attempt++){
+    let res:Response;
+    try{
+      res=await fetch("/api/v1/runs/"+runId+"/sync",{
+        method:"POST",credentials:"same-origin",cache:"no-store",
+        headers:{"Content-Type":"application/json"},body
+      });
+    }catch(error){
+      if(attempt===2)throw error;
+      await new Promise(resolve=>setTimeout(resolve,80*2**attempt+Math.floor(Math.random()*25)));
+      continue;
+    }
+    const response=await res.json().catch(()=>({}));
+    if(res.ok)return response;
+    if([429,500,502,503,504].includes(res.status)&&attempt<2){
+      await new Promise(resolve=>setTimeout(resolve,80*2**attempt+Math.floor(Math.random()*25)));
+      continue;
+    }
+    throw new Error(response.message||response.error||"Result save failed");
+  }
+  throw new Error("Result save failed after retries");
+}
+
 async function sendSnapshot(runId:string,force:boolean):Promise<SyncReceipt|null> {
   // Tab B may have saved another round while Tab A was awaiting its POST.
   // Re-read the durable cache under Web Locks and send the freshest snapshot.
@@ -100,13 +127,7 @@ async function sendSnapshot(runId:string,force:boolean):Promise<SyncReceipt|null
     if(!results.length)return null;
     if(saved.synced && !force)return null;
     const signature=JSON.stringify(results);
-    const res=await fetch("/api/v1/runs/"+runId+"/sync",{
-      method:"POST",credentials:"same-origin",cache:"no-store",
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({runToken:saved.runToken,results})
-    });
-    const response=await res.json().catch(()=>({}));
-    if(!res.ok)throw new Error(response.message||response.error||"Result save failed");
+    const response=await postSnapshotWithRetry(runId,JSON.stringify({runToken:saved.runToken,results}));
     const receipt=response.data as SyncReceipt;
     if(!receipt || !receiptMatches(receipt,results,saved))
       throw new Error("Server did not confirm all completed questions");

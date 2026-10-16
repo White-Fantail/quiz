@@ -108,3 +108,60 @@ test("parallel calls for the same run share one request and require a server ack
     assert.equal(getCachedRun(runId).synced,false);
   }finally{restore();}
 });
+
+test("temporary HTTP 503 conflicts are retried and the final acknowledgement saves the cache",async()=>{
+  setup();
+  try{
+    storeCachedRun(cache(both));
+    let calls=0;
+    globalThis.fetch=async()=>{
+      calls++;
+      if(calls<3)return {ok:false,status:503,json:async()=>({error:"run_sync_busy",message:"Busy"})};
+      return response({runId,completed:2,solved:1,failed:1,score:100,status:"FINISHED"});
+    };
+    const result=await syncCachedRun(runId);
+    assert.equal(result.status,"FINISHED");
+    assert.equal(calls,3);
+    assert.equal(getCachedRun(runId).synced,true);
+  }finally{restore();}
+});
+
+test("transient network rejection retries, and permanent 400 fails without replaying",async()=>{
+  setup();
+  try{
+    storeCachedRun(cache(first));
+    let calls=0;
+    globalThis.fetch=async()=>{
+      calls++;
+      if(calls===1)throw new Error("connection dropped");
+      return response({runId,completed:1,solved:1,failed:0,score:100,status:"ACTIVE"});
+    };
+    await syncCachedRun(runId);
+    assert.equal(calls,2);
+    storeCachedRun(cache(both));
+    calls=0;
+    globalThis.fetch=async()=>{
+      calls++;
+      return {ok:false,status:400,json:async()=>({message:"Invalid round"})};
+    };
+    await assert.rejects(syncCachedRun(runId),/Invalid round/);
+    assert.equal(calls,1);
+    assert.equal(getCachedRun(runId).synced,false);
+  }finally{restore();}
+});
+
+test("exhausted temporary errors leave full local progress available for later recovery",async()=>{
+  setup();
+  try{
+    storeCachedRun(cache(both));
+    let calls=0;
+    globalThis.fetch=async()=>{
+      calls++;
+      return {ok:false,status:503,json:async()=>({message:"Still busy"})};
+    };
+    await assert.rejects(syncCachedRun(runId),/Still busy/);
+    assert.equal(calls,3);
+    assert.equal(getCachedRun(runId).synced,false);
+    assert.equal(cachedCompletedResults(getCachedRun(runId)).length,2);
+  }finally{restore();}
+});

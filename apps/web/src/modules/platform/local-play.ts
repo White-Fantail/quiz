@@ -3,6 +3,7 @@ import type { Actor } from "./auth";
 import { fail } from "./auth";
 import { db } from "./db";
 import { checkedRun, sessionToken } from "./runs";
+import { RunSyncBusyError, RUN_SYNC_MAX_ATTEMPTS, withSerializableWriteRetry } from "./run-sync-retry";
 import { getPlaySession, playStart } from "./play";
 import { previewUrl } from "./storage";
 import { publicAnswerFormat } from "./answer-options";
@@ -67,12 +68,10 @@ export async function localRunSync(p:Record<string,any>,actor:Actor|null){
   const lookup=new Map(questions.map(q=>[q.position,q]));
   for(const result of p.results as Result[])if(!lookup.has(result.position))
     fail(400,"invalid_round","Question is not part of this run");
-  // Concurrent browser tabs and background saves can commit out of order.
-  // Serializable isolation makes each aggregate see a coherent PlaySession set.
-  // Retry serialization conflicts rather than allowing an older total to win.
-  for(let attempt=0;attempt<5;attempt++){
-    try {
-  return await db().$transaction(async tx=>{
+  // A concurrent device, browser tab or history reconciliation can write this run.
+  // Retry the entire Serializable transaction, not just its final update.
+  try {
+    return await withSerializableWriteRetry(()=>db().$transaction(async tx=>{
     for(const result of p.results){
       const q=lookup.get(result.position)!;
       const existing=await tx.playSession.findUnique({where:{runId_roundIndex:{
@@ -107,19 +106,35 @@ export async function localRunSync(p:Record<string,any>,actor:Actor|null){
     const solved=[...done.values()].filter(s=>s.status==="SOLVED").length;
     const failed=[...done.values()].filter(s=>s.status==="FAILED").length;
     const finished=run.mode!=="INFINITE"&&completed>=questions.length;
-    await tx.playRun.update({where:{id:run.id},data:{
-      currentIndex:completed,score,solved,failed,
-      ...(finished?{status:"FINISHED",completedAt:new Date()}:{})
-    }});
-    return {runId:run.id,completed,score,solved,failed,status:finished?"FINISHED":"ACTIVE"};
-  },{isolationLevel:"Serializable",maxWait:10000,timeout:20000});
-    } catch(error:unknown) {
-      const code=(error as {code?:string})?.code;
-      if((code==="P2034"||code==="P2002") && attempt<4)continue;
-      throw error;
+    // Replayed full snapshots are common (history recovery, multi-device resume).
+    // Do not write an unchanged PlayRun row: unnecessary writes cause P2034
+    // conflicts with other syncs and history reconciliation.
+    const current=await tx.playRun.findUniqueOrThrow({where:{id:run.id},
+      select:{currentIndex:true,score:true,solved:true,failed:true,status:true}});
+    if(current.currentIndex!==completed||current.score!==score||
+       current.solved!==solved||current.failed!==failed||
+       (finished&&current.status!=="FINISHED")){
+      await tx.playRun.update({where:{id:run.id},data:{
+        currentIndex:completed,score,solved,failed,
+        ...(finished?{status:"FINISHED",completedAt:new Date()}:{})
+      }});
     }
+    return {runId:run.id,completed,score,solved,failed,
+      status:finished?"FINISHED":current.status};
+    },{isolationLevel:"Serializable",maxWait:10000,timeout:20000}),{
+      onRetry:(code,attempt,waitMs)=>console.warn("[QuizDip] run result write conflict",{
+        runId:run.id,code,attempt,waitMs
+      })
+    });
+  } catch(error) {
+    if(error instanceof RunSyncBusyError){
+      console.error("[QuizDip] run result sync exhausted retries",{
+        runId:run.id,code:error.lastConflictCode,attempts:RUN_SYNC_MAX_ATTEMPTS
+      });
+      fail(503,"run_sync_busy","Result storage is temporarily busy. Please retry.");
+    }
+    throw error;
   }
-  fail(409,"run_sync_conflict","Could not save the run after retries");
 }
 export async function localSingleBundle(p:Record<string,any>,actor:Actor|null){
   const session=await getPlaySession(p,actor,{allowCompletedRun:true});
