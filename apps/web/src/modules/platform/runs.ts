@@ -433,13 +433,16 @@ export async function runReconcile(p:Record<string,any>,actor:Actor|null) {
           });
           const known=new Map(sessions.filter(s=>s.roundIndex!==null&&s.roundIndex>=0&&s.roundIndex<questionCount)
             .map(s=>[s.roundIndex!,s]));
-          let completed=0;
-          while(known.has(completed))completed++;
+          let contiguous=0;
+          while(known.has(contiguous))contiguous++;
           const values=[...known.values()];
-          const score=values.reduce((sum,s)=>sum+s.score,0);
-          const solved=values.filter(s=>s.status==="SOLVED").length;
-          const failed=values.filter(s=>s.status==="FAILED").length;
-          const isFinished=completed===questionCount;
+          // A previous safety withdrawal can legitimately skip an unanswered
+          // pack slot. Repair is additive and must never undo that progress.
+          const completed=Math.max(run.currentIndex,contiguous);
+          const score=Math.max(run.score,values.reduce((sum,s)=>sum+s.score,0));
+          const solved=Math.max(run.solved,values.filter(s=>s.status==="SOLVED").length);
+          const failed=Math.max(run.failed,values.filter(s=>s.status==="FAILED").length);
+          const isFinished=completed>=questionCount;
           const differs=run.currentIndex!==completed||run.score!==score||
             run.solved!==solved||run.failed!==failed||
             (isFinished&&run.status!=="FINISHED");
