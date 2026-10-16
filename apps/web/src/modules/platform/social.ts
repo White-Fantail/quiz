@@ -460,5 +460,6 @@ export async function packGet(p:Record<string,any>,actor:Actor|null){
     description:pack.localizations[0].description,author:pack.author,
     questionCount:safe.questionCount,originalQuestionCount:safe.originalQuestionCount,
     excludedCount:safe.excludedCount,orderMode:pack.orderMode,ratings:await packRatingFor(pack.id,locale),
-    locale,publication:pack.publication,currentVersion:pack.currentVersion};
+    locale,publication:pack.publication,currentVersion:pack.currentVersion,
+    kidsEligible:pack.kidsEligible};
 }

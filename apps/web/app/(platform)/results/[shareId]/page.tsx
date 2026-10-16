@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { PlatformError } from "../../../../src/modules/platform/auth";
 import { runShareGet } from "../../../../src/modules/platform/runs";
 import { localizeHref } from "../../../../src/i18n/core";
+import AdSlot from "../../../../src/components/ads/AdSlot";
 
 export const dynamic = "force-dynamic";
 
@@ -54,5 +55,6 @@ export default async function SharedResult({params}:{params:Promise<{shareId:str
         {korean?"이 퀴즈팩 도전하기 →":"Try this quiz pack →"}
       </Link>
     </section>
+    <AdSlot placement="SHARED_RESULT"/>
   </main>;
 }
