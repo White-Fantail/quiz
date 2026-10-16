@@ -1,13 +1,14 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import {Fragment,useEffect,useState} from "react";
+import AdSlot from "../../../src/components/ads/AdSlot";
 import { useLocale } from "../../../src/i18n/provider";
 import { localizeHref } from "../../../src/i18n/core";
 type Pack={id:string;title:string;description:string;publication:string;
   orderMode:"CREATOR"|"RANDOM";quizIds:string[];
   ratings?:{total:number;positivePercent:number|null}};
 const SIZE=12;
-export default function PackBrowser({page,onPageChange,ready}:{page:number;onPageChange:(page:number)=>void;ready:boolean}){
+export default function PackBrowser({page,onPageChange,ready,kids=false}:{page:number;onPageChange:(page:number)=>void;ready:boolean;kids?:boolean}){
   const locale=useLocale(),ko=locale==="ko";
   const [packs,setPacks]=useState<Pack[]>([]);
   const [hasMore,setHasMore]=useState(false),[loading,setLoading]=useState(true),[error,setError]=useState("");
@@ -32,7 +33,9 @@ export default function PackBrowser({page,onPageChange,ready}:{page:number;onPag
     {loading&&<p role="status" className="muted">{ko?"불러오는 중…":"Loading…"}</p>}
     {error&&<p role="alert">{error}</p>}
     {!loading&&!error&&!packs.length&&<p className="muted">{ko?"지금 공개된 퀴즈팩이 없어요.":"No published quiz packs available yet."}</p>}
-    <div className="discover-grid">{packs.map(pack=><article className="feature-card discover-card" key={pack.id}>
+    <div className="discover-grid">{packs.map((pack,index)=><Fragment key={pack.id}>
+      {index===6&&<div className="discover-ad-row"><AdSlot placement="DISCOVER_FEED" kids={kids}/></div>}
+      <article className="feature-card discover-card">
       <div className="discover-card-top">
         <span className="small-tag">{ko?"퀴즈팩":"Quiz pack"}</span>
         <span className="muted">{pack.quizIds.length} {ko?"문제":"questions"}</span>
@@ -44,7 +47,7 @@ export default function PackBrowser({page,onPageChange,ready}:{page:number;onPag
       <Link href={localizeHref("/packs/"+pack.id,locale)} className="btn btn-primary">
         {ko?"퀴즈팩 보기 →":"Explore pack →"}
       </Link>
-    </article>)}</div>
+    </article></Fragment>)}</div>
     <nav className="discover-pagination" aria-label={ko?"퀴즈팩 페이지":"Quiz pack pages"}>
       <button className="btn btn-outline" type="button" disabled={page===0||loading} onClick={()=>onPageChange(Math.max(0,page-1))}>
         {ko?"이전":"Previous"}</button>

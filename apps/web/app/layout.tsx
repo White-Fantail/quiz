@@ -7,6 +7,8 @@ import { resolveLocale, localizeHref } from "../src/i18n/core";
 import { t } from "../src/i18n/messages";
 import { LocaleProvider } from "../src/i18n/provider";
 import LanguageSwitcher from "../src/i18n/language-switcher";
+import {getAdsConfig,publisherId} from "../src/lib/ads/config";
+import {AdProvider} from "../src/components/ads/AdProvider";
 import "./globals.css";
 import "./management.css";
 
@@ -18,6 +20,7 @@ export async function generateMetadata(): Promise<Metadata> {
     title, applicationName: "QuizDip",
     keywords: ["QuizDip", "quiz", "quiz pack", "quiz creator", "퀴즈", "퀴즈팩"],
     description,
+    ...(publisherId(process.env.ADSENSE_CLIENT_ID)?{other:{"google-adsense-account":publisherId(process.env.ADSENSE_CLIENT_ID)}}:{}),
     openGraph: { title, description, siteName: "QuizDip", type: "website" },
     twitter: { card: "summary", title, description },
   };
@@ -35,10 +38,12 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   const requestHeaders = await headers();
   const locale = resolveLocale(requestHeaders.get("x-quizdip-locale"));
   const lockedLegacyBrowser = requestHeaders.get("x-quizdip-legacy-lock") === "locked";
+  const adsConfig=getAdsConfig();
   return (
     <html lang={locale}>
       <body>
         <LocaleProvider locale={locale}>
+          <AdProvider config={adsConfig}>
           {lockedLegacyBrowser ? <main>{children}</main> : <>
           <header className="site-header">
             <div className="container header-inner">
@@ -54,6 +59,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
           <main>{children}</main>
           <footer className="site-footer"><div className="container">© QuizDip · Create it. Play it. Share it.</div></footer>
           </>}
+          </AdProvider>
         </LocaleProvider>
         <Analytics />
         <SpeedInsights />
