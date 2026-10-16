@@ -10,7 +10,7 @@ export type CachedProgress = {
   score:number;mustReveal:boolean;
 };
 export type CachedRun = {
-  bundle:{runId:string;questions:{position:number}[];[key:string]:unknown};
+  bundle:{runId:string;questions:{position:number}[]};
   progress:Record<string,CachedProgress>;
   runToken:string;synced?:boolean;
 };
@@ -123,11 +123,7 @@ async function sendSnapshot(runId:string,force:boolean):Promise<SyncReceipt|null
 
 export async function syncCachedRun(runId:string,options:{force?:boolean}={}):Promise<SyncReceipt|null>{
   const previous=inflight.get(runId);
-  if(previous){
-    await previous;
-    const cached=getCachedRun(runId);
-    if(cached?.synced && !options.force)return previous;
-  }
+  if(previous)return previous; // An in-flight request also catches progress added while saving.
   const work=(async()=>{
     const doSend=()=>sendSnapshot(runId,!!options.force);
     if(typeof navigator!=="undefined" && navigator.locks?.request){

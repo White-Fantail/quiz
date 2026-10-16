@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocale } from "../../../src/i18n/provider";
 import { localizeHref } from "../../../src/i18n/core";
 import PackResultShare from "../../../src/components/pack-result-share";
@@ -25,6 +25,7 @@ export default function MyResults() {
   const [selected,setSelected]=useState<string|null>(null),[error,setError]=useState("");
   const [loading,setLoading]=useState(true);
   const [recovering,setRecovering]=useState(true);
+  const recoveryStarted=useRef(false);
   const [recoverCount,setRecoverCount]=useState({done:0,total:0});
   const [recoveryReport,setRecoveryReport]=useState<RecoveryReport|null>(null);
   const load=useCallback(async ()=>{
@@ -50,7 +51,7 @@ export default function MyResults() {
       await load(); // Refresh after older local results have been committed.
     }
   },[load]);
-  useEffect(()=>{void recover();},[]); // Initial history recovery, not on pagination. 
+  useEffect(()=>{if(recoveryStarted.current)return;recoveryStarted.current=true;void recover();},[]); // Initial history recovery, not on pagination.
   const rows=history?.items||[];
   return <main className="container inner-page management-page my-results-page">
     <div className="play-intro"><span className="eyebrow">MY QUIZDIP</span>

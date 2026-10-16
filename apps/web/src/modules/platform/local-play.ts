@@ -72,7 +72,7 @@ export async function localRunSync(p:Record<string,any>,actor:Actor|null){
   // Retry serialization conflicts rather than allowing an older total to win.
   for(let attempt=0;attempt<5;attempt++){
     try {
-  return db().$transaction(async tx=>{
+  return await db().$transaction(async tx=>{
     for(const result of p.results){
       const q=lookup.get(result.position)!;
       const existing=await tx.playSession.findUnique({where:{runId_roundIndex:{
