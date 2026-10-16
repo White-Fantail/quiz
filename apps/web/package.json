@@ -10,30 +10,31 @@
     "build:next": "next build"
   },
   "dependencies": {
-    "@quizdip/domain": "*",
-    "@prisma/client": "7.10.0",
-    "@prisma/adapter-pg": "7.10.0",
+    "@aws-sdk/client-s3": "^3.950.0",
+    "@aws-sdk/s3-request-presigner": "^3.950.0",
+    "@better-auth/cimd": "1.7.7",
+    "@better-auth/mcp": "1.7.7",
+    "@better-auth/oauth-provider": "1.7.7",
     "@modelcontextprotocol/server": "^2.1.0",
+    "@prisma/adapter-pg": "7.10.0",
+    "@prisma/client": "7.10.0",
+    "@quizdip/domain": "*",
+    "@quizdip/i18n": "*",
+    "@vercel/analytics": "^2.0.1",
+    "better-auth": "1.7.7",
+    "file-type": "^21.1.1",
     "jose": "^6.1.0",
     "next": "^16.2.6",
     "pg": "^8.16.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "zod": "^4.1.0",
-    "better-auth": "1.7.7",
-    "@better-auth/mcp": "1.7.7",
-    "@better-auth/cimd": "1.7.7",
-    "@better-auth/oauth-provider": "1.7.7",
-    "@aws-sdk/client-s3": "^3.950.0",
-    "@aws-sdk/s3-request-presigner": "^3.950.0",
-    "file-type": "^21.1.1",
     "sharp": "^0.34.5",
-    "@quizdip/i18n": "*"
+    "zod": "^4.1.0"
   },
   "devDependencies": {
+    "@types/pg": "^8.15.0",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
-    "@types/pg": "^8.15.0",
     "prisma": "7.10.0"
   }
 }
