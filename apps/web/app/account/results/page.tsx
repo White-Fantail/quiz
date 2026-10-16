@@ -102,7 +102,7 @@ export default function MyResults() {
             {hasUnsavedBrowserResults&&<p className="my-results-warning">
               {korean?`브라우저에는 ${browserCompleted}문제 완료 기록이 있어요. 서버 복구가 필요해요.`:
                 `This browser has ${browserCompleted} completed questions awaiting recovery.`}
-            </p>
+            </p>}
           </div>
           {shareable?<button className="btn btn-outline" type="button" aria-expanded={open}
             onClick={()=>setSelected(open?null:run.runId)}>
