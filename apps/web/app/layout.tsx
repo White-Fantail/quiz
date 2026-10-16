@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { headers } from "next/headers";
+import { Analytics } from "@vercel/analytics/next";
 import { resolveLocale, localizeHref } from "../src/i18n/core";
 import { t } from "../src/i18n/messages";
 import { LocaleProvider } from "../src/i18n/provider";
@@ -53,6 +54,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
           <footer className="site-footer"><div className="container">© QuizDip · Create it. Play it. Share it.</div></footer>
           </>}
         </LocaleProvider>
+        <Analytics />
       </body>
     </html>
   );
