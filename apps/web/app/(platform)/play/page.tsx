@@ -14,6 +14,7 @@ import PackResultShare from "../../../src/components/pack-result-share";
 import type { RatingSummary } from "../../../src/modules/quiz/rating-metadata";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { answerShortcutIndex } from "../../../src/modules/platform/keyboard-choice";
+import { storeCachedRun, syncCachedRun, recoverCachedRuns, runStorageKey } from "../../../src/lib/local-run-sync";
 
 type Lane = "GENERAL" | "KIDS";
 type Mode = "RANDOM_FIVE" | "INFINITE" | "PACK";
@@ -27,7 +28,7 @@ type Round = RunInfo & {sessionId:string;sessionToken:string;round:number;quizId
   sessionStatus:string;canGuess?:boolean;responseMode?:"text"|"multiple-choice";options?:string[];ratings?:RatingSummary;myRating?:number|null;ratingAccess?:RatingAccess};
 type LocalPack = {runId:string;questions:(LocalQuestion&{position:number;responseMode?:"text"|"multiple-choice";options?:string[]})[]};
 type LocalSaved = {bundle:LocalPack;progress:Record<number,LocalProgress>;runToken:string;synced?:boolean};
-const localKey=(id:string)=>"quizdip-local-play-v1:"+id;
+const localKey=runStorageKey;
 type FeedbackItem = {quizId:string;round:number;title:string;ratings:RatingSummary;myRating:number|null;ratingAccess:RatingAccess;isTranslation?:boolean;myTranslationRating?:number|null};
 type MediaPreview = {url:string;kind:string;mimeType:string;mediaId:string};
 
@@ -103,6 +104,9 @@ export default function PlayPage({packId}:{packId?:string}={}) {
   const [reviewOpen,setReviewOpen]=useState(false);
   const [reviewBusy,setReviewBusy]=useState(false);
   const [reviewError,setReviewError]=useState("");
+  const [syncState,setSyncState]=useState<"idle"|"saving"|"saved"|"error">("idle");
+  const [syncError,setSyncError]=useState("");
+  const [confirmedRunId,setConfirmedRunId]=useState<string|null>(null);
 
   useEffect(()=>{
     // Deep links from Kids and campaigns must preserve the audience selection.
@@ -112,6 +116,7 @@ export default function PlayPage({packId}:{packId?:string}={}) {
   useEffect(()=>{
     let alive=true;
     setRun(null);setRound(null);setError("");setFeedback("");setMedia({});
+    setSyncState("idle");setSyncError("");setConfirmedRunId(null);
     setRemainingClues(null);setReviewOpen(false);setReviewBusy(false);setReviewError("");
     if(!packId)void request("/runs?limit=5").then(value=>{if(alive)setMyHistory(value.items||[])}).catch(()=>{});
     return ()=>{alive=false;};
@@ -132,50 +137,57 @@ export default function PlayPage({packId}:{packId?:string}={}) {
 
   const saveLocal=()=>{
     if(!localBundleRef.current)return;
-    try{localStorage.setItem(localKey(localBundleRef.current.runId),JSON.stringify({
+    storeCachedRun({
       bundle:localBundleRef.current,progress:localProgressRef.current,
       runToken:localRunTokenRef.current,synced:false
-    } satisfies LocalSaved));}catch{/* Storage can be disabled: play still works. */}
+    });
+    setSyncState("idle");
+    setConfirmedRunId(null);
   };
   const syncLocal=async()=>{
     const bundle=localBundleRef.current;
     if(!bundle)return;
-    const results=Object.entries(localProgressRef.current).filter(([,p])=>p.status!=="ACTIVE")
-      .map(([position,p])=>({position:Number(position),cluesUsed:p.clueIndex,status:p.status as "SOLVED"|"FAILED",score:p.score}));
-    if(!results.length)return;
-    await request("/runs/"+bundle.runId+"/sync","POST",{runToken:localRunTokenRef.current,results});
-    try{
-      const key=localKey(bundle.runId);
-      const saved=JSON.parse(localStorage.getItem(key)||"null") as LocalSaved|null;
-      const latest=Object.values(saved?.progress??{}).filter(p=>p.status!=="ACTIVE").length;
-      if(saved&&latest===results.length)localStorage.setItem(key,JSON.stringify({...saved,synced:true}));
-    }catch{}
+    const runId=bundle.runId;
+    setSyncState("saving");setSyncError("");
+    try {
+      // Cached records, not React state, are the source of truth for each POST.
+      // The shared queue deduplicates saves and resends if progress changes
+      // during a request. The server receipt is authoritative.
+      const saved=await syncCachedRun(runId,{force:true});
+      if(localBundleRef.current?.runId!==runId)return saved;
+      const local=localSummary(Object.values(localProgressRef.current));
+      if(saved&&saved.completed>=local.completed){
+        setSyncState("saved");
+        if(saved.status==="FINISHED"&&local.completed===bundle.questions.length)
+          setConfirmedRunId(runId);
+      }else if(local.completed>0){
+        setSyncState("error");
+        setSyncError(msg("Server hasn't confirmed all your results. Please retry.",
+          "서버에서 모든 결과 저장을 확인하지 못했어요. 다시 시도해 주세요."));
+      }
+      return saved;
+    }catch(e){
+      if(localBundleRef.current?.runId===runId){
+        setSyncState("error");
+        setSyncError(e instanceof Error?e.message:msg("Could not save your results.",
+          "결과 저장에 실패했어요."));
+      }
+      throw e;
+    }
   };
   useEffect(()=>{
-    // Replay pending, idempotent results after browser restarts or network recovery.
-    const flush=()=>{
-      for(let i=0;i<localStorage.length;i++){
-        const key=localStorage.key(i);
-        if(!key?.startsWith("quizdip-local-play-v1:"))continue;
-        try{
-          const saved=JSON.parse(localStorage.getItem(key)||"null") as LocalSaved|null;
-          if(!saved?.runToken||saved.synced)continue;
-          const results=Object.entries(saved.progress).filter(([,p])=>p.status!=="ACTIVE")
-            .map(([position,p])=>({position:Number(position),cluesUsed:p.clueIndex,
-              status:p.status,score:p.score}));
-          if(!results.length)continue;
-          void api("/runs/"+saved.bundle.runId+"/sync","POST",
-            {runToken:saved.runToken,results},locale).then(()=>{
-              const current=JSON.parse(localStorage.getItem(key)||"null") as LocalSaved|null;
-              const count=Object.values(current?.progress??{}).filter(p=>p.status!=="ACTIVE").length;
-              if(current&&count===results.length)localStorage.setItem(key,JSON.stringify({...current,synced:true}));
-            }).catch(()=>{});
-        }catch{}
-      }
-    };
-    flush();window.addEventListener("online",flush);
-    return ()=>window.removeEventListener("online",flush);
-  },[locale]);
+    // This also repairs the previous client version, which could incorrectly
+    // mark a cache as synced while an older concurrent request overwrote totals.
+    // Never delete the cached answers after a retry.
+    let active=true;
+    const replay=()=>{void recoverCachedRuns().then(report=>{
+      if(!active||!localBundleRef.current)return;
+      // The current run is independently confirmed through syncLocal.
+      if(report.failed)console.warn("[QuizDip] Some saved runs are still pending recovery");
+    }).catch(()=>{});};
+    replay();window.addEventListener("online",replay);
+    return ()=>{active=false;window.removeEventListener("online",replay);};
+  },[]);
   const loadLocalMedia=(r:RunInfo,position:number,ids:string[])=>{
     void Promise.all([...new Set(ids)].filter(Boolean).map(async mediaId=>{
       try{
@@ -614,10 +626,25 @@ export default function PlayPage({packId}:{packId?:string}={}) {
           <div className="round-finish-symbol">✦</div>
           <h2>{msg("Challenge complete!","이번 도전 완료!")}</h2>
           <p>{msg("Total ","총 ")}<strong>{run.score}{msg(" pts","점")}</strong> · {run.completed}{msg(" quizzes · ","문제 · ")}{msg("Correct ","정답 ")}{run.solved||0}</p>
-          {run.mode==="PACK"&&packId&&run.status==="FINISHED"&&<PackResultShare
+          {run.mode!=="INFINITE"&&syncState!=="saved"&&<div className="play-sync-status" role="status">
+            <p>{syncState==="saving"
+              ?msg("Saving your results to the server…","서버에 결과를 저장하는 중…")
+              :syncState==="error"
+                ?msg("Result sync needs attention. Your progress is still stored in this browser.",
+                  "결과 저장을 다시 시도해야 해요. 플레이 기록은 현재 브라우저에 보관되어 있어요.")
+                :msg("Confirming your saved result…","서버 저장 결과를 확인하는 중…")}</p>
+            {syncError&&<p className="muted">{syncError}</p>}
+            {syncState==="error"&&<button type="button" className="btn btn-outline"
+              onClick={()=>void syncLocal().catch(()=>{})}>
+              {msg("Retry saving results","결과 저장 다시 시도")}</button>}
+          </div>}
+          {run.mode==="PACK"&&packId&&run.status==="FINISHED"&&confirmedRunId===run.runId&&<PackResultShare
             packId={packId} title={pack?.title||msg("Quiz pack","퀴즈팩")}
             score={run.score} completed={run.completed} solved={run.solved||0}
             createShareId={async()=>{
+              // Recheck before making a public score claim.
+              const confirmation=await syncLocal();
+              if(confirmation?.status!=="FINISHED")throw new Error("Result not confirmed by server");
               const shared=await request("/runs/"+run.runId+"/share","POST",{runToken:run.runToken});
               return shared.shareId as string;
             }}
