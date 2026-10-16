@@ -20,7 +20,9 @@ async function loadKoreanFont(text:string):Promise<ArrayBuffer|null> {
     if(!cssResponse.ok)return null;
     const css=await cssResponse.text();
     // Only fetch files from Google's fixed font host, never an arbitrary URL.
-    const fontUrl=css.match(/url\\(['"]?(https:\\/\\/fonts\\.gstatic\\.com\\/[^)'"]+)['"]?\\)\\s*format\\(['"]?(?:truetype|opentype|woff)['"]?\\)/)?.[1];
+    const resource=css.match(/src:\s*url\(([^)]+)\)\s*format\(['"]?(?:truetype|opentype|woff)['"]?\)/);
+    const fontUrl=resource?.[1]?.replace(/['"]/g,"");
+    if(fontUrl && !fontUrl.startsWith("https://fonts.gstatic.com/"))return null;
     if(!fontUrl)return null;
     const font=await fetch(fontUrl,{signal:AbortSignal.timeout(4500)});
     if(!font.ok)return null;
