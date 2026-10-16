@@ -15,7 +15,7 @@ export const contentType = "image/png";
 async function loadKoreanFont(text:string):Promise<ArrayBuffer|null> {
   try {
     const cssUrl="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@700&text="+
-      encodeURIComponent(text.slice(0,200)+"나의 점수 맞힌 문제");
+      encodeURIComponent(text.slice(0,200)+" 나의 점수 맞힌 문제 QuizDip MY QUIZ PACK RESULT SCORE PTS CORRECT ANSWERS 0123456789 Think you can beat this score?");
     const cssResponse=await fetch(cssUrl,{signal:AbortSignal.timeout(4500)});
     if(!cssResponse.ok)return null;
     const css=await cssResponse.text();
