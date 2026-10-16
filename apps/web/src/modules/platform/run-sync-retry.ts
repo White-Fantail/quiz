@@ -5,9 +5,11 @@ export const RUN_SYNC_MAX_ATTEMPTS = 5;
 
 export class RunSyncBusyError extends Error {
   readonly code = "run_sync_busy";
-  constructor(readonly lastConflictCode: "P2034" | "P2002") {
+  readonly lastConflictCode: "P2034" | "P2002";
+  constructor(lastConflictCode: "P2034" | "P2002") {
     super("Run result sync remained busy after retrying transactions");
     this.name = "RunSyncBusyError";
+    this.lastConflictCode = lastConflictCode;
   }
 }
 
