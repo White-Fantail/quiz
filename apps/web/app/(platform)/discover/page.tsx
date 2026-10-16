@@ -153,7 +153,7 @@ export default function DiscoverPage() {
           const age = audienceAgeLabel(quiz.recommendedAudience, locale);
           const difficulty = difficultyLabel(quiz.recommendedAudience, locale);
           return <Fragment key={quiz.id}>
-            {index===6&&<div className="discover-ad-row"><AdSlot placement="DISCOVER_FEED" kids={kids}/></div>}
+            {index===6&&<AdSlot placement="DISCOVER_FEED" kids={kids} fullRow/>}
             <article className="feature-card discover-card">
             <div className="discover-card-top">
               <span className="symbol mint" aria-hidden="true">{kind?.icon ?? "✨"}</span>

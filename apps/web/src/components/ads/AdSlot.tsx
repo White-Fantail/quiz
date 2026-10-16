@@ -6,7 +6,7 @@ import {useAds} from "./AdProvider";
 declare global{
   interface Window{adsbygoogle?:{push:(value:Record<string,never>)=>number}}
 }
-export default function AdSlot({placement,kids=false}:{placement:AdPlacement;kids?:boolean}){
+export default function AdSlot({placement,kids=false,fullRow=false}:{placement:AdPlacement;kids?:boolean;fullRow?:boolean}){
   const {config,scriptState,requestScript}=useAds();
   const allowed=canShowAd(config,placement,kids);
   const hostRef=useRef<HTMLElement>(null);
@@ -36,7 +36,7 @@ export default function AdSlot({placement,kids=false}:{placement:AdPlacement;kid
     }
   },[allowed,near,scriptState]);
   if(!allowed)return null;
-  return <aside ref={hostRef} className="quizdip-ad-slot" aria-label="Advertisement"
+  return <aside ref={hostRef} className={fullRow?"quizdip-ad-slot discover-ad-row":"quizdip-ad-slot"} aria-label="Advertisement"
     data-ad-placement={placement}>
     <span className="quizdip-ad-label">Advertisement</span>
     <ins ref={insRef} className="adsbygoogle quizdip-ad-ins"

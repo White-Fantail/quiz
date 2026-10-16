@@ -38,6 +38,9 @@ test("pre-approval and game safety guards exist in the shared UI",()=>{
   assert.match(play,/run\.status==="FINISHED"&&<AdSlot placement="PLAY_RESULT"/);
   assert.match(play,/run\.lane==="KIDS"/);
   assert.match(slot,/if\(!allowed\)return null/);
+  assert.match(slot,/className=\{fullRow\?/);
+  assert.doesNotMatch(read("../app/(platform)/discover/page.tsx"),/className="discover-ad-row"/);
+  assert.doesNotMatch(read("../app/(platform)/packs/page.tsx"),/className="discover-ad-row"/);
   assert.match(slot,/quizdipAdInitialized/);
   assert.match(slot,/IntersectionObserver/);
   assert.match(provider,/config\.enabled&&requested/);

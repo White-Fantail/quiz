@@ -34,7 +34,7 @@ export default function PackBrowser({page,onPageChange,ready,kids=false}:{page:n
     {error&&<p role="alert">{error}</p>}
     {!loading&&!error&&!packs.length&&<p className="muted">{ko?"지금 공개된 퀴즈팩이 없어요.":"No published quiz packs available yet."}</p>}
     <div className="discover-grid">{packs.map((pack,index)=><Fragment key={pack.id}>
-      {index===6&&<div className="discover-ad-row"><AdSlot placement="DISCOVER_FEED" kids={kids}/></div>}
+      {index===6&&<AdSlot placement="DISCOVER_FEED" kids={kids} fullRow/>}
       <article className="feature-card discover-card">
       <div className="discover-card-top">
         <span className="small-tag">{ko?"퀴즈팩":"Quiz pack"}</span>

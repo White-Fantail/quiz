@@ -17,7 +17,7 @@ export default async function PackCatalog({searchParams}:{searchParams:Promise<{
     </div>
     {!items.length&&<p>{locale==="ko"?"현재 이 언어로 플레이할 수 있는 퀴즈팩이 없어요.":"No playable quiz packs in this language yet."}</p>}
     <div className="cards">{items.map((pack,index)=><Fragment key={pack.id}>
-      {index===8&&<div className="discover-ad-row"><AdSlot placement="PACK_LIST"/></div>}
+      {index===8&&<AdSlot placement="PACK_LIST" fullRow/>}
       <article className="feature-card">
       <span className="small-tag">{locale==="ko"?"퀴즈팩":"Quiz pack"}</span>
       <h2>{pack.title}</h2><p>{pack.description}</p>
