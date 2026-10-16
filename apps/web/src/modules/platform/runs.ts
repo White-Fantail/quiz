@@ -405,6 +405,63 @@ export async function runShareGet(p:Record<string,any>) {
     completedAt:run.completedAt};
 }
 
+
+/**
+ * Restore stale run totals using completed PlaySession rows that already exist
+ * on the server. Owner-only; NEVER invent missing answers or mark a partially
+ * completed pack finished. Safe to call repeatedly from account history.
+ */
+export async function runReconcile(p:Record<string,any>,actor:Actor|null) {
+  const user=requireActor(actor);
+  if(actor?.childScope)fail(403,"reconcile_forbidden","Child runs cannot be reconciled here");
+  const runs=await db().playRun.findMany({
+    where:{userId:user.id,lane:"GENERAL",mode:{in:["PACK","RANDOM_FIVE"]}},
+    select:{id:true},orderBy:{startedAt:"desc"},skip:p.offset,take:p.limit
+  });
+  let repaired=0,scanned=0;
+  for(const row of runs){
+    for(let attempt=0;attempt<5;attempt++){
+      try{
+        const changed=await db().$transaction(async tx=>{
+          const run=await tx.playRun.findFirst({where:{id:row.id,userId:user.id}});
+          if(!run)return false;
+          const questionCount=await tx.playRunQuestion.count({where:{runId:run.id}});
+          if(!questionCount)return false;
+          const sessions=await tx.playSession.findMany({
+            where:{runId:run.id,status:{in:["SOLVED","FAILED"]}},
+            select:{roundIndex:true,status:true,score:true}
+          });
+          const known=new Map(sessions.filter(s=>s.roundIndex!==null&&s.roundIndex>=0&&s.roundIndex<questionCount)
+            .map(s=>[s.roundIndex!,s]));
+          let completed=0;
+          while(known.has(completed))completed++;
+          const values=[...known.values()];
+          const score=values.reduce((sum,s)=>sum+s.score,0);
+          const solved=values.filter(s=>s.status==="SOLVED").length;
+          const failed=values.filter(s=>s.status==="FAILED").length;
+          const isFinished=completed===questionCount;
+          const differs=run.currentIndex!==completed||run.score!==score||
+            run.solved!==solved||run.failed!==failed||
+            (isFinished&&run.status!=="FINISHED");
+          if(!differs)return false;
+          await tx.playRun.update({where:{id:run.id},data:{
+            currentIndex:completed,score,solved,failed,
+            ...(isFinished?{status:"FINISHED",completedAt:run.completedAt??new Date()}:{})
+          }});
+          return true;
+        },{isolationLevel:"Serializable",maxWait:10000,timeout:20000});
+        scanned++;
+        if(changed)repaired++;
+        break;
+      }catch(error:unknown){
+        const code=(error as {code?:string})?.code;
+        if((code==="P2034"||code==="P2002")&&attempt<4)continue;
+        throw error;
+      }
+    }
+  }
+  return {scanned,repaired};
+}
 export async function runHistory(p:Record<string,any>,actor:Actor|null) {
   const user=requireActor(actor);
   const [rows,count]=await Promise.all([

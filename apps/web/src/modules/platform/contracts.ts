@@ -296,6 +296,7 @@ export const operations = {
   }) },
   run_feedback: { public: true, description: "Read up to five completed run questions and reaction status by signed run token", schema: z.object({runId:uuid,runToken:z.string().min(32).max(200)}) },
   run_history: { public: false, description: "My latest scores and completed quiz runs", schema: z.object(paging) },
+  run_reconcile: { public: false, description: "Rebuild my old finite-run totals from already saved question sessions", schema:z.object(paging) },
   run_share: { public: true, description: "Opt in to a public share link for my finished general pack result", schema:z.object({runId:uuid,runToken:z.string().min(32).max(200).optional()}) },
   run_unshare: { public: true, description: "Revoke my shared pack result URL", schema:z.object({runId:uuid,runToken:z.string().min(32).max(200).optional(),confirm:z.literal(true)}) },
   run_share_get: { public: true, description: "Read a voluntarily published pack result (no private score history)", schema:z.object({shareId:uuid}) },

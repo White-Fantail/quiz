@@ -41,6 +41,14 @@ export default function MyResults() {
       const result=await recoverCachedRuns({
         onProgress:(done,total)=>setRecoverCount({done,total})
       });
+      // Rebuild counters from already-persisted server sessions, even when
+      // this browser no longer has the original answer cache.
+      try{
+        await api("/runs/reconcile","POST",{limit:PAGE_SIZE,offset});
+      }catch(error){
+        // Browser recovery is still meaningful if server reconciliation fails.
+        console.warn("[QuizDip] Could not reconcile server history",error);
+      }
       setRecoveryReport(result);
     }catch(error){
       setRecoveryReport({checked:1,recovered:0,failed:1,failures:[{
