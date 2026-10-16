@@ -348,13 +348,70 @@ export async function runFeedback(p:Record<string,any>,actor:Actor|null) {
     ratingAccess:ratingAccess(actor,s.quiz.authorId,s.userId)
   }))};
 }
+
+/** Only the owner (signed in) or a guest with their run capability may publish a result. */
+async function shareableOwnedRun(p:Record<string,any>,actor:Actor|null) {
+  if (actor?.childScope) fail(403,"share_forbidden","Child profiles cannot publish scores");
+  const run=actor
+    ? await db().playRun.findFirst({where:{id:p.runId,userId:actor.id}})
+    : p.runToken
+      ? await checkedRun(p.runId,p.runToken,null)
+      : fail(401,"authentication_required","Sign in or use the original run session");
+  if(!run)fail(404,"run_not_found","Play run was not found");
+  if(run.mode!=="PACK"||run.lane!=="GENERAL"||!run.packId)
+    fail(403,"share_forbidden","Only general quiz pack results can be shared");
+  if(run.status!=="FINISHED"||!run.completedAt)
+    fail(409,"run_in_progress","Finish the pack before sharing its result");
+  return run;
+}
+
+/** Explicit opt-in: simply finishing a run never exposes its result publicly. */
+export async function runShare(p:Record<string,any>,actor:Actor|null) {
+  const run=await shareableOwnedRun(p,actor);
+  await safePack(run.packId!,run.locale as Locale,"GENERAL");
+  if(run.shareId)return {shareId:run.shareId};
+  const shareId=randomUUID();
+  const updated=await db().playRun.updateMany({
+    where:{id:run.id,status:"FINISHED",shareId:null},
+    data:{shareId,sharedAt:new Date()}
+  });
+  if(updated.count)return {shareId};
+  const current=await db().playRun.findUnique({where:{id:run.id},select:{shareId:true}});
+  if(!current?.shareId)fail(409,"share_conflict","Please try sharing again");
+  return {shareId:current.shareId};
+}
+
+/** A new share after revocation always gets a new URL; old links stop working. */
+export async function runUnshare(p:Record<string,any>,actor:Actor|null) {
+  const run=await shareableOwnedRun(p,actor);
+  await db().playRun.update({where:{id:run.id},data:{shareId:null,sharedAt:null}});
+  return {unshared:true};
+}
+
+/** Minimal public, read-only result. Never include player identity, run tokens or answers. */
+export async function runShareGet(p:Record<string,any>) {
+  const run=await db().playRun.findUnique({where:{shareId:p.shareId},select:{
+    shareId:true,mode:true,lane:true,locale:true,packId:true,
+    status:true,completedAt:true,currentIndex:true,score:true,solved:true,failed:true
+  }});
+  if(!run||run.mode!=="PACK"||run.lane!=="GENERAL"||run.status!=="FINISHED"||
+     !run.packId||!run.completedAt)fail(404,"result_not_found","Shared result was not found");
+  let pack;
+  try{pack=await safePack(run.packId,run.locale as Locale,"GENERAL");}
+  catch{fail(404,"result_unavailable","This result is no longer public");}
+  return {shareId:run.shareId,packId:run.packId,title:pack.title,locale:run.locale,
+    score:run.score,completed:run.currentIndex,solved:run.solved,failed:run.failed,
+    completedAt:run.completedAt};
+}
+
 export async function runHistory(p:Record<string,any>,actor:Actor|null) {
   const user=requireActor(actor);
   const [rows,count]=await Promise.all([
     db().playRun.findMany({where:{userId:user.id},orderBy:{startedAt:"desc"},
-      skip:p.offset,take:p.limit}),
+      skip:p.offset,take:p.limit,include:{pack:{select:{title:true,localizations:{select:{title:true,locale:true,status:true}}}}}}),
     db().playRun.count({where:{userId:user.id}})
   ]);
-  return {items:rows.map(run=>({...runSummary(run),startedAt:run.startedAt})),
+  return {items:rows.map(run=>({...runSummary(run),startedAt:run.startedAt,
+    shareId:run.shareId,packTitle:run.pack?.localizations.find(loc=>loc.locale===run.locale&&loc.status==="PUBLISHED")?.title??run.pack?.title??null})),
     total:count,offset:p.offset,limit:p.limit};
 }

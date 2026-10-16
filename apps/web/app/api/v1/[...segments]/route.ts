@@ -103,6 +103,9 @@ function route(method: string, segments: string[]): Match | null {
   if (a === "runs") {
     if (!b && method === "POST") return { op: "run_start", args: {} };
     if (!b && method === "GET") return { op: "run_history", args: {} };
+    if (b === "shared" && c && !d && method === "GET") return {op:"run_share_get",args:{shareId:c}};
+    if (b && c === "share" && !d && method === "POST") return {op:"run_share",args:{runId:b}};
+    if (b && c === "share" && !d && method === "DELETE") return {op:"run_unshare",args:{runId:b}};
     if (b && c === "bundle" && method === "POST") return {op:"local_run_bundle",args:{runId:b}};
     if (b && c === "sync" && method === "POST") return {op:"local_run_sync",args:{runId:b}};
     if (b && c === "local-media" && method === "POST") return {op:"local_run_media",args:{runId:b}};
