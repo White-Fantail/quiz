@@ -7,7 +7,7 @@ const read = path => readFileSync(new URL("../" + path, import.meta.url), "utf8"
 test("only completed pack results offer a result-image share card", () => {
   const player = read("app/(platform)/play/page.tsx");
   assert.match(player, /import PackResultShare from/);
-  assert.match(player, /run\.mode==="PACK"&&packId&&run\.status==="FINISHED"&&<PackResultShare/);
+  assert.match(player, /run\.mode==="PACK"&&packId&&run\.status==="FINISHED"&&confirmedRunId===run\.runId&&<PackResultShare/);
   assert.match(player, /score=\{run\.score\}/);
   assert.match(player, /completed=\{run\.completed\}/);
   assert.match(player, /solved=\{run\.solved\|\|0\}/);

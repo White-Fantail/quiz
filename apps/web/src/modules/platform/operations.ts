@@ -8,7 +8,7 @@ import { myModerationInbox, myModerationRead, myModerationAppeal, adminModeratio
 import { quizList, quizGet, quizCreate, quizUpdate, quizPublish, quizKidsRequest, quizLanguageSet, quizReview, quizReviewGet, adminQuizReviewList } from "./quiz";
 import { playStart, playClue, playGuess, playReview } from "./play";
 import { localRunBundle,localRunSync,localRunMedia,localSingleBundle,localSingleStart,localSingleSync,localSingleMedia } from "./local-play";
-import { runStart,runCurrent,runFinish,runHistory,runFeedback,runShare,runUnshare,runShareGet } from "./runs";
+import { runStart,runCurrent,runFinish,runHistory,runReconcile,runFeedback,runShare,runUnshare,runShareGet } from "./runs";
 import { reviewsList, reviewUpsert, reviewRemove, reportCreate, reportsMine, packCreate, packList, packGet, myPackGet, packPreflight, packUpdate, packLanguageSet, packLanguages, packTranslationUpsert, packPublishPreview, packPublish, packKidsRequest } from "./social";
 import { quizStats, myStats, me, leaderboard, rankingOptin, adultVerify } from "./analytics";
 import { packReviewsList, packReviewUpsert, packReviewRemove, packReportCreate, packInsightsMine } from "./pack-social";
@@ -136,6 +136,7 @@ export async function execute(name: Operation, raw: unknown, actor: Actor | null
     case "run_current": return runCurrent(p,actor);
     case "run_finish": return runFinish(p,actor);
     case "run_history": return runHistory(p,actor);
+    case "run_reconcile": return runReconcile(p,actor);
     case "run_share": return runShare(p,actor);
     case "run_unshare": return runUnshare(p,actor);
     case "run_share_get": return runShareGet(p);
