@@ -50,7 +50,7 @@ function fitLines(ctx: CanvasRenderingContext2D, text: string, maxWidth: number,
   return lines;
 }
 
-function paintResultCard(canvas: HTMLCanvasElement, data: PackResultShareProps, url: string, korean: boolean) {
+function paintResultCard(canvas: HTMLCanvasElement, data: Pick<PackResultShareProps, "packId"|"title"|"score"|"completed"|"solved">, url: string, korean: boolean) {
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Canvas unavailable");
   canvas.width = CARD_WIDTH;
