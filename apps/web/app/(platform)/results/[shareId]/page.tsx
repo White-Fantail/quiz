@@ -22,11 +22,11 @@ export async function generateMetadata({params}:{params:Promise<{shareId:string}
   const title=korean?`${result.title} · ${result.score}점 · QuizDip`:`${result.title} · ${result.score} points · QuizDip`;
   const description=korean?`${result.completed}문제 중 ${result.solved}문제를 맞혔어요. 당신도 도전해 보세요!`:
     `${result.solved} correct out of ${result.completed} questions. Try the quiz pack!`;
-  const url=new URL("/results/"+shareId,origin()).href;
+  const url=new URL("/"+(korean?"ko":"en")+"/results/"+shareId,origin()).href;
   const image=new URL("/results/"+shareId+"/og?v=2",origin()).href;
   return {title,description,metadataBase:new URL(origin()),alternates:{canonical:url},
     robots:{index:false,follow:true},
-    openGraph:{type:"website",title,description,url,siteName:"QuizDip",
+    openGraph:{type:"website",title,description,url:url+"?preview=2",siteName:"QuizDip",
       images:[{url:image,width:1200,height:630,type:"image/png",alt:title}]},
     twitter:{card:"summary_large_image",title,description,images:[image]}};
 }

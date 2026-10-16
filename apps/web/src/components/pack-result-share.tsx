@@ -250,8 +250,12 @@ export default function PackResultShare({ packId, title, score, completed, solve
     setShareBusy(true);setNotice("");
     try {
       const url=await publicResultUrl();
+      // Version the Facebook URL when the OG renderer changes. Facebook can
+      // otherwise reuse its previous cached "no image" card for the same run.
+      const facebookUrl=new URL(url);
+      facebookUrl.searchParams.set("preview","2");
       const target=site==="facebook"
-        ? "https://www.facebook.com/sharer/sharer.php?u="+encodeURIComponent(url)
+        ? "https://www.facebook.com/sharer/sharer.php?u="+encodeURIComponent(facebookUrl.href)
         : "https://twitter.com/intent/tweet?text="+encodeURIComponent(shareText)+"&url="+encodeURIComponent(url);
       if(popup) popup.location.replace(target);
       else setNotice(korean ? "새 창이 차단됐어요. 결과 링크를 복사해 공유해 주세요." :
