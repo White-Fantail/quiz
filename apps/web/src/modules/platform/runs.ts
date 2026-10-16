@@ -213,7 +213,7 @@ function runSummary(run:any) {
     completed:run.currentIndex,total:runTargetCount(run),
     packId:run.packId??null,packVersion:run.packVersion??null,
     score:run.score,solved:run.solved,failed:run.failed,
-    completedAt:run.completedAt};
+    completedAt:run.completedAt,kidsEligible:run.pack?.kidsEligible??true};
 }
 /** Advance a general pack past a quiz withdrawn mid-run, without awarding a failure.
  * Its frozen total represents slots at start; restrictions do not reveal answers.
@@ -393,7 +393,8 @@ export async function runUnshare(p:Record<string,any>,actor:Actor|null) {
 export async function runShareGet(p:Record<string,any>) {
   const run=await db().playRun.findUnique({where:{shareId:p.shareId},select:{
     shareId:true,mode:true,lane:true,locale:true,packId:true,
-    status:true,completedAt:true,currentIndex:true,score:true,solved:true,failed:true
+    status:true,completedAt:true,currentIndex:true,score:true,solved:true,failed:true,
+    pack:{select:{kidsEligible:true}}
   }});
   if(!run||run.mode!=="PACK"||run.lane!=="GENERAL"||run.status!=="FINISHED"||
      !run.packId||!run.completedAt)fail(404,"result_not_found","Shared result was not found");

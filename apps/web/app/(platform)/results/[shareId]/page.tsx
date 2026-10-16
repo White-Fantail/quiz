@@ -55,6 +55,6 @@ export default async function SharedResult({params}:{params:Promise<{shareId:str
         {korean?"이 퀴즈팩 도전하기 →":"Try this quiz pack →"}
       </Link>
     </section>
-    <AdSlot placement="SHARED_RESULT"/>
+    <AdSlot placement="SHARED_RESULT" kids={result.kidsEligible}/>
   </main>;
 }
