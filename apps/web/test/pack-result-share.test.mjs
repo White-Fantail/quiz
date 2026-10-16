@@ -52,6 +52,7 @@ test("old and new pack results use one share component and OG URLs", () => {
   const og=read("app/(platform)/results/[shareId]/page.tsx");
   const img=read("src/modules/platform/result-og-image.tsx");
   const route=read("app/(platform)/results/[shareId]/og/route.ts");
+  const proxy=read("proxy.ts");
   assert.ok(finish.includes("createShareId={async"));
   assert.ok(history.includes("createShareId={async"));
   assert.ok(history.includes("<PackResultShare"));
@@ -65,6 +66,7 @@ test("old and new pack results use one share component and OG URLs", () => {
   assert.ok(img.includes("ImageResponse"));
   assert.ok(img.includes("width:1200,height:630"));
   assert.ok(route.includes("resultOgImage"));
+  assert.match(proxy,/results.*og/);
   assert.ok(og.includes("/og?v=2"));
   assert.ok(img.includes("sharp("));
   assert.ok(img.includes("image.arrayBuffer()"));

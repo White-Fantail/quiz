@@ -3,6 +3,9 @@ import { KIDS_COOKIE } from "./src/modules/kids/constants";
 import { DEFAULT_LOCALE,LOCALE_COOKIE,isLocale,localeFromAcceptLanguage,localeFromPath,stripLocale } from "./src/i18n/core";
 
 function bypass(path:string):boolean {
+ // OG images are public binary assets. Do not redirect Facebook's image bot
+ // through the locale chooser; it needs a direct 200 image/png response.
+ if(/^\/results\/[^/]+\/og$/.test(path))return true;
  return path==="/api"||path.startsWith("/api/")||
    path==="/_next"||path.startsWith("/_next/")||
    path.startsWith("/.well-known/")||
