@@ -352,11 +352,12 @@ export async function runFeedback(p:Record<string,any>,actor:Actor|null) {
 /** Only the owner (signed in) or a guest with their run capability may publish a result. */
 async function shareableOwnedRun(p:Record<string,any>,actor:Actor|null) {
   if (actor?.childScope) fail(403,"share_forbidden","Child profiles cannot publish scores");
-  const run=actor
-    ? await db().playRun.findFirst({where:{id:p.runId,userId:actor.id}})
-    : p.runToken
-      ? await checkedRun(p.runId,p.runToken,null)
-      : fail(401,"authentication_required","Sign in or use the original run session");
+  // An owner can reopen a historical run without a token. A guest capability
+  // remains valid if that player signs in between finishing and sharing.
+  const owned=actor?await db().playRun.findFirst({where:{id:p.runId,userId:actor.id}}):null;
+  const run=owned??(p.runToken
+    ? await checkedRun(p.runId,p.runToken,actor)
+    : fail(401,"authentication_required","Sign in or use the original run session"));
   if(!run)fail(404,"run_not_found","Play run was not found");
   if(run.mode!=="PACK"||run.lane!=="GENERAL"||!run.packId)
     fail(403,"share_forbidden","Only general quiz pack results can be shared");
