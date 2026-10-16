@@ -5,9 +5,10 @@ import { useCallback, useEffect, useState } from "react";
 import { useLocale } from "../../../src/i18n/provider";
 import { localizeHref } from "../../../src/i18n/core";
 import PackResultShare from "../../../src/components/pack-result-share";
+import { recoverCachedRuns, cachedCompletedResults, getCachedRun, type RecoveryReport } from "../../../src/lib/local-run-sync";
 
 type RunResult = {runId:string;packId:string|null;packTitle:string|null;mode:string;status:string;
-  score:number;solved:number;failed:number;completed:number;startedAt:string;shareId:string|null};
+  score:number;solved:number;failed:number;completed:number;total:number|null;startedAt:string;shareId:string|null};
 type History = {items:RunResult[];total:number;limit:number;offset:number};
 const PAGE_SIZE=20;
 async function api(path:string,method:"GET"|"POST"|"DELETE"="GET",body?:unknown):Promise<any> {
@@ -23,6 +24,9 @@ export default function MyResults() {
   const [offset,setOffset]=useState(0),[history,setHistory]=useState<History|null>(null);
   const [selected,setSelected]=useState<string|null>(null),[error,setError]=useState("");
   const [loading,setLoading]=useState(true);
+  const [recovering,setRecovering]=useState(true);
+  const [recoverCount,setRecoverCount]=useState({done:0,total:0});
+  const [recoveryReport,setRecoveryReport]=useState<RecoveryReport|null>(null);
   const load=useCallback(async ()=>{
     setLoading(true);setError("");
     try{setHistory(await api(`/runs?limit=${PAGE_SIZE}&offset=${offset}`));}
@@ -30,6 +34,23 @@ export default function MyResults() {
     finally{setLoading(false);}
   },[offset]);
   useEffect(()=>{void load();},[load]);
+  const recover=useCallback(async()=>{
+    setRecovering(true);setRecoveryReport(null);
+    try{
+      const result=await recoverCachedRuns({
+        onProgress:(done,total)=>setRecoverCount({done,total})
+      });
+      setRecoveryReport(result);
+    }catch(error){
+      setRecoveryReport({checked:1,recovered:0,failed:1,failures:[{
+        runId:"",message:error instanceof Error?error.message:String(error)
+      }]});
+    }finally{
+      setRecovering(false);
+      await load(); // Refresh after older local results have been committed.
+    }
+  },[load]);
+  useEffect(()=>{void recover();},[]); // Initial history recovery, not on pagination. 
   const rows=history?.items||[];
   return <main className="container inner-page management-page my-results-page">
     <div className="play-intro"><span className="eyebrow">MY QUIZDIP</span>
@@ -37,6 +58,22 @@ export default function MyResults() {
       <p className="lead">{korean?"지난 퀴즈팩 결과를 다시 열어 이미지나 소셜 미디어로 공유하세요.":
         "Reopen past quiz pack results and share them again."}</p>
     </div>
+    {recovering&&<p className="my-results-recovery" role="status">
+      {korean?"기존 브라우저 기록을 서버와 동기화하는 중…":"Reconciling saved browser results…"}
+      {recoverCount.total>0&&` ${recoverCount.done}/${recoverCount.total}`}
+    </p>}
+    {!recovering&&recoveryReport&&recoveryReport.checked>0&&
+      <section className="my-results-recovery" role="status">
+        <p>{recoveryReport.failed>0
+          ?(korean?`${recoveryReport.recovered}개 기록 동기화 완료, ${recoveryReport.failed}개는 아직 저장하지 못했어요. 브라우저 기록은 보존돼요.`:
+            `${recoveryReport.recovered} results synchronized; ${recoveryReport.failed} could not be saved. Browser copies are preserved.`)
+          :(korean?`${recoveryReport.recovered}개 기존 기록을 서버와 확인했어요.`:
+            `${recoveryReport.recovered} saved results checked with the server.`)}</p>
+        {recoveryReport.failed>0&&<button type="button" className="btn btn-outline" disabled={recovering}
+          onClick={()=>void recover()}>
+          {korean?"미저장 기록 다시 동기화":"Retry pending results"}
+        </button>}
+      </section>}
     {loading&&<p role="status">{korean?"기록을 불러오는 중…":"Loading your history…"}</p>}
     {error&&<section className="placeholder-panel" role="alert"><p>{error}</p>
       <p>{korean?"로그인 상태를 확인해 주세요. 비로그인 기록은 계정에 연결되지 않아요.":
@@ -49,13 +86,22 @@ export default function MyResults() {
     {!loading&&!error&&<div className="my-results-list">{rows.map(run=>{
       const shareable=run.mode==="PACK"&&run.status==="FINISHED"&&!!run.packId;
       const open=selected===run.runId;
+      const browserCache=getCachedRun(run.runId);
+      const browserCompleted=browserCache?cachedCompletedResults(browserCache).length:0;
+      const hasUnsavedBrowserResults=browserCompleted>run.completed;
       return <article className="my-result-entry" key={run.runId}>
         <div className="my-result-row">
           <div>
             <span className="small-tag">{run.mode==="PACK"?(korean?"퀴즈팩":"Quiz pack"):(korean?"자유 플레이":"Free play")}</span>
             <h2>{run.packTitle||(run.mode==="RANDOM_FIVE"?(korean?"랜덤 5문제":"Random five"):(korean?"연속 플레이":"Continuous play"))}</h2>
             <p className="muted">{new Date(run.startedAt).toLocaleDateString(korean?"ko-KR":"en-NZ")}
-              {" · "}{run.score}{korean?"점":" pts"}{" · "}{run.solved}/{run.completed} {korean?"정답":"correct"}</p>
+              {" · "}{run.score}{korean?"점":" pts"}{" · "}
+              {run.completed}{run.total!==null?`/${run.total}`:""}{korean?"문제 완료":" completed"}
+              {" · "}{run.solved}{korean?"문제 정답":" correct"}</p>
+            {hasUnsavedBrowserResults&&<p className="my-results-warning">
+              {korean?`브라우저에는 ${browserCompleted}문제 완료 기록이 있어요. 서버 복구가 필요해요.`:
+                `This browser has ${browserCompleted} completed questions awaiting recovery.`}
+            </p>
           </div>
           {shareable?<button className="btn btn-outline" type="button" aria-expanded={open}
             onClick={()=>setSelected(open?null:run.runId)}>
