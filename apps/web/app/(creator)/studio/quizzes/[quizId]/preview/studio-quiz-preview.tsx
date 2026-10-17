@@ -59,6 +59,7 @@ export default function StudioQuizPreview({quizId,detailHref}:{quizId:string;det
       if(controller.signal.aborted)return;
       if(!data.answer||!Array.isArray(data.clues))
         throw new Error(msg("Only the author can preview this quiz.","문제 제작자만 미리 볼 수 있어요."));
+      setClueIndex(data.clues.length===0?0:1);
       setQuiz(data);
     }).catch(e=>{
       if(!controller.signal.aborted)setError(e instanceof Error?e.message:msg("Could not load preview.","미리보기를 불러오지 못했어요."));
