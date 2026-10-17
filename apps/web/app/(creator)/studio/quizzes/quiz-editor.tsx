@@ -15,7 +15,7 @@ type Clue = { key:string;type:ClueType;text:string;mediaId:string;reveal:Reveal;
 type AnswerType = "person"|"animal"|"place"|"thing"|"event"|"concept"|"other";
 type Language = "ko"|"en"|"und";
 type Quiz = {
-  id:string; title:string;prompt:string;locale:Language;version:number;publication:string;
+  id:string; title:string;prompt:string;explanation?:string;locale:Language;version:number;publication:string;
   safetyStatus:string;answerType:AnswerType;answer:{canonical:string;aliases:string[];responseMode?:"text"|"multiple-choice";options?:string[]};
   clues:Array<{id?:string;type:ClueType;text?:string;mediaId?:string;reveal?:Reveal;map?:MapData}>;
   topics:Array<{name:string;isSpoiler?:boolean}>;promptMediaIds?:string[];
@@ -23,7 +23,7 @@ type Quiz = {
   recommendedAudience?:{ageRange?:{minimum?:number;maximum?:number};difficulty?:string}|null;
 };
 type Form = {
-  title:string;prompt:string;locale:Language;answerType:AnswerType;canonical:string;
+  title:string;prompt:string;explanation:string;locale:Language;answerType:AnswerType;canonical:string;
   responseMode:"text"|"multiple-choice";distractors:string;
   aliases:string;topics:string;clues:Clue[];creatorMin:string;creatorMax:string;creatorNote:string;
   suggestedMin:string;suggestedMax:string;difficulty:string;promptMediaIds:string[];
@@ -36,7 +36,7 @@ function newClue(type:ClueType="text"):Clue {
     map:{latitude:0,longitude:0,zoom:10}};
 }
 function blankForm(locale:Language):Form {
-  return {title:"",prompt:"",locale,answerType:"other",canonical:"",responseMode:"text",distractors:"",aliases:"",topics:"",
+  return {title:"",prompt:"",explanation:"",locale,answerType:"other",canonical:"",responseMode:"text",distractors:"",aliases:"",topics:"",
     clues:[newClue()],creatorMin:"",creatorMax:"",creatorNote:"",
     suggestedMin:"",suggestedMax:"",difficulty:"",promptMediaIds:[]};
 }
@@ -47,7 +47,7 @@ function normalizeReveal(reveal?: Reveal): Reveal {
   return {effect:"zoom",strength:0,focusX:50,focusY:50};
 }
 function fromQuiz(quiz:Quiz):Form {
-  return {title:quiz.title,prompt:quiz.prompt,locale:quiz.locale,answerType:quiz.answerType,
+  return {title:quiz.title,prompt:quiz.prompt,explanation:quiz.explanation??"",locale:quiz.locale,answerType:quiz.answerType,
     canonical:quiz.answer.canonical,aliases:quiz.answer.aliases.join("\n"),
     responseMode:quiz.answer.responseMode==="multiple-choice"?"multiple-choice":"text",
     distractors:(quiz.answer.options??[]).filter(text=>text.normalize("NFKC").trim().toLocaleLowerCase()!==quiz.answer.canonical.normalize("NFKC").trim().toLocaleLowerCase()).join("\n"),
@@ -119,7 +119,8 @@ function asPayload(form:Form,original:Quiz|null) {
   });
   const oldTopics=new Map((original?.topics??[]).map(t=>[t.name.toLocaleLowerCase(),!!t.isSpoiler]));
   const topics=names.map(name=>({name,isSpoiler:oldTopics.get(name.toLocaleLowerCase())??false}));
-  return {title,prompt,answerType:form.answerType,answer:{canonical,aliases,...(form.responseMode==="multiple-choice"?{responseMode:"multiple-choice" as const,options:[canonical,...distractors]}:{})},clues,topics,
+  if(form.explanation.length>4000)throw Error("Explanation is too long (maximum 4000 characters).");
+  return {title,prompt,explanation:form.explanation.trim(),answerType:form.answerType,answer:{canonical,aliases,...(form.responseMode==="multiple-choice"?{responseMode:"multiple-choice" as const,options:[canonical,...distractors]}:{})},clues,topics,
     promptMediaIds:form.promptMediaIds,
     creatorIntent:{ageRange:ageRange(form.creatorMin,form.creatorMax),note:form.creatorNote},
     recommendedAudience:{ageRange:ageRange(form.suggestedMin,form.suggestedMax),
@@ -158,7 +159,7 @@ export default function QuizEditor({quizId,backHref}:{quizId?:string;backHref?:s
     return ()=>{active=false;};
   },[quizId,reload]);
   const dirty=quizId?!!initial&&JSON.stringify(form)!==initial:
-    !!form.title.trim()||!!form.prompt.trim()||!!form.canonical.trim()||
+    !!form.title.trim()||!!form.prompt.trim()||!!form.explanation.trim()||!!form.canonical.trim()||
     form.clues.some(c=>!!c.text.trim()||!!c.mediaId)||!!form.topics.trim()||!!form.distractors.trim();
   useEffect(()=>{
     const onBeforeUnload=(event:BeforeUnloadEvent)=>{
@@ -266,6 +267,12 @@ export default function QuizEditor({quizId,backHref}:{quizId?:string;backHref?:s
             placeholder={msg("Add plausible incorrect answers. The correct answer is included automatically.","정답과 헷갈릴 만한 오답을 넣어 주세요. 위의 대표 정답은 자동 포함됩니다.")}/>
           <span className="muted">{msg("Players see shuffled choices. Multiple-choice scores have a 75-point maximum.","선택지는 플레이마다 섞여 표시됩니다. 객관식 최고 점수는 75점입니다.")}</span>
         </label>}
+        <label className="studio-wide">{msg("Answer explanation · optional","정답 해설 · 선택")}
+          <textarea rows={4} maxLength={4000} value={form.explanation}
+            onChange={e=>update("explanation",e.target.value)}
+            placeholder={msg("A short explanation shown only after the question ends.","정답을 맞히거나 문제를 마친 후 보여줄 해설을 작성하세요.")}/>
+          <span className="muted">{msg("The explanation is revealed after an answer is final, not as a clue.","해설은 단서가 아니라 정답 확정 이후에 표시됩니다.")}</span>
+        </label>
         <label className="studio-wide">{msg("Topics · comma separated","주제 · 쉼표로 구분")}
           <input value={form.topics} onChange={e=>update("topics",e.target.value)} placeholder={msg("Nature, Animals, New Zealand","자연, 동물, 뉴질랜드")}/>
         </label>

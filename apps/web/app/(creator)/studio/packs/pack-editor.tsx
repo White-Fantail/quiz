@@ -5,8 +5,10 @@ import Link from "next/link";
 import {useRouter} from "next/navigation";
 import {useLocale} from "../../../../src/i18n/provider";
 import {localizeHref} from "../../../../src/i18n/core";
+import MediaPicker from "../quizzes/quiz-media-picker";
+type PackSection={start:number;title:string;description:string};
 
-type Pack={id:string;title:string;description:string;publication:string;sourceLocale:string;orderMode:"CREATOR"|"RANDOM";
+type Pack={id:string;title:string;description:string;coverMediaId?:string|null;sections?:PackSection[];publication:string;sourceLocale:string;orderMode:"CREATOR"|"RANDOM";
   kidsReviewStatus:string;kidsEligible:boolean;kidsReady:boolean;kidsIssue:string;excludedCount:number;
   quizIds:string[];members:{id:string;title:string}[]};
 type Quiz={id:string;title:string;publication:string};
@@ -27,6 +29,10 @@ export default function PackEditor({packId,detailHref}:{packId?:string;detailHre
   const [loading,setLoading]=useState(!!packId);
   const [error,setError]=useState(""),[notice,setNotice]=useState("");
   const [title,setTitle]=useState(""),[description,setDescription]=useState("");
+  const [coverMediaId,setCoverMediaId]=useState<string|null>(null);
+  const [coverPreview,setCoverPreview]=useState("");
+  const [coverPicker,setCoverPicker]=useState(false);
+  const [sections,setSections]=useState<PackSection[]>([]);
   const [language,setLanguage]=useState<"en"|"ko">(locale);
   const [orderMode,setOrderMode]=useState<"CREATOR"|"RANDOM">("CREATOR");
   const [members,setMembers]=useState<string[]>([]);
@@ -44,6 +50,7 @@ export default function PackEditor({packId,detailHref}:{packId?:string;detailHre
       .then((pack:Pack)=>{
         if(!active)return;
         setTitle(pack.title);setDescription(pack.description||"");setMembers(pack.quizIds);
+        setCoverMediaId(pack.coverMediaId??null);setSections(pack.sections??[]);
         setOrderMode(pack.orderMode||"CREATOR");setPublication(pack.publication);
         setMemberTitles(Object.fromEntries(pack.members.map(member=>[member.id,member.title])));
         setLanguage(pack.sourceLocale==="ko"?"ko":"en");
@@ -52,6 +59,14 @@ export default function PackEditor({packId,detailHref}:{packId?:string;detailHre
       .finally(()=>{if(active)setLoading(false);});
     return ()=>{active=false;};
   },[packId]);
+  useEffect(()=>{
+    let active=true;
+    if(!coverMediaId){setCoverPreview("");return;}
+    void api("/media/"+encodeURIComponent(coverMediaId)+"?purpose=thumbnail")
+      .then(data=>{if(active)setCoverPreview(data.thumbnailUrl||"");})
+      .catch(()=>{if(active)setCoverPreview("");});
+    return ()=>{active=false;};
+  },[coverMediaId]);
   useEffect(()=>{
     const timer=setTimeout(()=>setSearch(query.trim()),300);
     return ()=>clearTimeout(timer);
@@ -81,7 +96,7 @@ export default function PackEditor({packId,detailHref}:{packId?:string;detailHre
     if(!title.trim()||!members.length){setError(ko?"제목과 최소 한 문제를 선택하세요.":"Choose a title and at least one question.");return;}
     setBusy(true);setError("");setNotice("");
     try{
-      const body={title:title.trim(),description,quizIds:members,orderMode};
+      const body={title:title.trim(),description,coverMediaId,sections,quizIds:members,orderMode};
       if(packId){
         await api("/packs/"+encodeURIComponent(packId),"PATCH",body);
         setDirty(false);
@@ -125,6 +140,41 @@ export default function PackEditor({packId,detailHref}:{packId?:string;detailHre
     <p className="muted">{orderMode==="RANDOM"
       ?(ko?"새 플레이 시작 시 순서를 한 번 섞고, 이어 하기에서는 그 순서를 유지합니다.":"Shuffle once per run; resuming retains the same order.")
       :(ko?"아래에서 정한 순서대로 출제합니다.":"Questions appear in the order below.")}</p>
+    <section className="feature-card">
+      <h2>{ko?"대표 이미지 · 선택":"Cover image · optional"}</h2>
+      <p className="muted">{ko?"퀴즈팩 상세 화면에 표시할 사진을 내 미디어 라이브러리에서 고르세요. 공개 시 승인된 이미지만 표시됩니다.":"Choose an image from your library for the public pack description. Publishing requires an approved image."}</p>
+      {coverMediaId&&<div className="actions">{coverPreview&&<img src={coverPreview} alt={ko?"선택한 대표 이미지":"Selected cover"} style={{width:180,maxHeight:140,objectFit:"contain",borderRadius:12}}/>}
+        <span className="muted">{coverMediaId}</span>
+        <button type="button" className="btn btn-outline" onClick={()=>{setCoverMediaId(null);change();}}>{ko?"이미지 제거":"Remove cover"}</button>
+      </div>}
+      <button type="button" className="btn btn-outline" onClick={()=>setCoverPicker(v=>!v)}>{coverPicker?(ko?"이미지 선택 닫기":"Close picker"):(ko?"이미지 선택":"Select image")}</button>
+      {coverPicker&&<MediaPicker kind="image" selectedId={coverMediaId??""}
+        onSelect={id=>{setCoverMediaId(id);setCoverPicker(false);change();}}
+        onClose={()=>setCoverPicker(false)}/>}
+    </section>
+    <section className="feature-card">
+      <h2>{ko?"파트 구성 · 선택":"Chapters · optional"}</h2>
+      <p className="muted">{ko?"파트 제목은 해당 문제에서 자동으로 표시됩니다. 첫 번째 파트는 1번 문제부터 시작하고 문제 순서는 고정됩니다.":"Chapter headings appear automatically at the specified question; the first chapter starts at question 1, with creator-defined order."}</p>
+      {sections.map((section,index)=><div className="studio-form-grid" key={index} style={{marginBottom:16}}>
+        <label>{ko?"시작 문제":"Starts at question"}
+          <input type="number" min={1} max={members.length} value={section.start}
+            onChange={e=>{const at=Number(e.target.value);setSections(old=>old.map((s,i)=>i===index?{...s,start:at}:s));change();}}/>
+        </label>
+        <label>{ko?"파트 제목":"Chapter heading"}
+          <input maxLength={120} value={section.title} onChange={e=>{setSections(old=>old.map((s,i)=>i===index?{...s,title:e.target.value}:s));change();}}/>
+        </label>
+        <label className="studio-wide">{ko?"파트 설명 · 선택":"Chapter description · optional"}
+          <textarea rows={2} maxLength={500} value={section.description}
+            onChange={e=>{setSections(old=>old.map((s,i)=>i===index?{...s,description:e.target.value}:s));change();}}/>
+        </label>
+        <button type="button" className="btn btn-outline" onClick={()=>{setSections(old=>old.filter((_,i)=>i!==index));change();}}>{ko?"파트 제거":"Remove chapter"}</button>
+      </div>)}
+      <button className="btn btn-outline" type="button" disabled={!members.length||sections.length>=members.length||sections.length>=30}
+        onClick={()=>{
+          const start=sections.length?sections[sections.length-1].start+1:1;
+          if(start<=members.length){setSections(old=>[...old,{start,title:"",description:""}]);setOrderMode("CREATOR");change();}
+        }}>+ {ko?"파트 추가":"Add chapter"}</button>
+    </section>
     <div className="pack-editor-columns">
       <section className="feature-card">
         <h2>{ko?"팩에 포함된 문제":"Questions in this pack"} ({members.length}/100)</h2>

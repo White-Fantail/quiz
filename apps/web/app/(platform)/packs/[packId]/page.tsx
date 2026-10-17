@@ -35,13 +35,18 @@ export default async function PackDetail({params,searchParams}:{params:Promise<{
  const backHref=listBackHref(localizeHref("/packs",locale),await searchParams,["page"]);
  return <main className="container inner-page management-page">
   <div className="play-intro"><span className="eyebrow">QUIZDIP · QUIZ PACK</span>
-   <h1>{pack.title}</h1><p className="lead">{pack.description}</p></div>
+   <h1>{pack.title}</h1><p className="lead">{pack.description}</p>
+   {pack.coverMediaUrl&&<img src={pack.coverMediaUrl} alt={pack.title} className="round-media" style={{maxHeight:380,objectFit:"contain",borderRadius:16,marginTop:16}}/>}</div>
   <section className="feature-card">
    <p>{locale==="ko"?"제작자":"Created by"}: <strong>{pack.author.displayName}</strong></p>
    <p className="muted">{pack.ratings.positivePercent===null
       ?(locale==="ko"?`평가 ${pack.ratings.total}명 · 표본이 부족해요.`:`${pack.ratings.total} ratings · insufficient sample`)
       :`👍 ${pack.ratings.positivePercent}% · ${pack.ratings.total} ${locale==="ko"?"명 평가":"ratings"}`}</p>
    <p><strong>{pack.questionCount}</strong> {pack.orderMode==="RANDOM"?(locale==="ko"?"개의 문제 · 시작할 때 랜덤 순서":"questions · shuffled at the start"):(locale==="ko"?"개의 문제 · 제작자가 정한 순서":"questions · creator-defined order")}</p>
+   {pack.sections.length>0&&<div className="pack-section-overview"><h2>{locale==="ko"?"파트 구성":"Chapters"}</h2>
+     <ol>{pack.sections.map((part,index)=><li key={part.start}><strong>{locale==="ko"?"파트 ":"Part "}{index+1} · {part.title}</strong>
+       <span className="muted"> · {locale==="ko"?"문제 ":"Question "}{part.start}</span>{part.description&&<p>{part.description}</p>}</li>)}</ol>
+   </div>}
    <div className="actions">
     <Link href={localizeHref("/packs/"+pack.id+"/play",locale)} className="btn btn-primary">{locale==="ko"?"전체 플레이 / 이어 풀기 →":"Play or resume full pack →"}</Link>
     <Link href={backHref} className="btn btn-outline">{locale==="ko"?"다른 퀴즈팩":"More packs"}</Link>
