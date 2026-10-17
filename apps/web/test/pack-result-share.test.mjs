@@ -68,7 +68,7 @@ test("old and new pack results use one share component and OG URLs", () => {
   assert.ok(route.includes("resultOgImage"));
   assert.match(proxy,/results.*og/);
   assert.ok(og.includes("/og?v=4"));
-  assert.ok(social.includes('facebookUrl.searchParams.set("preview","4")'));
+  assert.match(social, /facebookUrl\.searchParams\.set\("preview",\s*"4"\)/);
   assert.ok(og.includes('url:url+"?preview=4"'));
   assert.ok(img.includes("sharp("));
   assert.ok(img.includes("image.arrayBuffer()"));
