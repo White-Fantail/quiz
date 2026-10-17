@@ -91,16 +91,16 @@ const optionalLocale = localeCode.default("en");
 const paging = { limit: z.number().int().min(1).max(100).default(20), offset: z.number().int().min(0).default(0) };
 const session = { sessionId: uuid, sessionToken: z.string().min(32).max(200) };
 export const operations = {
-  catalog: { public: true, description: "Supported game modes, clue formats and rules", schema: z.object({}) },
+  catalog: { public: true, description: "Supported game modes, clue rules, answer-first multiple-choice, optional explanations, pack chapters, images, endings and score reviews", schema: z.object({}) },
   topic_list: { public: true, description: "Search established topics for discovery and authoring. New topic names are accepted on quiz creation.", schema: z.object({ ...paging, q: topicName.optional(), locale: optionalLocale, kids: z.boolean().default(false) }) },
   quiz_list: { public: true, description: "Find quizzes by game mode, answer kind and topic", schema: z.object({ ...paging, mine: z.boolean().default(false), kids: z.boolean().default(false), locale: optionalLocale, mode: gameModeSchema.optional(), answerType: answerTypeSchema.optional(), topic: topicName.optional() }) },
   quiz_get: { public: true, description: "Get published quiz metadata or my full editable quiz", schema: z.object({ id: uuid, locale: optionalLocale }) },
-  quiz_create: { public: false, description: "Create ordered clues; infer answerType, relevant topics, age recommendation and difficulty. Platform safety is never creator input.", schema: quizFields.superRefine((quiz,ctx)=>{
+  quiz_create: { public: false, description: "Create a quiz with optional post-answer explanation. Multiple-choice may have zero clues; text answers need at least one clue. Infer answerType, topics and difficulty; platform safety is not creator input.", schema: quizFields.superRefine((quiz,ctx)=>{
     if(!quiz.clues.length && quiz.answer.responseMode!=="multiple-choice")
       ctx.addIssue({code:"custom",path:["clues"],message:"Text-answer questions require at least one clue"});
   }) },
-  quiz_update: { public: false, description: "Edit my quiz as a new immutable revision", schema: quizFields.partial().extend({ id: uuid, expectedVersion: z.number().int().positive() }) },
-  clues_replace: { public: false, description: "Replace my ordered clues as a new revision", schema: z.object({ id: uuid, expectedVersion: z.number().int().positive(), clues: quizFields.shape.clues }) },
+  quiz_update: { public: false, description: "Edit quiz content, optional answer explanation or clues as a new immutable revision; multiple-choice may have zero clues", schema: quizFields.partial().extend({ id: uuid, expectedVersion: z.number().int().positive() }) },
+  clues_replace: { public: false, description: "Replace clues; multiple-choice may have zero clues, text-answer quizzes require at least one. Creates a new revision", schema: z.object({ id: uuid, expectedVersion: z.number().int().positive(), clues: quizFields.shape.clues }) },
   quiz_languages: { public:false, description:"List owned quiz language versions and unpublished changes", schema:z.object({id:uuid,includeContent:z.boolean().default(false)}) },
   quiz_translation_get: { public:false, description:"Get one owned localized editable revision", schema:z.object({id:uuid,locale: z.enum(["en","ko"])}) },
   quiz_translation_generate: { public:false, description:"Generate optional AI-translated draft suggestion, without saving or publishing", schema:z.object({id:uuid,locale:z.enum(["en","ko"])}) },
@@ -162,7 +162,7 @@ export const operations = {
   my_pack_get: { public:false, description:"Get the complete editable metadata and ordered questions of my pack", schema:z.object({id:uuid}) },
   pack_list: { public: true, description: "List published packs or my packs", schema: z.object({ ...paging, mine: z.boolean().default(false), locale: optionalLocale }) },
   pack_preflight: { public:false, description:"Check my pack readiness and quota without publishing", schema:z.object({id:uuid}) },
-  pack_create: { public: false, description: "Create a new ordered quiz pack", schema: z.object({ title: z.string().min(1).max(180), description: z.string().max(2000).default(""), coverMediaId:uuid.nullable().optional(), sections:packSectionsSchema.default([]), closingMessage:z.string().trim().max(4000).default(""), scoreReviews:scoreReviewsSchema.default([]), quizIds: z.array(uuid).min(1).max(100), orderMode:z.enum(["CREATOR","RANDOM"]).default("CREATOR"), locale: z.enum(["en", "ko", "und"]).default("und") }) },
+  pack_create: { public: false, description: "Create an ordered quiz pack with optional cover image, titled chapter transitions (section descriptions/images), closing message and total-score commentary", schema: z.object({ title: z.string().min(1).max(180), description: z.string().max(2000).default(""), coverMediaId:uuid.nullable().optional(), sections:packSectionsSchema.default([]), closingMessage:z.string().trim().max(4000).default(""), scoreReviews:scoreReviewsSchema.default([]), quizIds: z.array(uuid).min(1).max(100), orderMode:z.enum(["CREATOR","RANDOM"]).default("CREATOR"), locale: z.enum(["en", "ko", "und"]).default("und") }) },
   pack_publish_preview: { public:false, description:"Validate owned pack and draft questions without changing publication", schema:z.object({id:uuid}) },
   pack_publish: { public:false, description:"Confirm atomic publication of pack and eligible owned drafts", schema:z.object({id:uuid,confirm:z.literal(true)}) },
   pack_kids_request: { public:false, description:"Request Kids review for my fully approved published original-language quiz pack", schema:z.object({id:uuid,confirm:z.literal(true)}) },
@@ -197,7 +197,7 @@ export const operations = {
     path:["reason"],message:"A pack restriction or Kids rejection requires a reason of at least 8 characters"
   }) },
   discover_sections: { public:true, description:"Explore organic trending, popular, rated, difficult and new quiz/pack content", schema:z.object({locale:optionalLocale}) },
-  pack_update: { public: false, description: "Edit or publish an owned quiz pack", schema: z.object({ id: uuid, title: z.string().min(1).max(180).optional(), description: z.string().max(2000).optional(), coverMediaId:uuid.nullable().optional(), sections:packSectionsSchema.optional(), closingMessage:z.string().trim().max(4000).optional(), scoreReviews:scoreReviewsSchema.optional(), quizIds: z.array(uuid).min(1).max(100).optional(), orderMode:z.enum(["CREATOR","RANDOM"]).optional(), publication: z.enum(["DRAFT", "PUBLISHED", "HIDDEN"]).optional(), confirm: z.boolean().optional() }) },
+  pack_update: { public: false, description: "Edit quiz pack questions and optional coverMediaId, sections, closingMessage or scoreReviews; or change publication status", schema: z.object({ id: uuid, title: z.string().min(1).max(180).optional(), description: z.string().max(2000).optional(), coverMediaId:uuid.nullable().optional(), sections:packSectionsSchema.optional(), closingMessage:z.string().trim().max(4000).optional(), scoreReviews:scoreReviewsSchema.optional(), quizIds: z.array(uuid).min(1).max(100).optional(), orderMode:z.enum(["CREATOR","RANDOM"]).optional(), publication: z.enum(["DRAFT", "PUBLISHED", "HIDDEN"]).optional(), confirm: z.boolean().optional() }) },
   play_start: { public: true, description: "Start a playable session and see first clue", schema: z.object({ quizId: uuid, kids: z.boolean().default(false), locale: optionalLocale }) },
   play_clue: { public: true, description: "Reveal the next clue using my play token", schema: z.object(session) },
   play_guess: { public: true, description: "Check my guess on the server", schema: z.object({ ...session, guess: z.string().trim().min(1).max(200) }) },

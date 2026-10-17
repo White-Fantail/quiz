@@ -1,4 +1,5 @@
 import { parseOperation, operations, type Operation } from "./contracts";
+import { platformCatalog } from "./catalog";
 import { quizLanguages,quizTranslationGet,quizTranslationGenerate,quizTranslationSave,quizTranslationPublish,quizTranslationHide } from "./translations";
 import { localeGet, localeUpdate } from "./locale";
 import { topicList } from "./topics";
@@ -24,17 +25,7 @@ export async function execute(name: Operation, raw: unknown, actor: Actor | null
   const p = parseOperation(name, raw);
   if (!operations[name].public) requireActor(actor);
   switch (name) {
-    case "catalog": return { modes: ["progressive-clues"],
-      answerTypes: ["person","animal","place","thing","event","concept","other"],
-      responseModes: ["text","multiple-choice"], multipleChoice: { minOptions:2,maxOptions:6,canonicalInOptions:true,scoreFactor:0.75 },
-      topics: { model:"unified", tool:"quizdip_topic_list", maxPerQuiz:12, normalizes:true },
-      clueTypes: ["text", "image", "image-reveal", "audio", "video", "map"], mediaReference: "mediaId", promptMediaIds: true,
-      mediaLimitsBytes: { image: 12582912, audio: 26214400, video: 67108864 }, minClues: 1, maxClues: 15,
-      userAdjustable: ["answerType", "topics", "creatorIntent", "recommendedAudience", "clues", "answer"],
-      platformControlled: ["safetyStatus", "kidsEligible", "kidsReviewStatus"],
-      playModes: ["RANDOM_FIVE","INFINITE","PACK"], audiences: ["GENERAL","KIDS"],
-      quickStartQuestions: 5, editorialPicks: "ACTIVE", packOrderModes: ["CREATOR","RANDOM"],
-      version: "v2", format: "progressive-clues" };
+    case "catalog": return platformCatalog;
     case "topic_list": return topicList(p);
     case "quiz_list": return quizList(p, actor);
     case "quiz_get": return quizGet(p.id, actor, p.locale);
