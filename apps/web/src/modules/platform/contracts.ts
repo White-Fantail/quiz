@@ -41,6 +41,9 @@ export const translationFields = z.object({
   title:z.string().trim().min(1).max(180),prompt:z.string().trim().min(1).max(2000),
   answer:answerSchema,clues:z.array(clueSchema).max(15),
   explanation:z.string().trim().max(4000).default("")
+}).superRefine((quiz,ctx)=>{
+  if(!quiz.clues.length&&quiz.answer.responseMode!=="multiple-choice")
+    ctx.addIssue({code:"custom",path:["clues"],message:"Text-answer translations require at least one clue"});
 });
 export type TranslationFields = z.infer<typeof translationFields>;
 const mediaMetadata = {

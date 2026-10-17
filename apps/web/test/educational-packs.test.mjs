@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 import {parseOperation} from "../src/modules/platform/contracts.ts";
+import {initialLocalProgress,guessLocalAnswer,revealLocalClue} from "../../../packages/domain/src/local-play.ts";
+import {scoreForAnswer} from "../../../packages/domain/src/game.ts";
 
 const uuid="94f0792a-18e6-40c0-a480-0be6d46dbb37";
 const read=path=>readFileSync(new URL("../"+path,import.meta.url),"utf8");
@@ -70,4 +72,41 @@ test("pack illustrations use private media ID ownership and are protected from d
   const media=read("src/modules/platform/media.ts");
   assert.match(media,/p\."coverMediaId" AS id/);
   assert.match(media,/chapter\.value ->> 'mediaId' AS id/);
+});
+
+
+test("answer-first multiple choice works without clues, preserves score and requires a final answer",()=>{
+  const answerFirst={title:"History",prompt:"Which year?",answer:{
+    canonical:"2003",responseMode:"multiple-choice",options:["2003","2001","2005","2007"]},clues:[]};
+  const parsed=parseOperation("quiz_create",answerFirst);
+  assert.deepEqual(parsed.clues,[]);
+  assert.throws(()=>parseOperation("quiz_create",{...answerFirst,answer:{canonical:"2003"},clues:[]}));
+  assert.equal(parseOperation("quiz_update",{id:uuid,expectedVersion:1,clues:[]}).clues.length,0);
+  assert.equal(parseOperation("quiz_translation_save",{
+    id:uuid,locale:"en",sourceRevisionId:uuid,expectedVersion:0,fields:answerFirst
+  }).fields.clues.length,0);
+  const q={quizId:uuid,revisionId:uuid,title:"History",prompt:"Which year?",clues:[],
+    answer:{canonical:"2003",aliases:[],responseMode:"multiple-choice",options:["2003","2001","2005","2007"]},
+    promptMediaIds:[]};
+  const initial=initialLocalProgress(q.clues.length);
+  assert.equal(initial.clueIndex,0);
+  const correct=guessLocalAnswer(q,initial,"2003");
+  assert.equal(correct?.result.status,"SOLVED");
+  assert.equal(correct?.result.score,75);
+  assert.equal(correct?.result.cluesUsed,0);
+  const incorrect=guessLocalAnswer(q,initial,"2005");
+  assert.equal(incorrect?.result.status,"FAILED");
+  assert.equal(incorrect?.result.score,0);
+  assert.deepEqual(revealLocalClue(q,initial),initial);
+  assert.equal(initialLocalProgress().clueIndex,1);
+  assert.equal(scoreForAnswer(1,1,"multiple-choice"),75);
+});
+
+test("part image survives public pack section mapping, and description keeps line breaks",()=>{
+  const service=read("src/modules/platform/social.ts");
+  assert.match(service,/mediaId:section\\.mediaId\\?\\?null/);
+  const detail=read("app/(platform)/packs/[packId]/page.tsx");
+  assert.match(detail,/className="lead" style=\\{\\{whiteSpace:"pre-wrap"\\}\\}/);
+  assert.match(read("app/(platform)/play/page.tsx"),/round\\.clueCount>0/);
+  assert.match(read("app/(creator)/studio/quizzes/quiz-editor.tsx"),/단서 없이 객관식 바로 풀기/);
 });
