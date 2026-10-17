@@ -18,7 +18,8 @@
 @media(max-width:560px){.account-page-heading{align-items:flex-start;}.account-page-heading .account-admin-link{margin-top:0;}}
 .management-page>.lead{margin:0 0 26px;}
 .management-page>.placeholder-panel{margin-top:18px;}
-.management-page>.placeholder-panel:first-of-type{margin-top:0;}
+/* A section before the first div must not remove the following card gap. */
+.management-page>.placeholder-panel:first-child{margin-top:0;}
 .management-page>p.muted{max-width:760px;}
 .management-page :is(.placeholder-panel,.studio-filters,.media-filters,.studio-list-row,.studio-empty,.media-empty,.studio-save-bar,.studio-metric-grid>div,.weekly-admin-panel .feature-card){
  border:1px solid var(--border);background:#fff;border-radius:var(--manage-radius);

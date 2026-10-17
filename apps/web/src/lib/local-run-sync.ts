@@ -12,7 +12,7 @@ export type CachedProgress = {
 export type CachedRun = {
   bundle:{runId:string;questions:{position:number}[]};
   progress:Record<string,CachedProgress>;
-  runToken:string;synced?:boolean;
+  runToken:string;synced?:boolean;verified?:boolean;
 };
 export type CompletedResult = {
   position:number;cluesUsed:number;status:"SOLVED"|"FAILED";score:number
@@ -125,7 +125,7 @@ async function sendSnapshot(runId:string,force:boolean):Promise<SyncReceipt|null
     if(!saved)return null;
     const results=cachedCompletedResults(saved);
     if(!results.length)return null;
-    if(saved.synced && !force)return null;
+    if(saved.synced && saved.verified && !force)return null;
     const signature=JSON.stringify(results);
     const response=await postSnapshotWithRetry(runId,JSON.stringify({runToken:saved.runToken,results}));
     const receipt=response.data as SyncReceipt;
@@ -136,7 +136,7 @@ async function sendSnapshot(runId:string,force:boolean):Promise<SyncReceipt|null
     if(signature!==JSON.stringify(cachedCompletedResults(current)))continue;
     // Mark only the exact snapshot acknowledged by the server. Preserve all
     // gameplay data for future recovery, even after confirmed sync.
-    storeCachedRun({...current,synced:true});
+    storeCachedRun({...current,synced:true,verified:true});
     return receipt;
   }
   throw new Error("Progress changed during save; retry shortly");
@@ -161,15 +161,18 @@ export async function syncCachedRun(runId:string,options:{force?:boolean}={}):Pr
 export async function recoverCachedRuns(options:{
   onProgress?:(completed:number,total:number)=>void
 }={}):Promise<RecoveryReport>{
+  // Verify the old incorrectly marked synced results once, then only
+  // send changed or unacknowledged snapshots on future visits.
   const ids=cachedRunIds().filter(id=>{
     const cached=getCachedRun(id);
-    return !!cached&&cachedCompletedResults(cached).length>0;
+    return !!cached&&cachedCompletedResults(cached).length>0&&
+      (!cached.synced||!cached.verified);
   });
   const report:RecoveryReport={checked:ids.length,recovered:0,failed:0,failures:[]};
   // A bounded sequential sweep avoids overwhelming the DB with old sessions.
   for(const [index,id] of ids.entries()){
     try{
-      const result=await syncCachedRun(id,{force:true});
+      const result=await syncCachedRun(id);
       if(result)report.recovered++;
     }catch(error){
       report.failed++;

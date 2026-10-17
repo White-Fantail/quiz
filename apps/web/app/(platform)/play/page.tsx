@@ -15,7 +15,7 @@ import AdSlot from "../../../src/components/ads/AdSlot";
 import type { RatingSummary } from "../../../src/modules/quiz/rating-metadata";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { answerShortcutIndex } from "../../../src/modules/platform/keyboard-choice";
-import { storeCachedRun, syncCachedRun, recoverCachedRuns, runStorageKey } from "../../../src/lib/local-run-sync";
+import { storeCachedRun, syncCachedRun, recoverCachedRuns, runStorageKey, getCachedRun, cachedCompletedResults } from "../../../src/lib/local-run-sync";
 
 type Lane = "GENERAL" | "KIDS";
 type Mode = "RANDOM_FIVE" | "INFINITE" | "PACK";
@@ -145,10 +145,15 @@ export default function PlayPage({packId}:{packId?:string}={}) {
 
   const saveLocal=()=>{
     if(!localBundleRef.current)return;
-    storeCachedRun({
-      bundle:localBundleRef.current,progress:localProgressRef.current,
-      runToken:localRunTokenRef.current,synced:false
-    });
+    const previous=getCachedRun(localBundleRef.current.runId);
+    const next={bundle:localBundleRef.current,progress:localProgressRef.current,
+      runToken:localRunTokenRef.current};
+    // Re-entry or clue reveals must not invalidate already acknowledged results.
+    const unchanged=!!previous&&
+      JSON.stringify(cachedCompletedResults(previous))===
+      JSON.stringify(cachedCompletedResults(next));
+    storeCachedRun({...next,synced:unchanged&&previous?.synced===true,
+      verified:unchanged&&previous?.verified===true});
     setSyncState("idle");
     setConfirmedRunId(null);
   };
