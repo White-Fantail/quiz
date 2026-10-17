@@ -5,7 +5,8 @@ import { useLocale, useTranslation } from "../../../src/i18n/provider";
 import { localizeHref } from "../../../src/i18n/core";
 import { bilingual } from "../../../src/i18n/view-copy";
 import { RatingBadge } from "../../../src/components/quiz-ratings";
-import { useEffect, useState } from "react";
+import {Fragment,useEffect,useState} from "react";
+import AdSlot from "../../../src/components/ads/AdSlot";
 import {listPageIndex,useListUrlState} from "../../../src/lib/list-url-state";
 import DiscoverySections from "./discovery-sections";
 import EditorialHighlights from "./editorial-highlights";
@@ -95,8 +96,8 @@ export default function DiscoverPage() {
           {view==="ALL"?(locale==="ko"?"전체":"All"):view==="PACK"?(locale==="ko"?"퀴즈팩":"Quiz packs"):(locale==="ko"?"개별 문제":"Questions")}
         </button>)}
       </div>
-      {contentView==="ALL"&&!kids&&<><EditorialHighlights/><DiscoverySections/></>}
-      {contentView==="PACK"&&<PackBrowser page={listPageIndex(listing.packPage)}
+      {contentView==="ALL"&&!kids&&<><EditorialHighlights/><DiscoverySections/><AdSlot placement="DISCOVER_FEED"/></>}
+      {contentView==="PACK"&&<PackBrowser kids={kids} page={listPageIndex(listing.packPage)}
         onPageChange={next=>updateListing({packPage:String(next+1)})} ready={ready}/>}
       {contentView!=="PACK"&&<>
       <section className="discover-filters" aria-label={t("discover.filters")}>
@@ -147,11 +148,13 @@ export default function DiscoverPage() {
         </div>}
       {loading && <p className="muted" role="status">{t("discover.searching")}</p>}
       {!loading && !error && !!quizzes.length && <div className="discover-grid">
-        {quizzes.map(quiz => {
+        {quizzes.map((quiz,index) => {
           const kind = ANSWER_TYPES.find(type => type.value === quiz.answerType);
           const age = audienceAgeLabel(quiz.recommendedAudience, locale);
           const difficulty = difficultyLabel(quiz.recommendedAudience, locale);
-          return <article key={quiz.id} className="feature-card discover-card">
+          return <Fragment key={quiz.id}>
+            {index===6&&<AdSlot placement="DISCOVER_FEED" kids={kids} fullRow/>}
+            <article className="feature-card discover-card">
             <div className="discover-card-top">
               <span className="symbol mint" aria-hidden="true">{kind?.icon ?? "✨"}</span>
               <span className="small-tag">{locale === "en" ? (typeLabelsEn[quiz.answerType] || "Quiz") : (kind?.label ?? "퀴즈")}</span>
@@ -176,7 +179,8 @@ export default function DiscoverPage() {
             </div>
             <Link href={localizeHref("/play/" + quiz.id + (kids ? "?kids=true" : ""), locale)}
               className="btn btn-primary discover-play-link">{t("discover.play")}</Link>
-          </article>;
+            </article>
+          </Fragment>;
         })}
       </div>}
       {!loading && !error && (page > 0 || hasMore) &&
