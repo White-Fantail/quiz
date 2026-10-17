@@ -49,3 +49,25 @@ test("finite local play bundle and sync are available through common operation r
    position:-1,cluesUsed:2,status:"SOLVED",score:60
  }]}));
 });
+
+test("zero-clue multiple choice scores 75 and the common sync contract accepts zero clues",()=>{
+ const noClue={...q,clues:[],answer:{canonical:"A",aliases:[],responseMode:"multiple-choice",options:["A","B"]}};
+ const initial=initialLocalProgress(noClue.clues.length);
+ assert.equal(initial.clueIndex,0);
+ const solved=guessLocalAnswer(noClue,initial,"A");
+ assert.equal(solved.progress.status,"SOLVED");
+ assert.equal(solved.progress.clueIndex,0);
+ assert.equal(solved.progress.score,75);
+ const wrong=guessLocalAnswer(noClue,initial,"B");
+ assert.equal(wrong.progress.status,"FAILED");
+ const runId="00000000-0000-4000-8000-000000000001";
+ const parsed=parseOperation("local_run_sync",{runId,runToken:"x".repeat(40),results:[
+   {position:0,cluesUsed:0,status:"SOLVED",score:75},
+   {position:1,cluesUsed:0,status:"FAILED",score:0}
+ ]});
+ assert.equal(parsed.results.length,2);
+ assert.equal(parsed.results[0].cluesUsed,0);
+ assert.throws(()=>parseOperation("local_run_sync",{runId,runToken:"x".repeat(40),results:[
+   {position:0,cluesUsed:-1,status:"SOLVED",score:75}
+ ]}));
+});
