@@ -142,7 +142,7 @@ export default function StudioQuizPreview({quizId,detailHref}:{quizId:string;det
     {quiz&&<section className="play-panel" aria-live="polite">
       <div className="play-top">
         <span className="small-tag">{msg("Progressive clues","단계별 단서")}</span>
-        <span className="clue-count">{msg("Clue ","단서 ")}{clueIndex} / {quiz.clues.length}</span>
+        {quiz.clues.length>0&&<span className="clue-count">{msg("Clue ","단서 ")}{clueIndex} / {quiz.clues.length}</span>}
         <RatingBadge ratings={quiz.ratings}/>
       </div>
       <p className="muted studio-preview-version">

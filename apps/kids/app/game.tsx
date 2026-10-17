@@ -197,7 +197,7 @@ export default function KidGameScreen(){
       score:totals.score,solved:totals.solved,failed:totals.failed,official:false});
     setQuestion(null);syncLocal(ref,deviceToken);return;
   }
-  const q=content.questions[index],p=localProgress.current[q.position]??initialLocalProgress();
+  const q=content.questions[index],p=localProgress.current[q.position]??initialLocalProgress(q.clues.length);
   // Reuse the existing native UI model while gameplay is entirely local.
   const sessionId=ref.kind==="run"
     ?`local-run:${ref.runId}:${q.position}`:`local-single:${ref.sessionId}`;
@@ -275,7 +275,7 @@ export default function KidGameScreen(){
    if(!reference||!localContent.current)return;
    const q=localContent.current.questions.find(v=>v.quizId===question.quizId);
    if(!q)return;
-   const next=revealLocalClue(q,localProgress.current[q.position]??initialLocalProgress());
+   const next=revealLocalClue(q,localProgress.current[q.position]??initialLocalProgress(q.clues.length));
    localProgress.current[q.position]=next;
    focusClue.current=next.clueIndex;
    playCue(clueCue);
@@ -292,7 +292,7 @@ export default function KidGameScreen(){
    if(!reference||!localContent.current)return;
    const q=localContent.current.questions.find(v=>v.quizId===question.quizId);
    if(!q)return;
-   const attempt=guessLocalAnswer(q,localProgress.current[q.position]??initialLocalProgress(),answer);
+   const attempt=guessLocalAnswer(q,localProgress.current[q.position]??initialLocalProgress(q.clues.length),answer);
    if(!attempt)return;
    localProgress.current[q.position]=attempt.progress;
    const v:KidGuessResult=attempt.result;
@@ -408,12 +408,12 @@ export default function KidGameScreen(){
    <View style={styles.progress}>
      <Text style={styles.progressText}>{question.round?
        t("native.play.question")+" "+question.round+" / "+(question.total??5):t("native.play.single")}</Text>
-     <Text style={styles.progressText}>{t("native.play.hint")} {question.clueIndex} / {question.clueCount}</Text>
+     {question.clueCount>0?<Text style={styles.progressText}>{t("native.play.hint")} {question.clueIndex} / {question.clueCount}</Text>:null}
    </View>
-   <View accessibilityLabel={t("native.play.hint")+" "+question.clueIndex+" / "+question.clueCount}
+   {question.clueCount>0?<View accessibilityLabel={t("native.play.hint")+" "+question.clueIndex+" / "+question.clueCount}
      style={styles.clueTrack}>
      <View style={[styles.clueFill,{width:`${Math.round(100*question.clueIndex/Math.max(1,question.clueCount))}%` as const}]}/>
-   </View>
+   </View>:null}
    {(Array.isArray(question.promptMediaIds)?question.promptMediaIds:[]).map(id=>
       <SafeKidMedia key={"prompt:"+id} token={token!} mediaId={id}
         sessionId={question.sessionId} sessionToken={question.sessionToken}/>)}
