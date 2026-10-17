@@ -24,7 +24,7 @@ function questionData(row:any, seed:string):LocalQuestion & {position:number;res
   const revision=row.revision, answer=revision.answer as LocalAnswer;
   const choices=publicAnswerFormat(answer,seed);
   return {position:row.position,quizId:row.quizId,revisionId:revision.id,
-    title:revision.title,prompt:revision.prompt,
+    title:revision.title,prompt:revision.prompt,explanation:revision.explanation ?? "",
     promptMediaIds:revision.promptMediaIds as string[],
     clues:revision.clues as LocalQuestion["clues"],answer:{...answer,
       ...(choices.options?{options:choices.options}:{})},

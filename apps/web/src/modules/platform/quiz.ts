@@ -72,6 +72,7 @@ export async function quizGet(id: string, actor: Actor | null, locale: Locale = 
     locale: owned ? quiz.sourceLocale : locale,
     topics: owned ? topicSummaries(quiz.topicLinks, true) : localizedTopicSummaries(quiz.topicLinks),
     clueCount: (r.clues as any[]).length, promptMediaIds: (owned ? r.promptMediaIds : undefined),
+    ...(owned ? {explanation:r.explanation} : {}),
     version: r.version, publication: quiz.publication,
     creatorIntent: owned ? quiz.creatorIntent : undefined,
     recommendedAudience: quiz.recommendedAudience, ratings, safetyStatus: quiz.safetyStatus,
@@ -97,7 +98,8 @@ export async function quizCreate(p: Record<string, any>, actor: Actor | null) {
     await tx.quizRevision.create({data:{
       quizId:created.id,version:1,localizationId,
       title:p.title,prompt:p.prompt,mode:p.mode,answerType:p.answerType,
-      answer:p.answer,clues:normalizeClues(p.clues),promptMediaIds:p.promptMediaIds ?? []
+      answer:p.answer,clues:normalizeClues(p.clues),promptMediaIds:p.promptMediaIds ?? [],
+      explanation:p.explanation ?? ""
     }});
     await saveTopicLinks(tx, created.id, p.topics ?? [], p.answer, locale);
     return created;
@@ -113,7 +115,7 @@ export async function quizUpdate(p: Record<string, any>, actor: Actor | null) {
   if (p.expectedVersion !== old.currentVersion) fail(409, "version_conflict", "Refresh quiz and try again");
   if(old.publication==="PUBLISHED") await requirePublishingPermission(actor);
   const prior = await revision(old.id, old.currentVersion);
-  const modified = ["title", "prompt", "mode", "answerType", "answer", "clues", "promptMediaIds", "topics"].some(key => p[key] !== undefined);
+  const modified = ["title", "prompt", "mode", "answerType", "answer", "clues", "promptMediaIds", "topics", "explanation"].some(key => p[key] !== undefined);
   const nextClues = (p.clues ?? prior.clues) as any[];
   const nextPromptMediaIds = (p.promptMediaIds ?? prior.promptMediaIds) as string[];
   await validateMediaReferences(user.id, nextPromptMediaIds, nextClues, old.publication === "PUBLISHED");
@@ -143,7 +145,8 @@ export async function quizUpdate(p: Record<string, any>, actor: Actor | null) {
       title: p.title ?? prior.title, prompt: p.prompt ?? prior.prompt, mode: p.mode ?? prior.mode,
       answerType: p.answerType ?? prior.answerType,
       answer: (p.answer ?? prior.answer) as any, clues: (p.clues ? normalizeClues(p.clues) : prior.clues) as any,
-      promptMediaIds: nextPromptMediaIds as any } });
+      promptMediaIds: nextPromptMediaIds as any,
+      explanation:p.explanation ?? prior.explanation } });
     if (p.topics !== undefined) await saveTopicLinks(tx, old.id, p.topics, (p.answer ?? prior.answer) as any, old.sourceLocale);
     else if (p.answer !== undefined) {
       const existing = await tx.quizTopic.findMany({ where: { quizId: old.id }, include: { topic: true }, orderBy: { position: "asc" } });

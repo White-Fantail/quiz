@@ -3,7 +3,7 @@ import { isCorrectAnswer, scoreForAnswer, normalizeAnswer } from "./game.ts";
 export type LocalAnswer = { canonical:string; aliases:string[]; responseMode?:"text"|"multiple-choice"; options?:string[] };
 export type LocalClue = { id?:string; type:string; text?:string; mediaId?:string; [key:string]:unknown };
 export type LocalQuestion = {
-  quizId:string; revisionId:string; title:string; prompt:string;
+  quizId:string; revisionId:string; title:string; prompt:string; explanation?:string;
   promptMediaIds:string[]; clues:LocalClue[]; answer:LocalAnswer;
 };
 export type LocalProgress = {

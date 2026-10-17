@@ -85,6 +85,7 @@ model QuizRevision {
   localization          QuizLocalization? @relation(fields: [localizationId], references: [id], onDelete: SetNull)
   title                 String
   prompt                String
+  explanation           String        @default("")
   mode                  String
   answerType            String        @default("other")
   answer                Json
@@ -165,6 +166,8 @@ model QuizPack {
   author                User          @relation(fields: [authorId], references: [id])
   title                 String
   description           String        @default("")
+  coverMediaId          String?
+  sections              Json          @default("[]")
   sourceLocale          String        @default("und")
   localizations         QuizPackLocalization[]
   publication           String        @default("DRAFT")

@@ -47,9 +47,10 @@ function validateTranslatedAnswer(sourceValue: unknown, translatedValue: unknown
       translated.options?.length !== source.options?.length)
     invalid("Translate every choice without adding or removing options");
 }
-function fieldsFromRevision(rev: {title:string;prompt:string;answer:unknown;clues:unknown}): TranslationFields {
+function fieldsFromRevision(rev: {title:string;prompt:string;answer:unknown;clues:unknown;explanation?:string}): TranslationFields {
   return translationFields.parse({
-    title:rev.title,prompt:rev.prompt,answer:rev.answer,clues:rev.clues
+    title:rev.title,prompt:rev.prompt,answer:rev.answer,clues:rev.clues,
+    explanation:rev.explanation ?? ""
   });
 }
 function publishedView(loc: {id:string;locale:string;status:string;currentVersion:number;publishedVersion:number|null;origin:string;sourceRevisionId:string|null}) {
@@ -120,7 +121,7 @@ export async function quizTranslationSave(p: Record<string,any>, actor:Actor|nul
     }
     const rev=await tx.quizRevision.create({data:{
       quizId:quiz.id,localizationId:locId,version:next,
-      title:fields.title,prompt:fields.prompt,answer:fields.answer,
+      title:fields.title,prompt:fields.prompt,answer:fields.answer,explanation:fields.explanation,
       clues:fields.clues.map((c,i)=>({...c,id:randomUUID(),order:i+1})),
       promptMediaIds:source.promptMediaIds as any,
       mode:source.mode,answerType:source.answerType
@@ -244,7 +245,7 @@ export async function quizTranslationGenerate(p:Record<string,any>,actor:Actor|n
       candidate.distractors.length !== (current.answer.responseMode==="multiple-choice" ? (current.answer.options?.length??1)-1 : 0))
     fail(502,"translation_ai_invalid","Translation must preserve every incorrect choice");
   const fields=translationFields.safeParse({
-    title:candidate.title,prompt:candidate.prompt,
+    title:candidate.title,prompt:candidate.prompt,explanation:"",
     answer:{canonical:candidate.canonical,aliases:candidate.aliases,
       ...(current.answer.responseMode==="multiple-choice"?{
         responseMode:"multiple-choice",options:[candidate.canonical,...candidate.distractors]}:{})},
