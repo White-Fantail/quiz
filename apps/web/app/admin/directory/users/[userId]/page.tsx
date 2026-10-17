@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import ManagementHeader from "../../../../../src/components/management-header";
 import { resolveLocale, localizeHref } from "../../../../../src/i18n/core";
 import { actorFor } from "../../../../../src/modules/platform/auth";
+import { authPool } from "../../../../../src/lib/auth";
 import { db } from "../../../../../src/modules/platform/db";
 
 export const dynamic = "force-dynamic";
@@ -21,12 +22,24 @@ export default async function AdminUserDetails({
   if (actor.role !== "ADMIN") notFound();
 
   const { userId } = await params;
-  const user = await db().user.findUnique({
+  const identity = await authPool().query<{ id: string; name: string | null; createdAt: Date }>(
+    'SELECT "id", "name", "createdAt" FROM "user" WHERE "id" = $1 LIMIT 1',
+    [userId],
+  );
+  if (!identity.rows[0]) notFound();
+  const domainUser = await db().user.findUnique({
     where: { id: userId },
     select: { id: true, displayName: true, role: true, createdAt: true, publishingStatus: true,
       _count: { select: { quizzes: true, packs: true, sessions: true, playRuns: true } } },
   });
-  if (!user) notFound();
+  const user = {
+    id: userId,
+    displayName: domainUser?.displayName || identity.rows[0].name || tr("Unnamed account", "이름 없는 계정"),
+    role: domainUser?.role ?? "MEMBER",
+    createdAt: identity.rows[0].createdAt,
+    publishingStatus: domainUser?.publishingStatus ?? "ACTIVE",
+    _count: domainUser?._count ?? { quizzes: 0, packs: 0, sessions: 0, playRuns: 0 },
+  };
   const query = await searchParams;
   const tab: Tab = tabs.includes(query.tab as Tab) ? query.tab as Tab : "packs";
   const n = Number(query.page);
