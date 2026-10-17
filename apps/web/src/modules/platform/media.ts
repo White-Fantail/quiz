@@ -282,7 +282,7 @@ export async function mediaUpdate(p: Record<string, any>, actor: Actor | null) {
   const old = await asset(p.id, actor);
   if (old.status === "DELETED") fail(409, "media_deleted", "Media was deleted");
   const changes = safeMetadata(p);
-  if (old.moderationStatus === "APPROVED" && (await publishedCurrentQuizzes(old.id)).length)
+  if (old.moderationStatus === "APPROVED" && ((await publishedCurrentQuizzes(old.id)).length || (await publishedPackImages(old.id)).length))
     fail(409, "media_in_use", "Published quizzes use this asset; create and review a replacement first");
   if (!Object.keys(changes).length) fail(400, "nothing_to_update", "Specify metadata to change");
   const user = requireActor(actor);
@@ -296,6 +296,17 @@ export async function mediaUpdate(p: Record<string, any>, actor: Actor | null) {
     return updated;
   });
   return mediaSummary(item);
+}
+async function publishedPackImages(id:string):Promise<string[]>{
+  const rows=await db().$queryRaw<Array<{id:string}>>`
+    SELECT p."id" FROM "QuizPack" p
+    WHERE p."publication"='PUBLISHED'
+      AND (p."coverMediaId"=${id} OR EXISTS (
+        SELECT 1 FROM jsonb_array_elements(p."sections") AS section(value)
+        WHERE section.value ->> 'mediaId' = ${id}
+      ))
+  `;
+  return rows.map(row=>row.id);
 }
 async function publishedCurrentQuizzes(id: string): Promise<string[]> {
   const rows = await db().$queryRaw<Array<{ id: string }>>`
