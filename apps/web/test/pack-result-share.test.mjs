@@ -90,3 +90,10 @@ test("result publication is reversible and gated by completed pack and owner", (
     assert.ok(route.includes(op));
   }
 });
+
+test("Open Graph brand dot is a font-independent CSS shape", () => {
+  const img = read("src/modules/platform/result-og-image.tsx");
+  assert.doesNotMatch(img, /QuizDip\s*●/);
+  assert.match(img, /width:14,height:14,borderRadius:"50%",backgroundColor:"#fff"/);
+  assert.match(img, /<span style=\{\{fontSize:42,fontWeight:800,letterSpacing:-2\}\}>QuizDip<\/span>/);
+});
