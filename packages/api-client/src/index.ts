@@ -79,7 +79,7 @@ export type ImageRevealSettings = {effect:"zoom"|"spotlight";strength:number;foc
 export type KidClue = {id:string;order:number;type:"text"|"image"|"image-reveal"|"audio"|"video"|"map";
   text?:string;mediaId?:string;reveal?:ImageRevealSettings;map?:{latitude:number;longitude:number;zoom?:number}};
 export type KidQuestion = {sessionId:string;sessionToken:string;quizId:string;
-  title:string;prompt:string;promptMediaIds:string[];
+  title:string;prompt:string;explanation?:string;promptMediaIds:string[];
   clues:KidClue[];clueIndex:number;clueCount:number;sessionStatus:"ACTIVE"|"SOLVED"|"FAILED";
   canGuess:boolean;responseMode?:"text"|"multiple-choice";options?:string[];round?:number;total?:number;score?:number;runId?:string;runToken?:string};
 export type LocalBundleQuestion = import("@quizdip/domain").LocalQuestion & {position:number;responseMode:"text"|"multiple-choice";options?:string[]};

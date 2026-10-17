@@ -202,7 +202,7 @@ export default function KidGameScreen(){
   const sessionId=ref.kind==="run"
     ?`local-run:${ref.runId}:${q.position}`:`local-single:${ref.sessionId}`;
   const current:KidQuestion={sessionId,sessionToken:ref.kind==="run"?ref.runToken:ref.sessionToken,
-    quizId:q.quizId,title:q.title,prompt:q.prompt,promptMediaIds:q.promptMediaIds,
+    quizId:q.quizId,title:q.title,prompt:q.prompt,explanation:q.explanation,promptMediaIds:q.promptMediaIds,
     clues:q.clues.slice(0,p.clueIndex) as unknown as KidClue[],clueIndex:p.clueIndex,
     clueCount:q.clues.length,sessionStatus:p.status,
     canGuess:p.status==="ACTIVE"&&!p.mustReveal,
@@ -435,6 +435,7 @@ export default function KidGameScreen(){
        ended?t("native.play.tryNextTime"):t("native.play.nextHint")}</Text>
      {result.answer?<Text style={styles.note}>{t("native.play.answer")} {result.answer}</Text>:null}
      {ended?<Text style={styles.note}>+{result.score} {t("native.play.points")}</Text>:null}
+     {ended&&question.explanation?<Text style={[styles.note,{lineHeight:22}]}>{question.explanation}</Text>:null}
    </View></PopIn>:null}
    {error?<Text accessibilityRole="alert" style={styles.warning}>{error}</Text>:null}
    {!ended?<>
