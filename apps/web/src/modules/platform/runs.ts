@@ -213,7 +213,7 @@ function runSummary(run:any) {
     completed:run.currentIndex,total:runTargetCount(run),
     packId:run.packId??null,packVersion:run.packVersion??null,
     score:run.score,solved:run.solved,failed:run.failed,
-    completedAt:run.completedAt,kidsEligible:run.pack?.kidsEligible??true};
+    completedAt:run.completedAt};
 }
 /** Advance a general pack past a quiz withdrawn mid-run, without awarding a failure.
  * Its frozen total represents slots at start; restrictions do not reveal answers.
@@ -403,7 +403,7 @@ export async function runShareGet(p:Record<string,any>) {
   catch{fail(404,"result_unavailable","This result is no longer public");}
   return {shareId:run.shareId,packId:run.packId,title:pack.title,locale:run.locale,
     score:run.score,completed:run.currentIndex,solved:run.solved,failed:run.failed,
-    completedAt:run.completedAt};
+    completedAt:run.completedAt,kidsEligible:run.pack?.kidsEligible??true};
 }
 
 
