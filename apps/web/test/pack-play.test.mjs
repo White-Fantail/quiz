@@ -77,3 +77,23 @@ test("pack play opens directly without a second start screen and preserves guest
  assert.match(play,/onClick=\{\(\)=>\{[\s\S]*?sessionStorage\.removeItem\("quizdip-pack-run:/);
  assert.match(play,/void bootPack\(packId\+":"\+locale,true\)/);
 });
+
+test("history resume targets a specific live pack in its original language",()=>{
+ const runs=read("src/modules/platform/runs.ts");
+ const page=read("app/account/results/page.tsx");
+ const route=read("app/(platform)/packs/[packId]/play/page.tsx");
+ const player=read("app/(platform)/play/page.tsx");
+ const contracts=read("src/modules/platform/contracts.ts");
+ const css=read("app/management.css");
+ assert.match(runs,/expiresAt:\{gt:now\}/);
+ assert.match(runs,/canResume:run\.mode==="PACK"/);
+ assert.match(runs,/p\.resumeRunId/);
+ assert.match(page,/run\.canResume&&run\.packId/);
+ assert.match(page,/resumeRunId="\+encodeURIComponent\(run\.runId\)/);
+ assert.match(page,/run\.locale/);
+ assert.match(route,/resumeRunId=\{resumeRunId\}/);
+ assert.match(player,/resumeRunId\?\{resumeRunId\}/);
+ assert.match(contracts,/resumeRunId:uuid\.optional\(\)/);
+ assert.match(css,/\.placeholder-panel:first-child\{margin-top:0;\}/);
+ assert.doesNotMatch(css,/\.placeholder-panel:first-of-type\{margin-top:0;\}/);
+});
