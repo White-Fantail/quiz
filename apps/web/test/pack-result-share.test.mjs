@@ -67,9 +67,9 @@ test("old and new pack results use one share component and OG URLs", () => {
   assert.ok(img.includes("width:1200,height:630"));
   assert.ok(route.includes("resultOgImage"));
   assert.match(proxy,/results.*og/);
-  assert.ok(og.includes("/og?v=2"));
-  assert.ok(social.includes('facebookUrl.searchParams.set("preview","2")'));
-  assert.ok(og.includes('url:url+"?preview=2"'));
+  assert.ok(og.includes("/og?v=3"));
+  assert.ok(social.includes('facebookUrl.searchParams.set("preview","3")'));
+  assert.ok(og.includes('url:url+"?preview=3"'));
   assert.ok(img.includes("sharp("));
   assert.ok(img.includes("image.arrayBuffer()"));
   assert.equal((social.match(/Copy pack link/g)||[]).length,0);
@@ -89,4 +89,11 @@ test("result publication is reversible and gated by completed pack and owner", (
     assert.ok(contract.includes(op));
     assert.ok(route.includes(op));
   }
+});
+
+test("Open Graph brand dot is a font-independent CSS shape", () => {
+  const img = read("src/modules/platform/result-og-image.tsx");
+  assert.doesNotMatch(img, /QuizDip\s*●/);
+  assert.match(img, /width:14,height:14,borderRadius:"50%",backgroundColor:"#fff"/);
+  assert.match(img, /<span style=\{\{fontSize:42,fontWeight:800,letterSpacing:-2\}\}>QuizDip<\/span>/);
 });

@@ -46,7 +46,10 @@ export async function resultOgImage(shareId:string):Promise<Response> {
       color:"#fff",background:"linear-gradient(120deg, #5044cd, #7a65ed 65%, #342385)",
       padding:"55px 68px",fontFamily:koreanFont?"QuizDipKorean":"sans-serif",justifyContent:"space-between"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-        <span style={{display:"flex",fontSize:42,fontWeight:800,letterSpacing:-2}}>QuizDip ●</span>
+        <div style={{display:"flex",alignItems:"center",gap:12}}>
+          <span style={{fontSize:42,fontWeight:800,letterSpacing:-2}}>QuizDip</span>
+          <span style={{display:"flex",width:14,height:14,borderRadius:"50%",backgroundColor:"#fff",flexShrink:0}} />
+        </div>
         <span style={{display:"flex",fontSize:22,opacity:.86}}>MY QUIZ PACK RESULT</span>
       </div>
       <div style={{display:"flex",fontSize:56,fontWeight:800,lineHeight:1.17,
