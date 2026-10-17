@@ -104,9 +104,9 @@ test("answer-first multiple choice works without clues, preserves score and requ
 
 test("part image survives public pack section mapping, and description keeps line breaks",()=>{
   const service=read("src/modules/platform/social.ts");
-  assert.match(service,/mediaId:section\\.mediaId\\?\\?null/);
+  assert.match(service,/mediaId:section\.mediaId\?\?null/);
   const detail=read("app/(platform)/packs/[packId]/page.tsx");
-  assert.match(detail,/className="lead" style=\\{\\{whiteSpace:"pre-wrap"\\}\\}/);
-  assert.match(read("app/(platform)/play/page.tsx"),/round\\.clueCount>0/);
+  assert.match(detail,/className="lead" style=\{\{whiteSpace:"pre-wrap"\}\}/);
+  assert.match(read("app/(platform)/play/page.tsx"),/round\.clueCount>0/);
   assert.match(read("app/(creator)/studio/quizzes/quiz-editor.tsx"),/단서 없이 객관식 바로 풀기/);
 });
