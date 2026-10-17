@@ -28,6 +28,8 @@ export function scoreForClues(clueCount: number, cluesUsed: number): number {
 
 /** Explicit author-made choices have a lower ceiling than typed recall. Legacy quizzes are unchanged. */
 export function scoreForAnswer(clueCount: number, cluesUsed: number, responseMode?: "text" | "multiple-choice"): number {
+  // Answer-first multiple-choice uses the same 75-point ceiling as the first clue.
+  if(clueCount===0 && cluesUsed===0 && responseMode==="multiple-choice")return 75;
   const base = scoreForClues(clueCount, cluesUsed);
   return Math.round(base * (responseMode === "multiple-choice" ? 0.75 : 1));
 }

@@ -39,7 +39,7 @@ export const clueSchema = z.discriminatedUnion("type", [
 ]);
 export const translationFields = z.object({
   title:z.string().trim().min(1).max(180),prompt:z.string().trim().min(1).max(2000),
-  answer:answerSchema,clues:z.array(clueSchema).min(1).max(15),
+  answer:answerSchema,clues:z.array(clueSchema).max(15),
   explanation:z.string().trim().max(4000).default("")
 });
 export type TranslationFields = z.infer<typeof translationFields>;
@@ -64,7 +64,7 @@ export const quizFields = z.object({
   locale: z.enum(["en", "ko", "und"]).optional(),
   mode: gameModeSchema.default("progressive-clues"),
   answerType: answerTypeSchema.default("other"),
-  answer: answerSchema, clues: z.array(clueSchema).min(1).max(15),
+  answer: answerSchema, clues: z.array(clueSchema).max(15),
   explanation: z.string().trim().max(4000).default(""),
   promptMediaIds: z.array(mediaId).max(5).default([]),
   topics: z.array(topicInputSchema).max(12).optional(),
@@ -92,7 +92,10 @@ export const operations = {
   topic_list: { public: true, description: "Search established topics for discovery and authoring. New topic names are accepted on quiz creation.", schema: z.object({ ...paging, q: topicName.optional(), locale: optionalLocale, kids: z.boolean().default(false) }) },
   quiz_list: { public: true, description: "Find quizzes by game mode, answer kind and topic", schema: z.object({ ...paging, mine: z.boolean().default(false), kids: z.boolean().default(false), locale: optionalLocale, mode: gameModeSchema.optional(), answerType: answerTypeSchema.optional(), topic: topicName.optional() }) },
   quiz_get: { public: true, description: "Get published quiz metadata or my full editable quiz", schema: z.object({ id: uuid, locale: optionalLocale }) },
-  quiz_create: { public: false, description: "Create ordered clues; infer answerType, relevant topics, age recommendation and difficulty. Platform safety is never creator input.", schema: quizFields },
+  quiz_create: { public: false, description: "Create ordered clues; infer answerType, relevant topics, age recommendation and difficulty. Platform safety is never creator input.", schema: quizFields.superRefine((quiz,ctx)=>{
+    if(!quiz.clues.length && quiz.answer.responseMode!=="multiple-choice")
+      ctx.addIssue({code:"custom",path:["clues"],message:"Text-answer questions require at least one clue"});
+  }) },
   quiz_update: { public: false, description: "Edit my quiz as a new immutable revision", schema: quizFields.partial().extend({ id: uuid, expectedVersion: z.number().int().positive() }) },
   clues_replace: { public: false, description: "Replace my ordered clues as a new revision", schema: z.object({ id: uuid, expectedVersion: z.number().int().positive(), clues: quizFields.shape.clues }) },
   quiz_languages: { public:false, description:"List owned quiz language versions and unpublished changes", schema:z.object({id:uuid,includeContent:z.boolean().default(false)}) },
@@ -278,7 +281,7 @@ export const operations = {
   })},
   local_run_sync: {public:true,description:"Store locally completed run rounds idempotently",schema:z.object({
     runId:uuid,runToken:z.string().min(32).max(200),results:z.array(z.object({
-      position:z.number().int().min(0).max(10000),cluesUsed:z.number().int().min(1).max(15),
+      position:z.number().int().min(0).max(10000),cluesUsed:z.number().int().min(0).max(15),
       status:z.enum(["SOLVED","FAILED"]),score:z.number().int().min(0).max(100)
     })).max(100)
   })},
@@ -291,7 +294,7 @@ export const operations = {
   })},
   local_single_bundle: {public:true,description:"Resume a downloaded single question",schema:z.object({...session})},
   local_single_sync: {public:true,description:"Store a locally completed single question",schema:z.object({
-    ...session,cluesUsed:z.number().int().min(1).max(15),
+    ...session,cluesUsed:z.number().int().min(0).max(15),
     status:z.enum(["SOLVED","FAILED"]),score:z.number().int().min(0).max(100)
   })},
   local_single_media: {public:true,description:"Get media for any clue of my local single question",schema:z.object({

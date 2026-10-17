@@ -40,7 +40,7 @@ function visibleSections(input:unknown,originalIds:string[],shownIds:string[]):P
     const end=index+1<raw.length?raw[index+1].start-1:originalIds.length;
     const ids=originalIds.slice(section.start-1,end);
     const at=shownIds.findIndex(id=>ids.includes(id));
-    return at<0?[]:[{start:at+1,title:section.title,description:section.description??""}];
+    return at<0?[]:[{start:at+1,title:section.title,description:section.description??"",mediaId:section.mediaId??null}];
   });
 }
 async function checkChapterImages(sections:PackSection[],authorId:string,publicUse=false){

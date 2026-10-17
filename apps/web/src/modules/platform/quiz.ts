@@ -9,6 +9,10 @@ import { saveTopicLinks, topicSummaries, normalizeTopicKey, localizedTopicSummar
 import { playableQuizWhere, currentPlayableRevision } from "./content-locale";
 import type { Locale } from "../../i18n/core";
 import { detectQuizLocale } from "./translation-language";
+function assertPlayableClues(clues:unknown,answer:unknown){
+  if(!Array.isArray(clues) || (clues.length===0 && (answer as {responseMode?:string})?.responseMode!=="multiple-choice"))
+    fail(400,"clues_required","Only multiple-choice questions may omit clues");
+}
 function normalizeClues(clues: any[]) {
   return clues.map((clue, i) => ({ ...clue, id: randomUUID(), order: i + 1 }));
 }
@@ -82,6 +86,7 @@ export async function quizGet(id: string, actor: Actor | null, locale: Locale = 
 }
 export async function quizCreate(p: Record<string, any>, actor: Actor | null) {
   const user = requireActor(actor);
+  assertPlayableClues(p.clues,p.answer);
   await validateMediaReferences(user.id, p.promptMediaIds ?? [], p.clues);
   const locale = p.locale ?? detectQuizLocale({title:p.title,prompt:p.prompt,clues:p.clues});
   const localizationId = randomUUID();
@@ -117,6 +122,7 @@ export async function quizUpdate(p: Record<string, any>, actor: Actor | null) {
   const prior = await revision(old.id, old.currentVersion);
   const modified = ["title", "prompt", "mode", "answerType", "answer", "clues", "promptMediaIds", "topics", "explanation"].some(key => p[key] !== undefined);
   const nextClues = (p.clues ?? prior.clues) as any[];
+  assertPlayableClues(nextClues,p.answer ?? prior.answer);
   const nextPromptMediaIds = (p.promptMediaIds ?? prior.promptMediaIds) as string[];
   await validateMediaReferences(user.id, nextPromptMediaIds, nextClues, old.publication === "PUBLISHED");
   const kidsRequested = p.kidsRequested !== false &&

@@ -13,8 +13,8 @@ export type LocalProgress = {
 export type LocalGuess = { correct:boolean; status:LocalProgress["status"]; score:number;
   cluesUsed:number; answer?:string; next?:string };
 /** A deterministic game state; no network calls or clocks inside the reducer. */
-export function initialLocalProgress():LocalProgress {
-  return {clueIndex:1,wrongGuesses:0,status:"ACTIVE",score:0,mustReveal:false};
+export function initialLocalProgress(clueCount=1):LocalProgress {
+  return {clueIndex:clueCount===0?0:1,wrongGuesses:0,status:"ACTIVE",score:0,mustReveal:false};
 }
 export function revealLocalClue(question:LocalQuestion,state:LocalProgress):LocalProgress {
   if(state.status!=="ACTIVE"||state.clueIndex>=question.clues.length)return state;
