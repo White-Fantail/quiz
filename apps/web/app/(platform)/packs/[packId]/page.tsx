@@ -8,6 +8,7 @@ import { packGet } from "../../../../src/modules/platform/social";
 import { PackPublicReviews, PackReport, PackShare } from "../../../../src/components/pack-feedback";
 import {listBackHref} from "../../../../src/lib/list-back-href";
 import AdSlot from "../../../../src/components/ads/AdSlot";
+import KidsPackBadge from "../../../../src/components/kids-pack-badge";
 import { splitPackDescription } from "../../../../src/modules/quiz/pack-description";
 export const dynamic="force-dynamic";
 async function fetchPack(id:string){
@@ -37,7 +38,11 @@ export default async function PackDetail({params,searchParams}:{params:Promise<{
  const {intro,imageCredits}=splitPackDescription(pack.description||"");
  return <main className="container inner-page management-page">
   <div className="play-intro"><span className="eyebrow">QUIZDIP · QUIZ PACK</span>
-   <h1>{pack.title}</h1>{intro&&<p className="lead" style={{whiteSpace:"pre-wrap"}}>{intro}</p>}
+   <h1>{pack.title}</h1>
+   {pack.kidsEligible&&<div className="pack-type-badges pack-detail-badges">
+     <KidsPackBadge eligible={pack.kidsEligible} locale={locale}/>
+   </div>}
+   {intro&&<p className="lead" style={{whiteSpace:"pre-wrap"}}>{intro}</p>}
    {pack.coverMediaUrl&&<img src={pack.coverMediaUrl} alt={pack.title} className="round-media" style={{maxHeight:380,objectFit:"contain",borderRadius:16,marginTop:16}}/>}</div>
   <section className="feature-card">
    <p>{locale==="ko"?"제작자":"Created by"}: <strong>{pack.author.displayName}</strong></p>
