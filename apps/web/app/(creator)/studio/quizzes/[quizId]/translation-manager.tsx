@@ -5,7 +5,7 @@ import {useLocale} from "../../../../../src/i18n/provider";
 type Locale = "en"|"ko";
 type Clue = {type:"text"|"image"|"audio"|"video"|"map";text?:string;mediaId?:string;
   map?:{latitude:number;longitude:number;zoom?:number}};
-type Fields = {title:string;prompt:string;answer:{canonical:string;aliases:string[];responseMode?:"text"|"multiple-choice";options?:string[]};clues:Clue[]};
+type Fields = {title:string;prompt:string;explanation?:string;answer:{canonical:string;aliases:string[];responseMode?:"text"|"multiple-choice";options?:string[]};clues:Clue[]};
 type Version = {locale:string;currentVersion:number;publishedVersion:number|null;
   status:string;sourceRevisionId:string|null;stale:boolean;hasUnpublishedChanges:boolean;
   fields?:Fields|null};
@@ -22,7 +22,7 @@ async function request(path:string,method="GET",body?:unknown):Promise<any>{
   return result.data;
 }
 function editableFromSource(fields:Fields):Fields{
-  return {title:"",prompt:"",answer:{canonical:"",aliases:[],
+  return {title:"",prompt:"",explanation:"",answer:{canonical:"",aliases:[],
     ...(fields.answer.responseMode==="multiple-choice"?{responseMode:"multiple-choice" as const,
       options:Array.from({length:fields.answer.options?.length??0},()=> "")}:{})},
     clues:fields.clues.map(c=>({...c,text:""}))};
@@ -114,6 +114,10 @@ export default function TranslationManager({quizId}:{quizId:string}){
         <label className="studio-wide">{message("질문","Question")}
           <textarea rows={3} maxLength={2000} required value={fields.prompt}
             onChange={e=>edit(v=>({...v,prompt:e.target.value}))}/>
+        </label>
+        <label className="studio-wide">{message("정답 해설 · 선택","Explanation · optional")}
+          <textarea rows={4} maxLength={4000} value={fields.explanation??""}
+            onChange={e=>edit(v=>({...v,explanation:e.target.value}))}/>
         </label>
         <label className="studio-wide">{message("정답","Canonical answer")}
           <input maxLength={200} required value={fields.answer.canonical}
