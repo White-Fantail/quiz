@@ -7,6 +7,7 @@ import { PlatformError } from "../../../../src/modules/platform/auth";
 import { packGet } from "../../../../src/modules/platform/social";
 import { PackPublicReviews, PackReport, PackShare } from "../../../../src/components/pack-feedback";
 import {listBackHref} from "../../../../src/lib/list-back-href";
+import AdSlot from "../../../../src/components/ads/AdSlot";
 export const dynamic="force-dynamic";
 async function fetchPack(id:string){
   const locale=resolveLocale((await headers()).get("x-quizdip-locale"));
@@ -48,6 +49,7 @@ export default async function PackDetail({params,searchParams}:{params:Promise<{
    </div>
   </section>
   <PackPublicReviews packId={pack.id}/>
+  <AdSlot placement="PACK_DETAIL" kids={pack.kidsEligible}/>
   <PackReport packId={pack.id}/>
  </main>;
 }

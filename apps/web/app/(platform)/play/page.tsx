@@ -11,6 +11,7 @@ import { bilingual } from "../../../src/i18n/view-copy";
 import { RatingBadge, RatingButtons, RatingSignIn, type RatingAccess } from "../../../src/components/quiz-ratings";
 import PackFeedback from "../../../src/components/pack-feedback";
 import PackResultShare from "../../../src/components/pack-result-share";
+import AdSlot from "../../../src/components/ads/AdSlot";
 import type { RatingSummary } from "../../../src/modules/quiz/rating-metadata";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { answerShortcutIndex } from "../../../src/modules/platform/keyboard-choice";
@@ -79,7 +80,7 @@ export default function PlayPage({packId}:{packId?:string}={}) {
   const localRunTokenRef=useRef("");
   const localProgressRef=useRef<Record<number,LocalProgress>>({});
   const [lane,setLane]=useState<Lane>("GENERAL");
-  const [pack,setPack]=useState<{id:string;title:string;description:string;questionCount:number;author:{displayName:string}}|null>(null);
+  const [pack,setPack]=useState<{id:string;title:string;description:string;questionCount:number;kidsEligible?:boolean;author:{displayName:string}}|null>(null);
   const [run,setRun]=useState<RunInfo|null>(null);
   const [round,setRound]=useState<Round|null>(null);
   const [guess,setGuess]=useState("");
@@ -658,6 +659,7 @@ export default function PlayPage({packId}:{packId?:string}={}) {
               if(!response.ok)throw new Error("Could not revoke result share");
             }}/>}
           {run.mode==="PACK"&&packId&&<PackFeedback packId={packId}/>}
+          {run.status==="FINISHED"&&<AdSlot placement="PLAY_RESULT" kids={run.lane==="KIDS"||Boolean(pack?.kidsEligible)}/>}
           {run.exhausted&&<p>{msg("You've finished all available new questions. Come back for more.","새로운 문제를 모두 풀었어요. 새 퀴즈가 등록되면 다시 즐겨 주세요.")}</p>}
           <details className="run-rating-review" open={run.mode!=="PACK"}>
             <summary>{run.mode==="PACK"?msg("Optional: rate individual questions","선택: 개별 문제 평가"):msg("Rate finished questions","완료한 문제 평가")}</summary>
