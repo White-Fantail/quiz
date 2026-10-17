@@ -38,7 +38,7 @@ export async function resultOgImage(shareId:string):Promise<Response> {
   }
   const korean=result.locale==="ko";
   const score=new Intl.NumberFormat(korean?"ko-KR":"en-US").format(result.score);
-  const koreanFont=/[가-힣]/.test(result.title) ? await loadKoreanFont(result.title) : null;
+  const koreanFont=await loadKoreanFont(result.title);
   const fonts=koreanFont?[{name:"QuizDipKorean",data:koreanFont,weight:700 as const,style:"normal" as const}]:[];
   try {
   const image = new ImageResponse(
