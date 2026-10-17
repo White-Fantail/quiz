@@ -308,7 +308,7 @@ export async function runCurrent(p:Record<string,any>,actor:Actor|null):Promise<
     clues:clues.slice(0,session.usedClues),sessionStatus:session.status,
     canGuess:session.status==="ACTIVE"&&session.wrongGuesses<session.usedClues,
     ...publicAnswerFormat(revision.answer, session.id),
-    ...(session.status!=="ACTIVE"?{scoreThisQuestion:session.score}:{}),
+    ...(session.status!=="ACTIVE"?{scoreThisQuestion:session.score,explanation:revision.explanation}:{}),
   };
 }
 export async function runFinish(p:Record<string,any>,actor:Actor|null) {

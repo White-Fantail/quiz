@@ -140,6 +140,6 @@ export async function playGuess(p: Record<string, any>, actor: Actor | null) {
   });
   return {
     status: correct ? "SOLVED" : failed ? "FAILED" : "ACTIVE", correct, score, cluesUsed: session.usedClues,
-    ...(correct || failed ? { answer: answer.canonical } : { next: "Reveal the next clue" })
+    ...(correct || failed ? { answer: answer.canonical, explanation:session.revision.explanation } : { next: "Reveal the next clue" })
   };
 }

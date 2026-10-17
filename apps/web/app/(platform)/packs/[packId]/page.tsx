@@ -45,7 +45,8 @@ export default async function PackDetail({params,searchParams}:{params:Promise<{
    <p><strong>{pack.questionCount}</strong> {pack.orderMode==="RANDOM"?(locale==="ko"?"개의 문제 · 시작할 때 랜덤 순서":"questions · shuffled at the start"):(locale==="ko"?"개의 문제 · 제작자가 정한 순서":"questions · creator-defined order")}</p>
    {pack.sections.length>0&&<div className="pack-section-overview"><h2>{locale==="ko"?"파트 구성":"Chapters"}</h2>
      <ol>{pack.sections.map((part,index)=><li key={part.start}><strong>{locale==="ko"?"파트 ":"Part "}{index+1} · {part.title}</strong>
-       <span className="muted"> · {locale==="ko"?"문제 ":"Question "}{part.start}</span>{part.description&&<p>{part.description}</p>}</li>)}</ol>
+       <span className="muted"> · {locale==="ko"?"문제 ":"Question "}{part.start}</span>{part.description&&<p style={{whiteSpace:"pre-wrap"}}>{part.description}</p>}
+       {part.mediaUrl&&<img src={part.mediaUrl} alt={part.title} style={{width:"100%",maxWidth:360,maxHeight:230,objectFit:"contain",borderRadius:12}}/>}</li>)}</ol>
    </div>}
    <div className="actions">
     <Link href={localizeHref("/packs/"+pack.id+"/play",locale)} className="btn btn-primary">{locale==="ko"?"전체 플레이 / 이어 풀기 →":"Play or resume full pack →"}</Link>
