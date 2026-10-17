@@ -242,24 +242,44 @@ export default function PackResultShare({ packId, title, score, completed, solve
     } finally {setShareBusy(false);}
   }
 
-  /** Facebook and X accept URL cards (OG), not arbitrary uploaded photo files via intent links. */
+  /** Mobile: use native sharing without opening an empty tab. Desktop: use URL intents. */
   async function shareSocial(site:"facebook"|"x") {
-    // Open synchronously to avoid browser popup blockers across the async publish request.
+    const mobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    // Mobile share must be invoked during the user gesture, not after an async request.
+    // Existing public URLs are available synchronously; otherwise share the pack URL
+    // and prepare the personal result link separately for subsequent shares.
+    if (mobile && navigator.share) {
+      setNotice("");
+      const url = resultUrl || packUrl;
+      if (!url) return;
+      try {
+        void navigator.share({title:title+" · QuizDip",text:shareText,url}).then(() => {
+          setNotice(korean ? "공유한 앱에서 게시 내용을 확인해 주세요." : "Check the post in the selected app.");
+        }).catch(error => {
+          if (error instanceof DOMException && error.name === "AbortError") return;
+          setNotice(korean ? "공유에 실패했어요. 결과 링크 복사를 이용해 주세요." : "Sharing failed. Copy the result link instead.");
+        });
+        // Prepare the public result URL for future shares without delaying the share sheet.
+        if (!resultUrl) void publicResultUrl().catch(() => {});
+      } catch {
+        setNotice(korean ? "공유 메뉴를 열지 못했어요. 결과 링크를 복사해 주세요." : "Couldn't open the share menu. Copy the result link.");
+      }
+      return;
+    }
+    // Desktop browsers can safely open a placeholder synchronously while the
+    // public result link is prepared, avoiding popup blocking.
     const popup=window.open("about:blank","_blank");
     if (popup) popup.opener=null;
     setShareBusy(true);setNotice("");
     try {
       const url=await publicResultUrl();
-      // Version the Facebook URL when the OG renderer changes. Facebook can
-      // otherwise reuse its previous cached "no image" card for the same run.
       const facebookUrl=new URL(url);
       facebookUrl.searchParams.set("preview","3");
       const target=site==="facebook"
         ? "https://www.facebook.com/sharer/sharer.php?u="+encodeURIComponent(facebookUrl.href)
         : "https://twitter.com/intent/tweet?text="+encodeURIComponent(shareText)+"&url="+encodeURIComponent(url);
       if(popup) popup.location.replace(target);
-      else setNotice(korean ? "새 창이 차단됐어요. 결과 링크를 복사해 공유해 주세요." :
-        "Pop-up blocked. Copy the result link to share instead.");
+      else setNotice(korean ? "새 창이 차단됐어요. 결과 링크를 복사해 공유해 주세요." : "Pop-up blocked. Copy the result link to share instead.");
     } catch {
       popup?.close();
       setNotice(korean ? "공유 링크를 만들지 못했어요." : "Could not create a share link.");
