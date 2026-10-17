@@ -1,5 +1,8 @@
 import PlayPage from "../../../play/page";
-export default async function PackPlayRoute({params}:{params:Promise<{packId:string}>}){
+export default async function PackPlayRoute({
+ params,searchParams
+}:{params:Promise<{packId:string}>;searchParams:Promise<{resumeRunId?:string}>}){
  const {packId}=await params;
- return <PlayPage packId={packId}/>;
+ const {resumeRunId}=await searchParams;
+ return <PlayPage packId={packId} resumeRunId={resumeRunId}/>;
 }

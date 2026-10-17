@@ -74,7 +74,7 @@ function MediaPart({item,reveal}:{item:MediaPreview;reveal?:RevealSettings}) {
   return null;
 }
 
-export default function PlayPage({packId}:{packId?:string}={}) {
+export default function PlayPage({packId,resumeRunId}:{packId?:string;resumeRunId?:string}={}) {
   const locale = useLocale();
   const msg=(en:string,ko:string)=>bilingual(locale,en,ko);
   const request=(path:string,method:"GET"|"POST"="GET",body?:unknown)=>api(path,method,body,locale);
@@ -315,7 +315,7 @@ export default function PlayPage({packId}:{packId?:string}={}) {
       // Resume local guest capabilities first; signed-in users can also resume
       // across devices through the idempotent PACK run_start endpoint.
       let saved:RunInfo|null=null;
-      if(!restart)try{
+      if(!restart&&!resumeRunId)try{
         const raw=sessionStorage.getItem(storageKey);
         if(raw){
           const candidate=JSON.parse(raw) as RunInfo;
@@ -329,7 +329,7 @@ export default function PlayPage({packId}:{packId?:string}={}) {
         await showRound(saved);
       }else{
         const started=await api("/runs","POST",
-          {mode:"PACK",lane:"GENERAL",packId,locale,...(restart?{restart:true}:{})},locale);
+          {mode:"PACK",lane:"GENERAL",packId,locale,...(restart?{restart:true}:resumeRunId?{resumeRunId}:{})},locale);
         if(packStartKeyRef.current!==key)return;
         await showRound(started);
       }
@@ -340,17 +340,17 @@ export default function PlayPage({packId}:{packId?:string}={}) {
         setError(e instanceof Error?e.message:bilingual(locale,"Could not load the quiz pack.","퀴즈팩을 불러오지 못했어요."));
       }
     }
-  },[packId,locale,showRound]);
+  },[packId,locale,resumeRunId,showRound]);
 
   useEffect(()=>{
     if(!packId)return;
-    const key=packId+":"+locale;
+    const key=packId+":"+locale+":"+(resumeRunId??"");
     // React Strict Mode can run mount effects twice. Only bootstrap once per
     // pack and language, otherwise guest players get duplicate runs.
     if(packStartKeyRef.current===key)return;
     packStartKeyRef.current=key;
     void bootPack(key);
-  },[packId,locale,bootPack]);
+  },[packId,locale,resumeRunId,bootPack]);
 
   async function start(nextMode:Mode, restart=false) {
     setBusy(true);setError("");setFeedback("");setQuestionsToRate([]);setRatingError("");
@@ -555,11 +555,11 @@ export default function PlayPage({packId}:{packId?:string}={}) {
       <p>{error||msg("Could not load the quiz pack.","퀴즈팩을 불러오지 못했어요.")}</p>
       <div className="actions">
         <button type="button" className="btn btn-primary"
-          onClick={()=>void bootPack(packId+":"+locale)}>{msg("Try again","다시 시도")}</button>
+          onClick={()=>void bootPack(packId+":"+locale+":"+(resumeRunId??""))}>{msg("Try again","다시 시도")}</button>
         <button type="button" className="btn btn-outline" onClick={()=>{
           try{sessionStorage.removeItem("quizdip-pack-run:"+packId+":"+locale);}catch{}
           localBundleRef.current=null;localProgressRef.current={};
-          void bootPack(packId+":"+locale,true);
+          void bootPack(packId+":"+locale+":"+(resumeRunId??""),true);
         }}>{msg("Start a new game","새로 시작")}</button>
         <Link href={localizeHref("/packs/"+packId,locale)}>{msg("Back to pack details","퀴즈팩 상세 보기")}</Link>
       </div>

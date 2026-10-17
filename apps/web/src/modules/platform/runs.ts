@@ -113,6 +113,15 @@ async function startPackRun(p:Record<string,any>,actor:Actor|null) {
     select:{id:true,currentVersion:true}
   });
   if(!current)fail(404,"pack_unavailable","Quiz pack is not published in this language");
+  if(p.resumeRunId){
+    if(!actor||p.restart)fail(403,"resume_forbidden","Sign in to resume this play run");
+    const selected=await db().playRun.findFirst({where:{
+      id:p.resumeRunId,packId:current.id,userId:actor.id,mode:"PACK",lane:"GENERAL",
+      locale,status:"ACTIVE",expiresAt:{gt:new Date()}
+    }});
+    if(!selected)fail(404,"resume_unavailable","This play run can no longer be resumed");
+    return {...runSummary(selected),runToken:authToken(selected.id,actor.id),resumed:true};
+  }
   if(actor && !p.restart){
     const active=await db().playRun.findFirst({where:{
       packId:current.id,userId:actor.id,

@@ -304,7 +304,7 @@ export const operations = {
     ...session,mediaId
   })},
   run_start: { public: true, description: "Start or resume a pack, quick-five or continuous random play", schema: z.object({
-    mode: z.enum(["RANDOM_FIVE","INFINITE","PACK"]), packId:uuid.optional(), restart:z.boolean().default(false), lane: z.enum(["GENERAL","KIDS"]).default("GENERAL"),
+    mode: z.enum(["RANDOM_FIVE","INFINITE","PACK"]), packId:uuid.optional(), resumeRunId:uuid.optional(), restart:z.boolean().default(false), lane: z.enum(["GENERAL","KIDS"]).default("GENERAL"),
     avoidQuizIds: z.array(uuid).max(1000).default([]), locale: optionalLocale
   }) },
   run_current: { public: true, description: "Get or resume the current server-side question of a run without revealing later clues", schema: z.object({

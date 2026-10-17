@@ -8,7 +8,7 @@ import PackResultShare from "../../../src/components/pack-result-share";
 import { recoverCachedRuns, cachedCompletedResults, getCachedRun, type RecoveryReport } from "../../../src/lib/local-run-sync";
 
 type RunResult = {runId:string;packId:string|null;packTitle:string|null;mode:string;status:string;
-  score:number;solved:number;failed:number;completed:number;total:number|null;startedAt:string;shareId:string|null;canResume:boolean};
+  score:number;solved:number;failed:number;completed:number;total:number|null;startedAt:string;shareId:string|null;canResume:boolean;locale:"ko"|"en"};
 type History = {items:RunResult[];total:number;limit:number;offset:number};
 const PAGE_SIZE=20;
 async function api(path:string,method:"GET"|"POST"|"DELETE"="GET",body?:unknown):Promise<any> {
@@ -117,7 +117,7 @@ export default function MyResults() {
             </p>}
           </div>
           {run.canResume&&run.packId?<Link className="btn btn-primary"
-            href={localizeHref("/packs/"+run.packId+"/play",locale)}>
+            href={localizeHref("/packs/"+run.packId+"/play?resumeRunId="+encodeURIComponent(run.runId),run.locale)}>
             {korean?"이어하기 →":"Resume →"}
           </Link>:shareable?<button className="btn btn-outline" type="button" aria-expanded={open}
             onClick={()=>setSelected(open?null:run.runId)}>
