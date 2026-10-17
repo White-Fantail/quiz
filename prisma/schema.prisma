@@ -168,6 +168,8 @@ model QuizPack {
   description           String        @default("")
   coverMediaId          String?
   sections              Json          @default("[]")
+  closingMessage        String        @default("")
+  scoreReviews          Json          @default("[]")
   sourceLocale          String        @default("und")
   localizations         QuizPackLocalization[]
   publication           String        @default("DRAFT")

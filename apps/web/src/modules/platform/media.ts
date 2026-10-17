@@ -178,6 +178,11 @@ async function protectedMediaIds(ownerId: string, client: Pick<ReturnType<typeof
         )
 
       )
+    UNION SELECT p."coverMediaId" AS id FROM "QuizPack" p
+      WHERE p."authorId"=${ownerId} AND p."coverMediaId" IS NOT NULL
+    UNION SELECT chapter.value ->> 'mediaId' AS id FROM "QuizPack" p,
+      jsonb_array_elements(p."sections") AS chapter(value)
+      WHERE p."authorId"=${ownerId} AND chapter.value ->> 'mediaId' IS NOT NULL
   `;
   return rows.map(row => row.id);
 }

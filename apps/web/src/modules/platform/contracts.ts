@@ -75,8 +75,14 @@ export const quizFields = z.object({
 export const packSectionsSchema = z.array(z.object({
   start:z.number().int().min(1).max(100),
   title:z.string().trim().min(1).max(120),
-  description:z.string().trim().max(500).default("")
+  description:z.string().trim().max(500).default(""),
+  mediaId:uuid.nullable().optional()
 })).max(30);
+export const scoreReviewsSchema=z.array(z.object({
+  minimumScore:z.number().int().min(0).max(10000),
+  title:z.string().trim().min(1).max(120),
+  description:z.string().trim().max(1500).default("")
+})).max(20);
 const localeCode = z.enum(["en", "ko"]);
 const optionalLocale = localeCode.default("en");
 const paging = { limit: z.number().int().min(1).max(100).default(20), offset: z.number().int().min(0).default(0) };
@@ -150,7 +156,7 @@ export const operations = {
   my_pack_get: { public:false, description:"Get the complete editable metadata and ordered questions of my pack", schema:z.object({id:uuid}) },
   pack_list: { public: true, description: "List published packs or my packs", schema: z.object({ ...paging, mine: z.boolean().default(false), locale: optionalLocale }) },
   pack_preflight: { public:false, description:"Check my pack readiness and quota without publishing", schema:z.object({id:uuid}) },
-  pack_create: { public: false, description: "Create a new ordered quiz pack", schema: z.object({ title: z.string().min(1).max(180), description: z.string().max(2000).default(""), coverMediaId:uuid.nullable().optional(), sections:packSectionsSchema.default([]), quizIds: z.array(uuid).min(1).max(100), orderMode:z.enum(["CREATOR","RANDOM"]).default("CREATOR"), locale: z.enum(["en", "ko", "und"]).default("und") }) },
+  pack_create: { public: false, description: "Create a new ordered quiz pack", schema: z.object({ title: z.string().min(1).max(180), description: z.string().max(2000).default(""), coverMediaId:uuid.nullable().optional(), sections:packSectionsSchema.default([]), closingMessage:z.string().trim().max(4000).default(""), scoreReviews:scoreReviewsSchema.default([]), quizIds: z.array(uuid).min(1).max(100), orderMode:z.enum(["CREATOR","RANDOM"]).default("CREATOR"), locale: z.enum(["en", "ko", "und"]).default("und") }) },
   pack_publish_preview: { public:false, description:"Validate owned pack and draft questions without changing publication", schema:z.object({id:uuid}) },
   pack_publish: { public:false, description:"Confirm atomic publication of pack and eligible owned drafts", schema:z.object({id:uuid,confirm:z.literal(true)}) },
   pack_kids_request: { public:false, description:"Request Kids review for my fully approved published original-language quiz pack", schema:z.object({id:uuid,confirm:z.literal(true)}) },
@@ -185,7 +191,7 @@ export const operations = {
     path:["reason"],message:"A pack restriction or Kids rejection requires a reason of at least 8 characters"
   }) },
   discover_sections: { public:true, description:"Explore organic trending, popular, rated, difficult and new quiz/pack content", schema:z.object({locale:optionalLocale}) },
-  pack_update: { public: false, description: "Edit or publish an owned quiz pack", schema: z.object({ id: uuid, title: z.string().min(1).max(180).optional(), description: z.string().max(2000).optional(), coverMediaId:uuid.nullable().optional(), sections:packSectionsSchema.optional(), quizIds: z.array(uuid).min(1).max(100).optional(), orderMode:z.enum(["CREATOR","RANDOM"]).optional(), publication: z.enum(["DRAFT", "PUBLISHED", "HIDDEN"]).optional(), confirm: z.boolean().optional() }) },
+  pack_update: { public: false, description: "Edit or publish an owned quiz pack", schema: z.object({ id: uuid, title: z.string().min(1).max(180).optional(), description: z.string().max(2000).optional(), coverMediaId:uuid.nullable().optional(), sections:packSectionsSchema.optional(), closingMessage:z.string().trim().max(4000).optional(), scoreReviews:scoreReviewsSchema.optional(), quizIds: z.array(uuid).min(1).max(100).optional(), orderMode:z.enum(["CREATOR","RANDOM"]).optional(), publication: z.enum(["DRAFT", "PUBLISHED", "HIDDEN"]).optional(), confirm: z.boolean().optional() }) },
   play_start: { public: true, description: "Start a playable session and see first clue", schema: z.object({ quizId: uuid, kids: z.boolean().default(false), locale: optionalLocale }) },
   play_clue: { public: true, description: "Reveal the next clue using my play token", schema: z.object(session) },
   play_guess: { public: true, description: "Check my guess on the server", schema: z.object({ ...session, guess: z.string().trim().min(1).max(200) }) },
