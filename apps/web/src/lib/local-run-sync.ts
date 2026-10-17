@@ -57,7 +57,8 @@ export function cachedCompletedResults(saved:CachedRun):CompletedResult[] {
     const position=Number(key);
     if(!Number.isSafeInteger(position)||position<0||!positions.has(position)||
        (progress?.status!=="SOLVED"&&progress?.status!=="FAILED"))continue;
-    if(!Number.isInteger(progress.clueIndex)||progress.clueIndex<1||progress.clueIndex>15||
+    // Answer-first multiple choice intentionally has zero clues; retain completed rounds.
+    if(!Number.isInteger(progress.clueIndex)||progress.clueIndex<0||progress.clueIndex>15||
        !Number.isFinite(progress.score))continue;
     results.push({position,cluesUsed:progress.clueIndex,status:progress.status,
       score:progress.status==="SOLVED"?Math.min(100,Math.max(0,Math.round(progress.score))):0});
