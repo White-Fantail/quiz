@@ -106,8 +106,8 @@ export async function playClue(p: Record<string, any>, actor: Actor | null) {
 export async function playGuess(p: Record<string, any>, actor: Actor | null) {
   const session = await getPlaySession(p, actor);
   if (session.status !== "ACTIVE") fail(409, "finished", "Game has already ended");
-  if (clues.length>0 && session.wrongGuesses >= session.usedClues) fail(429, "reveal_next_clue", "Reveal another clue before trying again");
   const clues = session.revision.clues as unknown[];
+  if (clues.length>0 && session.wrongGuesses >= session.usedClues) fail(429, "reveal_next_clue", "Reveal another clue before trying again");
   const answer = session.revision.answer as { canonical: string; aliases: string[]; responseMode?: "text" | "multiple-choice"; options?: string[] };
   if (answerResponseMode(answer) === "multiple-choice" && !answer.options?.some(option => normalizeAnswer(option) === normalizeAnswer(p.guess)))
     fail(400, "invalid_choice", "Select one of the supplied choices");

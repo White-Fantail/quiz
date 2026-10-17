@@ -110,7 +110,7 @@ export async function safeQuiz(id:string,locale:Locale,lane:AudienceLane,
   if(loc.publishedVersion==null)fail(409,"quiz_unavailable","Quiz has no published revision");
   const rev=await db().quizRevision.findUnique({where:{
     localizationId_version:{localizationId:loc.id,version:loc.publishedVersion}
-  },select:{id:true,quizId:true,title:true,clues:true,promptMediaIds:true}});
+  },select:{id:true,quizId:true,title:true,clues:true,answer:true,promptMediaIds:true}});
   if(!rev||!usableClues(rev)||!await approvedMedia([rev]))
     fail(409,"quiz_unavailable","This quiz has unavailable media");
   return {id:quiz.id,type:"QUIZ",title:rev.title,description:"",
