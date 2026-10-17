@@ -188,3 +188,48 @@ test("recovery skips verified completed runs but retries changed answers",async(
     assert.equal(calls,1);
   }finally{restore();}
 });
+
+test("zero-clue objective rounds survive cache filtering alongside normal clues",()=>{
+  const snapshot=cache({
+    0:{clueIndex:0,wrongGuesses:0,status:"SOLVED",score:75,mustReveal:false},
+    1:{clueIndex:2,wrongGuesses:0,status:"FAILED",score:0,mustReveal:false}
+  });
+  assert.deepEqual(cachedCompletedResults(snapshot),[
+    {position:0,cluesUsed:0,status:"SOLVED",score:75},
+    {position:1,cluesUsed:2,status:"FAILED",score:0}
+  ]);
+  assert.deepEqual(cachedCompletedResults(cache({
+    0:{clueIndex:-1,wrongGuesses:0,status:"SOLVED",score:75,mustReveal:false},
+    1:{clueIndex:16,wrongGuesses:0,status:"SOLVED",score:75,mustReveal:false}
+  })),[]);
+});
+
+test("a previously unsaved 25-question zero-clue pack is fully recoverable",async()=>{
+  setup();
+  try{
+    const questions=Array.from({length:25},(_,position)=>({position,clues:[]}));
+    const progress=Object.fromEntries(questions.map(({position})=>[
+      position,{clueIndex:0,wrongGuesses:0,status:"SOLVED",score:75,mustReveal:false}
+    ]));
+    storeCachedRun({bundle:{runId,questions},progress,runToken:token,synced:false});
+    let calls=0;
+    globalThis.fetch=async(url,init)=>{
+      calls++;
+      assert.match(url,/\/sync$/);
+      const payload=JSON.parse(init.body);
+      assert.equal(payload.results.length,25);
+      assert.deepEqual(payload.results.map(row=>row.position),questions.map(row=>row.position));
+      assert.ok(payload.results.every(row=>row.cluesUsed===0&&row.score===75));
+      return response({runId,completed:25,solved:25,failed:0,score:1875,status:"FINISHED"});
+    };
+    const report=await recoverCachedRuns();
+    assert.equal(report.checked,1);
+    assert.equal(report.recovered,1);
+    assert.equal(report.failed,0);
+    assert.equal(calls,1);
+    assert.equal(getCachedRun(runId).synced,true);
+    assert.equal(getCachedRun(runId).verified,true);
+    assert.equal(Object.keys(getCachedRun(runId).progress).length,25);
+    assert.equal((await recoverCachedRuns()).checked,0);
+  }finally{restore();}
+});
