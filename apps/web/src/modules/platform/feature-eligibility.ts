@@ -7,7 +7,11 @@ import type { Locale } from "../../i18n/core";
 
 export type AudienceLane = "GENERAL"|"KIDS";
 export type KidAgeBand = "EARLY"|"MIDDLE"|"OLDER";
-type SafeRevision={id:string;quizId:string;title:string;clues:unknown;promptMediaIds:unknown};
+type SafeRevision={id:string;quizId:string;title:string;clues:unknown;answer:unknown;promptMediaIds:unknown};
+function usableClues(rev:SafeRevision){
+  return Array.isArray(rev.clues)&&(rev.clues.length>0||
+    (rev.answer as {responseMode?:string})?.responseMode==="multiple-choice");
+}
 type ContentTarget={id:string;type:"QUIZ"|"PACK";title:string;description:string;
   creator:string;questionCount:number;orderMode?:string};
 export type SafePack=ContentTarget & {packVersion:number;originalQuestionCount:number;excludedCount:number;items:{quizId:string;revisionId:string}[]};
@@ -69,8 +73,8 @@ export async function safePack(id:string,locale:Locale,lane:AudienceLane,
     version:q.localizations[0].publishedVersion!}));
   const revisions=expected.length?await db().quizRevision.findMany({where:{
     OR:expected.map(x=>({localizationId:x.localizationId,version:x.version}))
-  },select:{id:true,quizId:true,title:true,clues:true,promptMediaIds:true}}):[];
-  const validRevisions=revisions.filter(r=>Array.isArray(r.clues)&&r.clues.length>0);
+  },select:{id:true,quizId:true,title:true,clues:true,answer:true,promptMediaIds:true}}):[];
+  const validRevisions=revisions.filter(usableClues);
   const needed=mediaReferences(validRevisions);
   const existing=needed.length?await db().mediaAsset.findMany({where:{id:{in:needed},
     status:"READY",moderationStatus:"APPROVED",deletedAt:null},select:{id:true}}):[];
@@ -107,7 +111,7 @@ export async function safeQuiz(id:string,locale:Locale,lane:AudienceLane,
   const rev=await db().quizRevision.findUnique({where:{
     localizationId_version:{localizationId:loc.id,version:loc.publishedVersion}
   },select:{id:true,quizId:true,title:true,clues:true,promptMediaIds:true}});
-  if(!rev||!Array.isArray(rev.clues)||!rev.clues.length||!await approvedMedia([rev]))
+  if(!rev||!usableClues(rev)||!await approvedMedia([rev]))
     fail(409,"quiz_unavailable","This quiz has unavailable media");
   return {id:quiz.id,type:"QUIZ",title:rev.title,description:"",
     creator:quiz.author.displayName,questionCount:1};

@@ -156,9 +156,9 @@ async function startPackRun(p:Record<string,any>,actor:Actor|null) {
       fail(409,"pack_locale_incomplete","All pack questions need a published language revision");
     const revisions=await tx.quizRevision.findMany({
       where:{id:{in:[...pinned.values()]}},
-      select:{id:true,clues:true,promptMediaIds:true}
+      select:{id:true,clues:true,answer:true,promptMediaIds:true}
     });
-    if(revisions.length!==ids.length || revisions.some(r=>!Array.isArray(r.clues)||r.clues.length===0))
+    if(revisions.length!==ids.length || revisions.some(r=>!Array.isArray(r.clues)||(r.clues.length===0&&(r.answer as {responseMode?:string})?.responseMode!=="multiple-choice")))
       fail(409,"pack_revision_unavailable","A pack question has no usable published clues");
     const mediaIds=new Set<string>();
     for(const revision of revisions){
@@ -275,7 +275,7 @@ export async function runCurrent(p:Record<string,any>,actor:Actor|null):Promise<
   const revision=await db().quizRevision.findUnique({where:{id:round.revisionId},include:{localization:true}});
   if(!revision || revision.localization?.locale!==run.locale ||
     revision.localization.status!=="PUBLISHED" ||
-    !Array.isArray(revision.clues)||!revision.clues.length){
+    !Array.isArray(revision.clues)||(!revision.clues.length&&(revision.answer as {responseMode?:string})?.responseMode!=="multiple-choice")){
     if(run.mode==="PACK"&&run.lane==="GENERAL")return skipWithdrawnPackRound(run,p,actor);
     fail(409,"invalid_question","The pinned question version is unavailable");
   }
@@ -290,7 +290,7 @@ export async function runCurrent(p:Record<string,any>,actor:Actor|null):Promise<
       session=await db().playSession.create({data:{
         quizId:round.quizId,revisionId:round.revisionId,locale:run.locale,userId:run.userId,
         runId:run.id,roundIndex:run.currentIndex,tokenHash:hash(token),
-        usedClues:1,expiresAt:run.expiresAt
+        usedClues:revision.clues.length===0?0:1,expiresAt:run.expiresAt
       }});
     }catch(error:any){
       if(error?.code!=="P2002") throw error;
@@ -306,7 +306,7 @@ export async function runCurrent(p:Record<string,any>,actor:Actor|null):Promise<
     title:revision.title,prompt:revision.prompt,promptMediaIds:revision.promptMediaIds,
     clueIndex:session.usedClues,clueCount:clues.length,
     clues:clues.slice(0,session.usedClues),sessionStatus:session.status,
-    canGuess:session.status==="ACTIVE"&&session.wrongGuesses<session.usedClues,
+    canGuess:session.status==="ACTIVE"&&(clues.length===0||session.wrongGuesses<session.usedClues),
     ...publicAnswerFormat(revision.answer, session.id),
     ...(session.status!=="ACTIVE"?{scoreThisQuestion:session.score,explanation:revision.explanation}:{}),
   };

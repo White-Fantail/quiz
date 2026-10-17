@@ -79,7 +79,7 @@ export async function localRunSync(p:Record<string,any>,actor:Actor|null){
       if(existing?.status==="SOLVED"||existing?.status==="FAILED")continue;
       const revision=await tx.quizRevision.findUnique({where:{id:q.revisionId},select:{clues:true}});
       const count=Array.isArray(revision?.clues)?revision.clues.length:1;
-      const used=Math.min(Math.max(1,result.cluesUsed),count);
+      const used=count===0?0:Math.min(Math.max(1,result.cluesUsed),count);
       const score=result.status==="SOLVED"?Math.max(0,Math.min(100,Math.round(result.score))):0;
       if(existing){
         await tx.playSession.updateMany({where:{id:existing.id,status:"ACTIVE"},data:{
@@ -156,7 +156,7 @@ export async function localSingleSync(p:Record<string,any>,actor:Actor|null){
   if(session.runId)fail(400,"invalid_session","Use run synchronization for run questions");
   if(session.status==="ACTIVE"){
     const clues=Array.isArray(session.revision.clues)?session.revision.clues.length:1;
-    const used=Math.min(Math.max(1,p.cluesUsed),clues);
+    const used=clues===0?0:Math.min(Math.max(1,p.cluesUsed),clues);
     await db().playSession.updateMany({where:{id:session.id,status:"ACTIVE"},data:{
       usedClues:used,wrongGuesses:p.status==="FAILED"?used:0,
       status:p.status,score:p.status==="SOLVED"?Math.max(0,Math.min(100,Math.round(p.score))):0,

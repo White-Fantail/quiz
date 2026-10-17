@@ -21,12 +21,12 @@ const actions=z.discriminatedUnion("action",[
   z.object({action:z.literal("run_current"),...run}).strict(),
   z.object({action:z.literal("run_bundle"),...run}).strict(),
   z.object({action:z.literal("run_sync"),...run,results:z.array(z.object({
-    position:z.number().int().min(0).max(10000),cluesUsed:z.number().int().min(1).max(15),
+    position:z.number().int().min(0).max(10000),cluesUsed:z.number().int().min(0).max(15),
     status:z.enum(["SOLVED","FAILED"]),score:z.number().int().min(0).max(100)
   })).max(100)}).strict(),
   z.object({action:z.literal("run_local_media"),...run,position:z.number().int().min(0),mediaId:uuid}).strict(),
   z.object({action:z.literal("single_bundle"),...session}).strict(),
-  z.object({action:z.literal("single_sync"),...session,cluesUsed:z.number().int().min(1).max(15),
+  z.object({action:z.literal("single_sync"),...session,cluesUsed:z.number().int().min(0).max(15),
     status:z.enum(["SOLVED","FAILED"]),score:z.number().int().min(0).max(100)}).strict(),
   z.object({action:z.literal("single_local_media"),...session,mediaId:uuid}).strict(),
   z.object({action:z.literal("single_start"),quizId:uuid}).strict(),

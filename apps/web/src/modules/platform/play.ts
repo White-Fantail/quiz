@@ -66,17 +66,18 @@ export async function playStart(p: Record<string, any>, actor: Actor | null) {
   if(p.kids && !["ORIGINAL","LEGACY"].includes(translation.origin))
     fail(403,"locale_safety_review_pending","Translated content requires separate child-safety approval");
   const clues = revision.clues as Record<string, unknown>[];
-  if (!clues.length) fail(409, "invalid_quiz", "Quiz has no clues");
+  if (!clues.length && (revision.answer as {responseMode?:string})?.responseMode!=="multiple-choice")
+    fail(409, "invalid_quiz", "Only multiple-choice questions may omit clues");
   const token = randomBytes(32).toString("base64url");
   const session = await db().playSession.create({ data: {
     quizId: quiz.id, revisionId: revision.id, locale: p.locale, userId: actor?.id, tokenHash: hashToken(token),
-    usedClues: 1, expiresAt: new Date(Date.now() + 3600000)
+    usedClues: clues.length===0?0:1, expiresAt: new Date(Date.now() + 3600000)
   } });
   const [ratings,myRating,myTranslationRating]=await Promise.all([ratingsForQuiz(quiz.id,p.locale),myRatingForQuiz(quiz.id,actor,p.locale),myRatingForQuiz(quiz.id,actor,p.locale,"TRANSLATION")]);
   return { sessionId: session.id, sessionToken: token, title: revision.title, prompt: revision.prompt,
     quizId:quiz.id,ratings,myRating,myTranslationRating,ratingAccess:ratingAccess(actor,quiz.authorId,session.userId),
     isTranslation:translation.origin==="TRANSLATION",
-    mode: revision.mode, locale: p.locale, quizVersion: revision.version, promptMediaIds: revision.promptMediaIds, clue: clues[0], clueIndex: 1, clueCount: clues.length,
+    mode: revision.mode, locale: p.locale, quizVersion: revision.version, promptMediaIds: revision.promptMediaIds, clue: clues[0], clueIndex: clues.length===0?0:1, clueCount: clues.length,
     ...publicAnswerFormat(revision.answer, session.id) };
 }
 /** Read-only review after grading, restricted to the completed pinned session. */
@@ -105,7 +106,7 @@ export async function playClue(p: Record<string, any>, actor: Actor | null) {
 export async function playGuess(p: Record<string, any>, actor: Actor | null) {
   const session = await getPlaySession(p, actor);
   if (session.status !== "ACTIVE") fail(409, "finished", "Game has already ended");
-  if (session.wrongGuesses >= session.usedClues) fail(429, "reveal_next_clue", "Reveal another clue before trying again");
+  if (clues.length>0 && session.wrongGuesses >= session.usedClues) fail(429, "reveal_next_clue", "Reveal another clue before trying again");
   const clues = session.revision.clues as unknown[];
   const answer = session.revision.answer as { canonical: string; aliases: string[]; responseMode?: "text" | "multiple-choice"; options?: string[] };
   if (answerResponseMode(answer) === "multiple-choice" && !answer.options?.some(option => normalizeAnswer(option) === normalizeAnswer(p.guess)))
