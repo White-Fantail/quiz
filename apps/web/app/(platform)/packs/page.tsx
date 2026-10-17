@@ -1,6 +1,7 @@
 import Link from "next/link";
 import {Fragment} from "react";
 import AdSlot from "../../../src/components/ads/AdSlot";
+import KidsPackBadge from "../../../src/components/kids-pack-badge";
 import { headers } from "next/headers";
 import { resolveLocale,localizeHref } from "../../../src/i18n/core";
 import { packList } from "../../../src/modules/platform/social";
@@ -19,7 +20,10 @@ export default async function PackCatalog({searchParams}:{searchParams:Promise<{
     <div className="cards">{items.map((pack,index)=><Fragment key={pack.id}>
       {index===8&&<AdSlot placement="PACK_LIST" fullRow/>}
       <article className="feature-card">
-      <span className="small-tag">{locale==="ko"?"퀴즈팩":"Quiz pack"}</span>
+      <div className="pack-type-badges">
+        <span className="small-tag">{locale==="ko"?"퀴즈팩":"Quiz pack"}</span>
+        <KidsPackBadge eligible={pack.kidsEligible} locale={locale}/>
+      </div>
       <h2>{pack.title}</h2><p>{pack.description}</p>
       <p className="muted">{pack.quizIds.length} {locale==="ko"?"문제":"questions"} · {pack.orderMode==="RANDOM"?(locale==="ko"?"랜덤 순서":"Random order"):(locale==="ko"?"등록 순서":"Creator order")}</p>
       <Link className="btn btn-primary" href={localizeHref("/packs/"+pack.id+(page?"?page="+page:""),locale)}>{locale==="ko"?"팩 보기 →":"View pack →"}</Link>

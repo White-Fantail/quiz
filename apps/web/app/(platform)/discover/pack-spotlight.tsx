@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import KidsPackBadge from "../../../src/components/kids-pack-badge";
 import { useEffect, useState } from "react";
 import { useLocale } from "../../../src/i18n/provider";
 import { loadDiscoverySections } from "./discovery-client";
@@ -14,13 +15,14 @@ type PackCard = {
   creator: string;
   questionCount: number;
   orderMode?: string;
+  kidsEligible?: boolean;
   started: number;
   ratings: { total: number; positivePercent: number | null };
 };
 type PackRow = { pack: PackCard; popular: boolean };
 type DiscoverySection = { key: string; items: PackCard[] };
 type CatalogPack = {
-  id: string; title: string; description: string; quizIds: string[]; orderMode: string;
+  id: string; title: string; description: string; quizIds: string[]; orderMode: string; kidsEligible?: boolean;
   ratings?: { total: number; positivePercent: number | null } | null;
 };
 
@@ -62,7 +64,7 @@ export default function PackSpotlight({ onBrowsePacks }: { onBrowsePacks: () => 
       const catalogRows: PackCard[] = catalog.status === "fulfilled"
         ? ((catalog.value.items ?? []) as CatalogPack[]).map(pack => ({
           id: pack.id, title: pack.title, subtitle: pack.description, creator: "",
-          questionCount: pack.quizIds.length, orderMode: pack.orderMode, started: 0,
+          questionCount: pack.quizIds.length, orderMode: pack.orderMode, kidsEligible: pack.kidsEligible, started: 0,
           ratings: pack.ratings ?? { total: 0, positivePercent: null }
         }))
         : [];
@@ -109,7 +111,10 @@ export default function PackSpotlight({ onBrowsePacks }: { onBrowsePacks: () => 
     {!loading && !!items.length && <div className="discover-pack-grid">
       {items.map(({ pack, popular }, index) => <article className={"discover-pack-card" + (index === 0 ? " discover-pack-card-primary" : "")} key={pack.id}>
         <div className="discover-pack-card-top">
-          <span className="discover-pack-kind">{popular ? (ko ? "인기 퀴즈팩" : "Popular pack") : (ko ? "추천 탐색" : "Explore this pack")}</span>
+          <div className="pack-type-badges">
+            <span className="discover-pack-kind">{popular ? (ko ? "인기 퀴즈팩" : "Popular pack") : (ko ? "추천 탐색" : "Explore this pack")}</span>
+            <KidsPackBadge eligible={pack.kidsEligible} locale={locale}/>
+          </div>
           <span className="discover-pack-number">{String(index + 1).padStart(2, "0")}</span>
         </div>
         <Link className="discover-pack-title" href={localizeHref("/packs/" + pack.id, locale)}>{pack.title}</Link>

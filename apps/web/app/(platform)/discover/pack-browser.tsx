@@ -2,10 +2,11 @@
 import Link from "next/link";
 import {Fragment,useEffect,useState} from "react";
 import AdSlot from "../../../src/components/ads/AdSlot";
+import KidsPackBadge from "../../../src/components/kids-pack-badge";
 import { useLocale } from "../../../src/i18n/provider";
 import { localizeHref } from "../../../src/i18n/core";
 type Pack={id:string;title:string;description:string;publication:string;
-  orderMode:"CREATOR"|"RANDOM";quizIds:string[];
+  orderMode:"CREATOR"|"RANDOM";quizIds:string[];kidsEligible?:boolean;
   ratings?:{total:number;positivePercent:number|null}};
 const SIZE=12;
 export default function PackBrowser({page,onPageChange,ready,kids=false}:{page:number;onPageChange:(page:number)=>void;ready:boolean;kids?:boolean}){
@@ -37,7 +38,10 @@ export default function PackBrowser({page,onPageChange,ready,kids=false}:{page:n
       {index===6&&<AdSlot placement="DISCOVER_FEED" kids={kids} fullRow/>}
       <article className="feature-card discover-card">
       <div className="discover-card-top">
-        <span className="small-tag">{ko?"퀴즈팩":"Quiz pack"}</span>
+        <div className="pack-type-badges">
+          <span className="small-tag">{ko?"퀴즈팩":"Quiz pack"}</span>
+          <KidsPackBadge eligible={pack.kidsEligible} locale={locale}/>
+        </div>
         <span className="muted">{pack.quizIds.length} {ko?"문제":"questions"}</span>
       </div>
       <h3>{pack.title}</h3><p className="discover-card-description">{pack.description}</p>

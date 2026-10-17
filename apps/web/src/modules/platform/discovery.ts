@@ -7,7 +7,7 @@ import type { RatingSummary } from "../quiz/rating-metadata";
 export type DiscoveryType="QUIZ"|"PACK";
 export type DiscoveryCard={
   id:string; type:DiscoveryType;title:string;subtitle:string;creator:string;
-  questionCount:number;orderMode?:string;ratings:RatingSummary;started:number;completed:number;
+  questionCount:number;orderMode?:string;kidsEligible?:boolean;ratings:RatingSummary;started:number;completed:number;
   difficultyPercent:number|null;createdAt:string;
 };
 export type DiscoverySection={key:"popular_packs"|"new_packs"|"trending"|"popular"|"highly_rated"|"difficult"|"new";
@@ -72,7 +72,7 @@ export async function discoverSections(p:Record<string,any>) {
       localizations:{some:{locale,status:"PUBLISHED"}},
       items:{some:{quiz:playableQuizWhere(locale)}}},
       orderBy:[{updatedAt:"desc"},{id:"desc"}],take:100,
-      select:{id:true,authorId:true,createdAt:true,orderMode:true,
+      select:{id:true,authorId:true,createdAt:true,orderMode:true,kidsEligible:true,
         author:{select:{displayName:true}},
         localizations:{where:{locale,status:"PUBLISHED"},select:{title:true,description:true}},
         items:{where:{quiz:playableQuizWhere(locale)},select:{quizId:true}}}})
@@ -168,7 +168,7 @@ export async function discoverSections(p:Record<string,any>) {
     rows.push({card:{id:pack.id,type:"PACK",title:pack.localizations[0]?.title??"",
       subtitle:pack.localizations[0]?.description??"",creator:pack.author.displayName,
       questionCount:pack.items.filter(i=>safeRevisions.has(i.quizId)).length,orderMode:pack.orderMode,
-      ratings:pRatings.get(pack.id)!,started:count(pCounts,pack.id,"starts"),
+      kidsEligible:pack.kidsEligible,ratings:pRatings.get(pack.id)!,started:count(pCounts,pack.id,"starts"),
       completed:count(pCounts,pack.id,"completed"),
       difficultyPercent:score&&score.players>=10?Math.round(score.sum/score.players):null,
       createdAt:pack.createdAt.toISOString()},

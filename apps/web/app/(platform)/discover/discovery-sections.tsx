@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import KidsPackBadge from "../../../src/components/kids-pack-badge";
 import { useEffect, useState } from "react";
 import { useLocale } from "../../../src/i18n/provider";
 import { loadDiscoverySections } from "./discovery-client";
@@ -7,7 +8,7 @@ import { localizeHref } from "../../../src/i18n/core";
 
 type Card={id:string;type:"PACK"|"QUIZ";title:string;subtitle:string;creator:string;
  questionCount:number;orderMode?:string;started:number;completed:number;
- difficultyPercent:number|null;ratings:{total:number;positivePercent:number|null}};
+ difficultyPercent:number|null;kidsEligible?:boolean;ratings:{total:number;positivePercent:number|null}};
 type Section={key:"trending"|"popular"|"highly_rated"|"difficult"|"new";
  items:Card[];basis:string};
 const names:Record<Section["key"],{en:string;ko:string;icon:string}>={
@@ -53,7 +54,10 @@ export default function DiscoverySections(){
     </div>
     <div className="discover-grid">{section.items.map(item=><article className="feature-card discover-card" key={item.type+item.id}>
       <div className="discover-card-top">
-        <span className="small-tag">{item.type==="PACK"?(ko?"퀴즈팩":"Quiz pack"):(ko?"개별 문제":"Question")}</span>
+        <div className="pack-type-badges">
+          <span className="small-tag">{item.type==="PACK"?(ko?"퀴즈팩":"Quiz pack"):(ko?"개별 문제":"Question")}</span>
+          {item.type==="PACK"&&<KidsPackBadge eligible={item.kidsEligible} locale={locale}/>}
+        </div>
         {item.type==="PACK"&&<span className="muted">{item.questionCount}{ko?"문제":" questions"}</span>}
       </div>
       <h4>{item.title}</h4>
