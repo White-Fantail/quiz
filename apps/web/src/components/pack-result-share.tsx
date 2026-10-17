@@ -274,7 +274,7 @@ export default function PackResultShare({ packId, title, score, completed, solve
     try {
       const url=await publicResultUrl();
       const facebookUrl=new URL(url);
-      facebookUrl.searchParams.set("preview","3");
+      facebookUrl.searchParams.set("preview","4");
       const target=site==="facebook"
         ? "https://www.facebook.com/sharer/sharer.php?u="+encodeURIComponent(facebookUrl.href)
         : "https://twitter.com/intent/tweet?text="+encodeURIComponent(shareText)+"&url="+encodeURIComponent(url);
