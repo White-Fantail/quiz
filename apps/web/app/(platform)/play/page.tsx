@@ -132,16 +132,17 @@ export default function PlayPage({packId,resumeRunId}:{packId?:string;resumeRunI
 
   useEffect(()=>{
     if(!run||run.status!=="FINISHED"||round)return;
+    // Local completion is not server completion. Wait until /sync confirms
+    // FINISHED before fetching ratings, otherwise the API correctly returns 409.
+    if(run.mode!=="INFINITE"&&confirmedRunId!==run.runId)return;
     let alive=true;
     setRatingBusy(true);setRatingError("");
-    void (async()=>{
-      if(run.mode!=="INFINITE"&&localBundleRef.current)await syncLocal();
-      return request("/runs/"+run.runId+"/feedback","POST",{runToken:run.runToken});
-    })().then(data=>{if(alive)setQuestionsToRate(data.items??[]);})
+    void request("/runs/"+run.runId+"/feedback","POST",{runToken:run.runToken})
+      .then(data=>{if(alive)setQuestionsToRate(data.items??[]);})
       .catch(e=>{if(alive)setRatingError(e instanceof Error?e.message:msg("Could not load the questions for review.","평가할 문제를 불러오지 못했어요."));})
       .finally(()=>{if(alive)setRatingBusy(false);});
     return ()=>{alive=false;};
-  },[run?.runId,run?.status,round]);
+  },[run?.runId,run?.status,run?.mode,round,confirmedRunId]);
 
   const saveLocal=()=>{
     if(!localBundleRef.current)return;
@@ -737,7 +738,8 @@ export default function PlayPage({packId,resumeRunId}:{packId?:string;resumeRunI
             <p className="muted">{msg("Rate the quizzes after the game to keep the flow uninterrupted. Feedback is optional.","흐름을 끊지 않도록 게임이 끝난 뒤 모았어요. 평가는 선택 사항이에요.")}</p>
             {ratingBusy&&<p role="status">{msg("Loading questions to rate…","평가할 문제를 불러오는 중…")}</p>}
             {ratingError&&<p className="feedback" role="alert">{ratingError}</p>}
-            {!ratingBusy&&!ratingError&&questionsToRate.length===0&&<p className="muted">{msg("No completed questions to rate yet.","평가할 완료 문제가 없어요.")}</p>}
+            {run.mode!=="INFINITE"&&confirmedRunId!==run.runId&&<p className="muted" role="status">{msg("You can rate questions after your results are saved.","결과 저장이 완료되면 개별 문제를 평가할 수 있어요.")}</p>}
+             {!ratingBusy&&!ratingError&&questionsToRate.length===0&&(run.mode==="INFINITE"||confirmedRunId===run.runId)&&<p className="muted">{msg("No completed questions to rate yet.","평가할 완료 문제가 없어요.")}</p>}
             {questionsToRate.map(q=><div className="run-rating-row" key={q.quizId}>
               <div className="run-rating-question"><strong>{q.round}. {q.title}</strong>
                 <RatingBadge ratings={q.ratings}/></div>
