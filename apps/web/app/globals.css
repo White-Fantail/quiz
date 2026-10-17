@@ -82,6 +82,10 @@ a.feature-card:hover { border-color:#B4AEF7; transform:translateY(-3px); }
 .shortcut-divider { margin:0 3px;color:#9894AE; }
 .feedback { margin-top:20px; padding:16px; border-radius:14px; background:#FFF0CE; font-weight:650; }
 .feedback.success { background:#E1FAF1; }
+/* Keep the optional answer explanation visually separate from the result banner. */
+.play-live .quiz-answer-explanation { margin-top:18px; }
+.play-live .quiz-answer-explanation h3 { margin-top:0; }
+.play-live .quiz-answer-explanation p { min-height:0; margin-bottom:0; overflow-wrap:anywhere; }
 /* The completed-round action needs breathing room below the feedback card. */
 .play-next-round { margin-top:24px; }
 /* Optional review after scoring; keep the next-question button visibly separate. */
@@ -1126,3 +1130,10 @@ a.feature-card:hover { border-color:#B4AEF7; transform:translateY(-3px); }
 .quizdip-ad-label{display:block;font-size:.68rem;line-height:1.5;letter-spacing:.09em;text-transform:uppercase;color:var(--muted,#687482);margin-bottom:.4rem}
 .quizdip-ad-ins{display:block;box-sizing:border-box;width:100%;min-height:100px}
 .discover-ad-row{grid-column:1 / -1;min-width:0}
+
+/* Credits stay available without repeating lengthy attribution in the pack introduction. */
+.pack-image-credits { margin-top:24px; border:1px solid var(--border); border-radius:16px; background:#fff; overflow:hidden; }
+.pack-image-credits summary { cursor:pointer; padding:15px 20px; font-weight:750; color:var(--ink); }
+.pack-image-credits summary::marker { color:var(--purple); }
+.pack-image-credits[open] summary { border-bottom:1px solid var(--border); }
+.pack-image-credits p { margin:0; padding:18px 20px; white-space:pre-wrap; overflow-wrap:anywhere; color:var(--muted); line-height:1.7; }
