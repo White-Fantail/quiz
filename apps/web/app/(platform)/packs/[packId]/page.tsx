@@ -35,7 +35,7 @@ export default async function PackDetail({params,searchParams}:{params:Promise<{
  const backHref=listBackHref(localizeHref("/packs",locale),await searchParams,["page"]);
  return <main className="container inner-page management-page">
   <div className="play-intro"><span className="eyebrow">QUIZDIP · QUIZ PACK</span>
-   <h1>{pack.title}</h1><p className="lead">{pack.description}</p>
+   <h1>{pack.title}</h1><p className="lead" style={{whiteSpace:"pre-wrap"}}>{pack.description}</p>
    {pack.coverMediaUrl&&<img src={pack.coverMediaUrl} alt={pack.title} className="round-media" style={{maxHeight:380,objectFit:"contain",borderRadius:16,marginTop:16}}/>}</div>
   <section className="feature-card">
    <p>{locale==="ko"?"제작자":"Created by"}: <strong>{pack.author.displayName}</strong></p>

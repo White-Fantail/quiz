@@ -237,7 +237,7 @@ export default function PlayPage({packId}:{packId?:string}={}) {
         if(packId)try{sessionStorage.removeItem("quizdip-pack-run:"+packId+":"+locale);}catch{}
         setRound(null);setFeedback("");setMedia({});void syncLocal().catch(()=>{});return;
       }
-      const q=questions[position],p=localProgressRef.current[q.position]??initialLocalProgress();
+      const q=questions[position],p=localProgressRef.current[q.position]??initialLocalProgress(q.clues.length);
       if(packId){
         let freshSections:Chapter[]=[];
         if(chapterStartsRef.current===null){
@@ -364,7 +364,7 @@ export default function PlayPage({packId}:{packId?:string}={}) {
     try{
       if(run?.mode!=="INFINITE"&&localBundleRef.current){
         const q=localBundleRef.current.questions[round.round-1];
-        const previous=localProgressRef.current[q.position]??initialLocalProgress();
+        const previous=localProgressRef.current[q.position]??initialLocalProgress(q.clues.length);
         const updated=revealLocalClue(q,previous);
         localProgressRef.current[q.position]=updated;saveLocal();
         setRound({...round,clues:q.clues.slice(0,updated.clueIndex) as unknown as Clue[],
@@ -386,7 +386,7 @@ export default function PlayPage({packId}:{packId?:string}={}) {
       let result:any;
       if(run?.mode!=="INFINITE"&&localBundleRef.current){
         const q=localBundleRef.current.questions[round.round-1];
-        const attempt=guessLocalAnswer(q,localProgressRef.current[q.position]??initialLocalProgress(),selectedAnswer.trim());
+        const attempt=guessLocalAnswer(q,localProgressRef.current[q.position]??initialLocalProgress(q.clues.length),selectedAnswer.trim());
         if(!attempt)return;
         localProgressRef.current[q.position]=attempt.progress;saveLocal();
         result=attempt.result;
@@ -609,7 +609,7 @@ export default function PlayPage({packId}:{packId?:string}={}) {
       </div>
       {round?<>
         <div className="round-progress"><span>{msg("Question ","문제 ")}{round.round}{run.total?" / "+run.total:""} </span>
-          <span>{msg("Clue ","단서 ")}{round.clueIndex} / {round.clueCount}</span></div>
+          {round.clueCount>0&&<span>{msg("Clue ","단서 ")}{round.clueIndex} / {round.clueCount}</span>}</div>
         <RatingBadge ratings={round.ratings}/>
         <h2 className="quiz-question-prompt">{round.prompt}</h2>
         {!!round.promptMediaIds?.length&&<div className="clue-media-list">

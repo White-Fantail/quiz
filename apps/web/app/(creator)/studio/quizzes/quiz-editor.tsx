@@ -99,7 +99,8 @@ function asPayload(form:Form,original:Quiz|null) {
   }
   const names=[...new Set(form.topics.split(",").map(s=>s.trim()).filter(Boolean))];
   if(names.length>12||names.some(s=>s.length>80))throw Error("Maximum 12 topics, up to 80 characters each.");
-  if(form.clues.length<1||form.clues.length>15)throw Error("Add between 1 and 15 clues.");
+  if((form.clues.length===0&&form.responseMode!=="multiple-choice")||form.clues.length>15)
+    throw Error("Text-answer questions need at least one clue; multiple-choice may use none (maximum 15).");
   const clues=form.clues.map((clue,i)=>{
     if(clue.type==="text"){
       if(!clue.text.trim()||clue.text.trim().length>3000)throw Error("Clue "+(i+1)+" requires text (up to 3000 characters).");
@@ -281,9 +282,12 @@ export default function QuizEditor({quizId,backHref}:{quizId?:string;backHref?:s
 
     <section className="placeholder-panel">
       <div className="studio-section-head">
-        <div><h2>{msg("Clues","단서")}</h2><p className="muted">{msg("Clues appear in this order. Add 1 to 15 and move them up or down.","단서는 이 순서대로 나타납니다. 1~15개를 추가하고 순서를 바꿀 수 있어요.")}</p></div>
+        <div><h2>{msg("Clues","단서")}</h2><p className="muted">{msg("Clues are optional for multiple-choice, required for text answers (maximum 15).","객관식은 단서를 생략할 수 있고 주관식은 1개 이상 필요합니다 (최대 15개).")}</p></div>
         <span className="media-state-chip media-wait">{form.clues.length} / 15</span>
       </div>
+      {form.responseMode==="multiple-choice"&&form.clues.length>0&&<button type="button" className="btn btn-outline"
+        onClick={()=>update("clues",[])}>{msg("Remove all clues · answer-first question","단서 없이 객관식 바로 풀기")}</button>}
+      {form.responseMode==="multiple-choice"&&form.clues.length===0&&<p className="muted">{msg("Answer choices appear immediately, without a clue screen.","힌트 화면 없이 문제와 보기부터 바로 보여줍니다.")}</p>}
       <div className="studio-quiz-clue-list">
         {form.clues.map((clue,index)=><article className="studio-quiz-clue" key={clue.key}>
           <div className="studio-quiz-clue-head">
@@ -293,7 +297,7 @@ export default function QuizEditor({quizId,backHref}:{quizId?:string;backHref?:s
                 onClick={()=>moveClue(index,-1)}>↑</button>
               <button type="button" className="btn btn-outline" aria-label={msg("Move clue down","단서 아래로 이동")} disabled={index===form.clues.length-1}
                 onClick={()=>moveClue(index,1)}>↓</button>
-              <button type="button" className="btn btn-outline" disabled={form.clues.length===1}
+              <button type="button" className="btn btn-outline" disabled={form.clues.length===1&&form.responseMode!=="multiple-choice"}
                 onClick={()=>update("clues",form.clues.filter(c=>c.key!==clue.key))}>{msg("Remove","삭제")}</button>
             </div>
           </div>

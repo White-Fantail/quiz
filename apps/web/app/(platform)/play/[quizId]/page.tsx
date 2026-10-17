@@ -74,8 +74,8 @@ export default function SingleQuizPage() {
       if (!active) return;
       setSession(next);
       localQuestion.current=next.question;
-      localProgress.current=initialLocalProgress();
-      setClues([next.question.clues[0] as Clue]);
+      localProgress.current=initialLocalProgress(next.question.clues.length);
+      setClues(next.question.clues.slice(0,localProgress.current.clueIndex) as Clue[]);
       const ids = [...next.promptMediaIds,next.question.clues[0]?.mediaId].filter((id):id is string => !!id);
       void Promise.all([...new Set(ids)].map(async id => {
         try {
@@ -235,7 +235,7 @@ export default function SingleQuizPage() {
     {session && <section className="play-panel" aria-live="polite">
       <div className="play-top">
         <span className="small-tag">{msg("Progressive clues","단계별 단서")}</span>
-        <span className="clue-count">{msg("Clue ","단서 ")}{session.clueIndex} / {session.clueCount}</span>
+        {session.clueCount>0&&<span className="clue-count">{msg("Clue ","단서 ")}{session.clueIndex} / {session.clueCount}</span>}
         <RatingBadge ratings={session.ratings}/>
       </div>
       <h1>{session.title}</h1>
