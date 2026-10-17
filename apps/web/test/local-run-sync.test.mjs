@@ -47,6 +47,9 @@ test("legacy synced cache is reconciled without erasing any local round",async()
     assert.equal(result.failed,0);
     assert.equal(calls,1);
     assert.equal(getCachedRun(runId).synced,true);
+    assert.equal(getCachedRun(runId).verified,true);
+    assert.deepEqual(await recoverCachedRuns(),{checked:0,recovered:0,failed:0,failures:[]});
+    assert.equal(calls,1);
     assert.deepEqual(cachedCompletedResults(getCachedRun(runId)).map(r=>r.position),[0,1]);
     assert.equal(cachedRunIds().length,1);
     assert.equal(m.size,1);
@@ -163,5 +166,25 @@ test("exhausted temporary errors leave full local progress available for later r
     assert.equal(calls,3);
     assert.equal(getCachedRun(runId).synced,false);
     assert.equal(cachedCompletedResults(getCachedRun(runId)).length,2);
+  }finally{restore();}
+});
+
+test("recovery skips verified completed runs but retries changed answers",async()=>{
+  setup();
+  try{
+    storeCachedRun({...cache(both,true),verified:true});
+    let calls=0;
+    globalThis.fetch=async()=>{calls++;throw Error("Must not re-sync a verified run");};
+    assert.equal((await recoverCachedRuns()).checked,0);
+    assert.equal(calls,0);
+    storeCachedRun({...cache(both,false),verified:true});
+    globalThis.fetch=async()=>{
+      calls++;
+      return response({runId,completed:2,solved:1,failed:1,score:100,status:"FINISHED"});
+    };
+    assert.equal((await recoverCachedRuns()).recovered,1);
+    assert.equal(getCachedRun(runId).verified,true);
+    assert.equal((await recoverCachedRuns()).checked,0);
+    assert.equal(calls,1);
   }finally{restore();}
 });
