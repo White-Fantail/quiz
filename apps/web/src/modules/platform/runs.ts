@@ -468,12 +468,28 @@ export async function runReconcile(p:Record<string,any>,actor:Actor|null) {
 }
 export async function runHistory(p:Record<string,any>,actor:Actor|null) {
   const user=requireActor(actor);
+  const now=new Date();
+  // Completed runs and live, available pack runs are the only useful history.
+  // Incomplete random runs and expired/withdrawn packs have no resume action.
+  const where={
+    userId:user.id,
+    OR:[
+      {status:"FINISHED" as const},
+      {status:"ACTIVE" as const,mode:"PACK" as const,lane:"GENERAL" as const,
+        expiresAt:{gt:now},pack:{is:{publication:"PUBLISHED" as const,
+          safetyStatus:"ACTIVE" as const,localizations:{some:{status:"PUBLISHED" as const}}}}}
+    ]
+  };
   const [rows,count]=await Promise.all([
-    db().playRun.findMany({where:{userId:user.id},orderBy:{startedAt:"desc"},
-      skip:p.offset,take:p.limit,include:{pack:{select:{title:true,localizations:{select:{title:true,locale:true,status:true}}}}}}),
-    db().playRun.count({where:{userId:user.id}})
+    db().playRun.findMany({where,orderBy:{startedAt:"desc"},skip:p.offset,take:p.limit,
+      include:{pack:{select:{title:true,publication:true,safetyStatus:true,
+        localizations:{select:{title:true,locale:true,status:true}}}}}}),
+    db().playRun.count({where})
   ]);
   return {items:rows.map(run=>({...runSummary(run),startedAt:run.startedAt,
+    canResume:run.mode==="PACK"&&run.status==="ACTIVE"&&run.expiresAt.getTime()>now.getTime()&&
+      run.pack?.publication==="PUBLISHED"&&run.pack?.safetyStatus==="ACTIVE"&&
+      run.pack.localizations.some(loc=>loc.locale===run.locale&&loc.status==="PUBLISHED"),
     shareId:run.shareId,packTitle:run.pack?.localizations.find(loc=>loc.locale===run.locale&&loc.status==="PUBLISHED")?.title??run.pack?.title??null})),
     total:count,offset:p.offset,limit:p.limit};
 }
