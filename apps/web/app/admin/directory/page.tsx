@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import ManagementHeader from "../../../src/components/management-header";
 import { resolveLocale, localizeHref } from "../../../src/i18n/core";
 import { actorFor } from "../../../src/modules/platform/auth";
+import { authPool } from "../../../src/lib/auth";
 import { db } from "../../../src/modules/platform/db";
 
 export const dynamic = "force-dynamic";
@@ -49,24 +50,37 @@ export default async function AdminDirectory({ searchParams }: { searchParams: P
   let total = 0;
   let entries: React.ReactNode = null;
   if (view === "users") {
-    const where = q ? { OR: [{ displayName: search }, { id: search }] } : {};
-    const [count, rows] = await Promise.all([
-      db().user.count({ where }),
-      db().user.findMany({
-        where, orderBy: { createdAt: "desc" }, skip, take: LIMIT,
-        select: { id: true, displayName: true, role: true, createdAt: true,
-          publishingStatus: true,
-          _count: { select: { quizzes: true, packs: true, playRuns: true, sessions: true } } },
-      }),
+    // Better Auth is the registration source of truth. A newly registered
+    // account may not yet have a QuizDip domain User record or play activity.
+    const pattern = "%" + q + "%";
+    const [countRows, pageRows] = await Promise.all([
+      authPool().query<{ count: string }>(
+        'SELECT COUNT(*)::text AS count FROM "user" WHERE "name" ILIKE $1 OR "id" ILIKE $1',
+        [pattern],
+      ),
+      authPool().query<{ id: string; name: string | null; createdAt: Date }>(
+        'SELECT "id", "name", "createdAt" FROM "user" WHERE "name" ILIKE $1 OR "id" ILIKE $1 ORDER BY "createdAt" DESC LIMIT $2 OFFSET $3',
+        [pattern, LIMIT, skip],
+      ),
     ]);
-    total = count;
-    entries = rows.map(u => <Link className="review-entry" key={u.id}
-      href={localizeHref("/admin/directory/users/" + encodeURIComponent(u.id), locale)}>
-      <span className="review-entry-copy"><strong>{u.displayName}</strong>
-        <small>{u.role} · {tr("Joined", "가입")} {date(u.createdAt)} · {u.publishingStatus}</small>
-        <small>{tr("Packs", "팩")} {u._count.packs} · {tr("Questions", "문제")} {u._count.quizzes} · {tr("Runs", "플레이")} {u._count.playRuns} · {tr("Question sessions", "문제 풀이 기록")} {u._count.sessions}</small>
-      </span><span className="review-entry-right"><span aria-hidden="true">›</span></span>
-    </Link>);
+    total = Number(countRows.rows[0]?.count ?? 0);
+    const identities = pageRows.rows;
+    const profiles = identities.length ? await db().user.findMany({
+      where: { id: { in: identities.map(u => u.id) } },
+      select: { id: true, displayName: true, role: true, publishingStatus: true,
+        _count: { select: { quizzes: true, packs: true, playRuns: true, sessions: true } } },
+    }) : [];
+    const profileById = new Map(profiles.map(p => [p.id, p]));
+    entries = identities.map(identity => {
+      const u = profileById.get(identity.id);
+      return <Link className="review-entry" key={identity.id}
+        href={localizeHref("/admin/directory/users/" + encodeURIComponent(identity.id), locale)}>
+        <span className="review-entry-copy"><strong>{u?.displayName || identity.name || tr("Unnamed account", "이름 없는 계정")}</strong>
+          <small>{u?.role ?? "MEMBER"} · {tr("Joined", "가입")} {date(identity.createdAt)} · {u?.publishingStatus ?? "ACTIVE"}</small>
+          <small>{tr("Packs", "팩")} {u?._count.packs ?? 0} · {tr("Questions", "문제")} {u?._count.quizzes ?? 0} · {tr("Runs", "플레이")} {u?._count.playRuns ?? 0} · {tr("Question sessions", "문제 풀이 기록")} {u?._count.sessions ?? 0}</small>
+        </span><span className="review-entry-right"><span aria-hidden="true">›</span></span>
+      </Link>;
+    });
   } else if (view === "packs") {
     const where = { ...(q ? { OR: [{ title: search }, { author: { displayName: search } }] } : {}),
       ...(status ? { publication: status } : {}) };

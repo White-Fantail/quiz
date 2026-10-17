@@ -25,10 +25,12 @@ test("directory pages guard account data behind verified ADMIN role", () => {
 
 test("directory covers all users, packs, quizzes, and play runs", () => {
   const page = source("app/admin/directory/page.tsx");
-  for (const model of ["user", "quizPack", "quiz", "playRun"]) {
+  for (const model of ["quizPack", "quiz", "playRun"]) {
     assert.match(page, new RegExp("db\\(\\)\\." + model + "\\.findMany\\("));
     assert.match(page, new RegExp("db\\(\\)\\." + model + "\\.count\\("));
   }
+  assert.match(page, /authPool\(\)\.query/);
+  assert.match(page, /FROM "user"/);
   assert.match(page, /take: LIMIT/);
   assert.match(page, /skip/);
 });
