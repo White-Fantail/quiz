@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocale } from "../i18n/provider";
 import { localizeHref } from "../i18n/core";
+import { publicResultSharePayload } from "../lib/result-social-share";
 
 type PackResultShareProps = {
   packId: string;
@@ -144,6 +145,7 @@ export default function PackResultShare({ packId, title, score, completed, solve
   const [shareId, setShareId] = useState(existingShareId || "");
   const creatingShareRef = useRef<Promise<string> | null>(null);
   const [shareBusy, setShareBusy] = useState(false);
+  const [socialReadyFor, setSocialReadyFor] = useState<"facebook" | "x" | null>(null);
 
   useEffect(() => {
     setPackUrl(new URL(localizeHref("/packs/" + packId, locale), window.location.origin).href);
@@ -242,48 +244,69 @@ export default function PackResultShare({ packId, title, score, completed, solve
     } finally {setShareBusy(false);}
   }
 
-  /** Mobile: use native sharing without opening an empty tab. Desktop: use URL intents. */
+  /** iOS requires a fresh user gesture to open the native share sheet.
+   *  On first share, prepare the public result link and ask for a second tap.
+   *  Never send the pack URL in place of the result (it has no score-card OG image).
+   */
   async function shareSocial(site:"facebook"|"x") {
     const mobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-    // Mobile share must be invoked during the user gesture, not after an async request.
-    // Existing public URLs are available synchronously; otherwise share the pack URL
-    // and prepare the personal result link separately for subsequent shares.
+    if (mobile && !resultUrl) {
+      setShareBusy(true);
+      setNotice("");
+      try {
+        await publicResultUrl();
+        setSocialReadyFor(site);
+        setNotice(korean
+          ? "결과 링크가 준비됐어요. " + (site === "facebook" ? "Facebook" : "X") + " 버튼을 한 번 더 눌러 공유해 주세요."
+          : "Your result link is ready. Tap " + (site === "facebook" ? "Facebook" : "X") + " once more to share.");
+      } catch {
+        setSocialReadyFor(null);
+        setNotice(korean ? "결과 링크를 만들지 못했어요. 다시 시도해 주세요." : "Couldn't prepare your result link. Please try again.");
+      } finally {
+        setShareBusy(false);
+      }
+      return;
+    }
+
     if (mobile && navigator.share) {
       setNotice("");
-      const url = resultUrl || packUrl;
-      if (!url) return;
       try {
-        void navigator.share({title:title+" · QuizDip",text:shareText,url}).then(() => {
+        // Send only the result URL to Facebook so it can read the OG preview.
+        const payload = publicResultSharePayload(site, resultUrl, title, shareText);
+        void navigator.share(payload).then(() => {
           setNotice(korean ? "공유한 앱에서 게시 내용을 확인해 주세요." : "Check the post in the selected app.");
         }).catch(error => {
           if (error instanceof DOMException && error.name === "AbortError") return;
           setNotice(korean ? "공유에 실패했어요. 결과 링크 복사를 이용해 주세요." : "Sharing failed. Copy the result link instead.");
         });
-        // Prepare the public result URL for future shares without delaying the share sheet.
-        if (!resultUrl) void publicResultUrl().catch(() => {});
+        setSocialReadyFor(null);
       } catch {
         setNotice(korean ? "공유 메뉴를 열지 못했어요. 결과 링크를 복사해 주세요." : "Couldn't open the share menu. Copy the result link.");
       }
       return;
     }
-    // Desktop browsers can safely open a placeholder synchronously while the
-    // public result link is prepared, avoiding popup blocking.
-    const popup=window.open("about:blank","_blank");
-    if (popup) popup.opener=null;
-    setShareBusy(true);setNotice("");
+
+    // Desktop: open during the click gesture, then navigate after generating
+    // the result link. Mobile browsers without Web Share use this fallback.
+    const popup = window.open("about:blank", "_blank");
+    if (popup) popup.opener = null;
+    setShareBusy(true);
+    setNotice("");
     try {
-      const url=await publicResultUrl();
-      const facebookUrl=new URL(url);
-      facebookUrl.searchParams.set("preview","4");
-      const target=site==="facebook"
-        ? "https://www.facebook.com/sharer/sharer.php?u="+encodeURIComponent(facebookUrl.href)
-        : "https://twitter.com/intent/tweet?text="+encodeURIComponent(shareText)+"&url="+encodeURIComponent(url);
-      if(popup) popup.location.replace(target);
+      const url = publicResultSharePayload(site, await publicResultUrl(), title, shareText).url!;
+      const facebookUrl = new URL(url);
+      facebookUrl.searchParams.set("preview", "4");
+      const target = site === "facebook"
+        ? "https://www.facebook.com/sharer/sharer.php?u=" + encodeURIComponent(facebookUrl.href)
+        : "https://twitter.com/intent/tweet?text=" + encodeURIComponent(shareText) + "&url=" + encodeURIComponent(url);
+      if (popup) popup.location.replace(target);
       else setNotice(korean ? "새 창이 차단됐어요. 결과 링크를 복사해 공유해 주세요." : "Pop-up blocked. Copy the result link to share instead.");
     } catch {
       popup?.close();
       setNotice(korean ? "공유 링크를 만들지 못했어요." : "Could not create a share link.");
-    } finally {setShareBusy(false);}
+    } finally {
+      setShareBusy(false);
+    }
   }
 
   /** Instagram has no normal web URL intent that can attach third-party image bytes. */
@@ -322,6 +345,7 @@ export default function PackResultShare({ packId, title, score, completed, solve
     try {
       await revokeShare();
       setShareId("");
+      setSocialReadyFor(null);
       setNotice(korean ? "공개 링크를 비활성화했어요." : "Public result link disabled.");
     } catch {
       setNotice(korean ? "공유 취소에 실패했어요." : "Could not disable the share link.");
@@ -351,9 +375,11 @@ export default function PackResultShare({ packId, title, score, completed, solve
       <span>{korean ? "소셜 미디어에 공유" : "Share to social media"}</span>
       <div className="pack-result-social-buttons">
         <button type="button" className="btn btn-outline" disabled={!packUrl||shareBusy}
-          onClick={() => void shareSocial("facebook")}>Facebook ↗</button>
+          onClick={() => void shareSocial("facebook")}>{socialReadyFor === "facebook" && resultUrl
+            ? (korean ? "Facebook 공유 계속 ↗" : "Continue to Facebook ↗") : "Facebook ↗"}</button>
         <button type="button" className="btn btn-outline" disabled={!packUrl||shareBusy}
-          onClick={() => void shareSocial("x")}>X ↗</button>
+          onClick={() => void shareSocial("x")}>{socialReadyFor === "x" && resultUrl
+            ? (korean ? "X 공유 계속 ↗" : "Continue to X ↗") : "X ↗"}</button>
         <button type="button" className="btn btn-outline" disabled={!asset||shareBusy}
           onClick={() => void shareInstagram()}>Instagram ↗</button>
       </div>
