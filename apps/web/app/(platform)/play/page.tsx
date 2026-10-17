@@ -19,13 +19,15 @@ import { storeCachedRun, syncCachedRun, recoverCachedRuns, runStorageKey } from 
 
 type Lane = "GENERAL" | "KIDS";
 type Mode = "RANDOM_FIVE" | "INFINITE" | "PACK";
+type Chapter={start:number;title:string;description:string;mediaUrl?:string|null};
+type ScoreReview={minimumScore:number;title:string;description:string};
 type Clue = { id?: string; type: "text"|"image"|"image-reveal"|"audio"|"video"|"map";
   text?: string; mediaId?: string; reveal?:RevealSettings; map?: {latitude:number;longitude:number;zoom?:number} };
 type RunInfo = {runId:string;runToken:string;mode:Mode;lane:Lane;packId?:string|null;packVersion?:number|null;
   completed:number;score:number;status:"ACTIVE"|"FINISHED";total:number|null;official?:boolean;
   solved?:number;failed?:number;exhausted?:boolean;message?:string};
 type Round = RunInfo & {sessionId:string;sessionToken:string;round:number;quizId:string;title:string;
-  prompt:string;promptMediaIds:string[];clues:Clue[];clueIndex:number;clueCount:number;
+  prompt:string;explanation?:string;promptMediaIds:string[];clues:Clue[];clueIndex:number;clueCount:number;
   sessionStatus:string;canGuess?:boolean;responseMode?:"text"|"multiple-choice";options?:string[];ratings?:RatingSummary;myRating?:number|null;ratingAccess?:RatingAccess};
 type LocalPack = {runId:string;questions:(LocalQuestion&{position:number;responseMode?:"text"|"multiple-choice";options?:string[]})[]};
 type LocalSaved = {bundle:LocalPack;progress:Record<number,LocalProgress>;runToken:string;synced?:boolean};
@@ -80,7 +82,9 @@ export default function PlayPage({packId}:{packId?:string}={}) {
   const localRunTokenRef=useRef("");
   const localProgressRef=useRef<Record<number,LocalProgress>>({});
   const [lane,setLane]=useState<Lane>("GENERAL");
-  const [pack,setPack]=useState<{id:string;title:string;description:string;questionCount:number;kidsEligible?:boolean;author:{displayName:string}}|null>(null);
+  const [pack,setPack]=useState<{id:string;title:string;description:string;questionCount:number;kidsEligible?:boolean;
+    sections:Chapter[];closingMessage:string;scoreReviews:ScoreReview[];author:{displayName:string}}|null>(null);
+  const [chapterIntro,setChapterIntro]=useState<Chapter|null>(null);
   const [run,setRun]=useState<RunInfo|null>(null);
   const [round,setRound]=useState<Round|null>(null);
   const [guess,setGuess]=useState("");
@@ -119,6 +123,7 @@ export default function PlayPage({packId}:{packId?:string}={}) {
     setRun(null);setRound(null);setError("");setFeedback("");setMedia({});
     setSyncState("idle");setSyncError("");setConfirmedRunId(null);
     setRemainingClues(null);setReviewOpen(false);setReviewBusy(false);setReviewError("");
+    setChapterIntro(null);
     if(!packId)void request("/runs?limit=5").then(value=>{if(alive)setMyHistory(value.items||[])}).catch(()=>{});
     return ()=>{alive=false;};
   },[lane,locale,packId]);
@@ -199,6 +204,7 @@ export default function PlayPage({packId}:{packId?:string}={}) {
     }));
   };
   const showRound=useCallback(async (r:RunInfo) => {
+    setChapterIntro(null);
     setRemainingClues(null);setReviewOpen(false);setReviewError("");
     if(r.mode!=="INFINITE"){
       localRunTokenRef.current=r.runToken;
@@ -230,9 +236,21 @@ export default function PlayPage({packId}:{packId?:string}={}) {
         setRound(null);setFeedback("");setMedia({});void syncLocal().catch(()=>{});return;
       }
       const q=questions[position],p=localProgressRef.current[q.position]??initialLocalProgress();
+      if(packId){
+        const seenKey="quizdip-chapter-viewed:"+r.runId+":"+q.position;
+        let viewed=false;
+        try{viewed=sessionStorage.getItem(seenKey)==="yes";}catch{}
+        if(!viewed){
+          try{
+            const latest=await request("/packs/"+packId+"?locale="+locale);
+            const section=(latest.sections??[] as Chapter[]).find((part:Chapter)=>part.start===q.position+1);
+            if(section)setChapterIntro(section);
+          }catch{/* Chapter metadata cannot block a cached playable round. */}
+        }
+      }
       const next:Round={...nextRun,sessionId:"local:"+q.quizId,
         sessionToken:r.runToken,round:q.position+1,quizId:q.quizId,title:q.title,
-        prompt:q.prompt,promptMediaIds:q.promptMediaIds,
+        prompt:q.prompt,explanation:q.explanation,promptMediaIds:q.promptMediaIds,
         clues:q.clues.slice(0,p.clueIndex) as unknown as Clue[],clueIndex:p.clueIndex,
         clueCount:q.clues.length,sessionStatus:p.status,canGuess:!p.mustReveal&&p.status==="ACTIVE",
         responseMode:q.answer.responseMode??"text",options:q.answer.options};
@@ -367,7 +385,8 @@ export default function PlayPage({packId}:{packId?:string}={}) {
       }else{
         setFeedback(result.correct?msg("Correct! 🎉","정답이에요! 🎉"):msg("That's the end of this question.","아쉽지만 이번 문제는 여기까지예요."));
         setAnswer(result.answer||"");setRoundScore(result.score||0);
-        setRound({...round,sessionStatus:result.status});
+        setRound({...round,sessionStatus:result.status,
+          explanation:result.explanation??round.explanation});
         setRun(previous=>previous?{
           ...previous,completed:previous.completed+1,score:previous.score+(result.score||0),
           solved:(previous.solved||0)+(result.correct?1:0),failed:(previous.failed||0)+(result.correct?0:1),
@@ -426,6 +445,7 @@ export default function PlayPage({packId}:{packId?:string}={}) {
   const isDone=!!round&&round.sessionStatus!=="ACTIVE";
   const remainingCount=round?Math.max(0,round.clueCount-round.clueIndex):0;
   const endReached=!!run&&(run.status==="FINISHED")&&(!round||isDone);
+  const scoreReview=[...(pack?.scoreReviews??[])].filter(review=>run&&run.score>=review.minimumScore).at(-1);
 
   // Keep a physical-keyboard player in the answer field after each new clue/round,
   // without opening the virtual keyboard unexpectedly on a touch device.
@@ -441,6 +461,14 @@ export default function PlayPage({packId}:{packId?:string}={}) {
       // Never interpret IME composition or a held key as a game action.
       if(event.repeat||event.isComposing||event.keyCode===229||
          event.altKey||event.shiftKey||busy||!round)return;
+      if(chapterIntro){
+        if(event.key==="Enter"&&!event.ctrlKey&&!event.metaKey){
+          event.preventDefault();
+          try{sessionStorage.setItem("quizdip-chapter-viewed:"+run?.runId+":"+(round.round-1),"yes");}catch{}
+          setChapterIntro(null);
+        }
+        return;
+      }
       if(!isDone&&!mustReveal&&round.responseMode==="multiple-choice"&&round.options){
         const index=answerShortcutIndex(event);
         const target=event.target;
@@ -482,7 +510,7 @@ export default function PlayPage({packId}:{packId?:string}={}) {
     }
     window.addEventListener("keydown",handleKeyboard);
     return ()=>window.removeEventListener("keydown",handleKeyboard);
-  },[round,isDone,busy,mustReveal,guess]);
+  },[round,isDone,busy,mustReveal,guess,chapterIntro,run?.runId]);
 
   return <main className="container inner-page play-experience">
     {packId?<div className="play-pack-intro">
@@ -549,7 +577,18 @@ export default function PlayPage({packId}:{packId?:string}={}) {
       </section>}
     </>}
 
-    {run&&(!packId||packStartStatus==="ready")&&<section className="play-panel play-live" aria-live="polite">
+    {run&&packId&&packStartStatus==="ready"&&chapterIntro&&<section className="play-panel play-chapter-intro" aria-live="polite">
+      <div className="small-tag">QUIZDIP · {msg("CHAPTER INTRODUCTION","파트 소개")}</div>
+      <p className="muted">{msg("Starting at question ","시작 문제 ")}{chapterIntro.start}</p>
+      <h2>{chapterIntro.title}</h2>
+      {chapterIntro.mediaUrl&&<img className="round-media" src={chapterIntro.mediaUrl} alt={chapterIntro.title} style={{maxHeight:420,objectFit:"contain",borderRadius:16}}/>}
+      {chapterIntro.description&&<p className="lead" style={{whiteSpace:"pre-wrap"}}>{chapterIntro.description}</p>}
+      <button type="button" className="btn btn-primary" onClick={()=>{
+        try{sessionStorage.setItem("quizdip-chapter-viewed:"+run.runId+":"+((round?.round??1)-1),"yes");}catch{}
+        setChapterIntro(null);
+      }}>{msg("Start chapter →","이 파트 시작하기 →")}</button>
+    </section>}
+    {run&&(!packId||packStartStatus==="ready")&&!chapterIntro&&<section className="play-panel play-live" aria-live="polite">
       <div className="play-top">
         <span className="small-tag">{mode==="PACK"?msg("Quiz pack","퀴즈팩"):mode==="RANDOM_FIVE"?msg("Quick five","랜덤 5문제"):msg("Continuous play","연속 플레이")}</span>
         <span className="clue-count">{run.completed}{msg(" quizzes finished · ","문제 완료 · ")}{run.score}{msg(" pts","점")}</span>
@@ -601,6 +640,10 @@ export default function PlayPage({packId}:{packId?:string}={}) {
         {feedback&&<div className={"feedback "+(answer&&roundScore>0?"success":"")} role="status">
           {feedback}{answer&&<p>{msg("Answer: ","정답: ")}<strong>{answer}</strong> · {roundScore}{msg(" pts","점")}</p>}
         </div>}
+        {isDone&&round.explanation&&<section className="feature-card quiz-answer-explanation" aria-label={msg("Answer explanation","정답 해설")}>
+          <h3>{msg("Why this is the answer","정답 해설")}</h3>
+          <p style={{whiteSpace:"pre-wrap"}}>{round.explanation}</p>
+        </section>}
         {isDone && remainingCount > 0 && <section className="remaining-clue-review">
           <button type="button" className="btn btn-outline" disabled={reviewBusy}
             aria-expanded={reviewOpen} onClick={() => void toggleRemainingClues()}>
@@ -627,7 +670,15 @@ export default function PlayPage({packId}:{packId?:string}={}) {
           <div className="round-finish-symbol">✦</div>
           <h2>{msg("Challenge complete!","이번 도전 완료!")}</h2>
           <p>{msg("Total ","총 ")}<strong>{run.score}{msg(" pts","점")}</strong> · {run.completed}{msg(" quizzes · ","문제 · ")}{msg("Correct ","정답 ")}{run.solved||0}</p>
-          {run.mode!=="INFINITE"&&syncState!=="saved"&&<div className="play-sync-status" role="status">
+          {run.mode==="PACK"&&pack?.closingMessage&&<section className="feature-card pack-ending-message">
+             <h3>{msg("From the creator","제작자의 마무리 글")}</h3>
+             <p style={{whiteSpace:"pre-wrap"}}>{pack.closingMessage}</p>
+           </section>}
+           {run.mode==="PACK"&&scoreReview&&<section className="feature-card pack-score-review">
+             <h3>{scoreReview.title}</h3>
+             {scoreReview.description&&<p style={{whiteSpace:"pre-wrap"}}>{scoreReview.description}</p>}
+           </section>}
+           {run.mode!=="INFINITE"&&syncState!=="saved"&&<div className="play-sync-status" role="status">
             <p>{syncState==="saving"
               ?msg("Saving your results to the server…","서버에 결과를 저장하는 중…")
               :syncState==="error"
