@@ -59,7 +59,7 @@ test("pack play opens directly without a second start screen and preserves guest
  assert.match(detail,/localizeHref\("\/packs\/"\+pack\.id\+"\/play",locale\)/);
  assert.match(play,/const \[packStartStatus,setPackStartStatus\]=useState/);
  assert.match(play,/if\(packStartKeyRef\.current===key\)return;/);
-  assert.match(play,/void bootPack\(packId\+":"\+locale\+":"\+\(resumeRunId\?\?""\),true\)/);
+ assert.match(play,/void bootPack\(key\);/);
  assert.match(play,/const raw=sessionStorage\.getItem\(storageKey\);/);
  assert.match(play,/if\(saved\)\{[\s\S]*?await showRound\(saved\);/);
  assert.match(play,/const started=await api\("\/runs","POST"/);
@@ -75,7 +75,7 @@ test("pack play opens directly without a second start screen and preserves guest
  assert.doesNotMatch(boot,/sessionStorage\.removeItem/);
  // Restart is always a separate, explicitly user-triggered action.
  assert.match(play,/onClick=\{\(\)=>\{[\s\S]*?sessionStorage\.removeItem\("quizdip-pack-run:/);
- assert.match(play,/void bootPack\(packId\+":"\+locale,true\)/);
+ assert.match(play,/void bootPack\(packId\+":"\+locale\+":"\+\(resumeRunId\?\?""\),true\)/);
 });
 
 test("history resume targets a specific live pack in its original language",()=>{
