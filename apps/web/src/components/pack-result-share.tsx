@@ -253,7 +253,7 @@ export default function PackResultShare({ packId, title, score, completed, solve
       // Version the Facebook URL when the OG renderer changes. Facebook can
       // otherwise reuse its previous cached "no image" card for the same run.
       const facebookUrl=new URL(url);
-      facebookUrl.searchParams.set("preview","2");
+      facebookUrl.searchParams.set("preview","3");
       const target=site==="facebook"
         ? "https://www.facebook.com/sharer/sharer.php?u="+encodeURIComponent(facebookUrl.href)
         : "https://twitter.com/intent/tweet?text="+encodeURIComponent(shareText)+"&url="+encodeURIComponent(url);
