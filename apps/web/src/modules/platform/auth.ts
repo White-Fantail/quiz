@@ -1,6 +1,7 @@
 import { hasKidCookie } from "../kids/credentials";
 import { auth, authPool, siteOrigin } from "../../lib/auth";
 import { db } from "./db";
+import { retryTransientDatabaseRead } from "../../lib/database-read-retry";
 
 export class PlatformError extends Error {
   constructor(public readonly status: number, public readonly code: string, message: string) { super(message); }
@@ -19,10 +20,10 @@ export type Actor = { id: string; role: string; displayName: string; leaderboard
  */
 export async function actorByIdentity(id: string): Promise<Actor> {
   if (!id || id.length > 200) fail(401, "invalid_identity", "Invalid account identity");
-  const identity = await authPool().query<{ name: string }>(
+  const identity = await retryTransientDatabaseRead(() => authPool().query<{ name: string }>(
     'SELECT "name" FROM "user" WHERE "id" = $1 LIMIT 1',
     [id],
-  );
+  ));
   if (!identity.rows[0]) fail(401, "invalid_identity", "Account does not exist");
   return db().user.upsert({
     where: { id },
@@ -45,7 +46,7 @@ export async function actorFor(request: Request): Promise<Actor | null> {
   if (request.headers.has("authorization")) {
     fail(401, "unsupported_credentials", "Use an authenticated web session for REST or OAuth for MCP");
   }
-  const session = await auth.api.getSession({ headers: request.headers });
+  const session = await retryTransientDatabaseRead(() => auth.api.getSession({ headers: request.headers }));
   if (!session?.user?.id) return null;
   return actorByIdentity(session.user.id);
 }
