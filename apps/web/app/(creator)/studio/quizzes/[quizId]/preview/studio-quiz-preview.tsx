@@ -21,7 +21,7 @@ type Clue={
 type Quiz={
   id:string;title:string;prompt:string;version:number;publication:string;locale:string;
   clueCount:number;clues:Clue[];promptMediaIds:string[];
-  answer:{canonical:string;aliases:string[];responseMode?:"text"|"multiple-choice";options?:string[]};ratings:RatingSummary;
+  explanation?:string;answer:{canonical:string;aliases:string[];responseMode?:"text"|"multiple-choice";options?:string[]};ratings:RatingSummary;
 };
 type Media={id:string;kind:"image"|"audio"|"video";previewUrl?:string;alt?:string;status:string};
 type Result="ACTIVE"|"SOLVED"|"FAILED"|"REVEALED";
@@ -194,6 +194,10 @@ export default function StudioQuizPreview({quizId,detailHref}:{quizId:string;det
         </div>
         {needsNext&&<p className="muted">{msg("Reveal another clue before guessing again.","다음 단서를 열면 다시 답할 수 있어요.")}</p>}
       </form>}
+      {result!=="ACTIVE"&&quiz.explanation&&<section className="feature-card quiz-answer-explanation">
+        <h3>{msg("Answer explanation","정답 해설")}</h3>
+        <p style={{whiteSpace:"pre-wrap"}}>{quiz.explanation}</p>
+      </section>}
       {feedback&&<div role="status" className={"feedback"+(result==="SOLVED"?" success":"")}>
         {feedback}
         {result!=="ACTIVE"&&<p>{msg("Answer: ","정답: ")}

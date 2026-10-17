@@ -79,6 +79,7 @@ export default function PlayPage({packId}:{packId?:string}={}) {
   const msg=(en:string,ko:string)=>bilingual(locale,en,ko);
   const request=(path:string,method:"GET"|"POST"="GET",body?:unknown)=>api(path,method,body,locale);
   const localBundleRef=useRef<LocalPack|null>(null);
+  const chapterStartsRef=useRef<number[]|null>(null);
   const localRunTokenRef=useRef("");
   const localProgressRef=useRef<Record<number,LocalProgress>>({});
   const [lane,setLane]=useState<Lane>("GENERAL");
@@ -124,6 +125,7 @@ export default function PlayPage({packId}:{packId?:string}={}) {
     setSyncState("idle");setSyncError("");setConfirmedRunId(null);
     setRemainingClues(null);setReviewOpen(false);setReviewBusy(false);setReviewError("");
     setChapterIntro(null);
+    chapterStartsRef.current=null;
     if(!packId)void request("/runs?limit=5").then(value=>{if(alive)setMyHistory(value.items||[])}).catch(()=>{});
     return ()=>{alive=false;};
   },[lane,locale,packId]);
@@ -237,15 +239,27 @@ export default function PlayPage({packId}:{packId?:string}={}) {
       }
       const q=questions[position],p=localProgressRef.current[q.position]??initialLocalProgress();
       if(packId){
-        const seenKey="quizdip-chapter-viewed:"+r.runId+":"+q.position;
-        let viewed=false;
-        try{viewed=sessionStorage.getItem(seenKey)==="yes";}catch{}
-        if(!viewed){
+        let freshSections:Chapter[]=[];
+        if(chapterStartsRef.current===null){
           try{
             const latest=await request("/packs/"+packId+"?locale="+locale);
-            const section=(latest.sections??[] as Chapter[]).find((part:Chapter)=>part.start===q.position+1);
-            if(section)setChapterIntro(section);
-          }catch{/* Chapter metadata cannot block a cached playable round. */}
+            freshSections=latest.sections??[];
+            chapterStartsRef.current=freshSections.map(part=>part.start);
+          }catch{chapterStartsRef.current=[];}
+        }
+        if(chapterStartsRef.current.includes(q.position+1)){
+          const seenKey="quizdip-chapter-viewed:"+r.runId+":"+q.position;
+          let viewed=false;
+          try{viewed=sessionStorage.getItem(seenKey)==="yes";}catch{}
+          if(!viewed){
+            try{
+              // Refresh signed image URLs only for a chapter we are actually entering.
+              const section=freshSections.find(part=>part.start===q.position+1)??(
+                (await request("/packs/"+packId+"?locale="+locale)).sections as Chapter[]
+              ).find(part=>part.start===q.position+1);
+              if(section)setChapterIntro(section);
+            }catch{/* Chapter metadata cannot block a cached playable round. */}
+          }
         }
       }
       const next:Round={...nextRun,sessionId:"local:"+q.quizId,
