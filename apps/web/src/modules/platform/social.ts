@@ -1,4 +1,5 @@
 import { db } from "./db";
+import { previewUrl } from "./storage";
 import { requirePublishingPermission, assertPublishingAllowedInTx, submitReport } from "./moderation";
 import { validateMediaReferences } from "./media";
 import { isTrustedMcpAdmin } from "./auto-approval";
@@ -8,6 +9,45 @@ import { currentPlayableRevision } from "./content-locale";
 import { safePack } from "./feature-eligibility";
 import { fail, requireActor, type Actor } from "./auth";
 import { playableQuizWhere } from "./content-locale";
+
+type PackSection={start:number;title:string;description?:string};
+/** Sections are one-based boundaries within creator order; no new gameplay mode. */
+function checkPackSections(input:unknown, count:number,orderMode:string):PackSection[]{
+  const sections=(Array.isArray(input)?input:[]) as PackSection[];
+  if(sections.length && orderMode!=="CREATOR")
+    fail(400,"section_order","Part boundaries require creator-defined question order");
+  if(sections.length && sections[0].start!==1)
+    fail(400,"section_start","The first part must begin at question 1");
+  if(sections.some((s,i)=>!Number.isInteger(s.start)||s.start<1||s.start>count||
+      (i>0&&s.start<=sections[i-1].start)))
+    fail(400,"section_bounds","Part boundaries must be unique and in ascending question order");
+  return sections;
+}
+async function checkPackCover(id:string|null|undefined,ownerId:string,publicUse=false){
+  if(!id)return null;
+  const image=await db().mediaAsset.findFirst({where:{
+    id,ownerId,kind:"image",status:"READY",deletedAt:null,
+    ...(publicUse?{moderationStatus:"APPROVED"}:{moderationStatus:{not:"RESTRICTED"}})
+  },select:{id:true,storageKey:true,mimeType:true}});
+  if(!image)fail(400,"invalid_pack_cover",
+    publicUse?"Published pack cover must be approved":"Select a ready, unrestricted image from your media library");
+  return image;
+}
+function visibleSections(input:unknown,originalIds:string[],shownIds:string[]):PackSection[]{
+  const raw=(Array.isArray(input)?input:[]) as PackSection[];
+  return raw.flatMap((section,index)=>{
+    const end=index+1<raw.length?raw[index+1].start-1:originalIds.length;
+    const ids=originalIds.slice(section.start-1,end);
+    const at=shownIds.findIndex(id=>ids.includes(id));
+    return at<0?[]:[{start:at+1,title:section.title,description:section.description??""}];
+  });
+}
+async function publicPackCover(id:string|null){
+  if(!id)return null;
+  const item=await db().mediaAsset.findFirst({where:{id,kind:"image",status:"READY",
+    moderationStatus:"APPROVED",deletedAt:null},select:{storageKey:true,mimeType:true}});
+  return item?await previewUrl(item.storageKey,item.mimeType):null;
+}
 
 async function getPublicQuiz(quizId: string) {
   const q = await db().quiz.findUnique({ where: { id: quizId } });
@@ -119,8 +159,11 @@ export async function packPreflight(p:Record<string,any>,actor:Actor|null) {
 export async function packCreate(p: Record<string, any>, actor: Actor | null) {
   const user = requireActor(actor);
   await validatePackQuestions(p.quizIds, user.id);
+  checkPackSections(p.sections ?? [],p.quizIds.length,p.orderMode);
+  await checkPackCover(p.coverMediaId,user.id);
   const pack = await db().quizPack.create({
     data: { authorId: user.id, title: p.title, description: p.description,
+      coverMediaId:p.coverMediaId ?? null,sections:p.sections ?? [],
       sourceLocale: p.locale,orderMode:p.orderMode,
       localizations: { create: { locale: p.locale, title: p.title, description: p.description, status: "DRAFT" } },
       items: { create: p.quizIds.map((quizId: string, index: number) => ({ quizId, position: index + 1 })) } },
@@ -156,7 +199,7 @@ export async function myPackGet(p:Record<string,any>,actor:Actor|null) {
     try{await safePack(pack.id,pack.sourceLocale as "en"|"ko","KIDS",{skipPackApproval:true});kidsReady=true;}
     catch(error){kidsIssue=error instanceof Error?error.message:"Kids review prerequisites are not met";}
   }
-  return {id:pack.id,title:pack.title,description:pack.description,currentVersion:pack.currentVersion,
+  return {id:pack.id,title:pack.title,description:pack.description,coverMediaId:pack.coverMediaId,sections:pack.sections,currentVersion:pack.currentVersion,
     publication:pack.publication,sourceLocale:pack.sourceLocale,orderMode:pack.orderMode,
     safetyStatus:pack.safetyStatus,kidsEligible:pack.kidsEligible,
     kidsReviewStatus:pack.kidsReviewStatus,kidsReady,kidsIssue,excludedCount,
@@ -284,6 +327,10 @@ export async function packUpdate(p: Record<string, any>, actor: Actor | null) {
   const ids: string[] = p.quizIds ?? old.items.sort((a, b) => a.position - b.position).map(i => i.quizId);
   if (p.publication === "PUBLISHED" && p.confirm !== true) fail(400, "confirmation_required", "Confirm publishing the pack");
   // Do not stop a creator editing pack metadata merely because an existing member was restricted.
+  checkPackSections(p.sections ?? old.sections,ids.length,p.orderMode ?? old.orderMode);
+  if(p.coverMediaId !== undefined || p.publication==="PUBLISHED" || old.publication==="PUBLISHED")
+    await checkPackCover(p.coverMediaId === undefined ? old.coverMediaId : p.coverMediaId,user.id,
+      p.publication==="PUBLISHED" || (old.publication==="PUBLISHED" && p.publication!=="DRAFT"));
   if(p.quizIds || p.publication==="PUBLISHED")
     await validatePackQuestions(ids,user.id,p.publication==="PUBLISHED" ||
       (old.publication==="PUBLISHED"&&p.publication!=="DRAFT"),old.sourceLocale,old.items.map(item=>item.quizId));
@@ -299,6 +346,8 @@ export async function packUpdate(p: Record<string, any>, actor: Actor | null) {
         ...(p.title !== undefined ? {title:p.title}:{}),
         ...(p.description !== undefined ? {description:p.description}:{}),
         ...(p.orderMode !== undefined ? {orderMode:p.orderMode}:{}),
+        ...(p.coverMediaId !== undefined ? {coverMediaId:p.coverMediaId}:{}),
+        ...(p.sections !== undefined ? {sections:p.sections}:{}),
         ...(p.publication ? {publication:p.publication}:{})
       }
     });
@@ -329,6 +378,10 @@ export async function packPublishPreview(p:Record<string,any>,actor:Actor|null) 
   if(!ids.length)issues.push("empty_pack");
   if(new Set(ids).size!==ids.length)issues.push("duplicate_quiz");
   if(pack.sourceLocale==="und")issues.push("unclassified_pack_locale");
+  try{checkPackSections(pack.sections,ids.length,pack.orderMode);}
+  catch{issues.push("invalid_sections");}
+  try{await checkPackCover(pack.coverMediaId,user.id,true);}
+  catch{issues.push("invalid_cover_media");}
   const questions=await db().quiz.findMany({where:{id:{in:ids}},
     include:{localizations:true}});
   const byId=new Map(questions.map(q=>[q.id,q]));
@@ -456,8 +509,12 @@ export async function packGet(p:Record<string,any>,actor:Actor|null){
   if(!pack||!pack.items.length||!pack.localizations[0])
     fail(404,"not_found","Published quiz pack is unavailable");
   const safe=await safePack(pack.id,locale,"GENERAL");
+  const allIds=pack.items.map(item=>item.quizId);
+  const sections=visibleSections(pack.sections,allIds,safe.items.map(item=>item.quizId));
+  const coverMediaUrl=await publicPackCover(pack.coverMediaId);
   return {id:pack.id,title:pack.localizations[0].title,
     description:pack.localizations[0].description,author:pack.author,
+    coverMediaUrl,sections,
     questionCount:safe.questionCount,originalQuestionCount:safe.originalQuestionCount,
     excludedCount:safe.excludedCount,orderMode:pack.orderMode,ratings:await packRatingFor(pack.id,locale),
     locale,publication:pack.publication,currentVersion:pack.currentVersion,
