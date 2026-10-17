@@ -152,7 +152,7 @@ export default function PackEditor({packId,detailHref}:{packId?:string;detailHre
       <label>{ko?"문제 출제 순서":"Question order"}
         <select value={orderMode} onChange={e=>{setOrderMode(e.target.value as "CREATOR"|"RANDOM");change();}}>
           <option value="CREATOR">{ko?"등록한 순서대로":"Creator-defined order"}</option>
-          <option value="RANDOM">{ko?"플레이마다 랜덤으로":"Random each play"}</option>
+          <option value="RANDOM" disabled={sections.length>0}>{ko?"플레이마다 랜덤으로":"Random each play"}</option>
         </select>
       </label>
     </div>

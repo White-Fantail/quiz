@@ -54,7 +54,7 @@ test("chapter interstitials are outside rounds, while explanations and endings a
   assert.match(player,/scoreReview/);
   const webSolo=read("app/(platform)/play/[quizId]/page.tsx");
   assert.match(webSolo,/status!=="ACTIVE"&&localQuestion\.current\?\.explanation/);
-  const native=read("../../kids/app/game.tsx");
+  const native=read("../kids/app/game.tsx");
   assert.match(native,/ended&&question\.explanation/);
   const serverGuess=read("src/modules/platform/play.ts");
   assert.match(serverGuess,/correct \|\| failed \? \{ answer: answer\.canonical, explanation:/);
