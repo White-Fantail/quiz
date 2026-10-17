@@ -6,9 +6,10 @@ import {useRouter} from "next/navigation";
 import {useLocale} from "../../../../src/i18n/provider";
 import {localizeHref} from "../../../../src/i18n/core";
 import MediaPicker from "../quizzes/quiz-media-picker";
-type PackSection={start:number;title:string;description:string};
+type PackSection={start:number;title:string;description:string;mediaId?:string|null};
+type ScoreReview={minimumScore:number;title:string;description:string};
 
-type Pack={id:string;title:string;description:string;coverMediaId?:string|null;sections?:PackSection[];publication:string;sourceLocale:string;orderMode:"CREATOR"|"RANDOM";
+type Pack={id:string;title:string;description:string;coverMediaId?:string|null;sections?:PackSection[];closingMessage?:string;scoreReviews?:ScoreReview[];publication:string;sourceLocale:string;orderMode:"CREATOR"|"RANDOM";
   kidsReviewStatus:string;kidsEligible:boolean;kidsReady:boolean;kidsIssue:string;excludedCount:number;
   quizIds:string[];members:{id:string;title:string}[]};
 type Quiz={id:string;title:string;publication:string};
@@ -33,6 +34,9 @@ export default function PackEditor({packId,detailHref}:{packId?:string;detailHre
   const [coverPreview,setCoverPreview]=useState("");
   const [coverPicker,setCoverPicker]=useState(false);
   const [sections,setSections]=useState<PackSection[]>([]);
+  const [chapterPicker,setChapterPicker]=useState<number|null>(null);
+  const [closingMessage,setClosingMessage]=useState("");
+  const [scoreReviews,setScoreReviews]=useState<ScoreReview[]>([]);
   const [language,setLanguage]=useState<"en"|"ko">(locale);
   const [orderMode,setOrderMode]=useState<"CREATOR"|"RANDOM">("CREATOR");
   const [members,setMembers]=useState<string[]>([]);
@@ -51,6 +55,7 @@ export default function PackEditor({packId,detailHref}:{packId?:string;detailHre
         if(!active)return;
         setTitle(pack.title);setDescription(pack.description||"");setMembers(pack.quizIds);
         setCoverMediaId(pack.coverMediaId??null);setSections(pack.sections??[]);
+        setClosingMessage(pack.closingMessage??"");setScoreReviews(pack.scoreReviews??[]);
         setOrderMode(pack.orderMode||"CREATOR");setPublication(pack.publication);
         setMemberTitles(Object.fromEntries(pack.members.map(member=>[member.id,member.title])));
         setLanguage(pack.sourceLocale==="ko"?"ko":"en");
@@ -96,7 +101,7 @@ export default function PackEditor({packId,detailHref}:{packId?:string;detailHre
     if(!title.trim()||!members.length){setError(ko?"제목과 최소 한 문제를 선택하세요.":"Choose a title and at least one question.");return;}
     setBusy(true);setError("");setNotice("");
     try{
-      const body={title:title.trim(),description,coverMediaId,sections,quizIds:members,orderMode};
+      const body={title:title.trim(),description,coverMediaId,sections,closingMessage,scoreReviews,quizIds:members,orderMode};
       if(packId){
         await api("/packs/"+encodeURIComponent(packId),"PATCH",body);
         setDirty(false);
@@ -167,13 +172,58 @@ export default function PackEditor({packId,detailHref}:{packId?:string;detailHre
           <textarea rows={2} maxLength={500} value={section.description}
             onChange={e=>{setSections(old=>old.map((s,i)=>i===index?{...s,description:e.target.value}:s));change();}}/>
         </label>
-        <button type="button" className="btn btn-outline" onClick={()=>{setSections(old=>old.filter((_,i)=>i!==index));change();}}>{ko?"파트 제거":"Remove chapter"}</button>
+        <div className="studio-wide">
+          <p className="muted">{ko?"파트 소개 이미지 · 선택":"Chapter image · optional"}</p>
+          {section.mediaId&&<p><code>{section.mediaId}</code></p>}
+          <div className="actions">
+            <button type="button" className="btn btn-outline" onClick={()=>setChapterPicker(chapterPicker===index?null:index)}>
+              {chapterPicker===index?(ko?"선택 닫기":"Close picker"):(ko?"파트 이미지 선택":"Choose chapter image")}
+            </button>
+            {section.mediaId&&<button type="button" className="btn btn-outline" onClick={()=>{
+              setSections(old=>old.map((part,i)=>i===index?{...part,mediaId:null}:part));change();
+            }}>{ko?"이미지 제거":"Remove image"}</button>}
+          </div>
+          {chapterPicker===index&&<MediaPicker kind="image" selectedId={section.mediaId??""}
+            onSelect={id=>{setSections(old=>old.map((part,i)=>i===index?{...part,mediaId:id}:part));setChapterPicker(null);change();}}
+            onClose={()=>setChapterPicker(null)}/>}
+        </div>
+        <button type="button" className="btn btn-outline" onClick={()=>{setSections(old=>old.filter((_,i)=>i!==index));setChapterPicker(null);change();}}>{ko?"파트 제거":"Remove chapter"}</button>
       </div>)}
       <button className="btn btn-outline" type="button" disabled={!members.length||sections.length>=members.length||sections.length>=30}
         onClick={()=>{
           const start=sections.length?sections[sections.length-1].start+1:1;
           if(start<=members.length){setSections(old=>[...old,{start,title:"",description:""}]);setOrderMode("CREATOR");change();}
         }}>+ {ko?"파트 추가":"Add chapter"}</button>
+    </section>
+    <section className="feature-card">
+      <h2>{ko?"퀴즈팩 마무리 · 선택":"Pack ending · optional"}</h2>
+      <p className="muted">{ko?"전체 문제를 마친 뒤 결과와 함께 보여줄 제작자의 글입니다.":"Your final note is shown alongside the results after all questions."}</p>
+      <label>{ko?"마무리 문구 / 종합 설명":"Closing message / overview"}
+        <textarea rows={5} maxLength={4000} value={closingMessage}
+          onChange={e=>{setClosingMessage(e.target.value);change();}}
+          placeholder={ko?"오늘의 퀴즈를 마치며…":"Now that you've finished…"} />
+      </label>
+      <h3>{ko?"점수에 따른 평가 · 선택":"Score commentary · optional"}</h3>
+      <p className="muted">{ko?"최소 총점을 기준으로 가장 높은 구간의 평가 한 개를 보여줍니다. 예: 0점, 200점, 400점. 점수가 높아지는 순서로 입력하세요.":"Set increasing minimum total points (such as 0, 200, 400). The highest qualifying commentary will appear."}</p>
+      {scoreReviews.map((band,index)=><div key={index} className="studio-form-grid" style={{marginBottom:16}}>
+        <label>{ko?"최소 총점":"Minimum total points"}
+          <input type="number" min={0} max={10000} value={band.minimumScore}
+            onChange={e=>{setScoreReviews(old=>old.map((v,i)=>i===index?{...v,minimumScore:Number(e.target.value)}:v));change();}}/>
+        </label>
+        <label>{ko?"평가 제목":"Rating title"}
+          <input maxLength={120} value={band.title}
+            onChange={e=>{setScoreReviews(old=>old.map((v,i)=>i===index?{...v,title:e.target.value}:v));change();}}/>
+        </label>
+        <label className="studio-wide">{ko?"평가 내용":"Rating message"}
+          <textarea rows={3} maxLength={1500} value={band.description}
+            onChange={e=>{setScoreReviews(old=>old.map((v,i)=>i===index?{...v,description:e.target.value}:v));change();}}/>
+        </label>
+        <button type="button" className="btn btn-outline" onClick={()=>{setScoreReviews(old=>old.filter((_,i)=>i!==index));change();}}>{ko?"구간 삭제":"Remove score band"}</button>
+      </div>)}
+      <button type="button" className="btn btn-outline" disabled={scoreReviews.length>=20}
+        onClick={()=>{setScoreReviews(old=>[...old,{minimumScore:old.length?old[old.length-1].minimumScore+100:0,title:"",description:""}]);change();}}>
+        + {ko?"점수 평가 추가":"Add score commentary"}
+      </button>
     </section>
     <div className="pack-editor-columns">
       <section className="feature-card">
