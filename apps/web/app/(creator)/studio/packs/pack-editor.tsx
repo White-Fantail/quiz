@@ -17,6 +17,20 @@ type QuizPage={items:Quiz[];total:number};
 type Preview={ready:boolean;issues:string[];draftCount:number;questionCount:number};
 type Insights={runs:number;completed:number;averageSolved:number|null;ratings:{positive:number;negative:number};reportCounts:{reason:string;count:number}[]};
 const PAGE_SIZE=20;
+function ChapterImagePreview({mediaId,ko}:{mediaId:string;ko:boolean}){
+  const [src,setSrc]=useState("");
+  useEffect(()=>{
+    let active=true;
+    void fetch("/api/v1/media/"+encodeURIComponent(mediaId)+"?purpose=thumbnail",{credentials:"same-origin"})
+      .then(response=>response.ok?response.json():null)
+      .then(body=>{if(active)setSrc(body?.data?.thumbnailUrl||"");})
+      .catch(()=>{if(active)setSrc("");});
+    return ()=>{active=false;};
+  },[mediaId]);
+  return src?<img src={src} alt={ko?"파트 이미지 미리보기":"Chapter image preview"}
+    style={{width:180,maxHeight:130,objectFit:"contain",borderRadius:12}}/>:
+    <p className="muted">{ko?"선택한 이미지":"Image selected"}: {mediaId}</p>;
+}
 async function api(path:string,method="GET",body?:object){
   const response=await fetch("/api/v1"+path,{method,credentials:"same-origin",cache:"no-store",
     headers:body?{"Content-Type":"application/json"}:{},body:body?JSON.stringify(body):undefined});
@@ -174,7 +188,7 @@ export default function PackEditor({packId,detailHref}:{packId?:string;detailHre
         </label>
         <div className="studio-wide">
           <p className="muted">{ko?"파트 소개 이미지 · 선택":"Chapter image · optional"}</p>
-          {section.mediaId&&<p><code>{section.mediaId}</code></p>}
+          {section.mediaId&&<ChapterImagePreview mediaId={section.mediaId} ko={ko}/>}
           <div className="actions">
             <button type="button" className="btn btn-outline" onClick={()=>setChapterPicker(chapterPicker===index?null:index)}>
               {chapterPicker===index?(ko?"선택 닫기":"Close picker"):(ko?"파트 이미지 선택":"Choose chapter image")}
